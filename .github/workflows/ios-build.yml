@@ -27,9 +27,17 @@ on:
     tags:
       - 'v*'
 
+# 同一时间只保留一个运行中的构建；重复点 Run workflow 会自动取消上一个排队/运行中的任务，
+# 避免 macos 稀缺 runner 上堆积多个互相抢占的队列任务。
+concurrency:
+  group: ios-free-build
+  cancel-in-progress: true
+
 env:
   FLUTTER_VERSION: '3.24.0'
   APP_NAME: 'pocket-ledger'
+  # 关掉 CocoaPods 每次都尝试上报统计的网络请求，减少 pod install 卡顿
+  COCOAPODS_DISABLE_STATS: '1'
 
 jobs:
   build:
@@ -71,6 +79,14 @@ jobs:
           key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
           restore-keys: |
             pods-${{ runner.os }}-
+
+      # 把 pod install 单独拆成一步：这样日志里能清楚看到「pod 装了多久」，
+      # 不会和 Xcode 编译混在一起。--no-repo-update 避免每次去 CDN 拉 spec 仓库而卡死。
+      # flutter build 检测到 Pods 已就绪会跳过，不会重复安装。
+      - name: 安装 CocoaPods 依赖
+        run: |
+          cd ios
+          pod install --no-repo-update
 
       # ---------------------------------------------------------------
       # 路径 B：导入签名材料（免费账号 = development 证书 + 描述文件）
