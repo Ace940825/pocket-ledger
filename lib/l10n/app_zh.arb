@@ -1,0 +1,69 @@
+{
+  "@@locale": "zh",
+  "appName": "口袋账本",
+
+  "tabHome": "首页",
+  "tabLedger": "流水",
+  "tabAccounts": "账户",
+  "tabBudget": "预算",
+  "tabReport": "报表",
+
+  "commonSave": "保存",
+  "commonCancel": "取消",
+  "commonDelete": "删除",
+  "commonEdit": "编辑",
+  "commonAdd": "添加",
+  "commonConfirm": "确定",
+  "commonSearch": "搜索",
+  "commonEmpty": "暂无数据",
+  "commonRetry": "重试",
+  "commonAll": "全部",
+
+  "ledgerTitle": "流水",
+  "ledgerAdd": "记一笔",
+  "ledgerEdit": "编辑流水",
+  "ledgerAmount": "金额",
+  "ledgerCategory": "分类",
+  "ledgerAccount": "账户",
+  "ledgerDate": "日期",
+  "ledgerNote": "备注",
+  "ledgerEmpty": "还没有记账记录，点右下角记一笔吧",
+
+  "accountTitle": "账户",
+  "accountAdd": "新增账户",
+  "accountBalance": "余额",
+  "accountNetAssets": "净资产",
+  "accountTotalAssets": "总资产",
+  "accountTotalLiabilities": "总负债",
+
+  "budgetTitle": "预算",
+  "budgetAdd": "新增预算",
+  "budgetUsed": "已用",
+  "budgetRemaining": "剩余",
+  "budgetOver": "已超支",
+
+  "reportTitle": "报表",
+  "reportIncome": "收入",
+  "reportExpense": "支出",
+  "reportBalance": "结余",
+  "reportCategoryBreakdown": "分类占比",
+  "reportTrend": "收支趋势",
+
+  "settingsTitle": "设置",
+  "settingsSync": "云备份与同步",
+  "settingsSyncOff": "已关闭（纯本地）",
+  "settingsSyncNow": "立即同步",
+  "settingsExport": "导出 CSV",
+  "settingsAbout": "关于",
+
+  "syncIdle": "未同步",
+  "syncRunning": "同步中",
+  "syncSuccess": "同步完成",
+  "syncFailed": "同步失败",
+  "syncPendingCount": "{count} 条待同步",
+  "@syncPendingCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
+}

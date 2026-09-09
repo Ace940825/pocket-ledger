@@ -1,0 +1,166 @@
+# Pocket Ledger —— iOS 构建（无需付费开发者账号）
+#
+# 设计前提：本项目的约束是「前期 + 后期维护全免费」，因此**不依赖付费 Apple
+# 开发者账号**。工作流提供两条产出路径，按需二选一：
+#
+#   A. 未签名 IPA（默认，零配置）
+#      直接产出 Payload/Runner.app 的 IPA，下载后用 AltServer / Sideloadly
+#      在本机用免费 Apple ID 签名并安装。7 天过期，重签即可续期。
+#
+#   B. 已签名 IPA（需要在仓库 Secrets 中放入证书与描述文件）
+#      适合已有签名材料的场景。免费账号只能用 development 描述文件，
+#      因此产物同样限已注册设备、7 天有效 —— 这与 A 路径本质上等价，
+#      区别只是签名发生在 CI 还是本机。
+#
+# 两条路径都会先跑 flutter analyze 与自检脚本，代码不健康就不产出包。
+name: iOS Build (Free Signing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: '产出已签名 IPA（需已配置签名 Secrets）'
+        type: boolean
+        required: false
+        default: false
+  push:
+    tags:
+      - 'v*'
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  APP_NAME: 'pocket-ledger'
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: 查看工具链版本
+        run: |
+          flutter --version
+          xcodebuild -version
+
+      - name: 安装依赖
+        run: flutter pub get
+
+      # ---------------------------------------------------------------
+      # 质量闸门：代码不健康就不往下走，避免浪费 15 分钟打出个坏包
+      # ---------------------------------------------------------------
+      - name: 静态分析
+        run: flutter analyze
+
+      - name: 核心逻辑自检
+        run: dart run tool/self_check.dart
+
+      - name: 缓存 CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            pods-${{ runner.os }}-
+
+      # ---------------------------------------------------------------
+      # 路径 B：导入签名材料（免费账号 = development 证书 + 描述文件）
+      # ---------------------------------------------------------------
+      - name: 导入签名证书
+        if: ${{ github.event.inputs.signed == 'true' }}
+        env:
+          P12_BASE64: ${{ secrets.IOS_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
+          PROVISION_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" \
+            -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
+          # 不设置 partition list，签名时 xcodebuild 会弹不出钥匙串授权而卡死
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$PROVISION_BASE64" | base64 --decode \
+            > "$HOME/Library/MobileDevice/Provisioning Profiles/app.mobileprovision"
+
+      - name: 生成导出选项
+        if: ${{ github.event.inputs.signed == 'true' }}
+        env:
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+        run: |
+          sed -e "s/\${TEAM_ID}/$TEAM_ID/" \
+              -e "s/\${BUNDLE_ID}/$BUNDLE_ID/" \
+              ios/ExportOptions.plist > /tmp/ExportOptions.plist
+
+      - name: 构建并导出已签名 IPA
+        if: ${{ github.event.inputs.signed == 'true' }}
+        run: |
+          flutter build ipa --release \
+            --export-options-plist=/tmp/ExportOptions.plist \
+            --build-name=1.0.0 --build-number="$GITHUB_RUN_NUMBER"
+
+      # ---------------------------------------------------------------
+      # 路径 A：未签名 IPA（默认）
+      # 用 ditto 而不是 zip —— 需要保留 Frameworks 下的符号链接与扩展属性
+      # ---------------------------------------------------------------
+      - name: 构建未签名 app bundle
+        if: ${{ github.event.inputs.signed != 'true' }}
+        run: flutter build ios --release --no-codesign
+
+      - name: 打包未签名 IPA
+        if: ${{ github.event.inputs.signed != 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/ios/ipa
+          cd build/ios/iphoneos
+          rm -rf Payload && mkdir Payload
+          cp -R Runner.app Payload/
+          ditto -c -k --sequesterRsrc --keepParent Payload \
+            "$GITHUB_WORKSPACE/build/ios/ipa/${APP_NAME}-unsigned.ipa"
+          cd "$GITHUB_WORKSPACE"
+          rm -rf build/ios/iphoneos/Payload
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-ios-${{ github.run_number }}
+          path: |
+            build/ios/ipa/**/*.ipa
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: 输出后续操作提示
+        run: |
+          if [ "${{ github.event.inputs.signed }}" = "true" ]; then
+            echo "已签名 IPA 已产出，可直接安装到已注册设备（7 天有效）。"
+          else
+            echo "未签名 IPA 已产出："
+            echo "  1. 下载本工作流的 artifact 并解压得到 .ipa"
+            echo "  2. 装 AltServer（Windows / macOS 均有）并用免费 Apple ID 登录"
+            echo "  3. 用 AltStore 或 Sideloadly 打开该 IPA 安装到手机"
+            echo "  4. 7 天后过期，重签一次即可，数据不受影响"
+          fi

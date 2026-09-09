@@ -1,0 +1,9 @@
+# 依赖与本地构建产物（不入库）
+node_modules/
+.wrangler/
+.dev.vars
+.env
+*.log
+
+# Cloudflare 本地 D1 文件
+.wrangler/state/

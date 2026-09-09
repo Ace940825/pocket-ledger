@@ -1,0 +1,39 @@
+# Pocket Ledger 云端同步后端 —— Cloudflare 配置
+#
+# 免费层额度（个人记账用量约为其 0.01%，详见 app 文档）：
+#   - D1：每日 10 万行读取 / 5 万行写入免费
+#   - Workers：每日 10 万次请求免费
+#   - R2：存储 10 GB 免费，出网流量免费
+#
+# 部署前需要：
+#   1) wrangler login（免费，需绑定一张信用卡做风控，不会扣费）
+#   2) 创建 D1 数据库：      wrangler d1 create pocket_ledger_prod
+#   3) 创建 R2 桶：          wrangler r2 bucket create pocket-ledger-attachments
+#   4) 设置密钥：            wrangler secret put API_TOKEN
+#   5) 执行迁移：            npm run migrate:remote
+#   6) 发布：                npm run deploy
+#
+# （wrangler.toml 中的 [[d1_databases]] / [[r2_buckets]] binding 名称
+#   必须与 src/index.ts 中 c.env.DB / c.env.R2 完全一致）
+
+name = "pocket-ledger-sync"
+main = "src/index.ts"
+compatibility_date = "2024-11-27"
+# 启用 Node 兼容（crypto.randomUUID 等）
+compatibility_flags = ["nodejs_compat"]
+
+# D1 数据库绑定（免费）。database_id 在执行 `wrangler d1 create` 后获得。
+[[d1_databases]]
+binding = "DB"
+database_name = "pocket_ledger_prod"
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+# R2 存储桶绑定（附件 / 票据照片）。需先 `wrangler r2 bucket create pocket-ledger-attachments`
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "pocket-ledger-attachments"
+
+# 运行时环境变量（非敏感）。敏感项（API_TOKEN）请用 `wrangler secret put` 注入。
+[vars]
+# 同一 scope 下的所有设备共享数据；多用户可部署多份或用不同 API_TOKEN 区分 scope
+SYNC_SCOPE = "default"
