@@ -35,7 +35,7 @@ dependencies:
   # 图表。必须锁 0.69.0：0.70+ 起改用 Flutter 3.27 才有的
   # Color.a/r/g/b 与 withValues API，在 Flutter 3.24 上编译不过。
   fl_chart: 0.69.0
-  intl: ^0.19.0
+  intl: ^0.20.3
   gap: ^3.0.1
   flutter_slidable: ^3.1.2
 

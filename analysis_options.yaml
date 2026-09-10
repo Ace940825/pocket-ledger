@@ -12,6 +12,8 @@ analyzer:
     - "lib/generated/**"
     # 命令行脚本（自检工具），不适用产品级 UI lint 规则
     - "tool/**"
+    - android/**
+    - ios/**
 
 linter:
   rules:
