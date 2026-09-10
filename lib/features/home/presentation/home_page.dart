@@ -12,18 +12,16 @@ import '../../../shared/widgets/animated_money_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/fade_slide_in.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../budget/providers/budget_providers.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
 import '../../ledger/providers/ledger_providers.dart';
 
-/// 首页总览：净资产、本月收支、快捷入口、最近流水。
+/// 首页总览：顶部三张可横向滑动卡片（资产 / 预算 / 本月收支）+ 快捷入口 + 最近流水。
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<int> netAssets = ref.watch(netAssetsProvider);
-    final AsyncValue<int> income = ref.watch(monthIncomeProvider);
-    final AsyncValue<int> expense = ref.watch(monthExpenseProvider);
     final AsyncValue<List<Transaction>> recent =
         ref.watch(recentTransactionsProvider);
 
@@ -42,15 +40,10 @@ class HomePage extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(AppDimens.spaceLg),
           children: <Widget>[
-            FadeSlideIn(child: _NetAssetsCard(value: netAssets)),
-            const SizedBox(height: AppDimens.spaceLg),
-            FadeSlideIn(
-              delay: const Duration(milliseconds: 90),
-              child: _MonthSummary(income: income, expense: expense),
-            ),
+            const FadeSlideIn(child: _SwipeCards()),
             const SizedBox(height: AppDimens.spaceLg),
             const FadeSlideIn(
-              delay: Duration(milliseconds: 180),
+              delay: Duration(milliseconds: 90),
               child: _QuickActions(),
             ),
             const SizedBox(height: AppDimens.spaceXl),
@@ -105,38 +98,271 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-class _NetAssetsCard extends StatelessWidget {
-  const _NetAssetsCard({required this.value});
+/// 顶部三张横向卡片：资产总览 / 本月预算 / 本月收支。
+///
+/// 用 [PageView] 让用户左右滑动浏览；下面接 [_PageDots] 指示当前页。
+/// 把 PageController 放在 StatefulWidget 里，否则 setState 不会触发指示点更新。
+class _SwipeCards extends ConsumerStatefulWidget {
+  const _SwipeCards();
 
-  final AsyncValue<int> value;
+  @override
+  ConsumerState<_SwipeCards> createState() => _SwipeCardsState();
+}
+
+class _SwipeCardsState extends ConsumerState<_SwipeCards> {
+  static const double _cardHeight = 184;
+  static const int _pageCount = 3;
+
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 三个卡的数据各自 ref.watch，StreamProvider 推数据时本 widget 自动重建，
+    // 不再依赖外层 HomePage 重新挂载（修了"数据变化没反应"那一项）。
+    final int netMinor = ref.watch(netAssetsProvider).valueOrNull ?? 0;
+    final int assetsMinor = ref.watch(totalAssetsProvider).valueOrNull ?? 0;
+    // 总负债 = 总资产（仅正余额之和） - 净资产（所有账户求和，含负余额）
+    // 信用卡余额为负时，净资产会扣除，差值正好是其绝对值。
+    final int liabilitiesMinor = assetsMinor - netMinor;
+    final BudgetSummary budget = ref.watch(currentMonthBudgetSummaryProvider);
+    final int income = ref.watch(monthIncomeProvider).valueOrNull ?? 0;
+    final int expense = ref.watch(monthExpenseProvider).valueOrNull ?? 0;
+
+    return Column(
+      children: <Widget>[
+        SizedBox(
+          height: _cardHeight,
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (int i) => setState(() => _currentPage = i),
+            children: <Widget>[
+              _AssetsCard(
+                totalAssets: assetsMinor,
+                totalLiabilities: liabilitiesMinor,
+                netAssets: netMinor,
+                onTap: () => context.push(Routes.accounts),
+              ),
+              _BudgetCard(
+                summary: budget,
+                onTap: () => context.push(Routes.budget),
+              ),
+              _IncomeExpenseCard(
+                income: income,
+                expense: expense,
+                onTap: () => context.push(Routes.ledger),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppDimens.spaceSm),
+        _PageDots(
+          controller: _pageController,
+          count: _pageCount,
+          current: _currentPage,
+        ),
+      ],
+    );
+  }
+}
+
+/// 卡片1：资产总览（深绿底）。
+class _AssetsCard extends StatelessWidget {
+  const _AssetsCard({
+    required this.totalAssets,
+    required this.totalLiabilities,
+    required this.netAssets,
+    required this.onTap,
+  });
+
+  final int totalAssets;
+  final int totalLiabilities;
+  final int netAssets;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppDimens.spaceXl),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-      ),
+    return _TappableSurface(
+        onTap: onTap,
+        background: AppColors.primary,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              '净资产',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: Colors.white.withOpacity(0.85)),
+            ),
+            const SizedBox(height: 2),
+            AnimatedMoneyText(
+              Money.fromMinor(netAssets),
+              color: Colors.white,
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            const Spacer(),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _MiniStat(
+                    label: '总资产',
+                    valueMinor: totalAssets,
+                    labelColor: Colors.white.withOpacity(0.85),
+                    valueColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: AppDimens.spaceMd),
+                Expanded(
+                  child: _MiniStat(
+                    label: '总负债',
+                    valueMinor: totalLiabilities,
+                    labelColor: Colors.white.withOpacity(0.85),
+                    valueColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+  }
+}
+
+/// 卡片2：本月预算（蓝底）。
+class _BudgetCard extends StatelessWidget {
+  const _BudgetCard({required this.summary, required this.onTap});
+
+  final BudgetSummary summary;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final bool empty = summary.total == 0;
+    return _TappableSurface(
+      onTap: onTap,
+      background: AppColors.info,
+      child: empty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.spaceLg,
+                ),
+                child: Text(
+                  '暂未设置预算，点此去设置',
+                  style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  '剩余预算',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.white.withOpacity(0.85)),
+                ),
+                const SizedBox(height: 2),
+                AnimatedMoneyText(
+                  Money.fromMinor(summary.remaining >= 0 ? summary.remaining : 0),
+                  color: Colors.white,
+                  style: theme.textTheme.headlineSmall
+                      ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _MiniStat(
+                        label: '总预算',
+                        valueMinor: summary.total,
+                        labelColor: Colors.white.withOpacity(0.85),
+                        valueColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: AppDimens.spaceMd),
+                    Expanded(
+                      child: _MiniStat(
+                        label: '已用',
+                        valueMinor: summary.spent,
+                        labelColor: Colors.white.withOpacity(0.85),
+                        valueColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+/// 卡片3：本月收支（浅底）。
+class _IncomeExpenseCard extends StatelessWidget {
+  const _IncomeExpenseCard({
+    required this.income,
+    required this.expense,
+    required this.onTap,
+  });
+
+  final int income;
+  final int expense;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final int balance = income - expense;
+    return _TappableSurface(
+      onTap: onTap,
+      background: theme.colorScheme.surfaceContainerHighest,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            '净资产',
+            '本月结余',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.85),
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: 2),
           AnimatedMoneyText(
-            Money.fromMinor(value.valueOrNull ?? 0),
-            color: Colors.white,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
+            Money.fromMinor(balance),
+            color: balance >= 0 ? AppColors.income : AppColors.expense,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: balance >= 0 ? AppColors.income : AppColors.expense,
               fontWeight: FontWeight.w600,
             ),
+          ),
+          const Spacer(),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _MiniStat(
+                  label: '收入',
+                  valueMinor: income,
+                  labelColor: theme.colorScheme.onSurfaceVariant,
+                  valueColor: AppColors.income,
+                ),
+              ),
+              const SizedBox(width: AppDimens.spaceMd),
+              Expanded(
+                child: _MiniStat(
+                  label: '支出',
+                  valueMinor: expense,
+                  labelColor: theme.colorScheme.onSurfaceVariant,
+                  valueColor: AppColors.expense,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -144,76 +370,106 @@ class _NetAssetsCard extends StatelessWidget {
   }
 }
 
-class _MonthSummary extends StatelessWidget {
-  const _MonthSummary({required this.income, required this.expense});
+/// 可点击的圆角卡片容器，统一处理波纹 + 圆角裁剪。
+class _TappableSurface extends StatelessWidget {
+  const _TappableSurface({
+    required this.onTap,
+    required this.background,
+    required this.child,
+  });
 
-  final AsyncValue<int> income;
-  final AsyncValue<int> expense;
+  final VoidCallback onTap;
+  final Color background;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final int incomeMinor = income.valueOrNull ?? 0;
-    final int expenseMinor = expense.valueOrNull ?? 0;
-    final int balance = incomeMinor - expenseMinor;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: _SummaryItem(
-                label: '收入',
-                money: Money.fromMinor(incomeMinor),
-                color: AppColors.income,
-              ),
-            ),
-            Expanded(
-              child: _SummaryItem(
-                label: '支出',
-                money: Money.fromMinor(expenseMinor),
-                color: AppColors.expense,
-              ),
-            ),
-            Expanded(
-              child: _SummaryItem(
-                label: '结余',
-                money: Money.fromMinor(balance),
-                color: balance >= 0 ? AppColors.income : AppColors.expense,
-              ),
-            ),
-          ],
+    return Padding(
+      // PageView 的页面之间留点间距，避免波纹溢出到相邻卡片
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Material(
+        color: background,
+        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(AppDimens.spaceLg),
+            child: child,
+          ),
         ),
       ),
     );
   }
 }
 
-class _SummaryItem extends StatelessWidget {
-  const _SummaryItem({
+/// 卡片底部一行里的小统计：上 label + 下金额。
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({
     required this.label,
-    required this.money,
-    required this.color,
+    required this.valueMinor,
+    required this.labelColor,
+    required this.valueColor,
   });
 
   final String label;
-  final Money money;
-  final Color color;
+  final int valueMinor;
+  final Color labelColor;
+  final Color valueColor;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
           label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+          style: theme.textTheme.bodySmall?.copyWith(color: labelColor),
+        ),
+        const SizedBox(height: 2),
+        AnimatedMoneyText(
+          Money.fromMinor(valueMinor),
+          color: valueColor,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: valueColor,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: AppDimens.spaceXs),
-        AnimatedMoneyText(money, color: color),
       ],
+    );
+  }
+}
+
+/// 分页指示点：当前页拉长且高亮，其余短灰。
+class _PageDots extends StatelessWidget {
+  const _PageDots({
+    required this.controller,
+    required this.count,
+    required this.current,
+  });
+
+  final PageController controller;
+  final int count;
+  final int current;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List<Widget>.generate(count, (int i) {
+        final bool active = i == current;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: active ? 18 : 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: active ? AppColors.primary : AppColors.divider,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        );
+      }),
     );
   }
 }
