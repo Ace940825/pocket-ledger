@@ -47,12 +47,9 @@ dependencies:
   # 安全与设备
   flutter_secure_storage: ^10.3.1
   local_auth: ^2.3.0
-  device_info_plus: ^11.3.0
 
   # 文件与分享
-  share_plus: ^12.0.2
   csv: ^6.0.0
-  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
