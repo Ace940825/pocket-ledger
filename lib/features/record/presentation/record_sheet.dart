@@ -731,28 +731,27 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   ),
                 ),
               ),
-              // 功能键行固定在金额上方，与金额保持固定间距（不随分类网格滚动）。
+              // 功能键行固定在金额上方，与金额保持紧凑固定间距（不随分类网格滚动）。
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppDimens.spaceLg,
-                  vertical: AppDimens.spaceSm,
                 ),
                 child: _buildFunctionBar(),
               ),
-              // 金额 + 备注固定在键盘上方，与功能键行、键盘均保持固定间距。
+              // 金额 + 备注与功能键行、键盘均保持紧凑间距。
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppDimens.spaceLg,
-                  AppDimens.spaceMd,
+                  AppDimens.spaceSm,
                   AppDimens.spaceLg,
-                  AppDimens.spaceMd,
+                  AppDimens.spaceSm,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     _buildInlineAmount(),
-                    const SizedBox(height: AppDimens.spaceMd),
+                    const SizedBox(height: AppDimens.spaceSm),
                     _buildDateNoteRow(),
                   ],
                 ),
