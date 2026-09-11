@@ -714,6 +714,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
     return categories.when(
       data: (List<Category> list) {
+        final double viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
+        final bool systemKeyboardOpen =
+            viewInsetsBottom > 0 && _noteFocusNode.hasFocus;
         return Expanded(
           child: Column(
             children: <Widget>[
@@ -748,7 +751,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   ],
                 ),
               ),
-              _buildCollapsibleKeypad(),
+              // 系统键盘（备注输入）弹出时隐藏自定义数字键盘与折叠条。
+              if (!systemKeyboardOpen) _buildCollapsibleKeypad(),
             ],
           ),
         );
@@ -1049,23 +1053,27 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Text(
-          '¥ $shown',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: amountColor,
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () {
+              // 收起系统键盘，切回自定义数字键盘。
+              FocusManager.instance.primaryFocus?.unfocus();
+              setState(() => _keyboardExpanded = true);
+            },
+            child: Text(
+              '¥ $shown',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: amountColor,
+              ),
+            ),
           ),
         ),
-        if (_amount.isNotEmpty)
-          IconButton(
-            icon: const Icon(Icons.clear, size: 18),
-            onPressed: () => setState(() => _amount = ''),
-          ),
-        const Spacer(),
         IconButton(
           icon: const Icon(Icons.keyboard_arrow_down),
           onPressed: () {
-            FocusScope.of(context).unfocus();
+            FocusManager.instance.primaryFocus?.unfocus();
             setState(() => _keyboardExpanded = false);
           },
         ),
@@ -1121,6 +1129,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   Widget _buildCollapsibleKeypad() {
     final ThemeData theme = Theme.of(context);
+    final double bottomSafe = MediaQuery.viewPaddingOf(context).bottom;
     if (!_keyboardExpanded) {
       return InkWell(
         onTap: () {
@@ -1129,12 +1138,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           setState(() => _keyboardExpanded = true);
         },
         child: Container(
-          height: 56,
+          height: 56 + bottomSafe,
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             border: Border(top: BorderSide(color: AppColors.divider)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+          padding: EdgeInsets.fromLTRB(
+            AppDimens.spaceLg,
+            0,
+            AppDimens.spaceLg,
+            bottomSafe,
+          ),
           child: Row(
             children: <Widget>[
               Text(
@@ -1158,11 +1172,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         color: theme.colorScheme.surface,
         border: Border(top: BorderSide(color: AppColors.divider)),
       ),
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppDimens.spaceLg,
         AppDimens.spaceSm,
         AppDimens.spaceLg,
-        AppDimens.spaceLg,
+        AppDimens.spaceLg + bottomSafe,
       ),
       child: _RecordKeypad(
         value: _amount,
@@ -1177,18 +1191,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final double statusBarPadding = MediaQuery.paddingOf(context).top;
+    final double viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
     return Container(
-      height: MediaQuery.of(context).size.height * 0.92,
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      height: MediaQuery.sizeOf(context).height * 0.92,
+      padding: EdgeInsets.only(bottom: viewInsetsBottom),
       child: Column(
         children: <Widget>[
-          // 顶部：标题 + 关闭
+          // 顶部：标题 + 关闭，预留状态栏高度避免贴顶。
           Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               AppDimens.spaceLg,
-              AppDimens.spaceMd,
+              AppDimens.spaceMd + statusBarPadding,
               AppDimens.spaceSm,
               AppDimens.spaceSm,
             ),
