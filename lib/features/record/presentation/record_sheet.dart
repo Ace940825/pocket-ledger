@@ -727,17 +727,23 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       _buildCategoryGrid(list),
-                      const SizedBox(height: AppDimens.spaceMd),
-                      _buildFunctionBar(),
                     ],
                   ),
                 ),
               ),
-              // 金额 + 备注固定在键盘上方，与键盘保持固定间距，不被分类网格挤压。
+              // 功能键行固定在金额上方，与金额保持固定间距（不随分类网格滚动）。
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.spaceLg,
+                  vertical: AppDimens.spaceSm,
+                ),
+                child: _buildFunctionBar(),
+              ),
+              // 金额 + 备注固定在键盘上方，与功能键行、键盘均保持固定间距。
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppDimens.spaceLg,
-                  AppDimens.spaceSm,
+                  AppDimens.spaceMd,
                   AppDimens.spaceLg,
                   AppDimens.spaceMd,
                 ),
@@ -751,7 +757,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   ],
                 ),
               ),
-              // 系统键盘（备注输入）弹出时隐藏自定义数字键盘与折叠条。
+              // 系统键盘（备注输入）弹出或键盘折叠时，不渲染键盘栏。
               if (!systemKeyboardOpen) _buildCollapsibleKeypad(),
             ],
           ),
@@ -1071,10 +1077,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down),
+          icon: Icon(
+            _keyboardExpanded
+                ? Icons.keyboard_arrow_down
+                : Icons.keyboard_arrow_up,
+          ),
+          tooltip: _keyboardExpanded ? '收起键盘' : '展开键盘',
           onPressed: () {
             FocusManager.instance.primaryFocus?.unfocus();
-            setState(() => _keyboardExpanded = false);
+            setState(() => _keyboardExpanded = !_keyboardExpanded);
           },
         ),
       ],
@@ -1131,40 +1142,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     final ThemeData theme = Theme.of(context);
     final double bottomSafe = MediaQuery.viewPaddingOf(context).bottom;
     if (!_keyboardExpanded) {
-      return InkWell(
-        onTap: () {
-          // 展开自定义键盘前收起系统键盘，避免双键盘叠加。
-          FocusScope.of(context).unfocus();
-          setState(() => _keyboardExpanded = true);
-        },
-        child: Container(
-          height: 56 + bottomSafe,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            border: Border(top: BorderSide(color: AppColors.divider)),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            AppDimens.spaceLg,
-            0,
-            AppDimens.spaceLg,
-            bottomSafe,
-          ),
-          child: Row(
-            children: <Widget>[
-              Text(
-                '¥ ${_amount.isEmpty ? '0.00' : _amount}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: _tab == RecordTab.expense
-                      ? AppColors.expense
-                      : AppColors.income,
-                ),
-              ),
-              const Spacer(),
-              const Icon(Icons.keyboard_arrow_up),
-            ],
-          ),
-        ),
-      );
+      // 折叠态不再保留键盘栏：由金额右侧的按键负责重新展开。
+      return const SizedBox.shrink();
     }
 
     return Container(
