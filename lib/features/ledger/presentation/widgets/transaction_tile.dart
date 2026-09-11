@@ -30,7 +30,11 @@ class TransactionTile extends ConsumerWidget {
         ref.watch(categoryMapProvider).valueOrNull ?? <String, Category>{};
 
     final Category? category = categories[transaction.categoryId];
-    final String title = category?.name ?? transaction.type.label;
+    // 退款必须显示「退款」而不是「收入」：两者的 `type` 都是 income，
+    // 但统计口径不同（退款默认抵扣支出）。详见 AccountTransactionTile 的同名处理。
+    final String title = transaction.sourceModule == SourceModule.refund
+        ? SourceModule.refund.label
+        : (category?.name ?? transaction.type.label);
     final DateTime occurred = DateTime.fromMillisecondsSinceEpoch(
       transaction.occurredAt,
       isUtc: true,

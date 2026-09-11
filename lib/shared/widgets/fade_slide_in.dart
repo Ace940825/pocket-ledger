@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 /// 入场动画：淡入 + 轻微上滑。
@@ -28,6 +30,13 @@ class _FadeSlideInState extends State<FadeSlideIn>
   late final Animation<double> _opacity;
   late final Animation<Offset> _slide;
 
+  /// 延迟启动动画的定时器。
+  ///
+  /// 必须持有引用并在 [dispose] 里取消：`Future.delayed` 不可取消，
+  /// 组件在延迟期内被移除时定时器仍会挂着，widget 测试会直接报
+  /// "Pending timers" 失败。
+  Timer? _delayTimer;
+
   @override
   void initState() {
     super.initState();
@@ -38,14 +47,15 @@ class _FadeSlideInState extends State<FadeSlideIn>
     _slide = Tween<Offset>(begin: widget.offset, end: Offset.zero).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
-    // 错落延迟：用 mount 后的 microtask 避免和首帧动画打架。
-    Future<void>.delayed(widget.delay, () {
+    // 错落延迟：用定时器避免和首帧动画打架。
+    _delayTimer = Timer(widget.delay, () {
       if (mounted) _controller.forward();
     });
   }
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

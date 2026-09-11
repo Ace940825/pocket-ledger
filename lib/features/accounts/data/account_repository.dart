@@ -20,6 +20,12 @@ class AccountRepository {
     int balanceMinor = 0,
     String currency = 'CNY',
     int? creditLimitMinor,
+    int? billingDay,
+    int? dueDay,
+    String? note,
+    String? cardNumber,
+    AccountStatus status = AccountStatus.active,
+    bool includeInTotal = true,
   }) {
     if (name.trim().isEmpty) {
       throw const ValidationFailure('账户名称不能为空');
@@ -38,6 +44,13 @@ class AccountRepository {
           balanceMinor: Value<int>(balanceMinor),
           currency: Value<String>(currency),
           creditLimitMinor: Value<int?>(creditLimitMinor),
+          billingDay: Value<int?>(billingDay),
+          dueDay: Value<int?>(dueDay),
+          note: Value<String?>(note),
+          cardNumber: Value<String?>(cardNumber),
+          status: Value<AccountStatus>(status),
+          includeInTotal: Value<bool>(includeInTotal),
+          isArchived: Value<bool>(!status.isVisible),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -55,6 +68,13 @@ class AccountRepository {
               'type': type.index,
               'balanceMinor': balanceMinor,
               'currency': currency,
+              'creditLimitMinor': creditLimitMinor,
+              'billingDay': billingDay,
+              'dueDay': dueDay,
+              'note': note,
+              'cardNumber': cardNumber,
+              'status': status.index,
+              'includeInTotal': includeInTotal,
             }),
           ),
           updatedAt: Value<int>(now),
@@ -82,7 +102,48 @@ class AccountRepository {
     });
   }
 
-  /// 编辑账户（名称 / 类型 / 余额）。余额直接设为权威值，用于手动校正。
+  /// 隐藏账户：仅置 `isArchived = true`，数据保留，可通过 [unarchive] 恢复。
+  Future<void> archive(String id) async {
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      await _db.accountsDao.archive(id, now);
+      await _db.pendingOpsDao.enqueue(
+        PendingOpsCompanion(
+          targetTable: const Value<String>('accounts'),
+          recordId: Value<String>(id),
+          opType: const Value<SyncOpType>(SyncOpType.update),
+          payload: Value<String>(
+            jsonEncode(<String, Object?>{'isArchived': true}),
+          ),
+          updatedAt: Value<int>(now),
+          createdAt: Value<int>(now),
+        ),
+      );
+    });
+  }
+
+  /// 取消隐藏（撤销 [archive]）。仅当 `deleted = false` 时才需要。
+  Future<void> unarchive(String id) async {
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      await _db.accountsDao.unarchive(id, now);
+      await _db.pendingOpsDao.enqueue(
+        PendingOpsCompanion(
+          targetTable: const Value<String>('accounts'),
+          recordId: Value<String>(id),
+          opType: const Value<SyncOpType>(SyncOpType.update),
+          payload: Value<String>(
+            jsonEncode(<String, Object?>{'isArchived': false}),
+          ),
+          updatedAt: Value<int>(now),
+          createdAt: Value<int>(now),
+        ),
+      );
+    });
+  }
+
+  /// 编辑账户（名称 / 类型 / 余额 / 备注 / 卡号 / 状态 / 是否计入总资产）。
+  /// 余额直接设为权威值，用于手动校正。
   Future<void> update({
     required String id,
     required String name,
@@ -90,6 +151,12 @@ class AccountRepository {
     required int balanceMinor,
     String currency = 'CNY',
     int? creditLimitMinor,
+    int? billingDay,
+    int? dueDay,
+    String? note,
+    String? cardNumber,
+    AccountStatus status = AccountStatus.active,
+    bool includeInTotal = true,
   }) {
     if (name.trim().isEmpty) {
       throw const ValidationFailure('账户名称不能为空');
@@ -106,6 +173,13 @@ class AccountRepository {
           balanceMinor: Value<int>(balanceMinor),
           currency: Value<String>(currency),
           creditLimitMinor: Value<int?>(creditLimitMinor),
+          billingDay: Value<int?>(billingDay),
+          dueDay: Value<int?>(dueDay),
+          note: Value<String?>(note),
+          cardNumber: Value<String?>(cardNumber),
+          status: Value<AccountStatus>(status),
+          includeInTotal: Value<bool>(includeInTotal),
+          isArchived: Value<bool>(!status.isVisible),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -122,6 +196,13 @@ class AccountRepository {
               'type': type.index,
               'balanceMinor': balanceMinor,
               'currency': currency,
+              'creditLimitMinor': creditLimitMinor,
+              'billingDay': billingDay,
+              'dueDay': dueDay,
+              'note': note,
+              'cardNumber': cardNumber,
+              'status': status.index,
+              'includeInTotal': includeInTotal,
             }),
           ),
           updatedAt: Value<int>(now),

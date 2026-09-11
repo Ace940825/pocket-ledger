@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -32,8 +33,8 @@ abstract final class AppTheme {
         systemOverlayStyle:
             isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       ),
-      // Flutter 3.24 中卡片主题类仍为 CardTheme（CardThemeData 自 3.27 起才引入）
-      cardTheme: CardTheme(
+      // Flutter 3.27+：ThemeData(cardTheme:) 接收 CardThemeData（CardTheme 退化为 Widget）。
+      cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
@@ -85,7 +86,8 @@ abstract final class AppTheme {
         indicatorShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppDimens.radiusSm),
         ),
-        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((Set<WidgetState> states) {
+        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
+            (Set<WidgetState> states) {
           final bool selected = states.contains(WidgetState.selected);
           return TextStyle(
             fontSize: 11,

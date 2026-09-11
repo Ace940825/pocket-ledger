@@ -215,26 +215,34 @@ abstract final class RecordCodec {
     required int updatedAt,
     required bool deleted,
     required int syncedAt,
-  }) =>
-      AccountsCompanion.insert(
-        id: id,
-        bookId: p['bookId']! as String,
-        name: p['name']! as String,
-        type: _idx(AccountType.values, p['type']),
-        updatedAt: updatedAt,
-        balanceMinor: Value<int>((p['balanceMinor'] as int?) ?? 0),
-        currency: Value<String>((p['currency'] as String?) ?? 'CNY'),
-        creditLimitMinor: Value<int?>(p['creditLimitMinor'] as int?),
-        iconKey: Value<String?>(p['iconKey'] as String?),
-        colorValue: Value<int?>(p['colorValue'] as int?),
-        billingDay: Value<int?>(p['billingDay'] as int?),
-        dueDay: Value<int?>(p['dueDay'] as int?),
-        isArchived: Value<bool>((p['isArchived'] as bool?) ?? false),
-        sortOrder: Value<int>((p['sortOrder'] as int?) ?? 0),
-        deleted: Value<bool>(deleted),
-        dirty: const Value<bool>(false),
-        syncedAt: Value<int>(syncedAt),
-      );
+  }) {
+    final AccountStatus status = _idx(AccountStatus.values, p['status']);
+    return AccountsCompanion.insert(
+      id: id,
+      bookId: p['bookId']! as String,
+      name: p['name']! as String,
+      type: _idx(AccountType.values, p['type']),
+      updatedAt: updatedAt,
+      balanceMinor: Value<int>((p['balanceMinor'] as int?) ?? 0),
+      currency: Value<String>((p['currency'] as String?) ?? 'CNY'),
+      creditLimitMinor: Value<int?>(p['creditLimitMinor'] as int?),
+      iconKey: Value<String?>(p['iconKey'] as String?),
+      colorValue: Value<int?>(p['colorValue'] as int?),
+      billingDay: Value<int?>(p['billingDay'] as int?),
+      dueDay: Value<int?>(p['dueDay'] as int?),
+      note: Value<String?>(p['note'] as String?),
+      cardNumber: Value<String?>(p['cardNumber'] as String?),
+      status: Value<AccountStatus>(status),
+      includeInTotal: Value<bool>((p['includeInTotal'] as bool?) ?? true),
+      isArchived: Value<bool>(
+        (p['isArchived'] as bool?) ?? (status != AccountStatus.active),
+      ),
+      sortOrder: Value<int>((p['sortOrder'] as int?) ?? 0),
+      deleted: Value<bool>(deleted),
+      dirty: const Value<bool>(false),
+      syncedAt: Value<int>(syncedAt),
+    );
+  }
 
   static CategoriesCompanion category(
     String id,
@@ -307,6 +315,10 @@ abstract final class RecordCodec {
         note: Value<String?>(p['note'] as String?),
         attachmentUrls: Value<String?>(p['attachmentUrls'] as String?),
         transactionId: Value<String?>(p['transactionId'] as String?),
+        // 漏掉这个字段会导致「不计入收支」开关同步到别的设备后悄悄变回 false
+        // （推送侧走 row.toJson() 是全字段，只有解码侧是白名单，极易漏）。
+        // self_check.dart 的「RecordCodec.<表> 覆盖全部字段」检查专门守这一条。
+        excludeFromStats: Value<bool>(p['excludeFromStats'] as bool? ?? false),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),

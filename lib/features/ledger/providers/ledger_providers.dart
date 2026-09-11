@@ -18,6 +18,16 @@ final AutoDisposeStreamProvider<List<Transaction>> recentTransactionsProvider =
   return ref.watch(transactionsDaoProvider).watchRecent(bookId: bookId);
 });
 
+/// 指定账户的全部流水（含转账的转入侧）。给账户页「点开看流水」用。
+final AutoDisposeStreamProviderFamily<List<Transaction>, String>
+    accountTransactionsProvider = StreamProvider.autoDispose
+        .family<List<Transaction>, String>((Ref ref, String accountId) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref
+      .watch(transactionsDaoProvider)
+      .watchByAccount(bookId: bookId, accountId: accountId);
+});
+
 /// 单条流水详情（编辑页使用）
 final AutoDisposeStreamProviderFamily<Transaction?, String>
     transactionDetailProvider =
@@ -69,7 +79,8 @@ final AutoDisposeStreamProvider<int> monthExpenseProvider =
 });
 
 /// 本月支出分类聚合，用于报表饼图与首页排行
-final AutoDisposeStreamProvider<List<CategoryTotal>> monthCategoryTotalsProvider =
+final AutoDisposeStreamProvider<List<CategoryTotal>>
+    monthCategoryTotalsProvider =
     StreamProvider.autoDispose<List<CategoryTotal>>((Ref ref) {
   final String bookId = ref.watch(currentBookIdProvider);
   final ({int startAt, int endAt}) range = ref.watch(monthRangeProvider);

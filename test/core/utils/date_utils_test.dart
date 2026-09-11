@@ -2,6 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:pocket_ledger/core/utils/date_utils.dart';
 
+/// 本地时间 → UTC 毫秒。顶层定义，供各 group 共用
+/// （`accountLedgerDateLabel` group 里另有一个同名的局部版本）。
+int _utcMs(DateTime local) => local.toUtc().millisecondsSinceEpoch;
+
 void main() {
   group('addMonths', () {
     test('普通月份直接加，日不变', () {
@@ -139,6 +143,88 @@ void main() {
       final int a = startOfDayMs(DateTime(2026, 5, 20, 0, 0, 1));
       final int b = startOfDayMs(DateTime(2026, 5, 20, 23, 59, 59));
       expect(a, b);
+    });
+  });
+
+  group('accountLedgerDateLabel', () {
+    int utcMs(DateTime local) => local.toUtc().millisecondsSinceEpoch;
+
+    test('今天带「今天」与星期', () {
+      final DateTime now = DateTime.now();
+      final String label = accountLedgerDateLabel(
+          utcMs(DateTime(now.year, now.month, now.day, 9)));
+      expect(label, contains('今天'));
+      expect(label, contains('月'));
+    });
+
+    test('昨天带「昨天」', () {
+      final DateTime now = DateTime.now();
+      final DateTime yesterday = DateTime(now.year, now.month, now.day)
+          .subtract(const Duration(days: 1));
+      final String label = accountLedgerDateLabel(
+          utcMs(DateTime(yesterday.year, yesterday.month, yesterday.day, 9)));
+      expect(label, contains('昨天'));
+    });
+
+    test('三天以上只显示星期，不含相对词', () {
+      final DateTime now = DateTime.now();
+      final DateTime old = DateTime(now.year, now.month, now.day)
+          .subtract(const Duration(days: 10));
+      final String label = accountLedgerDateLabel(
+          utcMs(DateTime(old.year, old.month, old.day, 9)));
+      expect(label, isNot(contains('今天')));
+      expect(label, isNot(contains('昨天')));
+      expect(label, isNot(contains('前天')));
+      expect(label, contains('星期'));
+    });
+  });
+
+  group('ledgerMonthLabel', () {
+    test('输出「yyyy年M月」，月份不补零', () {
+      expect(ledgerMonthLabel(_utcMs(DateTime(2026, 9, 10, 12))), '2026年9月');
+      expect(ledgerMonthLabel(_utcMs(DateTime(2026, 12, 1, 0))), '2026年12月');
+    });
+
+    test('按本地时区归月：UTC 的月末可能落到本地次月', () {
+      // 本地为 UTC+8 时，2026-08-31T20:00Z = 2026-09-01 04:00 本地。
+      final int ms = DateTime.utc(2026, 8, 31, 20).millisecondsSinceEpoch;
+      final DateTime local =
+          DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true).toLocal();
+      expect(ledgerMonthLabel(ms), '${local.year}年${local.month}月');
+    });
+  });
+
+  group('sameLocalMonth', () {
+    test('同月不同日 → true', () {
+      expect(
+        sameLocalMonth(
+          _utcMs(DateTime(2026, 9, 1, 0)),
+          _utcMs(DateTime(2026, 9, 30, 23)),
+        ),
+        isTrue,
+      );
+    });
+
+    test('跨月 → false（含同年相邻月与跨年）', () {
+      expect(
+        sameLocalMonth(
+          _utcMs(DateTime(2026, 9, 30, 23)),
+          _utcMs(DateTime(2026, 10, 1, 0)),
+        ),
+        isFalse,
+      );
+      expect(
+        sameLocalMonth(
+          _utcMs(DateTime(2025, 12, 31, 23)),
+          _utcMs(DateTime(2026, 1, 1, 0)),
+        ),
+        isFalse,
+      );
+    });
+
+    test('同一时间戳恒为 true', () {
+      final int ms = _utcMs(DateTime(2026, 9, 10, 12));
+      expect(sameLocalMonth(ms, ms), isTrue);
     });
   });
 }

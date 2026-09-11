@@ -14,16 +14,73 @@ class Money extends Equatable implements Comparable<Money> {
       Money._(minor, currency);
 
   /// 以「元」构造。内部四舍五入到分。
-  factory Money.fromDecimal(num value, {String currency = 'CNY'}) =>
-      Money._((value * 100).round(), currency);
+  ///
+  /// 注意这里**不用** `(value * 100).round()`：二进制浮点下 `1.005 * 100`
+  /// 等于 `100.49999999999999`，四舍五入会得到 100 分（少 1 分）。
+  /// 改为先取 `num.toString()`（Dart 会给出最短往返表示，即 `"1.005"`），
+  /// 再按十进制字符串做整数运算。
+  factory Money.fromDecimal(num value, {String currency = 'CNY'}) {
+    if (value is int) return Money._(value * 100, currency);
+    final int? minor = _minorFromDecimalString(value.toString());
+    // 兜底：指数记法（如 1e-7）无法按十进制切分时退回浮点乘法。
+    return Money._(minor ?? (value * 100).round(), currency);
+  }
 
   /// 按字符串解析，解析失败返回零值。用于用户输入与 CSV 导入。
+  ///
+  /// 容忍首尾空白、千分位逗号（`,` / `，`）与货币符号前缀（`¥` / `$`）。
+  /// 内部同样走「字符串 → 整数分」，避免 `double.tryParse('1.005')`
+  /// 这类精度陷阱。
   factory Money.tryParse(String? text, {String currency = 'CNY'}) {
     if (text == null) return Money.zeroOf(currency);
-    final double? parsed = double.tryParse(text.trim());
+    final String cleaned = text
+        .trim()
+        .replaceAll(',', '')
+        .replaceAll('，', '')
+        .replaceAll('¥', '')
+        .replaceAll(r'$', '');
+    final int? minor = _minorFromDecimalString(cleaned);
+    if (minor != null) return Money._(minor, currency);
+    // 兜底：指数记法（如 1e3）仍尝试按 double 解析。
+    final double? parsed = double.tryParse(cleaned);
     if (parsed == null) return Money.zeroOf(currency);
     return Money.fromDecimal(parsed, currency: currency);
   }
+
+  /// 十进制的「元」字符串 → 整数「分」。无法识别时返回 null。
+  ///
+  /// 接受 `[-+]?digits[.digits]`；小数部分只取前三位，第三位用于四舍五入
+  /// （即「半个分」向上进位），多于三位直接截断丢弃。全程整数运算。
+  static int? _minorFromDecimalString(String input) {
+    String s = input.trim();
+    if (s.isEmpty) return null;
+
+    bool negative = false;
+    if (s.startsWith('-')) {
+      negative = true;
+      s = s.substring(1);
+    } else if (s.startsWith('+')) {
+      s = s.substring(1);
+    }
+
+    final List<String> parts = s.split('.');
+    if (parts.length > 2) return null; // 多个小数点视为非法
+    final String intPart = parts[0].isEmpty ? '0' : parts[0];
+    final String fracPart = parts.length == 2 ? parts[1] : '';
+    if (!_digitsOnly.hasMatch(intPart)) return null;
+    if (fracPart.isNotEmpty && !_digitsOnly.hasMatch(fracPart)) return null;
+
+    // 不足三位补 0，多余截断；第 3 位是「厘」，>= 5 则进 1 分。
+    final String frac = '${fracPart}000'.substring(0, 3);
+    final int? whole = int.tryParse(intPart);
+    if (whole == null) return null; // 超出 int 范围
+
+    int minor = whole * 100 + int.parse(frac.substring(0, 2));
+    if (int.parse(frac.substring(2)) >= 5) minor += 1;
+    return negative ? -minor : minor;
+  }
+
+  static final RegExp _digitsOnly = RegExp(r'^\d+$');
 
   /// 零值
   static const Money zero = Money._(0, 'CNY');
@@ -48,9 +105,11 @@ class Money extends Equatable implements Comparable<Money> {
   /// 取反。用于把支出统一表示为负数参与求和。
   Money negate() => Money._(-minor, currency);
 
-  Money operator +(Money other) => _assertSameCurrency(other, minor + other.minor);
+  Money operator +(Money other) =>
+      _assertSameCurrency(other, minor + other.minor);
 
-  Money operator -(Money other) => _assertSameCurrency(other, minor - other.minor);
+  Money operator -(Money other) =>
+      _assertSameCurrency(other, minor - other.minor);
 
   Money operator *(num factor) => Money._((minor * factor).round(), currency);
 

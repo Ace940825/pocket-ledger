@@ -15,6 +15,8 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../budget/providers/budget_providers.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
 import '../../ledger/providers/ledger_providers.dart';
+import '../../record/presentation/record_sheet.dart';
+import '../../record/record_tab.dart';
 
 /// 首页总览：顶部三张可横向滑动卡片（资产 / 预算 / 本月收支）+ 快捷入口 + 最近流水。
 class HomePage extends ConsumerWidget {
@@ -128,9 +130,9 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
     // 不再依赖外层 HomePage 重新挂载（修了"数据变化没反应"那一项）。
     final int netMinor = ref.watch(netAssetsProvider).valueOrNull ?? 0;
     final int assetsMinor = ref.watch(totalAssetsProvider).valueOrNull ?? 0;
-    // 总负债 = 总资产（仅正余额之和） - 净资产（所有账户求和，含负余额）
-    // 信用卡余额为负时，净资产会扣除，差值正好是其绝对值。
-    final int liabilitiesMinor = assetsMinor - netMinor;
+    // 信用卡正余额=欠款；直接读负债 provider 避免再用「资产-净资产」反推。
+    final int liabilitiesMinor =
+        ref.watch(totalLiabilitiesProvider).valueOrNull ?? 0;
     final BudgetSummary budget = ref.watch(currentMonthBudgetSummaryProvider);
     final int income = ref.watch(monthIncomeProvider).valueOrNull ?? 0;
     final int expense = ref.watch(monthExpenseProvider).valueOrNull ?? 0;
@@ -143,12 +145,6 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
             controller: _pageController,
             onPageChanged: (int i) => setState(() => _currentPage = i),
             children: <Widget>[
-              _AssetsCard(
-                totalAssets: assetsMinor,
-                totalLiabilities: liabilitiesMinor,
-                netAssets: netMinor,
-                onTap: () => context.push(Routes.accounts),
-              ),
               _BudgetCard(
                 summary: budget,
                 onTap: () => context.push(Routes.budget),
@@ -157,6 +153,12 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
                 income: income,
                 expense: expense,
                 onTap: () => context.push(Routes.ledger),
+              ),
+              _AssetsCard(
+                totalAssets: assetsMinor,
+                totalLiabilities: liabilitiesMinor,
+                netAssets: netMinor,
+                onTap: () => context.push(Routes.accounts),
               ),
             ],
           ),
@@ -190,48 +192,48 @@ class _AssetsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     return _TappableSurface(
-        onTap: onTap,
-        background: AppColors.primary,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              '净资产',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Colors.white.withOpacity(0.85)),
-            ),
-            const SizedBox(height: 2),
-            AnimatedMoneyText(
-              Money.fromMinor(netAssets),
-              color: Colors.white,
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
-            ),
-            const Spacer(),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: _MiniStat(
-                    label: '总资产',
-                    valueMinor: totalAssets,
-                    labelColor: Colors.white.withOpacity(0.85),
-                    valueColor: Colors.white,
-                  ),
+      onTap: onTap,
+      background: AppColors.primary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '净资产',
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: Colors.white.withOpacity(0.85)),
+          ),
+          const SizedBox(height: 2),
+          AnimatedMoneyText(
+            Money.fromMinor(netAssets),
+            color: Colors.white,
+            style: theme.textTheme.headlineSmall
+                ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+          const Spacer(),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _MiniStat(
+                  label: '总资产',
+                  valueMinor: totalAssets,
+                  labelColor: Colors.white.withOpacity(0.85),
+                  valueColor: Colors.white,
                 ),
-                const SizedBox(width: AppDimens.spaceMd),
-                Expanded(
-                  child: _MiniStat(
-                    label: '总负债',
-                    valueMinor: totalLiabilities,
-                    labelColor: Colors.white.withOpacity(0.85),
-                    valueColor: Colors.white,
-                  ),
+              ),
+              const SizedBox(width: AppDimens.spaceMd),
+              Expanded(
+                child: _MiniStat(
+                  label: '总负债',
+                  valueMinor: totalLiabilities,
+                  labelColor: Colors.white.withOpacity(0.85),
+                  valueColor: Colors.white,
                 ),
-              ],
-            ),
-          ],
-        ),
-      );
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -257,7 +259,8 @@ class _BudgetCard extends StatelessWidget {
                 ),
                 child: Text(
                   '暂未设置预算，点此去设置',
-                  style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white),
+                  style:
+                      theme.textTheme.bodyLarge?.copyWith(color: Colors.white),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -272,10 +275,11 @@ class _BudgetCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 AnimatedMoneyText(
-                  Money.fromMinor(summary.remaining >= 0 ? summary.remaining : 0),
+                  Money.fromMinor(
+                      summary.remaining >= 0 ? summary.remaining : 0),
                   color: Colors.white,
-                  style: theme.textTheme.headlineSmall
-                      ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                      color: Colors.white, fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
                 Row(
@@ -483,7 +487,7 @@ class _QuickActions extends StatelessWidget {
       children: <Widget>[
         Expanded(
           child: FilledButton.icon(
-            onPressed: () => context.push(Routes.ledgerAdd),
+            onPressed: () => openRecordSheet(context),
             icon: const Icon(Icons.add),
             label: const Text('记一笔'),
           ),
@@ -491,7 +495,8 @@ class _QuickActions extends StatelessWidget {
         const SizedBox(width: AppDimens.spaceMd),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () => context.push(Routes.transfer),
+            onPressed: () =>
+                openRecordSheet(context, initialTab: RecordTab.transfer),
             icon: const Icon(Icons.swap_horiz),
             label: const Text('转账'),
           ),

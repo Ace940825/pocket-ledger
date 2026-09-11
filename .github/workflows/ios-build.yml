@@ -34,14 +34,17 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: '3.24.0'
+  # 与本地开发环境对齐到 3.47.3（Flutter 3.47 要求 Xcode 16，见下方 runs-on）。
+  FLUTTER_VERSION: '3.47.3'
   APP_NAME: 'pocket-ledger'
   # 关掉 CocoaPods 每次都尝试上报统计的网络请求，减少 pod install 卡顿
   COCOAPODS_DISABLE_STATS: '1'
 
 jobs:
   build:
-    runs-on: macos-14
+    # Flutter 3.47 需要 Xcode 16；macos-15 镜像默认带 Xcode 16，macos-14 默认偏旧易触发
+    # "requires a newer version of Xcode" 构建失败，故升级到 macos-15。
+    runs-on: macos-15
     timeout-minutes: 45
 
     steps:

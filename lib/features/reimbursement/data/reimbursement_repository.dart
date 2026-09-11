@@ -38,6 +38,7 @@ class ReimbursementRepository {
     String? target,
     int? receivedAt,
     String? note,
+    bool excludeFromStats = false,
   }) {
     _validate(title: title, payer: payer, amountMinor: amountMinor);
 
@@ -57,6 +58,7 @@ class ReimbursementRepository {
               occurredAt: Value<int>(occurredAt),
               receivedAt: Value<int?>(receivedAt),
               note: Value<String?>(note),
+              excludeFromStats: Value<bool>(excludeFromStats),
               updatedAt: Value<int>(now),
               dirty: const Value<bool>(true),
             ),
@@ -76,6 +78,7 @@ class ReimbursementRepository {
           occurredAt: occurredAt,
           receivedAt: receivedAt,
           note: note,
+          excludeFromStats: excludeFromStats,
         ),
       );
       return id;
@@ -92,6 +95,7 @@ class ReimbursementRepository {
     String? target,
     int? receivedAt,
     String? note,
+    bool excludeFromStats = false,
   }) {
     _validate(title: title, payer: payer, amountMinor: amountMinor);
 
@@ -109,6 +113,7 @@ class ReimbursementRepository {
           occurredAt: Value<int>(occurredAt),
           receivedAt: Value<int?>(receivedAt),
           note: Value<String?>(note),
+          excludeFromStats: Value<bool>(excludeFromStats),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -128,6 +133,7 @@ class ReimbursementRepository {
           occurredAt: occurredAt,
           receivedAt: receivedAt,
           note: note,
+          excludeFromStats: excludeFromStats,
         ),
       );
     });
@@ -203,6 +209,7 @@ class ReimbursementRepository {
     String? target,
     int? receivedAt,
     String? note,
+    bool excludeFromStats = false,
   }) {
     return <String, Object?>{
       'title': title.trim(),
@@ -213,6 +220,7 @@ class ReimbursementRepository {
       'occurredAt': occurredAt,
       'receivedAt': receivedAt,
       'note': note,
+      'excludeFromStats': excludeFromStats,
     };
   }
 }

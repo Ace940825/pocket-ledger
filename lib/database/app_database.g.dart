@@ -519,7 +519,6 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumnWithTypeConverter<AccountType, int> type =
       GeneratedColumn<int>('type', aliasedName, false,
@@ -570,6 +569,34 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   late final GeneratedColumn<int> dueDay = GeneratedColumn<int>(
       'due_day', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _cardNumberMeta =
+      const VerificationMeta('cardNumber');
+  @override
+  late final GeneratedColumn<String> cardNumber = GeneratedColumn<String>(
+      'card_number', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  late final GeneratedColumnWithTypeConverter<AccountStatus, int> status =
+      GeneratedColumn<int>('status', aliasedName, false,
+              type: DriftSqlType.int,
+              requiredDuringInsert: false,
+              defaultValue: const Constant(0))
+          .withConverter<AccountStatus>($AccountsTable.$converterstatus);
+  static const VerificationMeta _includeInTotalMeta =
+      const VerificationMeta('includeInTotal');
+  @override
+  late final GeneratedColumn<bool> includeInTotal = GeneratedColumn<bool>(
+      'include_in_total', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("include_in_total" IN (0, 1))'),
+      defaultValue: const Constant(true));
   static const VerificationMeta _isArchivedMeta =
       const VerificationMeta('isArchived');
   @override
@@ -605,6 +632,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         creditLimitMinor,
         billingDay,
         dueDay,
+        note,
+        cardNumber,
+        status,
+        includeInTotal,
         isArchived,
         sortOrder
       ];
@@ -653,7 +684,6 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
-    context.handle(_typeMeta, const VerificationResult.success());
     if (data.containsKey('balance_minor')) {
       context.handle(
           _balanceMinorMeta,
@@ -689,6 +719,22 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     if (data.containsKey('due_day')) {
       context.handle(_dueDayMeta,
           dueDay.isAcceptableOrUnknown(data['due_day']!, _dueDayMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('card_number')) {
+      context.handle(
+          _cardNumberMeta,
+          cardNumber.isAcceptableOrUnknown(
+              data['card_number']!, _cardNumberMeta));
+    }
+    if (data.containsKey('include_in_total')) {
+      context.handle(
+          _includeInTotalMeta,
+          includeInTotal.isAcceptableOrUnknown(
+              data['include_in_total']!, _includeInTotalMeta));
     }
     if (data.containsKey('is_archived')) {
       context.handle(
@@ -739,6 +785,15 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           .read(DriftSqlType.int, data['${effectivePrefix}billing_day']),
       dueDay: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}due_day']),
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      cardNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}card_number']),
+      status: $AccountsTable.$converterstatus.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}status'])!),
+      includeInTotal: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}include_in_total'])!,
       isArchived: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_archived'])!,
       sortOrder: attachedDatabase.typeMapping
@@ -753,6 +808,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
 
   static JsonTypeConverter2<AccountType, int, int> $convertertype =
       const EnumIndexConverter<AccountType>(AccountType.values);
+  static JsonTypeConverter2<AccountStatus, int, int> $converterstatus =
+      const EnumIndexConverter<AccountStatus>(AccountStatus.values);
 }
 
 class Account extends DataClass implements Insertable<Account> {
@@ -779,6 +836,21 @@ class Account extends DataClass implements Insertable<Account> {
   /// 信用卡账单日 / 还款日（1-31）
   final int? billingDay;
   final int? dueDay;
+
+  /// 备注
+  final String? note;
+
+  /// 卡号（银行卡 / 信用卡等）
+  final String? cardNumber;
+
+  /// 资产状态：0 使用中 / 1 隐藏 / 2 封存。
+  /// 与 [isArchived] 保持同步：非 active 时 isArchived = true。
+  final AccountStatus status;
+
+  /// 是否计入总资产（净值计算）。
+  final bool includeInTotal;
+
+  /// 旧版归档标记。保留以兼容旧查询，语义等同于 status != active。
   final bool isArchived;
   final int sortOrder;
   const Account(
@@ -797,6 +869,10 @@ class Account extends DataClass implements Insertable<Account> {
       this.creditLimitMinor,
       this.billingDay,
       this.dueDay,
+      this.note,
+      this.cardNumber,
+      required this.status,
+      required this.includeInTotal,
       required this.isArchived,
       required this.sortOrder});
   @override
@@ -831,6 +907,17 @@ class Account extends DataClass implements Insertable<Account> {
     if (!nullToAbsent || dueDay != null) {
       map['due_day'] = Variable<int>(dueDay);
     }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || cardNumber != null) {
+      map['card_number'] = Variable<String>(cardNumber);
+    }
+    {
+      map['status'] =
+          Variable<int>($AccountsTable.$converterstatus.toSql(status));
+    }
+    map['include_in_total'] = Variable<bool>(includeInTotal);
     map['is_archived'] = Variable<bool>(isArchived);
     map['sort_order'] = Variable<int>(sortOrder);
     return map;
@@ -864,6 +951,12 @@ class Account extends DataClass implements Insertable<Account> {
           : Value(billingDay),
       dueDay:
           dueDay == null && nullToAbsent ? const Value.absent() : Value(dueDay),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      cardNumber: cardNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cardNumber),
+      status: Value(status),
+      includeInTotal: Value(includeInTotal),
       isArchived: Value(isArchived),
       sortOrder: Value(sortOrder),
     );
@@ -889,6 +982,11 @@ class Account extends DataClass implements Insertable<Account> {
       creditLimitMinor: serializer.fromJson<int?>(json['creditLimitMinor']),
       billingDay: serializer.fromJson<int?>(json['billingDay']),
       dueDay: serializer.fromJson<int?>(json['dueDay']),
+      note: serializer.fromJson<String?>(json['note']),
+      cardNumber: serializer.fromJson<String?>(json['cardNumber']),
+      status: $AccountsTable.$converterstatus
+          .fromJson(serializer.fromJson<int>(json['status'])),
+      includeInTotal: serializer.fromJson<bool>(json['includeInTotal']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
@@ -913,6 +1011,11 @@ class Account extends DataClass implements Insertable<Account> {
       'creditLimitMinor': serializer.toJson<int?>(creditLimitMinor),
       'billingDay': serializer.toJson<int?>(billingDay),
       'dueDay': serializer.toJson<int?>(dueDay),
+      'note': serializer.toJson<String?>(note),
+      'cardNumber': serializer.toJson<String?>(cardNumber),
+      'status': serializer
+          .toJson<int>($AccountsTable.$converterstatus.toJson(status)),
+      'includeInTotal': serializer.toJson<bool>(includeInTotal),
       'isArchived': serializer.toJson<bool>(isArchived),
       'sortOrder': serializer.toJson<int>(sortOrder),
     };
@@ -934,6 +1037,10 @@ class Account extends DataClass implements Insertable<Account> {
           Value<int?> creditLimitMinor = const Value.absent(),
           Value<int?> billingDay = const Value.absent(),
           Value<int?> dueDay = const Value.absent(),
+          Value<String?> note = const Value.absent(),
+          Value<String?> cardNumber = const Value.absent(),
+          AccountStatus? status,
+          bool? includeInTotal,
           bool? isArchived,
           int? sortOrder}) =>
       Account(
@@ -954,6 +1061,10 @@ class Account extends DataClass implements Insertable<Account> {
             : this.creditLimitMinor,
         billingDay: billingDay.present ? billingDay.value : this.billingDay,
         dueDay: dueDay.present ? dueDay.value : this.dueDay,
+        note: note.present ? note.value : this.note,
+        cardNumber: cardNumber.present ? cardNumber.value : this.cardNumber,
+        status: status ?? this.status,
+        includeInTotal: includeInTotal ?? this.includeInTotal,
         isArchived: isArchived ?? this.isArchived,
         sortOrder: sortOrder ?? this.sortOrder,
       );
@@ -980,6 +1091,13 @@ class Account extends DataClass implements Insertable<Account> {
       billingDay:
           data.billingDay.present ? data.billingDay.value : this.billingDay,
       dueDay: data.dueDay.present ? data.dueDay.value : this.dueDay,
+      note: data.note.present ? data.note.value : this.note,
+      cardNumber:
+          data.cardNumber.present ? data.cardNumber.value : this.cardNumber,
+      status: data.status.present ? data.status.value : this.status,
+      includeInTotal: data.includeInTotal.present
+          ? data.includeInTotal.value
+          : this.includeInTotal,
       isArchived:
           data.isArchived.present ? data.isArchived.value : this.isArchived,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
@@ -1004,6 +1122,10 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('creditLimitMinor: $creditLimitMinor, ')
           ..write('billingDay: $billingDay, ')
           ..write('dueDay: $dueDay, ')
+          ..write('note: $note, ')
+          ..write('cardNumber: $cardNumber, ')
+          ..write('status: $status, ')
+          ..write('includeInTotal: $includeInTotal, ')
           ..write('isArchived: $isArchived, ')
           ..write('sortOrder: $sortOrder')
           ..write(')'))
@@ -1011,24 +1133,29 @@ class Account extends DataClass implements Insertable<Account> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      updatedAt,
-      deleted,
-      dirty,
-      syncedAt,
-      id,
-      bookId,
-      name,
-      type,
-      balanceMinor,
-      currency,
-      iconKey,
-      colorValue,
-      creditLimitMinor,
-      billingDay,
-      dueDay,
-      isArchived,
-      sortOrder);
+  int get hashCode => Object.hashAll([
+        updatedAt,
+        deleted,
+        dirty,
+        syncedAt,
+        id,
+        bookId,
+        name,
+        type,
+        balanceMinor,
+        currency,
+        iconKey,
+        colorValue,
+        creditLimitMinor,
+        billingDay,
+        dueDay,
+        note,
+        cardNumber,
+        status,
+        includeInTotal,
+        isArchived,
+        sortOrder
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1048,6 +1175,10 @@ class Account extends DataClass implements Insertable<Account> {
           other.creditLimitMinor == this.creditLimitMinor &&
           other.billingDay == this.billingDay &&
           other.dueDay == this.dueDay &&
+          other.note == this.note &&
+          other.cardNumber == this.cardNumber &&
+          other.status == this.status &&
+          other.includeInTotal == this.includeInTotal &&
           other.isArchived == this.isArchived &&
           other.sortOrder == this.sortOrder);
 }
@@ -1068,6 +1199,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int?> creditLimitMinor;
   final Value<int?> billingDay;
   final Value<int?> dueDay;
+  final Value<String?> note;
+  final Value<String?> cardNumber;
+  final Value<AccountStatus> status;
+  final Value<bool> includeInTotal;
   final Value<bool> isArchived;
   final Value<int> sortOrder;
   final Value<int> rowid;
@@ -1087,6 +1222,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.creditLimitMinor = const Value.absent(),
     this.billingDay = const Value.absent(),
     this.dueDay = const Value.absent(),
+    this.note = const Value.absent(),
+    this.cardNumber = const Value.absent(),
+    this.status = const Value.absent(),
+    this.includeInTotal = const Value.absent(),
     this.isArchived = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1107,6 +1246,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.creditLimitMinor = const Value.absent(),
     this.billingDay = const Value.absent(),
     this.dueDay = const Value.absent(),
+    this.note = const Value.absent(),
+    this.cardNumber = const Value.absent(),
+    this.status = const Value.absent(),
+    this.includeInTotal = const Value.absent(),
     this.isArchived = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1131,6 +1274,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? creditLimitMinor,
     Expression<int>? billingDay,
     Expression<int>? dueDay,
+    Expression<String>? note,
+    Expression<String>? cardNumber,
+    Expression<int>? status,
+    Expression<bool>? includeInTotal,
     Expression<bool>? isArchived,
     Expression<int>? sortOrder,
     Expression<int>? rowid,
@@ -1151,6 +1298,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (creditLimitMinor != null) 'credit_limit_minor': creditLimitMinor,
       if (billingDay != null) 'billing_day': billingDay,
       if (dueDay != null) 'due_day': dueDay,
+      if (note != null) 'note': note,
+      if (cardNumber != null) 'card_number': cardNumber,
+      if (status != null) 'status': status,
+      if (includeInTotal != null) 'include_in_total': includeInTotal,
       if (isArchived != null) 'is_archived': isArchived,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
@@ -1173,6 +1324,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       Value<int?>? creditLimitMinor,
       Value<int?>? billingDay,
       Value<int?>? dueDay,
+      Value<String?>? note,
+      Value<String?>? cardNumber,
+      Value<AccountStatus>? status,
+      Value<bool>? includeInTotal,
       Value<bool>? isArchived,
       Value<int>? sortOrder,
       Value<int>? rowid}) {
@@ -1192,6 +1347,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       creditLimitMinor: creditLimitMinor ?? this.creditLimitMinor,
       billingDay: billingDay ?? this.billingDay,
       dueDay: dueDay ?? this.dueDay,
+      note: note ?? this.note,
+      cardNumber: cardNumber ?? this.cardNumber,
+      status: status ?? this.status,
+      includeInTotal: includeInTotal ?? this.includeInTotal,
       isArchived: isArchived ?? this.isArchived,
       sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
@@ -1247,6 +1406,19 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (dueDay.present) {
       map['due_day'] = Variable<int>(dueDay.value);
     }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (cardNumber.present) {
+      map['card_number'] = Variable<String>(cardNumber.value);
+    }
+    if (status.present) {
+      map['status'] =
+          Variable<int>($AccountsTable.$converterstatus.toSql(status.value));
+    }
+    if (includeInTotal.present) {
+      map['include_in_total'] = Variable<bool>(includeInTotal.value);
+    }
     if (isArchived.present) {
       map['is_archived'] = Variable<bool>(isArchived.value);
     }
@@ -1277,6 +1449,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('creditLimitMinor: $creditLimitMinor, ')
           ..write('billingDay: $billingDay, ')
           ..write('dueDay: $dueDay, ')
+          ..write('note: $note, ')
+          ..write('cardNumber: $cardNumber, ')
+          ..write('status: $status, ')
+          ..write('includeInTotal: $includeInTotal, ')
           ..write('isArchived: $isArchived, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
@@ -1337,7 +1513,6 @@ class $CategoriesTable extends Categories
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumnWithTypeConverter<CategoryType, int> type =
       GeneratedColumn<int>('type', aliasedName, false,
@@ -1440,7 +1615,6 @@ class $CategoriesTable extends Categories
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
-    context.handle(_typeMeta, const VerificationResult.success());
     if (data.containsKey('parent_id')) {
       context.handle(_parentIdMeta,
           parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta));
@@ -1963,7 +2137,6 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
       'book_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumnWithTypeConverter<TxnType, int> type =
       GeneratedColumn<int>('type', aliasedName, false,
@@ -2023,8 +2196,6 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> tags = GeneratedColumn<String>(
       'tags', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _sourceModuleMeta =
-      const VerificationMeta('sourceModule');
   @override
   late final GeneratedColumnWithTypeConverter<SourceModule, int> sourceModule =
       GeneratedColumn<int>('source_module', aliasedName, false,
@@ -2104,7 +2275,6 @@ class $TransactionsTable extends Transactions
     } else if (isInserting) {
       context.missing(_bookIdMeta);
     }
-    context.handle(_typeMeta, const VerificationResult.success());
     if (data.containsKey('amount_minor')) {
       context.handle(
           _amountMinorMeta,
@@ -2157,7 +2327,6 @@ class $TransactionsTable extends Transactions
       context.handle(
           _tagsMeta, tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta));
     }
-    context.handle(_sourceModuleMeta, const VerificationResult.success());
     if (data.containsKey('related_id')) {
       context.handle(_relatedIdMeta,
           relatedId.isAcceptableOrUnknown(data['related_id']!, _relatedIdMeta));
@@ -2884,14 +3053,11 @@ class $LendRecordsTable extends LendRecords
   late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
       'book_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _directionMeta =
-      const VerificationMeta('direction');
   @override
   late final GeneratedColumnWithTypeConverter<LendDirection, int> direction =
       GeneratedColumn<int>('direction', aliasedName, false,
               type: DriftSqlType.int, requiredDuringInsert: true)
           .withConverter<LendDirection>($LendRecordsTable.$converterdirection);
-  static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumnWithTypeConverter<LendStatus, int> status =
       GeneratedColumn<int>('status', aliasedName, false,
@@ -3005,8 +3171,6 @@ class $LendRecordsTable extends LendRecords
     } else if (isInserting) {
       context.missing(_bookIdMeta);
     }
-    context.handle(_directionMeta, const VerificationResult.success());
-    context.handle(_statusMeta, const VerificationResult.success());
     if (data.containsKey('counterparty')) {
       context.handle(
           _counterpartyMeta,
@@ -3659,7 +3823,6 @@ class $ReimbursementsTable extends Reimbursements
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
       'title', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumnWithTypeConverter<ReimbursementStatus, int> status =
       GeneratedColumn<int>('status', aliasedName, false,
@@ -3719,6 +3882,16 @@ class $ReimbursementsTable extends Reimbursements
   late final GeneratedColumn<String> transactionId = GeneratedColumn<String>(
       'transaction_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _excludeFromStatsMeta =
+      const VerificationMeta('excludeFromStats');
+  @override
+  late final GeneratedColumn<bool> excludeFromStats = GeneratedColumn<bool>(
+      'exclude_from_stats', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("exclude_from_stats" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
         updatedAt,
@@ -3737,7 +3910,8 @@ class $ReimbursementsTable extends Reimbursements
         receivedAt,
         note,
         attachmentUrls,
-        transactionId
+        transactionId,
+        excludeFromStats
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3784,7 +3958,6 @@ class $ReimbursementsTable extends Reimbursements
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
-    context.handle(_statusMeta, const VerificationResult.success());
     if (data.containsKey('amount_minor')) {
       context.handle(
           _amountMinorMeta,
@@ -3837,6 +4010,12 @@ class $ReimbursementsTable extends Reimbursements
           transactionId.isAcceptableOrUnknown(
               data['transaction_id']!, _transactionIdMeta));
     }
+    if (data.containsKey('exclude_from_stats')) {
+      context.handle(
+          _excludeFromStatsMeta,
+          excludeFromStats.isAcceptableOrUnknown(
+              data['exclude_from_stats']!, _excludeFromStatsMeta));
+    }
     return context;
   }
 
@@ -3881,6 +4060,8 @@ class $ReimbursementsTable extends Reimbursements
           .read(DriftSqlType.string, data['${effectivePrefix}attachment_urls']),
       transactionId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}transaction_id']),
+      excludeFromStats: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}exclude_from_stats'])!,
     );
   }
 
@@ -3913,6 +4094,10 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
   final String? note;
   final String? attachmentUrls;
   final String? transactionId;
+
+  /// 是否不计入收支统计。个人垫款、与公司报销无关的可选标记：
+  /// 开启后该条不计入报销页「待收回」汇总。
+  final bool excludeFromStats;
   const Reimbursement(
       {required this.updatedAt,
       required this.deleted,
@@ -3930,7 +4115,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       this.receivedAt,
       this.note,
       this.attachmentUrls,
-      this.transactionId});
+      this.transactionId,
+      required this.excludeFromStats});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -3966,6 +4152,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
     if (!nullToAbsent || transactionId != null) {
       map['transaction_id'] = Variable<String>(transactionId);
     }
+    map['exclude_from_stats'] = Variable<bool>(excludeFromStats);
     return map;
   }
 
@@ -3997,6 +4184,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       transactionId: transactionId == null && nullToAbsent
           ? const Value.absent()
           : Value(transactionId),
+      excludeFromStats: Value(excludeFromStats),
     );
   }
 
@@ -4022,6 +4210,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       note: serializer.fromJson<String?>(json['note']),
       attachmentUrls: serializer.fromJson<String?>(json['attachmentUrls']),
       transactionId: serializer.fromJson<String?>(json['transactionId']),
+      excludeFromStats: serializer.fromJson<bool>(json['excludeFromStats']),
     );
   }
   @override
@@ -4046,6 +4235,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       'note': serializer.toJson<String?>(note),
       'attachmentUrls': serializer.toJson<String?>(attachmentUrls),
       'transactionId': serializer.toJson<String?>(transactionId),
+      'excludeFromStats': serializer.toJson<bool>(excludeFromStats),
     };
   }
 
@@ -4066,7 +4256,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           Value<int?> receivedAt = const Value.absent(),
           Value<String?> note = const Value.absent(),
           Value<String?> attachmentUrls = const Value.absent(),
-          Value<String?> transactionId = const Value.absent()}) =>
+          Value<String?> transactionId = const Value.absent(),
+          bool? excludeFromStats}) =>
       Reimbursement(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -4087,6 +4278,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
             attachmentUrls.present ? attachmentUrls.value : this.attachmentUrls,
         transactionId:
             transactionId.present ? transactionId.value : this.transactionId,
+        excludeFromStats: excludeFromStats ?? this.excludeFromStats,
       );
   Reimbursement copyWithCompanion(ReimbursementsCompanion data) {
     return Reimbursement(
@@ -4114,6 +4306,9 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       transactionId: data.transactionId.present
           ? data.transactionId.value
           : this.transactionId,
+      excludeFromStats: data.excludeFromStats.present
+          ? data.excludeFromStats.value
+          : this.excludeFromStats,
     );
   }
 
@@ -4136,7 +4331,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           ..write('receivedAt: $receivedAt, ')
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
-          ..write('transactionId: $transactionId')
+          ..write('transactionId: $transactionId, ')
+          ..write('excludeFromStats: $excludeFromStats')
           ..write(')'))
         .toString();
   }
@@ -4159,7 +4355,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       receivedAt,
       note,
       attachmentUrls,
-      transactionId);
+      transactionId,
+      excludeFromStats);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4180,7 +4377,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           other.receivedAt == this.receivedAt &&
           other.note == this.note &&
           other.attachmentUrls == this.attachmentUrls &&
-          other.transactionId == this.transactionId);
+          other.transactionId == this.transactionId &&
+          other.excludeFromStats == this.excludeFromStats);
 }
 
 class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
@@ -4201,6 +4399,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
   final Value<String?> note;
   final Value<String?> attachmentUrls;
   final Value<String?> transactionId;
+  final Value<bool> excludeFromStats;
   final Value<int> rowid;
   const ReimbursementsCompanion({
     this.updatedAt = const Value.absent(),
@@ -4220,6 +4419,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
     this.transactionId = const Value.absent(),
+    this.excludeFromStats = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ReimbursementsCompanion.insert({
@@ -4240,6 +4440,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
     this.transactionId = const Value.absent(),
+    this.excludeFromStats = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -4267,6 +4468,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     Expression<String>? note,
     Expression<String>? attachmentUrls,
     Expression<String>? transactionId,
+    Expression<bool>? excludeFromStats,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4287,6 +4489,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       if (note != null) 'note': note,
       if (attachmentUrls != null) 'attachment_urls': attachmentUrls,
       if (transactionId != null) 'transaction_id': transactionId,
+      if (excludeFromStats != null) 'exclude_from_stats': excludeFromStats,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4309,6 +4512,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       Value<String?>? note,
       Value<String?>? attachmentUrls,
       Value<String?>? transactionId,
+      Value<bool>? excludeFromStats,
       Value<int>? rowid}) {
     return ReimbursementsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -4328,6 +4532,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       note: note ?? this.note,
       attachmentUrls: attachmentUrls ?? this.attachmentUrls,
       transactionId: transactionId ?? this.transactionId,
+      excludeFromStats: excludeFromStats ?? this.excludeFromStats,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4387,6 +4592,9 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     if (transactionId.present) {
       map['transaction_id'] = Variable<String>(transactionId.value);
     }
+    if (excludeFromStats.present) {
+      map['exclude_from_stats'] = Variable<bool>(excludeFromStats.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4413,6 +4621,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
           ..write('transactionId: $transactionId, ')
+          ..write('excludeFromStats: $excludeFromStats, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6471,13 +6680,11 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
       'book_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
   @override
   late final GeneratedColumnWithTypeConverter<BudgetScope, int> scope =
       GeneratedColumn<int>('scope', aliasedName, false,
               type: DriftSqlType.int, requiredDuringInsert: true)
           .withConverter<BudgetScope>($BudgetsTable.$converterscope);
-  static const VerificationMeta _periodMeta = const VerificationMeta('period');
   @override
   late final GeneratedColumnWithTypeConverter<BudgetPeriod, int> period =
       GeneratedColumn<int>('period', aliasedName, false,
@@ -6591,8 +6798,6 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     } else if (isInserting) {
       context.missing(_bookIdMeta);
     }
-    context.handle(_scopeMeta, const VerificationResult.success());
-    context.handle(_periodMeta, const VerificationResult.success());
     if (data.containsKey('amount_minor')) {
       context.handle(
           _amountMinorMeta,
@@ -7223,7 +7428,6 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumnWithTypeConverter<InvestmentType, int> type =
       GeneratedColumn<int>('type', aliasedName, false,
@@ -7349,7 +7553,6 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
-    context.handle(_typeMeta, const VerificationResult.success());
     if (data.containsKey('quantity_micros')) {
       context.handle(
           _quantityMicrosMeta,
@@ -8776,7 +8979,6 @@ class $PendingOpsTable extends PendingOps
   late final GeneratedColumn<String> recordId = GeneratedColumn<String>(
       'record_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _opTypeMeta = const VerificationMeta('opType');
   @override
   late final GeneratedColumnWithTypeConverter<SyncOpType, int> opType =
       GeneratedColumn<int>('op_type', aliasedName, false,
@@ -8847,7 +9049,6 @@ class $PendingOpsTable extends PendingOps
     } else if (isInserting) {
       context.missing(_recordIdMeta);
     }
-    context.handle(_opTypeMeta, const VerificationResult.success());
     if (data.containsKey('payload')) {
       context.handle(_payloadMeta,
           payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta));
@@ -9472,6 +9673,10 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<int?> creditLimitMinor,
   Value<int?> billingDay,
   Value<int?> dueDay,
+  Value<String?> note,
+  Value<String?> cardNumber,
+  Value<AccountStatus> status,
+  Value<bool> includeInTotal,
   Value<bool> isArchived,
   Value<int> sortOrder,
   Value<int> rowid,
@@ -9492,6 +9697,10 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int?> creditLimitMinor,
   Value<int?> billingDay,
   Value<int?> dueDay,
+  Value<String?> note,
+  Value<String?> cardNumber,
+  Value<AccountStatus> status,
+  Value<bool> includeInTotal,
   Value<bool> isArchived,
   Value<int> sortOrder,
   Value<int> rowid,
@@ -9553,6 +9762,21 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<int> get dueDay => $composableBuilder(
       column: $table.dueDay, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cardNumber => $composableBuilder(
+      column: $table.cardNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<AccountStatus, AccountStatus, int>
+      get status => $composableBuilder(
+          column: $table.status,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<bool> get includeInTotal => $composableBuilder(
+      column: $table.includeInTotal,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isArchived => $composableBuilder(
       column: $table.isArchived, builder: (column) => ColumnFilters(column));
@@ -9617,6 +9841,19 @@ class $$AccountsTableOrderingComposer
   ColumnOrderings<int> get dueDay => $composableBuilder(
       column: $table.dueDay, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cardNumber => $composableBuilder(
+      column: $table.cardNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get includeInTotal => $composableBuilder(
+      column: $table.includeInTotal,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isArchived => $composableBuilder(
       column: $table.isArchived, builder: (column) => ColumnOrderings(column));
 
@@ -9678,6 +9915,18 @@ class $$AccountsTableAnnotationComposer
   GeneratedColumn<int> get dueDay =>
       $composableBuilder(column: $table.dueDay, builder: (column) => column);
 
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get cardNumber => $composableBuilder(
+      column: $table.cardNumber, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<AccountStatus, int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<bool> get includeInTotal => $composableBuilder(
+      column: $table.includeInTotal, builder: (column) => column);
+
   GeneratedColumn<bool> get isArchived => $composableBuilder(
       column: $table.isArchived, builder: (column) => column);
 
@@ -9723,6 +9972,10 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<int?> creditLimitMinor = const Value.absent(),
             Value<int?> billingDay = const Value.absent(),
             Value<int?> dueDay = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String?> cardNumber = const Value.absent(),
+            Value<AccountStatus> status = const Value.absent(),
+            Value<bool> includeInTotal = const Value.absent(),
             Value<bool> isArchived = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -9743,6 +9996,10 @@ class $$AccountsTableTableManager extends RootTableManager<
             creditLimitMinor: creditLimitMinor,
             billingDay: billingDay,
             dueDay: dueDay,
+            note: note,
+            cardNumber: cardNumber,
+            status: status,
+            includeInTotal: includeInTotal,
             isArchived: isArchived,
             sortOrder: sortOrder,
             rowid: rowid,
@@ -9763,6 +10020,10 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<int?> creditLimitMinor = const Value.absent(),
             Value<int?> billingDay = const Value.absent(),
             Value<int?> dueDay = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String?> cardNumber = const Value.absent(),
+            Value<AccountStatus> status = const Value.absent(),
+            Value<bool> includeInTotal = const Value.absent(),
             Value<bool> isArchived = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -9783,6 +10044,10 @@ class $$AccountsTableTableManager extends RootTableManager<
             creditLimitMinor: creditLimitMinor,
             billingDay: billingDay,
             dueDay: dueDay,
+            note: note,
+            cardNumber: cardNumber,
+            status: status,
+            includeInTotal: includeInTotal,
             isArchived: isArchived,
             sortOrder: sortOrder,
             rowid: rowid,
@@ -10842,6 +11107,7 @@ typedef $$ReimbursementsTableCreateCompanionBuilder = ReimbursementsCompanion
   Value<String?> note,
   Value<String?> attachmentUrls,
   Value<String?> transactionId,
+  Value<bool> excludeFromStats,
   Value<int> rowid,
 });
 typedef $$ReimbursementsTableUpdateCompanionBuilder = ReimbursementsCompanion
@@ -10863,6 +11129,7 @@ typedef $$ReimbursementsTableUpdateCompanionBuilder = ReimbursementsCompanion
   Value<String?> note,
   Value<String?> attachmentUrls,
   Value<String?> transactionId,
+  Value<bool> excludeFromStats,
   Value<int> rowid,
 });
 
@@ -10928,6 +11195,10 @@ class $$ReimbursementsTableFilterComposer
 
   ColumnFilters<String> get transactionId => $composableBuilder(
       column: $table.transactionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get excludeFromStats => $composableBuilder(
+      column: $table.excludeFromStats,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$ReimbursementsTableOrderingComposer
@@ -10991,6 +11262,10 @@ class $$ReimbursementsTableOrderingComposer
   ColumnOrderings<String> get transactionId => $composableBuilder(
       column: $table.transactionId,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get excludeFromStats => $composableBuilder(
+      column: $table.excludeFromStats,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$ReimbursementsTableAnnotationComposer
@@ -11052,6 +11327,9 @@ class $$ReimbursementsTableAnnotationComposer
 
   GeneratedColumn<String> get transactionId => $composableBuilder(
       column: $table.transactionId, builder: (column) => column);
+
+  GeneratedColumn<bool> get excludeFromStats => $composableBuilder(
+      column: $table.excludeFromStats, builder: (column) => column);
 }
 
 class $$ReimbursementsTableTableManager extends RootTableManager<
@@ -11098,6 +11376,7 @@ class $$ReimbursementsTableTableManager extends RootTableManager<
             Value<String?> note = const Value.absent(),
             Value<String?> attachmentUrls = const Value.absent(),
             Value<String?> transactionId = const Value.absent(),
+            Value<bool> excludeFromStats = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ReimbursementsCompanion(
@@ -11118,6 +11397,7 @@ class $$ReimbursementsTableTableManager extends RootTableManager<
             note: note,
             attachmentUrls: attachmentUrls,
             transactionId: transactionId,
+            excludeFromStats: excludeFromStats,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -11138,6 +11418,7 @@ class $$ReimbursementsTableTableManager extends RootTableManager<
             Value<String?> note = const Value.absent(),
             Value<String?> attachmentUrls = const Value.absent(),
             Value<String?> transactionId = const Value.absent(),
+            Value<bool> excludeFromStats = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ReimbursementsCompanion.insert(
@@ -11158,6 +11439,7 @@ class $$ReimbursementsTableTableManager extends RootTableManager<
             note: note,
             attachmentUrls: attachmentUrls,
             transactionId: transactionId,
+            excludeFromStats: excludeFromStats,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

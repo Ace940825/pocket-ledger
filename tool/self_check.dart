@@ -57,8 +57,8 @@ void _checkDateUtils() {
       '跨年：11/10 +3 月 = 次年 2/10');
   check(addMonths(DateTime(2026, 1, 10), -2) == DateTime(2025, 11, 10),
       '回退：1/10 -2 月 = 前年 11/10');
-  check(addMonths(DateTime(2026, 5, 20), 0) == DateTime(2026, 5, 20),
-      '+0 月保持不变');
+  check(
+      addMonths(DateTime(2026, 5, 20), 0) == DateTime(2026, 5, 20), '+0 月保持不变');
   check(
       addMonths(DateTime(2026, 5, 20, 13, 45), 1) ==
           DateTime(2026, 6, 20, 13, 45),
@@ -138,8 +138,7 @@ void _checkBudgetRange() {
     yearly.end,
     isUtc: true,
   ).toLocal();
-  check(yEnd.year == 2027 && yEnd.month == 1,
-      '年度区间右端点 = 次年 1/1');
+  check(yEnd.year == 2027 && yEnd.month == 1, '年度区间右端点 = 次年 1/1');
 
   final int pMonth = currentPeriodIndex(monthly: true, quarterly: false);
   final int pQuarter = currentPeriodIndex(monthly: false, quarterly: true);
@@ -153,8 +152,7 @@ void _checkMoney() {
   // 「分」存储
   check(Money.fromDecimal(1).minor == 100, '1 元 = 100 分');
   check(Money.fromDecimal(0.01).minor == 1, '0.01 元 = 1 分');
-  check(Money.fromDecimal(0.1).minor == 10,
-      '0.1 元 = 10 分（不因浮点落为 9 分）');
+  check(Money.fromDecimal(0.1).minor == 10, '0.1 元 = 10 分（不因浮点落为 9 分）');
   check(Money.fromMinor(12345).minor == 12345, 'fromMinor 原样保留');
 
   // 整套金额设计的根本目的
@@ -180,8 +178,7 @@ void _checkMoney() {
   // AA 分账不丢分：100 元三等分，两份 + 余数 = 100 元
   final Money total = Money.fromMinor(10000);
   final Money third = total.ratio(1 / 3);
-  check(third.minor * 2 + (total - third * 2).minor == 10000,
-      '三等分后各部分之和仍等于总额');
+  check(third.minor * 2 + (total - third * 2).minor == 10000, '三等分后各部分之和仍等于总额');
 
   // decimal 仅用于展示
   check(Money.fromMinor(12345).decimal == 123.45, 'decimal 展示值');
@@ -234,7 +231,10 @@ void _checkRecordCodecCoverage() {
   // 用「定位 insert( + 括号配对」而不是一整条大正则：
   // 正则一旦依赖具体缩进或换行风格就非常脆弱，而这两个方法体是手写的。
   final RegExp sigRe = RegExp(r'static (\w+)Companion \w+\(');
-  final RegExp argRe = RegExp(r'(\w+): ');
+  // 注意用 `\s` 而不是字面空格：`dart format` 会把过长的参数折行成
+  // `fieldName:\n    Value<...>(...)`，此时「字段名 + 冒号 + 空格」不再同行，
+  // 用字面空格会漏掉该字段并误报「漏了：xxx」。`\s` 能匹配换行。
+  final RegExp argRe = RegExp(r'(\w+):\s');
 
   final Map<String, Set<String>> codecFields = <String, Set<String>>{};
   for (final RegExpMatch m in sigRe.allMatches(codecSrc)) {
@@ -294,8 +294,7 @@ void _checkRecordCodecCoverage() {
 
   final int branches =
       RegExp('case SyncTables\\.\\w+:').allMatches(codecSrc).length;
-  check(branches == 12,
-      'RecordCodec.decode 有 12 个 switch 分支，实际 $branches');
+  check(branches == 12, 'RecordCodec.decode 有 12 个 switch 分支，实际 $branches');
 }
 
 /// 类名 → 蛇形表名：LendRecords → lend_records
@@ -371,7 +370,8 @@ void _checkSyncSettings() {
   check(configured.blockedReason == null, '就绪时无阻塞原因');
 
   check(
-    empty.copyWith(enabled: true, baseUrl: 'https://x.dev').blockedReason != null,
+    empty.copyWith(enabled: true, baseUrl: 'https://x.dev').blockedReason !=
+        null,
     '缺令牌时仍提示未配置',
   );
   check(

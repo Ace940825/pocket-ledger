@@ -1,6 +1,8 @@
 /// 日期计算工具。所有对外时间戳一律是 **UTC 毫秒**。
 library;
 
+import 'package:intl/intl.dart';
+
 /// 在 [from] 上增加 [months] 个月，并做月末夹取。
 ///
 /// 为什么不用 `DateTime(y, m + n, d)`：Dart 会把 2 月 31 日自动溢出成 3 月 3 日，
@@ -75,4 +77,61 @@ int currentPeriodIndex({required bool monthly, required bool quarterly}) {
   if (monthly) return now.month;
   if (quarterly) return ((now.month - 1) / 3).floor() + 1;
   return 0;
+}
+
+/// 返回「9月10日 昨天 星期四」风格的账单日期描述。
+///
+/// 日期部分按本地时区从时间戳解析，相对描述只保留「今天/昨天/前天」；
+/// 三天以上不再显示相对词，只显示「星期 X」。
+String accountLedgerDateLabel(int timestamp) {
+  final DateTime local = DateTime.fromMillisecondsSinceEpoch(
+    timestamp,
+    isUtc: true,
+  ).toLocal();
+  final DateTime now = DateTime.now();
+  final DateTime today = DateTime(now.year, now.month, now.day);
+  final DateTime date = DateTime(local.year, local.month, local.day);
+  final int diff = today.difference(date).inDays;
+
+  const List<String> weekdays = <String>[
+    '星期一',
+    '星期二',
+    '星期三',
+    '星期四',
+    '星期五',
+    '星期六',
+    '星期日',
+  ];
+  final String weekday = weekdays[date.weekday - 1];
+  final String relative = switch (diff) {
+    0 => '今天',
+    1 => '昨天',
+    2 => '前天',
+    _ => '',
+  };
+
+  final String base = DateFormat('M月d日').format(local);
+  if (relative.isEmpty) return '$base $weekday';
+  return '$base $relative $weekday';
+}
+
+/// 账单列表按年月分组用的小标题，如 `2026年9月`。
+///
+/// 只传 pattern、不传 locale：项目从未调用 `initializeDateFormatting`，
+/// 带 locale 会抛 `LocaleDataException`（见 `accountLedgerDateLabel` 的同款处理）。
+String ledgerMonthLabel(int timestamp) {
+  final DateTime local = DateTime.fromMillisecondsSinceEpoch(
+    timestamp,
+    isUtc: true,
+  ).toLocal();
+  return '${local.year}年${local.month}月';
+}
+
+/// 两个时间戳是否落在**同一个本地月份**（用于分组标题去重）。
+bool sameLocalMonth(int aMs, int bMs) {
+  final DateTime a =
+      DateTime.fromMillisecondsSinceEpoch(aMs, isUtc: true).toLocal();
+  final DateTime b =
+      DateTime.fromMillisecondsSinceEpoch(bMs, isUtc: true).toLocal();
+  return a.year == b.year && a.month == b.month;
 }

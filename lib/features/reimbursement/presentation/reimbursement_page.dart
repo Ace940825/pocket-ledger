@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
+import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
+import '../../../providers/asset_stats_settings.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
@@ -20,11 +24,15 @@ class ReimbursementPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<List<Reimbursement>> records =
         ref.watch(reimbursementListProvider);
+    // 「账单列表按年月分组 · 报销账户」开关（在资产详情页的齿轮设置里配置）。
+    final bool groupByMonth =
+        ref.watch(assetStatsSettingsProvider).groupByMonthReimburse;
 
     return ModuleListScaffold<Reimbursement>(
       title: '报销',
       items: records,
       emptyHint: '还没有报销记录，点右下角新增',
+      groupHeaderBuilder: groupByMonth ? _monthHeader : null,
       header: records.maybeWhen(
         data: (List<Reimbursement> list) => _PendingSummary(records: list),
         orElse: () => null,
@@ -38,8 +46,7 @@ class ReimbursementPage extends ConsumerWidget {
           '${r.target == null || r.target!.isEmpty ? '' : ' · 向 ${r.target}'}',
         ),
         trailing: PopupMenuButton<_MenuAction>(
-          onSelected: (_MenuAction action) =>
-              _onMenu(context, ref, r, action),
+          onSelected: (_MenuAction action) => _onMenu(context, ref, r, action),
           itemBuilder: (BuildContext _) => <PopupMenuEntry<_MenuAction>>[
             for (final ReimbursementStatus s in ReimbursementStatus.values)
               if (s != r.status)
@@ -57,6 +64,19 @@ class ReimbursementPage extends ConsumerWidget {
         onTap: () => _showEditor(context, ref, r),
       ),
     );
+  }
+
+  /// 列表已按 `occurredAt` 倒序，所以只在「月份变化」时插一条小标题。
+  static Widget? _monthHeader(
+    BuildContext context,
+    Reimbursement item,
+    Reimbursement? previous,
+  ) {
+    if (previous != null &&
+        sameLocalMonth(previous.occurredAt, item.occurredAt)) {
+      return null;
+    }
+    return _MonthHeader(label: ledgerMonthLabel(item.occurredAt));
   }
 
   Future<void> _onMenu(
@@ -103,6 +123,7 @@ class ReimbursementPage extends ConsumerWidget {
         TextEditingController(text: record?.note ?? '');
 
     ReimbursementStatus status = record?.status ?? ReimbursementStatus.pending;
+    bool excludeFromStats = record?.excludeFromStats ?? false;
     DateTime occurredAt = record != null
         ? DateTime.fromMillisecondsSinceEpoch(record.occurredAt, isUtc: true)
             .toLocal()
@@ -168,6 +189,15 @@ class ReimbursementPage extends ConsumerWidget {
                   ),
                 ),
                 const FormGap(),
+                SwitchListTile(
+                  title: const Text('不计入收支'),
+                  subtitle: const Text('个人垫款、与报销统计无关时开启，'
+                      '不计入「待收回」汇总'),
+                  value: excludeFromStats,
+                  onChanged: (bool v) => setState(() => excludeFromStats = v),
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const FormGap(),
                 TextField(
                   controller: noteController,
                   decoration: const InputDecoration(labelText: '备注'),
@@ -213,6 +243,7 @@ class ReimbursementPage extends ConsumerWidget {
           target: target.isEmpty ? null : target,
           receivedAt: receivedAt,
           note: note.isEmpty ? null : note,
+          excludeFromStats: excludeFromStats,
         );
       } else {
         await repo.update(
@@ -225,11 +256,40 @@ class ReimbursementPage extends ConsumerWidget {
           target: target.isEmpty ? null : target,
           receivedAt: receivedAt,
           note: note.isEmpty ? null : note,
+          excludeFromStats: excludeFromStats,
         );
       }
     } on AppFailure catch (e) {
       if (context.mounted) showToast(context, e.message);
     }
+  }
+}
+
+/// 「按年月分组」时插入的月份小标题，如 `2026年9月`。
+class _MonthHeader extends StatelessWidget {
+  const _MonthHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.spaceLg,
+        AppDimens.spaceMd,
+        AppDimens.spaceLg,
+        AppDimens.spaceXs,
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
   }
 }
 
@@ -243,7 +303,7 @@ class _PendingSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     int pendingMinor = 0;
     for (final Reimbursement r in records) {
-      if (r.status != ReimbursementStatus.received) {
+      if (r.status != ReimbursementStatus.received && !r.excludeFromStats) {
         pendingMinor += r.amountMinor;
       }
     }

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/accounts/presentation/account_ledger_page.dart';
 import '../features/accounts/presentation/accounts_page.dart';
+import '../features/accounts/presentation/add_account_page.dart';
 import '../features/budget/presentation/budget_page.dart';
 import '../features/categories/presentation/category_manage_page.dart';
 import '../features/home/presentation/home_page.dart';
@@ -26,6 +28,8 @@ abstract final class Routes {
   static const String home = '/home';
   static const String ledger = '/ledger';
   static const String accounts = '/accounts';
+  static const String accountAdd = '/accounts/add';
+  static const String accountLedger = '/accounts/:id/transactions';
   static const String budget = '/budget';
   static const String report = '/report';
 
@@ -116,6 +120,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: Routes.more,
         builder: (_, __) => const MorePage(),
+      ),
+      GoRoute(
+        path: Routes.accountAdd,
+        builder: (_, __) => const AddAccountPage(),
+      ),
+      GoRoute(
+        path: Routes.accountLedger,
+        builder: (_, GoRouterState state) =>
+            AccountLedgerPage(accountId: state.pathParameters['id'] ?? ''),
       ),
       GoRoute(
         path: Routes.categories,

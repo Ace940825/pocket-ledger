@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import 'transaction_edit_rules.dart';
 
 /// 记账仓储。
 ///
@@ -90,6 +91,13 @@ class TransactionRepository {
   /// 更新一条流水。
   ///
   /// 若金额或账户变更，会先回滚旧流水对余额的影响，再应用新的。
+  ///
+  /// **`type` 的三个从属字段会被重新推导**（见 [resolveEditIdentity]）：
+  /// `sourceModule` / `toAccountId` / `transferGroupId` 都会跟着新类型走。
+  /// 这是必需的 —— 早先只改 `type` 不推导，导致「退款改成收入」后
+  /// 仍按退款抵扣支出（`支出:¥88.00 收入:¥0.00` 那类对不上的数字）。
+  ///
+  /// [sourceModule] 用于调用方**显式**指定来源（编辑页的「这是退款」开关）。
   Future<void> updateTransaction({
     required Transaction original,
     TxnType? type,
@@ -99,15 +107,28 @@ class TransactionRepository {
     String? categoryId,
     String? note,
     int? occurredAt,
+    SourceModule? sourceModule,
   }) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final TxnType newType = type ?? original.type;
     final int newAmount = amountMinor ?? original.amountMinor;
     final String newAccountId = accountId ?? original.accountId;
-    final String? newToAccountId = toAccountId ?? original.toAccountId;
 
     if (newAmount <= 0) {
       throw const ValidationFailure('金额必须大于 0');
+    }
+
+    // 与 add() 保持一致的校验：转账必须有转入账户。
+    final String? requestedToAccountId = toAccountId ?? original.toAccountId;
+    final TransactionEditIdentity identity = resolveEditIdentity(
+      newType: newType,
+      currentSourceModule: original.sourceModule,
+      currentToAccountId: requestedToAccountId,
+      currentTransferGroupId: original.transferGroupId,
+      overrideSourceModule: sourceModule,
+    );
+    if (newType == TxnType.transfer && identity.toAccountId == null) {
+      throw const ValidationFailure('转账必须指定转入账户');
     }
 
     await _db.transaction<void>(() async {
@@ -120,18 +141,32 @@ class TransactionRepository {
         now,
       );
 
-      // 2. 写入新值
+      // 2. 写入新值。
+      //
+      // ⚠️ `updateTx` 走的是 `INSERT OR REPLACE`，**companion 里没给的列
+      // 会被写回默认值/NULL**。所以这里必须给出完整的一行
+      // （含 bookId / currency / tags / attachmentUrls / relatedId），
+      // 否则一次编辑就会把货币、标签、票据图片默默清空。
       await _db.transactionsDao.updateTx(
         TransactionsCompanion(
           id: Value<String>(original.id),
+          bookId: Value<String>(original.bookId),
           type: Value<TxnType>(newType),
           amountMinor: Value<int>(newAmount),
+          currency: Value<String>(original.currency),
           accountId: Value<String>(newAccountId),
-          toAccountId: Value<String?>(newToAccountId),
+          toAccountId: Value<String?>(identity.toAccountId),
           categoryId: Value<String?>(categoryId ?? original.categoryId),
-          note: Value<String?>(note ?? original.note),
           occurredAt: Value<int>(occurredAt ?? original.occurredAt),
+          note: Value<String?>(note ?? original.note),
+          attachmentUrls: Value<String?>(original.attachmentUrls),
+          tags: Value<String?>(original.tags),
+          sourceModule: Value<SourceModule>(identity.sourceModule),
+          relatedId: Value<String?>(original.relatedId),
+          transferGroupId: Value<String?>(identity.transferGroupId),
+          deleted: Value<bool>(original.deleted),
           updatedAt: Value<int>(now),
+          syncedAt: Value<int?>(original.syncedAt),
           dirty: const Value<bool>(true),
         ),
       );
@@ -140,7 +175,7 @@ class TransactionRepository {
       await _applyBalanceDelta(
         newType,
         newAccountId,
-        newToAccountId,
+        identity.toAccountId,
         newAmount,
         now,
       );
@@ -156,11 +191,12 @@ class TransactionRepository {
           'amountMinor': newAmount,
           'currency': original.currency,
           'accountId': newAccountId,
-          'toAccountId': newToAccountId,
+          'toAccountId': identity.toAccountId,
           'categoryId': categoryId ?? original.categoryId,
           'occurredAt': occurredAt ?? original.occurredAt,
           'note': note ?? original.note,
-          'sourceModule': original.sourceModule.index,
+          // 必须是推导后的值：否则云端会把「撒谎的旧标记」同步回来。
+          'sourceModule': identity.sourceModule.index,
         },
       );
     });
@@ -193,7 +229,23 @@ class TransactionRepository {
     });
   }
 
-  /// 转账：在一个事务内写入两条流水，保证成对出现。
+  /// 转账：**只写一条**流水（`accountId = 转出方`，`toAccountId = 转入方`）。
+  ///
+  /// 为什么不再写「转入腿」：`TransactionsDao.watchByAccount` 的取数条件是
+  /// `accountId = A OR toAccountId = A`，**单条腿已经能同时出现在两个账户的明细里**，
+  /// 第二条腿纯属冗余。而它带来的两个问题都很致命：
+  ///
+  /// 1. **重复记账**：两条腿（`accountId`/`toAccountId` 互换）对账户 A 都命中，
+  ///    同一笔转账在 A 的明细里出现两次，月汇总被重复累加；
+  /// 2. **方向丢失**：两条腿在字段上完全对称（`{from,to}` 与 `{to,from}`），
+  ///    从数据里**根本推不出钱是转出还是转入**，于是「转账转入计入收入」这类
+  ///    统计口径无法实现。
+  ///
+  /// 只写一条腿后：转出方由 `accountId` 标识，转入方由 `toAccountId` 标识，
+  /// 相对某个账户的方向即可用 `accountId == 该账户 ? 转出 : 转入` 判定
+  /// （见 `transferDirectionOf`）。
+  ///
+  /// 历史上已经写下的成对数据仍由 `dedupeAccountTransfers` 在读路径去重。
   Future<String> transfer({
     required String bookId,
     required String fromAccountId,
@@ -209,8 +261,8 @@ class TransactionRepository {
 
     final String groupId = const Uuid().v7();
 
-    return _db.transaction<String>(() async {
-      final String outId = await add(
+    return _db.transaction<String>(
+      () => add(
         bookId: bookId,
         type: TxnType.transfer,
         amountMinor: amountMinor,
@@ -221,30 +273,8 @@ class TransactionRepository {
         currency: currency,
         sourceModule: SourceModule.transfer,
         transferGroupId: groupId,
-      );
-
-      // 转入方记录一条配对流水，便于账户明细完整展示
-      final String inId = const Uuid().v7();
-      await _db.transactionsDao.insertTx(
-        TransactionsCompanion(
-          id: Value<String>(inId),
-          bookId: Value<String>(bookId),
-          type: const Value<TxnType>(TxnType.transfer),
-          amountMinor: Value<int>(amountMinor),
-          currency: Value<String>(currency),
-          accountId: Value<String>(toAccountId),
-          toAccountId: Value<String>(fromAccountId),
-          occurredAt: Value<int>(occurredAt),
-          note: Value<String?>(note),
-          sourceModule: const Value<SourceModule>(SourceModule.transfer),
-          transferGroupId: Value<String>(groupId),
-          updatedAt: Value<int>(DateTime.now().toUtc().millisecondsSinceEpoch),
-          dirty: const Value<bool>(true),
-        ),
-      );
-
-      return outId;
-    });
+      ),
+    );
   }
 
   /// 应用余额变动。转账只调整两个账户，不改变净资产。

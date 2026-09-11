@@ -54,13 +54,15 @@ class AppDatabase extends _$AppDatabase {
 
   /// 打开加密数据库。密码为空时表示不启用加密（仅开发调试用）。
   AppDatabase.open({required String password})
-      : super(openEncryptedDatabase(
-          name: 'pocket_ledger.db',
-          password: password,
-        ),);
+      : super(
+          openEncryptedDatabase(
+            name: 'pocket_ledger.db',
+            password: password,
+          ),
+        );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -69,8 +71,34 @@ class AppDatabase extends _$AppDatabase {
           await _createIndexes();
         },
         onUpgrade: (Migrator m, int from, int to) async {
-          // 首个版本，暂无历史迁移。后续每个版本必须在此追加 step-by-step 迁移，
-          // 并在迁移前自动备份数据库文件。
+          // 每个版本必须在此追加 step-by-step 迁移。
+          //
+          // ⚠️ 所有迁移步骤都必须是**幂等**的。踩过的坑：v2 用 `m.addColumn`
+          // 无条件发 ALTER TABLE，而开发机上早就用「已含该列的 tables.dart」
+          // 建过 v1 库（列已在、但 user_version 仍是 1），于是升级到 v2 时抛
+          // `SqliteException(1): duplicate column name` → 迁移事务回滚 →
+          // `bootstrapData` 抛异常 → `main()` 中断 → `runApp` 永不执行 →
+          // App 永远停在 Flutter 启动图（且每次冷启都会重试、再次失败）。
+          if (from < 2) {
+            // v2：报销表新增「不计入收支」开关列。
+            await _addColumnIfMissing(
+              m,
+              reimbursements,
+              reimbursements.excludeFromStats,
+            );
+          }
+
+          if (from < 3) {
+            // v3：账户表扩展字段。
+            await _addColumnIfMissing(m, accounts, accounts.note);
+            await _addColumnIfMissing(m, accounts, accounts.cardNumber);
+            await _addColumnIfMissing(m, accounts, accounts.status);
+            await _addColumnIfMissing(m, accounts, accounts.includeInTotal);
+          }
+
+          // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
+          // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
+          await _createIndexes();
         },
         beforeOpen: (OpeningDetails details) async {
           // 启用外键约束，保证账户与流水的引用完整性
@@ -78,36 +106,63 @@ class AppDatabase extends _$AppDatabase {
         },
       );
 
+  /// 幂等加列：先探测列是否已存在，不存在才 `ADD COLUMN`。
+  ///
+  /// drift 的 [Migrator.addColumn] 是无条件 `ALTER TABLE ... ADD COLUMN`，
+  /// 列已存在时 SQLite 会直接报 `duplicate column name`。开发期反复改
+  /// schema 时极易踩到，见 [migration] 里的详细说明。
+  Future<void> _addColumnIfMissing(
+    Migrator m,
+    TableInfo<Table, dynamic> table,
+    GeneratedColumn column,
+  ) async {
+    // PRAGMA table_info 在 SQLite 全版本可用，返回 name/type/notnull 等列信息。
+    // 注意用 `this.customSelect`（AppDatabase 自身）而不是 `m.database`。
+    final List<QueryRow> info = await customSelect(
+      'PRAGMA table_info(${table.actualTableName})',
+    ).get();
+    final bool exists =
+        info.any((QueryRow row) => row.read<String>('name') == column.name);
+    if (!exists) {
+      await m.addColumn(table, column);
+    }
+  }
+
   /// 创建索引。
   ///
   /// 前 3 个索引决定列表与报表的查询速度；
   /// 最后一个部分索引让同步队列扫描只覆盖待同步行，避免全表扫描。
+  ///
+  /// 一律用 `IF NOT EXISTS`：本方法同时被 [migration] 的 onCreate 与
+  /// onUpgrade 调用，重复执行必须是安全的。
   Future<void> _createIndexes() async {
     await customStatement(
-      'CREATE INDEX idx_txn_book_date '
+      'CREATE INDEX IF NOT EXISTS idx_txn_book_date '
       'ON transactions(book_id, occurred_at DESC)',
     );
     await customStatement(
-      'CREATE INDEX idx_txn_account_date '
+      'CREATE INDEX IF NOT EXISTS idx_txn_account_date '
       'ON transactions(book_id, account_id, occurred_at DESC)',
     );
     await customStatement(
-      'CREATE INDEX idx_txn_category_date '
+      'CREATE INDEX IF NOT EXISTS idx_txn_category_date '
       'ON transactions(book_id, category_id, occurred_at DESC)',
     );
     await customStatement(
-      'CREATE INDEX idx_txn_dirty '
+      'CREATE INDEX IF NOT EXISTS idx_txn_dirty '
       'ON transactions(dirty) WHERE dirty = 1',
     );
     await customStatement(
-      'CREATE INDEX idx_accounts_book ON accounts(book_id, sort_order)',
+      'CREATE INDEX IF NOT EXISTS idx_accounts_book '
+      'ON accounts(book_id, sort_order)',
     );
     await customStatement(
-      'CREATE INDEX idx_categories_book '
+      'CREATE INDEX IF NOT EXISTS idx_categories_book '
       'ON categories(book_id, type, sort_order)',
     );
     await customStatement(
-      'CREATE INDEX idx_pending_ops_seq ON pending_ops(local_seq)',
+      'CREATE INDEX IF NOT EXISTS idx_pending_ops_seq '
+      'ON pending_ops(local_seq)',
     );
   }
 }

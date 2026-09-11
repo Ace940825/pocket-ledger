@@ -93,7 +93,9 @@ class SyncEngine {
     try {
       final bool available = await _adapter.isAvailable();
       if (!available) {
-        return _snapshot(SyncStatus.disabled);
+        // 用 await 才能真正把 _snapshot 内部的异常纳入下方 catch；
+        // 直接 return 会让 finally 先执行、快照的错误逃逸到 unhandled。
+        return await _snapshot(SyncStatus.disabled);
       }
 
       await _push();
@@ -104,7 +106,7 @@ class SyncEngine {
         key: Env.lastSyncedAtStorageKey,
         value: now.toString(),
       );
-      return _snapshot(SyncStatus.success, lastSyncedAt: now);
+      return await _snapshot(SyncStatus.success, lastSyncedAt: now);
     } on AppFailure catch (e) {
       return _snapshot(SyncStatus.failure, error: e.message);
     } catch (e) {
@@ -173,8 +175,7 @@ class SyncEngine {
     final List<int> failedSeqs = ops
         .where(
           (PendingOp o) =>
-              !applied.contains(o.recordId) &&
-              !conflicted.contains(o.recordId),
+              !applied.contains(o.recordId) && !conflicted.contains(o.recordId),
         )
         .map((PendingOp o) => o.localSeq)
         .toList(growable: false);

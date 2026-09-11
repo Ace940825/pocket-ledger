@@ -32,6 +32,79 @@ void main() {
     });
   });
 
+  group('金额解析的浮点陷阱（回归）', () {
+    // 这些值在二进制浮点里都「差一点点不到半数」，天真的
+    // `(value * 100).round()` 会少 1 分。曾经因此挂掉过测试。
+    // 用 record 列表而不是 Map：Dart 的 const Map 不允许 double 作 key。
+    const List<(double, int)> traps = <(double, int)>[
+      (1.005, 101),
+      (2.675, 268),
+      (8.115, 812),
+      (0.145, 15),
+      (18.475, 1848),
+    ];
+
+    for (final (double input, int expected) in traps) {
+      test('fromDecimal($input) 应得 $expected 分', () {
+        expect(Money.fromDecimal(input).minor, expected);
+      });
+    }
+
+    test('负数同样按绝对值四舍五入', () {
+      expect(Money.fromDecimal(-1.005).minor, -101);
+      expect(Money.fromDecimal(-0.004).minor, 0);
+    });
+
+    test('整数走 int 分支，不做浮点乘法', () {
+      expect(Money.fromDecimal(0).minor, 0);
+      expect(Money.fromDecimal(3).minor, 300);
+      expect(Money.fromDecimal(-3).minor, -300);
+    });
+  });
+
+  group('tryParse 输入清洗与边界（回归）', () {
+    test('千分位逗号被忽略', () {
+      expect(Money.tryParse('1,234.56').minor, 123456);
+      expect(Money.tryParse('1，234.56').minor, 123456);
+    });
+
+    test('货币符号前缀被忽略', () {
+      expect(Money.tryParse('¥12.30').minor, 1230);
+      expect(Money.tryParse(r'$12.30').minor, 1230);
+      expect(Money.tryParse('¥ 12.30').minor, 1230);
+    });
+
+    test('带符号的输入', () {
+      expect(Money.tryParse('-12.30').minor, -1230);
+      expect(Money.tryParse('+12.30').minor, 1230);
+    });
+
+    test('末尾小数点与省略整数位都能解析', () {
+      expect(Money.tryParse('12.').minor, 1200);
+      expect(Money.tryParse('.5').minor, 50);
+    });
+
+    test('多于两位小数按「厘」四舍五入，之后截断', () {
+      expect(Money.tryParse('1.0049').minor, 100);
+      expect(Money.tryParse('1.0051').minor, 101);
+      expect(Money.tryParse('1.99999').minor, 200);
+    });
+
+    test('非法输入返回零值而不是抛异常', () {
+      expect(Money.tryParse('').minor, 0);
+      expect(Money.tryParse('   ').minor, 0);
+      expect(Money.tryParse('1.2.3').minor, 0);
+      expect(Money.tryParse('1e').minor, 0);
+      expect(Money.tryParse('--1').minor, 0);
+      expect(Money.tryParse('12元').minor, 0);
+    });
+
+    test('指数记法仍可解析（兜底分支）', () {
+      expect(Money.tryParse('1e2').minor, 10000);
+      expect(Money.tryParse('1.5e2').minor, 15000);
+    });
+  });
+
   group('符号与比较', () {
     test('isZero / isNegative / isPositive', () {
       expect(Money.zero.isZero, isTrue);

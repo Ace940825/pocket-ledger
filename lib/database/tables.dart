@@ -29,7 +29,9 @@ class Books extends Table with SyncColumns {
   Set<Column> get primaryKey => <Column>{id};
 }
 
-/// 账户：现金 / 储蓄卡 / 信用卡 / 电子钱包 / 投资账户
+/// 账户：现金、借记卡、信用卡、电子钱包、微信、支付宝、
+/// 公积金、医保卡、公交卡、购物卡、基金、股票、期货、现货、
+/// 报销、借出、借入、花呗、借呗、白条、美团月付、抖音月付等。
 class Accounts extends Table with SyncColumns {
   TextColumn get id => text()();
   TextColumn get bookId => text()();
@@ -51,6 +53,22 @@ class Accounts extends Table with SyncColumns {
   IntColumn get billingDay => integer().nullable()();
   IntColumn get dueDay => integer().nullable()();
 
+  /// 备注
+  TextColumn get note => text().nullable()();
+
+  /// 卡号（银行卡 / 信用卡等）
+  TextColumn get cardNumber => text().nullable()();
+
+  /// 资产状态：0 使用中 / 1 隐藏 / 2 封存。
+  /// 与 [isArchived] 保持同步：非 active 时 isArchived = true。
+  IntColumn get status =>
+      intEnum<AccountStatus>().withDefault(const Constant(0))();
+
+  /// 是否计入总资产（净值计算）。
+  BoolColumn get includeInTotal =>
+      boolean().withDefault(const Constant(true))();
+
+  /// 旧版归档标记。保留以兼容旧查询，语义等同于 status != active。
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
@@ -156,6 +174,11 @@ class Reimbursements extends Table with SyncColumns {
   TextColumn get note => text().nullable()();
   TextColumn get attachmentUrls => text().nullable()();
   TextColumn get transactionId => text().nullable()();
+
+  /// 是否不计入收支统计。个人垫款、与公司报销无关的可选标记：
+  /// 开启后该条不计入报销页「待收回」汇总。
+  BoolColumn get excludeFromStats =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => <Column>{id};
@@ -275,7 +298,8 @@ class InventoryItems extends Table with SyncColumns {
   TextColumn get bookId => text()();
   TextColumn get name => text()();
   TextColumn get category => text().nullable()();
-  IntColumn get purchasePriceMinor => integer().withDefault(const Constant(0))();
+  IntColumn get purchasePriceMinor =>
+      integer().withDefault(const Constant(0))();
   IntColumn get currentValueMinor => integer().withDefault(const Constant(0))();
   TextColumn get currency => text().withDefault(const Constant('CNY'))();
   IntColumn get purchasedAt => integer()();

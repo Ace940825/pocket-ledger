@@ -1,9 +1,8 @@
 import 'package:drift/drift.dart';
 
 import '../../domain/enums.dart';
-
-
 import '../app_database.dart';
+import 'transfer_dedupe.dart';
 
 part 'transactions_dao.g.dart';
 
@@ -65,15 +64,17 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     TxnType? type,
   }) {
     return (select(transactions)
-          ..where(($TransactionsTable tbl) => _buildCondition(
-                tbl,
-                bookId: bookId,
-                startAt: startAt,
-                endAt: endAt,
-                accountId: accountId,
-                categoryId: categoryId,
-                type: type,
-              ),)
+          ..where(
+            ($TransactionsTable tbl) => _buildCondition(
+              tbl,
+              bookId: bookId,
+              startAt: startAt,
+              endAt: endAt,
+              accountId: accountId,
+              categoryId: categoryId,
+              type: type,
+            ),
+          )
           ..orderBy([
             ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
           ])
@@ -87,13 +88,42 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     int limit = 30,
   }) {
     return (select(transactions)
-          ..where(($TransactionsTable tbl) =>
-              tbl.bookId.equals(bookId) & tbl.deleted.equals(false),)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
+          )
           ..orderBy([
             ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
           ])
           ..limit(limit))
         .watch();
+  }
+
+  /// 实时监听某个账户的全部流水。
+  ///
+  /// 查询条件用 `accountId = A OR toAccountId = A` 是为了兼容「只写了一条腿」的
+  /// 历史转账数据；但由于 `TransactionRepository.transfer()` 现在会写**成对的两条腿**，
+  /// 这个 OR 会让同一笔转账命中两次。因此结果统一交给 [dedupeAccountTransfers] 去重：
+  /// 每笔转账只保留属于本账户的那条腿，非转账流水原样保留。
+  Stream<List<Transaction>> watchByAccount({
+    required String bookId,
+    required String accountId,
+  }) {
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.deleted.equals(false) &
+                (tbl.accountId.equals(accountId) |
+                    tbl.toAccountId.equals(accountId)),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch()
+        .map(
+          (List<Transaction> list) => dedupeAccountTransfers(list, accountId),
+        );
   }
 
   Stream<Transaction?> watchById(String id) {
@@ -148,10 +178,12 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           )
           ..groupBy(<Expression<Object>>[transactions.categoryId])
           ..orderBy(<OrderingTerm>[OrderingTerm.desc(total)]))
-        .map((TypedResult row) => CategoryTotal(
-              categoryId: row.read(transactions.categoryId) ?? '',
-              totalMinor: row.read(total) ?? 0,
-            ),)
+        .map(
+          (TypedResult row) => CategoryTotal(
+            categoryId: row.read(transactions.categoryId) ?? '',
+            totalMinor: row.read(total) ?? 0,
+          ),
+        )
         .watch();
   }
 
@@ -191,11 +223,13 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           )
           ..groupBy(<Expression<Object>>[monthKey])
           ..orderBy(<OrderingTerm>[OrderingTerm.asc(monthKey)]))
-        .map((TypedResult row) => MonthTotal(
-              monthKey: row.read(monthKey) ?? '',
-              incomeMinor: row.read(incomeSum) ?? 0,
-              expenseMinor: row.read(expenseSum) ?? 0,
-            ),)
+        .map(
+          (TypedResult row) => MonthTotal(
+            monthKey: row.read(monthKey) ?? '',
+            incomeMinor: row.read(incomeSum) ?? 0,
+            expenseMinor: row.read(expenseSum) ?? 0,
+          ),
+        )
         .watch();
   }
 
@@ -220,10 +254,12 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           )
           ..groupBy(<Expression<Object>>[t.sourceModule])
           ..orderBy(<OrderingTerm>[OrderingTerm.desc(total)]))
-        .map((TypedResult row) => ModuleTotal(
-              module: SourceModule.values[row.read(t.sourceModule) ?? 0],
-              totalMinor: row.read(total) ?? 0,
-            ),)
+        .map(
+          (TypedResult row) => ModuleTotal(
+            module: SourceModule.values[row.read(t.sourceModule) ?? 0],
+            totalMinor: row.read(total) ?? 0,
+          ),
+        )
         .watch();
   }
 
