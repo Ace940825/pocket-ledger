@@ -731,31 +731,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   ),
                 ),
               ),
-              // 功能键行固定在金额上方，与金额保持紧凑固定间距（不随分类网格滚动）。
+              // 功能键行、金额栏、备注栏三段垂直间距统一为 spaceSm。
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppDimens.spaceLg,
                 ),
-                child: _buildFunctionBar(),
-              ),
-              // 金额 + 备注与功能键行、键盘均保持紧凑间距。
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.spaceLg,
-                  AppDimens.spaceSm,
-                  AppDimens.spaceLg,
-                  AppDimens.spaceSm,
-                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
+                    _buildFunctionBar(),
+                    const SizedBox(height: AppDimens.spaceSm),
                     _buildInlineAmount(),
                     const SizedBox(height: AppDimens.spaceSm),
                     _buildDateNoteRow(),
                   ],
                 ),
               ),
+              const SizedBox(height: AppDimens.spaceSm),
               // 系统键盘（备注输入）弹出或键盘折叠时，不渲染键盘栏。
               if (!systemKeyboardOpen) _buildCollapsibleKeypad(),
             ],
@@ -1055,85 +1048,106 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     final String shown = _displayAmount.isEmpty ? '0.00' : _displayAmount;
     final Color amountColor =
         _tab == RecordTab.expense ? AppColors.expense : AppColors.income;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () {
-              // 收起系统键盘，切回自定义数字键盘。
-              FocusManager.instance.primaryFocus?.unfocus();
-              setState(() => _keyboardExpanded = true);
-            },
-            child: Text(
-              '¥ $shown',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: amountColor,
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () {
+                // 收起系统键盘，切回自定义数字键盘。
+                FocusManager.instance.primaryFocus?.unfocus();
+                setState(() => _keyboardExpanded = true);
+              },
+              child: Text(
+                '¥ $shown',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: amountColor,
+                ),
               ),
             ),
           ),
-        ),
-        IconButton(
-          icon: Icon(
-            _keyboardExpanded
-                ? Icons.keyboard_arrow_down
-                : Icons.keyboard_arrow_up,
+          IconButton(
+            icon: Icon(
+              _keyboardExpanded
+                  ? Icons.keyboard_arrow_down
+                  : Icons.keyboard_arrow_up,
+            ),
+            tooltip: _keyboardExpanded ? '收起键盘' : '展开键盘',
+            onPressed: () {
+              FocusManager.instance.primaryFocus?.unfocus();
+              setState(() => _keyboardExpanded = !_keyboardExpanded);
+            },
           ),
-          tooltip: _keyboardExpanded ? '收起键盘' : '展开键盘',
-          onPressed: () {
-            FocusManager.instance.primaryFocus?.unfocus();
-            setState(() => _keyboardExpanded = !_keyboardExpanded);
-          },
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildDateNoteRow() {
-    return Row(
-      children: <Widget>[
-        InkWell(
-          onTap: _pickDate,
-          child: Row(
-            children: <Widget>[
-              Icon(
-                Icons.calendar_today_outlined,
-                size: 16,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                DateFormat('M月d日').format(_occurredAt),
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppDimens.spaceMd),
-        Expanded(
-          child: TextField(
-            controller: _noteController,
-            focusNode: _noteFocusNode,
-            decoration: const InputDecoration(
-              hintText: '请输入备注信息（最多150字）',
-              border: InputBorder.none,
-              counterText: '',
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          InkWell(
+            onTap: _pickDate,
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  DateFormat('M月d日').format(_occurredAt),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
             ),
-            maxLines: 1,
-            maxLength: 150,
-            onTapOutside: (_) => FocusScope.of(context).unfocus(),
-            buildCounter: (
-              BuildContext context, {
-              required int currentLength,
-              required bool isFocused,
-              required int? maxLength,
-            }) =>
-                null,
           ),
-        ),
-      ],
+          const SizedBox(width: AppDimens.spaceMd),
+          Expanded(
+            child: TextField(
+              controller: _noteController,
+              focusNode: _noteFocusNode,
+              decoration: const InputDecoration(
+                hintText: '请输入备注信息（最多150字）',
+                border: InputBorder.none,
+                counterText: '',
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              maxLines: 1,
+              maxLength: 150,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              buildCounter: (
+                BuildContext context, {
+                required int currentLength,
+                required bool isFocused,
+                required int? maxLength,
+              }) =>
+                  null,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1152,7 +1166,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       ),
       padding: EdgeInsets.fromLTRB(
         AppDimens.spaceLg,
-        AppDimens.spaceSm,
+        0,
         AppDimens.spaceLg,
         AppDimens.spaceLg + bottomSafe,
       ),
