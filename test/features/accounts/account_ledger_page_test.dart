@@ -59,6 +59,8 @@ void main() {
       toAccountId: toAccountId,
       occurredAt: occurredLocal.toUtc().millisecondsSinceEpoch,
       sourceModule: SourceModule.ledger,
+      feeMinor: 0,
+      discountMinor: 0,
       updatedAt: 0,
       deleted: false,
       dirty: false,

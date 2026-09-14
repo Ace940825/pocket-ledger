@@ -132,6 +132,12 @@ class Transactions extends Table with SyncColumns {
   /// 同一笔转账的两条流水共享此 ID
   TextColumn get transferGroupId => text().nullable()();
 
+  /// 转账手续费（分）。仅转账有意义，其余场景为 0 / null。
+  IntColumn get feeMinor => integer().withDefault(const Constant(0))();
+
+  /// 转账优惠（分）。仅转账有意义，其余场景为 0 / null。
+  IntColumn get discountMinor => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => <Column>{id};
 }

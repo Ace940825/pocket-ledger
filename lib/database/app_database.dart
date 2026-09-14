@@ -62,7 +62,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -94,6 +94,20 @@ class AppDatabase extends _$AppDatabase {
             await _addColumnIfMissing(m, accounts, accounts.cardNumber);
             await _addColumnIfMissing(m, accounts, accounts.status);
             await _addColumnIfMissing(m, accounts, accounts.includeInTotal);
+          }
+
+          if (from < 4) {
+            // v4：转账新增手续费 / 优惠字段，用于精确回滚余额。
+            await _addColumnIfMissing(
+              m,
+              transactions,
+              transactions.feeMinor,
+            );
+            await _addColumnIfMissing(
+              m,
+              transactions,
+              transactions.discountMinor,
+            );
           }
 
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等

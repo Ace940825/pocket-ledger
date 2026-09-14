@@ -1031,7 +1031,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             decoration: BoxDecoration(
               color: AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              border: Border.all(color: AppColors.divider),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1134,16 +1133,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       child: Container(
+        height: 28,
         padding: const EdgeInsets.symmetric(
           horizontal: AppDimens.spaceMd,
-          vertical: AppDimens.spaceSm,
         ),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
               ? AppColors.primary
               : AppColors.primary.withOpacity(0.12),
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          border: Border.all(color: AppColors.primary),
         ),
         child: Text(
           label,

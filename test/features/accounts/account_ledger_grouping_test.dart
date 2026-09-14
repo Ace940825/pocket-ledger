@@ -30,6 +30,8 @@ Transaction _txn({
     occurredAt: occurredAt,
     sourceModule: sourceModule,
     transferGroupId: transferGroupId,
+    feeMinor: 0,
+    discountMinor: 0,
     updatedAt: 0,
     deleted: false,
     dirty: false,

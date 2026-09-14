@@ -47,6 +47,8 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
   String? _accountId;
   String? _toAccountId;
   DateTime _occurredAt = DateTime.now();
+  int _feeMinor = 0;
+  int _discountMinor = 0;
   bool _initialized = false;
   bool _saving = false;
 
@@ -85,6 +87,8 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
           _amountController.text =
               Money.fromMinor(txn.amountMinor).decimal.toStringAsFixed(2);
           _noteController.text = txn.note ?? '';
+          _feeMinor = txn.feeMinor;
+          _discountMinor = txn.discountMinor;
         }
       });
 
@@ -272,6 +276,9 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
           occurredAt: occurredAt,
           // 显式带出来源，让用户能在一笔「被当成退款」的收入上把标记摘掉。
           sourceModule: _sourceModule,
+          // 转账时保留原手续费 / 优惠，避免编辑后余额回滚出错。
+          feeMinor: _type == TxnType.transfer ? _feeMinor : null,
+          discountMinor: _type == TxnType.transfer ? _discountMinor : null,
         );
       } else {
         await repo.add(

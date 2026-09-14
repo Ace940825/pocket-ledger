@@ -25,6 +25,8 @@ Transaction _txn({
     sourceModule:
         type == TxnType.transfer ? SourceModule.transfer : SourceModule.ledger,
     transferGroupId: transferGroupId,
+    feeMinor: 0,
+    discountMinor: 0,
     updatedAt: 0,
     deleted: false,
     dirty: false,

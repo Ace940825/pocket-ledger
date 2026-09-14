@@ -165,6 +165,59 @@ void main() {
     );
   });
 
+  test('手续费与优惠会持久化到 transactions 表', () async {
+    final String from = await cashAccountId();
+    final String to = await addAccount('钱包', AccountType.eWallet);
+
+    final String id = await TransactionRepository(db).transfer(
+      bookId: 'default',
+      fromAccountId: from,
+      toAccountId: to,
+      amountMinor: 100000,
+      feeMinor: 500,
+      discountMinor: 200,
+      occurredAt: DateTime(2026, 9, 11, 10).toUtc().millisecondsSinceEpoch,
+    );
+
+    final Transaction? txn = await db.transactionsDao.getById(id);
+    expect(txn, isNotNull);
+    expect(txn!.feeMinor, 500);
+    expect(txn.discountMinor, 200);
+  });
+
+  test('编辑转账保留手续费/优惠并正确回滚余额', () async {
+    final String from = await cashAccountId();
+    final String to = await addAccount('钱包', AccountType.eWallet);
+
+    final String id = await TransactionRepository(db).transfer(
+      bookId: 'default',
+      fromAccountId: from,
+      toAccountId: to,
+      amountMinor: 100000,
+      feeMinor: 500,
+      discountMinor: 200,
+      occurredAt: DateTime(2026, 9, 11, 10).toUtc().millisecondsSinceEpoch,
+    );
+
+    final Transaction txn = (await db.transactionsDao.getById(id))!;
+
+    // 编辑：金额不变，只改备注，验证余额不会被错误回滚。
+    await TransactionRepository(db).updateTransaction(
+      original: txn,
+      note: '修改备注',
+    );
+
+    final List<Account> accounts =
+        await db.accountsDao.watchByBook('default').first;
+    final Account fromAcc = accounts.firstWhere((Account a) => a.id == from);
+    final Account toAcc = accounts.firstWhere((Account a) => a.id == to);
+
+    expect(fromAcc.balanceMinor, -100300,
+        reason: '编辑后转出方仍应按 1003 元扣款');
+    expect(toAcc.balanceMinor, 100000,
+        reason: '编辑后转入方到账金额仍为 1000 元');
+  });
+
   test('转出与转入是同一账户时抛校验错误', () async {
     final String from = await cashAccountId();
     expect(

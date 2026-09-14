@@ -24,6 +24,8 @@ Transaction _txn({
     toAccountId: toAccountId,
     occurredAt: DateTime(2026, 9, 10, 12).toUtc().millisecondsSinceEpoch,
     sourceModule: sourceModule,
+    feeMinor: 0,
+    discountMinor: 0,
     updatedAt: 0,
     deleted: false,
     dirty: false,

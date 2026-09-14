@@ -38,6 +38,8 @@ class TransactionRepository {
     String? relatedId,
     String? transferGroupId,
     int? fromAmountMinor,
+    int? feeMinor,
+    int? discountMinor,
   }) {
     if (amountMinor <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -65,6 +67,8 @@ class TransactionRepository {
           sourceModule: Value<SourceModule>(sourceModule),
           relatedId: Value<String?>(relatedId),
           transferGroupId: Value<String?>(transferGroupId),
+          feeMinor: Value<int>(feeMinor ?? 0),
+          discountMinor: Value<int>(discountMinor ?? 0),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -93,6 +97,8 @@ class TransactionRepository {
       if (fromAmountMinor != null) {
         payload['fromAmountMinor'] = fromAmountMinor;
       }
+      payload['feeMinor'] = feeMinor ?? 0;
+      payload['discountMinor'] = discountMinor ?? 0;
       await _enqueue(
         tableName: 'transactions',
         recordId: id,
@@ -125,11 +131,15 @@ class TransactionRepository {
     String? note,
     int? occurredAt,
     SourceModule? sourceModule,
+    int? feeMinor,
+    int? discountMinor,
   }) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final TxnType newType = type ?? original.type;
     final int newAmount = amountMinor ?? original.amountMinor;
     final String newAccountId = accountId ?? original.accountId;
+    final int newFee = feeMinor ?? original.feeMinor;
+    final int newDiscount = discountMinor ?? original.discountMinor;
 
     if (newAmount <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -148,6 +158,17 @@ class TransactionRepository {
       throw const ValidationFailure('转账必须指定转入账户');
     }
 
+    // 转账：转出方实际扣款金额 = 到账金额 + 手续费 - 优惠。
+    final int? oldFromAmountMinor = original.type == TxnType.transfer
+        ? original.amountMinor + original.feeMinor - original.discountMinor
+        : null;
+    final int? newFromAmountMinor = newType == TxnType.transfer
+        ? newAmount + newFee - newDiscount
+        : null;
+    if (newFromAmountMinor != null && newFromAmountMinor <= 0) {
+      throw const ValidationFailure('扣款金额必须大于 0');
+    }
+
     await _db.transaction<void>(() async {
       // 1. 回滚旧流水对余额的影响
       await _revertBalanceDelta(
@@ -156,6 +177,7 @@ class TransactionRepository {
         original.toAccountId,
         original.amountMinor,
         now,
+        fromAmountMinor: oldFromAmountMinor,
       );
 
       // 2. 写入新值。
@@ -181,6 +203,8 @@ class TransactionRepository {
           sourceModule: Value<SourceModule>(identity.sourceModule),
           relatedId: Value<String?>(original.relatedId),
           transferGroupId: Value<String?>(identity.transferGroupId),
+          feeMinor: Value<int>(newFee),
+          discountMinor: Value<int>(newDiscount),
           deleted: Value<bool>(original.deleted),
           updatedAt: Value<int>(now),
           syncedAt: Value<int?>(original.syncedAt),
@@ -195,6 +219,7 @@ class TransactionRepository {
         identity.toAccountId,
         newAmount,
         now,
+        fromAmountMinor: newFromAmountMinor,
       );
 
       await _enqueue(
@@ -214,6 +239,8 @@ class TransactionRepository {
           'note': note ?? original.note,
           // 必须是推导后的值：否则云端会把「撒谎的旧标记」同步回来。
           'sourceModule': identity.sourceModule.index,
+          'feeMinor': newFee,
+          'discountMinor': newDiscount,
         },
       );
     });
@@ -229,12 +256,16 @@ class TransactionRepository {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
 
     await _db.transaction<void>(() async {
+      final int? fromAmountMinor = txn.type == TxnType.transfer
+          ? txn.amountMinor + txn.feeMinor - txn.discountMinor
+          : null;
       await _revertBalanceDelta(
         txn.type,
         txn.accountId,
         txn.toAccountId,
         txn.amountMinor,
         now,
+        fromAmountMinor: fromAmountMinor,
       );
       await _db.transactionsDao.softDelete(id, now);
       await _enqueue(
@@ -299,6 +330,8 @@ class TransactionRepository {
         sourceModule: SourceModule.transfer,
         transferGroupId: groupId,
         fromAmountMinor: fromAmountMinor,
+        feeMinor: feeMinor,
+        discountMinor: discountMinor,
       ),
     );
   }
@@ -348,15 +381,17 @@ class TransactionRepository {
     String accountId,
     String? toAccountId,
     int amountMinor,
-    int now,
-  ) async {
+    int now, {
+    int? fromAmountMinor,
+  }) async {
     switch (type) {
       case TxnType.income:
         await _db.accountsDao.adjustBalance(accountId, -amountMinor, now);
       case TxnType.expense:
         await _db.accountsDao.adjustBalance(accountId, amountMinor, now);
       case TxnType.transfer:
-        await _db.accountsDao.adjustBalance(accountId, amountMinor, now);
+        final int debit = fromAmountMinor ?? amountMinor;
+        await _db.accountsDao.adjustBalance(accountId, debit, now);
         if (toAccountId != null) {
           await _db.accountsDao.adjustBalance(toAccountId, -amountMinor, now);
         }

@@ -204,6 +204,8 @@ abstract final class RecordCodec {
         tags: Value<String?>(p['tags'] as String?),
         relatedId: Value<String?>(p['relatedId'] as String?),
         transferGroupId: Value<String?>(p['transferGroupId'] as String?),
+        feeMinor: Value<int>((p['feeMinor'] as int?) ?? 0),
+        discountMinor: Value<int>((p['discountMinor'] as int?) ?? 0),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),

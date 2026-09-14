@@ -24,6 +24,8 @@ void main() {
       accountId: 'acc1',
       occurredAt: DateTime(2026, 9, 11, 12).toUtc().millisecondsSinceEpoch,
       sourceModule: sourceModule,
+      feeMinor: 0,
+      discountMinor: 0,
       updatedAt: 0,
       deleted: false,
       dirty: false,

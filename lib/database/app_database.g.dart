@@ -2214,6 +2214,22 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> transferGroupId = GeneratedColumn<String>(
       'transfer_group_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _feeMinorMeta =
+      const VerificationMeta('feeMinor');
+  @override
+  late final GeneratedColumn<int> feeMinor = GeneratedColumn<int>(
+      'fee_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _discountMinorMeta =
+      const VerificationMeta('discountMinor');
+  @override
+  late final GeneratedColumn<int> discountMinor = GeneratedColumn<int>(
+      'discount_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   @override
   List<GeneratedColumn> get $columns => [
         updatedAt,
@@ -2234,7 +2250,9 @@ class $TransactionsTable extends Transactions
         tags,
         sourceModule,
         relatedId,
-        transferGroupId
+        transferGroupId,
+        feeMinor,
+        discountMinor
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2337,6 +2355,16 @@ class $TransactionsTable extends Transactions
           transferGroupId.isAcceptableOrUnknown(
               data['transfer_group_id']!, _transferGroupIdMeta));
     }
+    if (data.containsKey('fee_minor')) {
+      context.handle(_feeMinorMeta,
+          feeMinor.isAcceptableOrUnknown(data['fee_minor']!, _feeMinorMeta));
+    }
+    if (data.containsKey('discount_minor')) {
+      context.handle(
+          _discountMinorMeta,
+          discountMinor.isAcceptableOrUnknown(
+              data['discount_minor']!, _discountMinorMeta));
+    }
     return context;
   }
 
@@ -2386,6 +2414,10 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.string, data['${effectivePrefix}related_id']),
       transferGroupId: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}transfer_group_id']),
+      feeMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}fee_minor'])!,
+      discountMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}discount_minor'])!,
     );
   }
 
@@ -2439,6 +2471,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
 
   /// 同一笔转账的两条流水共享此 ID
   final String? transferGroupId;
+
+  /// 转账手续费（分）。仅转账有意义，其余场景为 0 / null。
+  final int feeMinor;
+
+  /// 转账优惠（分）。仅转账有意义，其余场景为 0 / null。
+  final int discountMinor;
   const Transaction(
       {required this.updatedAt,
       required this.deleted,
@@ -2458,7 +2496,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.tags,
       required this.sourceModule,
       this.relatedId,
-      this.transferGroupId});
+      this.transferGroupId,
+      required this.feeMinor,
+      required this.discountMinor});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2503,6 +2543,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     if (!nullToAbsent || transferGroupId != null) {
       map['transfer_group_id'] = Variable<String>(transferGroupId);
     }
+    map['fee_minor'] = Variable<int>(feeMinor);
+    map['discount_minor'] = Variable<int>(discountMinor);
     return map;
   }
 
@@ -2539,6 +2581,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       transferGroupId: transferGroupId == null && nullToAbsent
           ? const Value.absent()
           : Value(transferGroupId),
+      feeMinor: Value(feeMinor),
+      discountMinor: Value(discountMinor),
     );
   }
 
@@ -2567,6 +2611,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           .fromJson(serializer.fromJson<int>(json['sourceModule'])),
       relatedId: serializer.fromJson<String?>(json['relatedId']),
       transferGroupId: serializer.fromJson<String?>(json['transferGroupId']),
+      feeMinor: serializer.fromJson<int>(json['feeMinor']),
+      discountMinor: serializer.fromJson<int>(json['discountMinor']),
     );
   }
   @override
@@ -2594,6 +2640,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           $TransactionsTable.$convertersourceModule.toJson(sourceModule)),
       'relatedId': serializer.toJson<String?>(relatedId),
       'transferGroupId': serializer.toJson<String?>(transferGroupId),
+      'feeMinor': serializer.toJson<int>(feeMinor),
+      'discountMinor': serializer.toJson<int>(discountMinor),
     };
   }
 
@@ -2616,7 +2664,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<String?> tags = const Value.absent(),
           SourceModule? sourceModule,
           Value<String?> relatedId = const Value.absent(),
-          Value<String?> transferGroupId = const Value.absent()}) =>
+          Value<String?> transferGroupId = const Value.absent(),
+          int? feeMinor,
+          int? discountMinor}) =>
       Transaction(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -2640,6 +2690,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         transferGroupId: transferGroupId.present
             ? transferGroupId.value
             : this.transferGroupId,
+        feeMinor: feeMinor ?? this.feeMinor,
+        discountMinor: discountMinor ?? this.discountMinor,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -2672,6 +2724,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       transferGroupId: data.transferGroupId.present
           ? data.transferGroupId.value
           : this.transferGroupId,
+      feeMinor: data.feeMinor.present ? data.feeMinor.value : this.feeMinor,
+      discountMinor: data.discountMinor.present
+          ? data.discountMinor.value
+          : this.discountMinor,
     );
   }
 
@@ -2696,32 +2752,37 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('tags: $tags, ')
           ..write('sourceModule: $sourceModule, ')
           ..write('relatedId: $relatedId, ')
-          ..write('transferGroupId: $transferGroupId')
+          ..write('transferGroupId: $transferGroupId, ')
+          ..write('feeMinor: $feeMinor, ')
+          ..write('discountMinor: $discountMinor')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      updatedAt,
-      deleted,
-      dirty,
-      syncedAt,
-      id,
-      bookId,
-      type,
-      amountMinor,
-      currency,
-      accountId,
-      toAccountId,
-      categoryId,
-      occurredAt,
-      note,
-      attachmentUrls,
-      tags,
-      sourceModule,
-      relatedId,
-      transferGroupId);
+  int get hashCode => Object.hashAll([
+        updatedAt,
+        deleted,
+        dirty,
+        syncedAt,
+        id,
+        bookId,
+        type,
+        amountMinor,
+        currency,
+        accountId,
+        toAccountId,
+        categoryId,
+        occurredAt,
+        note,
+        attachmentUrls,
+        tags,
+        sourceModule,
+        relatedId,
+        transferGroupId,
+        feeMinor,
+        discountMinor
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2744,7 +2805,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.tags == this.tags &&
           other.sourceModule == this.sourceModule &&
           other.relatedId == this.relatedId &&
-          other.transferGroupId == this.transferGroupId);
+          other.transferGroupId == this.transferGroupId &&
+          other.feeMinor == this.feeMinor &&
+          other.discountMinor == this.discountMinor);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -2767,6 +2830,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<SourceModule> sourceModule;
   final Value<String?> relatedId;
   final Value<String?> transferGroupId;
+  final Value<int> feeMinor;
+  final Value<int> discountMinor;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.updatedAt = const Value.absent(),
@@ -2788,6 +2853,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.sourceModule = const Value.absent(),
     this.relatedId = const Value.absent(),
     this.transferGroupId = const Value.absent(),
+    this.feeMinor = const Value.absent(),
+    this.discountMinor = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -2810,6 +2877,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     required SourceModule sourceModule,
     this.relatedId = const Value.absent(),
     this.transferGroupId = const Value.absent(),
+    this.feeMinor = const Value.absent(),
+    this.discountMinor = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -2839,6 +2908,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<int>? sourceModule,
     Expression<String>? relatedId,
     Expression<String>? transferGroupId,
+    Expression<int>? feeMinor,
+    Expression<int>? discountMinor,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2861,6 +2932,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (sourceModule != null) 'source_module': sourceModule,
       if (relatedId != null) 'related_id': relatedId,
       if (transferGroupId != null) 'transfer_group_id': transferGroupId,
+      if (feeMinor != null) 'fee_minor': feeMinor,
+      if (discountMinor != null) 'discount_minor': discountMinor,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2885,6 +2958,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<SourceModule>? sourceModule,
       Value<String?>? relatedId,
       Value<String?>? transferGroupId,
+      Value<int>? feeMinor,
+      Value<int>? discountMinor,
       Value<int>? rowid}) {
     return TransactionsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2906,6 +2981,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       sourceModule: sourceModule ?? this.sourceModule,
       relatedId: relatedId ?? this.relatedId,
       transferGroupId: transferGroupId ?? this.transferGroupId,
+      feeMinor: feeMinor ?? this.feeMinor,
+      discountMinor: discountMinor ?? this.discountMinor,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2972,6 +3049,12 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (transferGroupId.present) {
       map['transfer_group_id'] = Variable<String>(transferGroupId.value);
     }
+    if (feeMinor.present) {
+      map['fee_minor'] = Variable<int>(feeMinor.value);
+    }
+    if (discountMinor.present) {
+      map['discount_minor'] = Variable<int>(discountMinor.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3000,6 +3083,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('sourceModule: $sourceModule, ')
           ..write('relatedId: $relatedId, ')
           ..write('transferGroupId: $transferGroupId, ')
+          ..write('feeMinor: $feeMinor, ')
+          ..write('discountMinor: $discountMinor, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10379,6 +10464,8 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   required SourceModule sourceModule,
   Value<String?> relatedId,
   Value<String?> transferGroupId,
+  Value<int> feeMinor,
+  Value<int> discountMinor,
   Value<int> rowid,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
@@ -10402,6 +10489,8 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<SourceModule> sourceModule,
   Value<String?> relatedId,
   Value<String?> transferGroupId,
+  Value<int> feeMinor,
+  Value<int> discountMinor,
   Value<int> rowid,
 });
 
@@ -10476,6 +10565,12 @@ class $$TransactionsTableFilterComposer
   ColumnFilters<String> get transferGroupId => $composableBuilder(
       column: $table.transferGroupId,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get feeMinor => $composableBuilder(
+      column: $table.feeMinor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get discountMinor => $composableBuilder(
+      column: $table.discountMinor, builder: (column) => ColumnFilters(column));
 }
 
 class $$TransactionsTableOrderingComposer
@@ -10546,6 +10641,13 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get transferGroupId => $composableBuilder(
       column: $table.transferGroupId,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get feeMinor => $composableBuilder(
+      column: $table.feeMinor, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get discountMinor => $composableBuilder(
+      column: $table.discountMinor,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -10614,6 +10716,12 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<String> get transferGroupId => $composableBuilder(
       column: $table.transferGroupId, builder: (column) => column);
+
+  GeneratedColumn<int> get feeMinor =>
+      $composableBuilder(column: $table.feeMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get discountMinor => $composableBuilder(
+      column: $table.discountMinor, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -10661,6 +10769,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<SourceModule> sourceModule = const Value.absent(),
             Value<String?> relatedId = const Value.absent(),
             Value<String?> transferGroupId = const Value.absent(),
+            Value<int> feeMinor = const Value.absent(),
+            Value<int> discountMinor = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion(
@@ -10683,6 +10793,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             sourceModule: sourceModule,
             relatedId: relatedId,
             transferGroupId: transferGroupId,
+            feeMinor: feeMinor,
+            discountMinor: discountMinor,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -10705,6 +10817,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             required SourceModule sourceModule,
             Value<String?> relatedId = const Value.absent(),
             Value<String?> transferGroupId = const Value.absent(),
+            Value<int> feeMinor = const Value.absent(),
+            Value<int> discountMinor = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
@@ -10727,6 +10841,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             sourceModule: sourceModule,
             relatedId: relatedId,
             transferGroupId: transferGroupId,
+            feeMinor: feeMinor,
+            discountMinor: discountMinor,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
