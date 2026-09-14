@@ -999,8 +999,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 return ListTile(
                   title: Text(account.name),
                   trailing: selected
-                      ? Icon(Icons.check,
-                          color: Theme.of(ctx).colorScheme.primary)
+                      ? Icon(
+                          Icons.check,
+                          color: Theme.of(ctx).colorScheme.primary,
+                        )
                       : null,
                   onTap: () => Navigator.of(ctx).pop(account.id),
                 );
@@ -1015,8 +1017,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   /// 转账页手续费 / 优惠 / 计算器行。
   ///
-  /// 一个与账户栏等高的圆角卡片，左侧为 TextField 输入栏，右侧是「手续费」「优惠」
-  /// 两个互斥模式按钮；计算器作为独立按钮放在卡片右侧。
+  /// 整体为与账户栏等高的圆角卡片：左侧是输入框，右侧是「手续费 / 优惠」一体化
+  /// 切换开关；计算器作为独立图标按钮放在最右侧。
   Widget _buildTransferFeeRow() {
     final bool isFee = _feeInputType == _FeeInputType.fee;
     final String? currentValue = isFee ? _feeAmount : _discountAmount;
@@ -1031,9 +1033,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             decoration: BoxDecoration(
               color: AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              border: Border.all(color: AppColors.divider),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 Expanded(
                   child: TextField(
@@ -1044,7 +1047,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     textInputAction: TextInputAction.done,
                     textAlignVertical: TextAlignVertical.center,
                     decoration: InputDecoration(
-                      hintText: '输入金额',
+                      hintText: isFee ? '手续费金额' : '优惠金额',
                       hintStyle: Theme.of(context)
                           .textTheme
                           .bodyMedium
@@ -1062,11 +1065,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                       final String trimmed = v.trim();
                       setState(() {
                         if (isFee) {
-                          _feeAmount =
-                              trimmed.isEmpty ? null : trimmed;
+                          _feeAmount = trimmed.isEmpty ? null : trimmed;
                         } else {
-                          _discountAmount =
-                              trimmed.isEmpty ? null : trimmed;
+                          _discountAmount = trimmed.isEmpty ? null : trimmed;
                         }
                       });
                     },
@@ -1074,81 +1075,90 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   ),
                 ),
                 const SizedBox(width: AppDimens.spaceSm),
-                _buildTransferFeeTypeTag(
-                  label: '手续费',
-                  selected: isFee,
-                  onTap: () => _onFeeInputTypeChanged(_FeeInputType.fee),
-                ),
-                const SizedBox(width: AppDimens.spaceXs),
-                _buildTransferFeeTypeTag(
-                  label: '优惠',
-                  selected: !isFee,
-                  onTap: () => _onFeeInputTypeChanged(_FeeInputType.discount),
-                ),
+                _buildFeeTypeToggle(),
               ],
             ),
           ),
         ),
         const SizedBox(width: AppDimens.spaceSm),
-        InkWell(
-          onTap: () => _toast('转账计算器功能开发中'),
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceMd,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.calculate_outlined,
-                    size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: AppDimens.spaceXs),
-                Text(
-                  '计算器',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        _buildTransferCalculatorButton(),
       ],
     );
   }
 
-  /// 转账页手续费 / 优惠模式切换按钮。
-  Widget _buildTransferFeeTypeTag({
+  /// 「手续费 / 优惠」一体化切换开关。
+  Widget _buildFeeTypeToggle() {
+    final bool isFee = _feeInputType == _FeeInputType.fee;
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _buildFeeTypeSegment(
+            label: '手续费',
+            selected: isFee,
+            type: _FeeInputType.fee,
+          ),
+          _buildFeeTypeSegment(
+            label: '优惠',
+            selected: !isFee,
+            type: _FeeInputType.discount,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeeTypeSegment({
     required String label,
     required bool selected,
-    required VoidCallback onTap,
+    required _FeeInputType type,
   }) {
     return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      onTap: () => _onFeeInputTypeChanged(type),
+      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
       child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceMd,
-        ),
+        height: 26,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary
-              : AppColors.primary.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          color: selected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppDimens.radiusSm),
         ),
         child: Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: selected ? Colors.white : AppColors.textPrimary,
+                color: selected ? Colors.white : AppColors.primary,
+                fontWeight: selected ? FontWeight.w500 : FontWeight.normal,
               ),
+        ),
+      ),
+    );
+  }
+
+  /// 转账计算器按钮（图标按钮，与卡片同高）。
+  Widget _buildTransferCalculatorButton() {
+    return InkWell(
+      onTap: () => _toast('转账计算器功能开发中'),
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      child: Container(
+        height: 48,
+        width: 48,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: const Icon(
+          Icons.calculate_outlined,
+          size: 20,
+          color: AppColors.textSecondary,
         ),
       ),
     );
@@ -1182,7 +1192,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(Icons.info_outline, size: 16, color: AppColors.textTertiary),
+          const Icon(
+            Icons.info_outline,
+            size: 16,
+            color: AppColors.textTertiary,
+          ),
           const SizedBox(width: AppDimens.spaceSm),
           Expanded(
             child: Text(
@@ -1244,8 +1258,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Icon(Icons.sync_alt,
-                          size: 16, color: AppColors.textSecondary),
+                      const Icon(
+                        Icons.sync_alt,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: AppDimens.spaceXs),
                       Text(
                         '转至',
