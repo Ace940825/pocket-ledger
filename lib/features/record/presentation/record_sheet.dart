@@ -834,9 +834,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   /// 转账页卡片式账户选择器（匹配小青账模板）。
+  ///
+  /// 左侧显示标签（如「转出账户」），右侧显示账户选择栏（已选账户名或占位符 + 箭头）。
   Widget _buildTransferAccountCard({
     required String label,
-    required IconData icon,
     required String? value,
     required ValueChanged<String?> onChanged,
     String? excludeId,
@@ -872,9 +873,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             ),
             child: Row(
               children: <Widget>[
-                Icon(icon, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: AppDimens.spaceSm),
-                Flexible(
+                Expanded(
+                  flex: 3,
                   child: Text(
                     label,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -884,24 +884,32 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
-                Flexible(
-                  child: Text(
-                    selected?.name ?? placeholder,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: selected != null
-                              ? AppColors.textPrimary
-                              : AppColors.textTertiary,
+                Expanded(
+                  flex: 7,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: <Widget>[
+                      Flexible(
+                        child: Text(
+                          selected?.name ?? placeholder,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: selected != null
+                                        ? AppColors.textPrimary
+                                        : AppColors.textTertiary,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
                         ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: AppColors.textTertiary,
+                      ),
+                    ],
                   ),
-                ),
-                const Icon(
-                  Icons.chevron_right,
-                  size: 18,
-                  color: AppColors.textTertiary,
                 ),
               ],
             ),
@@ -1099,7 +1107,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           children: <Widget>[
             _buildTransferAccountCard(
               label: '转出账户',
-              icon: Icons.account_balance_wallet_outlined,
               value: _accountId,
               excludeId: _toAccountId,
               placeholder: '扣款账户',
@@ -1140,7 +1147,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             const SizedBox(height: AppDimens.spaceMd),
             _buildTransferAccountCard(
               label: '转入账户',
-              icon: Icons.account_balance_wallet_outlined,
               value: _toAccountId,
               excludeId: _accountId,
               placeholder: '入款账户',
