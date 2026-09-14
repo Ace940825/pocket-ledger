@@ -18,6 +18,14 @@ final AutoDisposeStreamProvider<List<Transaction>> recentTransactionsProvider =
   return ref.watch(transactionsDaoProvider).watchRecent(bookId: bookId);
 });
 
+/// 当前账本下全部支出流水，用于退款「选择原账单」等账单选择场景。
+final AutoDisposeStreamProvider<List<Transaction>>
+    bookExpenseTransactionsProvider =
+    StreamProvider.autoDispose<List<Transaction>>((Ref ref) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref.watch(transactionsDaoProvider).watchExpenses(bookId: bookId);
+});
+
 /// 指定账户的全部流水（含转账的转入侧）。给账户页「点开看流水」用。
 final AutoDisposeStreamProviderFamily<List<Transaction>, String>
     accountTransactionsProvider = StreamProvider.autoDispose

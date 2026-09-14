@@ -19,6 +19,7 @@ import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../../savings/providers/savings_providers.dart';
 import '../record_tab.dart';
 import '../widgets/amount_keypad.dart';
+import 'bill_selection_page.dart';
 
 /// 退款模式：全额退回 / AA 付款分摊。
 enum RefundMode { full, aa }
@@ -120,7 +121,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   // 退款
   RefundMode _refundMode = RefundMode.full;
   bool _refundAmountAuto = true;
-  Transaction? _refundOriginal;
+  /// 选中的原账单（支持多选合并为一条退款）。
+  final List<Transaction> _refundOriginals = <Transaction>[];
   final TextEditingController _refundAmountController = TextEditingController();
 
   // 存钱
@@ -212,11 +214,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   /// 退款页实际退款金额（分）。
   ///
-  /// - 自动：以原账单金额作为退款金额。
+  /// - 自动：以选中账单金额之和作为退款金额（多选时合并为一条）。
   /// - 自定义：读取输入框。
   int get _refundAmountMinor {
-    if (_refundOriginal != null && _refundAmountAuto) {
-      return _refundOriginal!.amountMinor;
+    if (_refundOriginals.isNotEmpty && _refundAmountAuto) {
+      return _refundOriginals.fold<int>(
+        0,
+        (int sum, Transaction t) => sum + t.amountMinor,
+      );
     }
     return Money.tryParse(_refundAmountController.text).minor;
   }
@@ -331,7 +336,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 note: _noteController.text.trim(),
               );
         case RecordTab.refund:
-          if (_refundOriginal == null) {
+          if (_refundOriginals.isEmpty) {
             _toast('请选择需要退款的账单');
             return;
           }
@@ -347,9 +352,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           final String modeText =
               _refundMode == RefundMode.full ? '全额退款' : 'AA 付款';
           String refundNote = _noteController.text.trim();
-          final String detail = '[$modeText] 原账单：'
-              '${Money.fromMinor(_refundOriginal!.amountMinor).format()}';
+
+          final int originalTotalMinor = _refundOriginals.fold<int>(
+            0,
+            (int sum, Transaction t) => sum + t.amountMinor,
+          );
+          final String originalAmounts = _refundOriginals
+              .map((Transaction t) => Money.fromMinor(t.amountMinor).format())
+              .join(' + ');
+          final String detail = '[$modeText] 原账单合计：'
+              '${Money.fromMinor(originalTotalMinor).format()}'
+              '（$originalAmounts）';
           refundNote = refundNote.isEmpty ? detail : '$refundNote\n$detail';
+
+          // 单选时保留 relatedId 语义；多选时通过 note 记录关联关系。
+          final String? relatedId = _refundOriginals.length == 1
+              ? _refundOriginals.first.id
+              : null;
+
           await ref.read(transactionRepositoryProvider).add(
                 bookId: bookId,
                 type: TxnType.income,
@@ -358,7 +378,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 note: refundNote,
                 occurredAt: occurredAt,
                 sourceModule: SourceModule.refund,
-                relatedId: _refundOriginal!.id,
+                relatedId: relatedId,
               );
         case RecordTab.lend:
           final String counterparty = _counterpartyController.text.trim();
@@ -456,7 +476,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           _rbAccountId = null;
           _rbToAccountId = null;
           _rbExclude = false;
-          _refundOriginal = null;
+          _refundOriginals.clear();
           _refundAmountController.clear();
           _refundAmountAuto = true;
           _refundMode = RefundMode.full;
@@ -2104,18 +2124,31 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   /// 原账单选择栏。
+  ///
+  /// - 未选：显示占位提示。
+  /// - 单选：显示日期 + 金额 + 备注。
+  /// - 多选：显示「共 N 笔，合计 ¥XXX.XX」+ 首条备注等摘要。
   Widget _buildRefundOriginalField() {
-    final Transaction? txn = _refundOriginal;
+    final List<Transaction> txns = _refundOriginals;
     final String display;
-    if (txn == null) {
+    if (txns.isEmpty) {
       display = '请选择需要退款的账单';
-    } else {
+    } else if (txns.length == 1) {
+      final Transaction txn = txns.first;
       final String date = DateFormat('M月d日').format(
         DateTime.fromMillisecondsSinceEpoch(txn.occurredAt),
       );
       final String note = (txn.note ?? '').trim();
       display = '$date · ${Money.fromMinor(txn.amountMinor).format()}'
           '${note.isEmpty ? '' : ' · $note'}';
+    } else {
+      final int totalMinor = txns.fold<int>(
+        0,
+        (int sum, Transaction t) => sum + t.amountMinor,
+      );
+      final String sample = (txns.first.note ?? '').trim();
+      display = '共 ${txns.length} 笔，合计 ${Money.fromMinor(totalMinor).format()}'
+          '${sample.isEmpty ? '' : ' · $sample 等'}';
     }
     return Container(
       height: 48,
@@ -2130,7 +2163,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             child: Text(
               display,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: txn == null
+                    color: txns.isEmpty
                         ? AppColors.textTertiary
                         : AppColors.textPrimary,
                   ),
@@ -2156,19 +2189,35 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     _toast('账单搜索功能开发中');
   }
 
+  /// 点击「选取」打开账单选择页面（全屏 Navigator.push）。
+  ///
+  /// 跳转与传参逻辑：
+  /// - 触发方式：退款页「原账单」栏右侧的「选取」ActionChip。
+  /// - 页面跳转：通过 [Navigator.push] 推入 [BillSelectionPage]，等待返回
+  ///   `List<Transaction>`，避免 go_router 不便传递对象的问题。
+  /// - 传参：传入当前账本 ID 与已选账单 ID 列表，实现编辑回显。
+  /// - 合并机制：页面内允许多选，确认后返回列表；退款页把金额求和视为
+  ///   一条合并退款，多选时把原始金额明细写入备注。
   Future<void> _pickRefundOriginal() async {
     final String? bookId = ref.read(currentBookIdProvider);
-    final String? selectedId = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext ctx) => _RefundOriginalSheet(bookId: bookId),
+    final List<Transaction>? selected =
+        await Navigator.of(context).push<List<Transaction>>(
+      MaterialPageRoute<List<Transaction>>(
+        builder: (_) => BillSelectionPage(
+          bookId: bookId,
+          initialSelectedIds:
+              _refundOriginals.map((Transaction t) => t.id).toList(),
+          multiSelect: true,
+          title: '选择原账单',
+        ),
+      ),
     );
-    if (selectedId == null || !mounted) return;
-    final Transaction? txn =
-        await ref.read(transactionsDaoProvider).getById(selectedId);
-    if (txn != null && mounted) {
-      setState(() => _refundOriginal = txn);
-    }
+    if (selected == null || !mounted) return;
+    setState(() {
+      _refundOriginals
+        ..clear()
+        ..addAll(selected);
+    });
   }
 
   /// 退款模式：全额退款 / AA 付款。
@@ -2879,116 +2928,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             _buildLegacyBody(),
         ],
       ),
-    );
-  }
-}
-
-/// 原账单选择底部面板。
-class _RefundOriginalSheet extends ConsumerStatefulWidget {
-  const _RefundOriginalSheet({required this.bookId});
-
-  final String? bookId;
-
-  @override
-  ConsumerState<_RefundOriginalSheet> createState() =>
-      _RefundOriginalSheetState();
-}
-
-class _RefundOriginalSheetState extends ConsumerState<_RefundOriginalSheet> {
-  final TextEditingController _queryController = TextEditingController();
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final AsyncValue<List<Transaction>> value =
-        ref.watch(recentTransactionsProvider);
-    return value.when(
-      data: (List<Transaction> list) {
-        final List<Transaction> expenses = list
-            .where(
-              (Transaction t) => t.type == TxnType.expense && !t.deleted,
-            )
-            .toList(growable: false);
-        final String query = _queryController.text.trim().toLowerCase();
-        final List<Transaction> filtered = query.isEmpty
-            ? expenses
-            : expenses.where((Transaction t) {
-                final String note = (t.note ?? '').toLowerCase();
-                final String amount =
-                    Money.fromMinor(t.amountMinor).format(showSymbol: false);
-                return note.contains(query) || amount.contains(query);
-              }).toList(growable: false);
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(AppDimens.spaceMd),
-                child: Text(
-                  '选择原账单',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.spaceMd,
-                ),
-                child: TextField(
-                  controller: _queryController,
-                  decoration: const InputDecoration(
-                    hintText: '搜索备注/金额',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-              ),
-              const SizedBox(height: AppDimens.spaceSm),
-              const Divider(height: 1),
-              if (filtered.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(AppDimens.spaceLg),
-                  child: Text('暂无支出账单'),
-                )
-              else
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (BuildContext ctx, int index) {
-                      final Transaction t = filtered[index];
-                      final String date = DateFormat('M月d日').format(
-                        DateTime.fromMillisecondsSinceEpoch(t.occurredAt),
-                      );
-                      final String note = (t.note ?? '').trim();
-                      return ListTile(
-                        title: Text(note.isEmpty ? '支出' : note),
-                        subtitle: Text(date),
-                        trailing: Text(
-                          Money.fromMinor(t.amountMinor).format(),
-                          style: Theme.of(ctx)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        onTap: () => Navigator.of(ctx).pop(t.id),
-                      );
-                    },
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (Object e, _) => Center(child: Text('账单加载失败：$e')),
     );
   }
 }

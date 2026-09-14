@@ -99,6 +99,24 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// 实时监听某账本下的全部支出流水，按发生时间倒序。
+  ///
+  /// 给退款「选择原账单」用：需要列出所有未删除的支出账单，
+  /// 不限条数，避免用户找不到历史账单。
+  Stream<List<Transaction>> watchExpenses({required String bookId}) {
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.deleted.equals(false) &
+                tbl.type.equals(TxnType.expense.index),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch();
+  }
+
   /// 实时监听某个账户的全部流水。
   ///
   /// 查询条件用 `accountId = A OR toAccountId = A` 是为了兼容「只写了一条腿」的
