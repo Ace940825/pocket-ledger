@@ -776,63 +776,109 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   // ---- 小青账风格：支出 / 收入主体 ----
 
-  Widget _buildCategoryAccountBody() {
-    final AsyncValue<List<Category>> categories = ref.watch(
-      _tab == RecordTab.income
-          ? incomeCategoriesProvider
-          : expenseCategoriesProvider,
-    );
-
-    return categories.when(
-      data: (List<Category> list) {
-        final double viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
-        final bool systemKeyboardOpen =
-            viewInsetsBottom > 0 && _noteFocusNode.hasFocus;
-        return Expanded(
-          child: Column(
-            children: <Widget>[
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppDimens.spaceLg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      _buildCategoryGrid(list),
-                    ],
-                  ),
-                ),
+  /// 小青账统一布局：顶部滚动表单 + 底部固定功能栏/金额栏/日期备注栏/键盘。
+  /// 适用于 支出 / 收入 / 转账 / 借还。
+  Widget _buildNewLayoutBody() {
+    final double viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
+    final bool systemKeyboardOpen =
+        viewInsetsBottom > 0 && _noteFocusNode.hasFocus;
+    return Expanded(
+      child: Column(
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _buildNewLayoutScrollArea(),
+                ],
               ),
-              // 功能键行、金额栏、备注栏三段垂直间距统一为 spaceSm。
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.spaceLg,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _buildFunctionBar(),
-                    const SizedBox(height: AppDimens.spaceSm),
-                    _buildInlineAmount(),
-                    const SizedBox(height: AppDimens.spaceSm),
-                    _buildDateNoteRow(),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppDimens.spaceSm),
-              // 系统键盘（备注输入）弹出或键盘折叠时，不渲染键盘栏。
-              if (!systemKeyboardOpen) _buildCollapsibleKeypad(),
-            ],
+            ),
           ),
-        );
-      },
-      loading: () => const Expanded(
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (Object e, StackTrace? s) => Expanded(
-        child: Center(child: Text('分类加载失败：$e')),
+          // 功能键行、金额栏、备注栏三段垂直间距统一为 spaceSm。
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimens.spaceLg,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _buildFunctionBar(),
+                const SizedBox(height: AppDimens.spaceSm),
+                _buildInlineAmount(),
+                const SizedBox(height: AppDimens.spaceSm),
+                _buildDateNoteRow(),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppDimens.spaceSm),
+          // 系统键盘（备注输入）弹出或键盘折叠时，不渲染键盘栏。
+          if (!systemKeyboardOpen) _buildCollapsibleKeypad(),
+        ],
       ),
     );
+  }
+
+  /// 小青账布局顶部滚动区：根据 Tab 显示分类网格、转账字段或借还字段。
+  Widget _buildNewLayoutScrollArea() {
+    switch (_tab) {
+      case RecordTab.expense:
+      case RecordTab.income:
+        final AsyncValue<List<Category>> categories = ref.watch(
+          _tab == RecordTab.income
+              ? incomeCategoriesProvider
+              : expenseCategoriesProvider,
+        );
+        return categories.when(
+          data: _buildCategoryGrid,
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (Object e, StackTrace? s) =>
+              Center(child: Text('分类加载失败：$e')),
+        );
+      case RecordTab.transfer:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            _accountField(
+              label: '转出账户',
+              value: _accountId,
+              excludeId: _toAccountId,
+              onChanged: (String? v) => setState(() => _accountId = v),
+            ),
+            const FormGap(),
+            _accountField(
+              label: '转入账户',
+              value: _toAccountId,
+              excludeId: _accountId,
+              onChanged: (String? v) => setState(() => _toAccountId = v),
+            ),
+          ],
+        );
+      case RecordTab.lend:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            TextField(
+              controller: _counterpartyController,
+              decoration: const InputDecoration(
+                labelText: '对方（人/单位）',
+              ),
+            ),
+            const FormGap(),
+            _accountField(
+              label: '账户',
+              value: _accountId,
+              onChanged: (String? v) => setState(() => _accountId = v),
+            ),
+          ],
+        );
+      case RecordTab.reimbursement:
+      case RecordTab.refund:
+      case RecordTab.savings:
+        return const SizedBox.shrink();
+    }
   }
 
   /// 原 ListView + 底部键盘布局，供转账 / 借还 / 报销 / 退款 / 存钱复用。
@@ -1358,9 +1404,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             ),
           ),
           const Divider(height: 1),
-          // 主体：支出 / 收入使用小青账网格布局，其余保持原表单。
-          if (_tab.usesCategoryAccount)
-            _buildCategoryAccountBody()
+          // 主体：支出 / 收入 / 转账 / 借还 使用小青账统一布局，其余保持原表单。
+          if (_tab.usesNewLayout)
+            _buildNewLayoutBody()
           else
             _buildLegacyBody(),
         ],

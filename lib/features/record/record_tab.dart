@@ -34,6 +34,14 @@ enum RecordTab {
         RecordTab.savings => Icons.savings_outlined,
       };
 
+  /// 是否使用小青账统一布局：顶部滚动表单 + 底部固定功能栏/金额栏/日期备注栏/键盘。
+  /// 目前覆盖 支出 / 收入 / 转账 / 借还。
+  bool get usesNewLayout =>
+      this == RecordTab.expense ||
+      this == RecordTab.income ||
+      this == RecordTab.transfer ||
+      this == RecordTab.lend;
+
   /// 是否使用标准「分类 + 账户」表单（支出 / 收入）。
   bool get usesCategoryAccount =>
       this == RecordTab.expense || this == RecordTab.income;
