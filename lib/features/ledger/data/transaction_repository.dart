@@ -97,6 +97,12 @@ class TransactionRepository {
       if (fromAmountMinor != null) {
         payload['fromAmountMinor'] = fromAmountMinor;
       }
+      if (relatedId != null) {
+        payload['relatedId'] = relatedId;
+      }
+      if (transferGroupId != null) {
+        payload['transferGroupId'] = transferGroupId;
+      }
       payload['feeMinor'] = feeMinor ?? 0;
       payload['discountMinor'] = discountMinor ?? 0;
       await _enqueue(

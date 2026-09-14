@@ -117,11 +117,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   String? _rbToAccountId; // 收款账户
   final TextEditingController _rbAmountController = TextEditingController();
 
-  // 退款 AA
+  // 退款
   RefundMode _refundMode = RefundMode.full;
-  bool _refundAuto = true;
-  int _refundPeople = 2;
-  final TextEditingController _refundTotalController = TextEditingController();
+  bool _refundAmountAuto = true;
+  Transaction? _refundOriginal;
+  final TextEditingController _refundAmountController = TextEditingController();
 
   // 存钱
   bool _saveDeposit = true;
@@ -201,24 +201,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     _rbTitleController.dispose();
     _rbPayerController.dispose();
     _rbAmountController.dispose();
-    _refundTotalController.dispose();
+    _refundAmountController.dispose();
     super.dispose();
   }
 
-  /// AA 自动退款金额：他人应还份额 = 垫付总额 × (人数-1) / 人数。
-  int get _refundComputedMinor {
-    final int total = Money.tryParse(_refundTotalController.text).minor;
-    if (total <= 0 || _refundPeople < 2) return 0;
-    return (total * (_refundPeople - 1) / _refundPeople).round();
+  int get _amountMinor {
+    if (_tab == RecordTab.refund) return _refundAmountMinor;
+    return Money.tryParse(_effectiveAmount).minor;
   }
 
-  /// 是否处于「退款 + AA + 自动」模式：金额由垫付总额/人数算出，键盘只读。
-  bool get _refundAutoMode =>
-      _tab == RecordTab.refund && _refundMode == RefundMode.aa && _refundAuto;
-
-  int get _amountMinor {
-    if (_refundAutoMode) return _refundComputedMinor;
-    return Money.tryParse(_effectiveAmount).minor;
+  /// 退款页实际退款金额（分）。
+  ///
+  /// - 自动：以原账单金额作为退款金额。
+  /// - 自定义：读取输入框。
+  int get _refundAmountMinor {
+    if (_refundOriginal != null && _refundAmountAuto) {
+      return _refundOriginal!.amountMinor;
+    }
+    return Money.tryParse(_refundAmountController.text).minor;
   }
 
   /// 当前应保存的字符串金额：若存在 pending 运算符，先计算再返回。
@@ -241,10 +241,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   String get _displayAmount {
-    if (_refundAutoMode) {
-      final int m = _refundComputedMinor;
-      return m <= 0 ? '0.00' : Money.fromMinor(m).decimal.toStringAsFixed(2);
-    }
     // 展示当前输入；无输入时展示挂起的运算结果，让计算过程可见。
     if (_amount.isNotEmpty) return _amount;
     if (_pendingAmount.isNotEmpty) return _pendingAmount;
@@ -335,20 +331,25 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 note: _noteController.text.trim(),
               );
         case RecordTab.refund:
+          if (_refundOriginal == null) {
+            _toast('请选择需要退款的账单');
+            return;
+          }
           if (_accountId == null) {
-            _toast('请选择退回账户');
+            _toast('请选择入款账户');
+            return;
+          }
+          if (minor <= 0) {
+            _toast('请输入退款金额');
             return;
           }
           // 退款 = 钱退回账户，按「收入」方向增加账户余额，来源标记为 refund。
+          final String modeText =
+              _refundMode == RefundMode.full ? '全额退款' : 'AA 付款';
           String refundNote = _noteController.text.trim();
-          if (_refundMode == RefundMode.aa) {
-            final int total = Money.tryParse(_refundTotalController.text).minor;
-            final String modeText = _refundAuto ? '自动' : '自定义';
-            final String detail = '[AA 退款] 垫付总额：'
-                '${Money.fromMinor(total).format()}，均摊 $_refundPeople 人，'
-                '$modeText，退回 ${Money.fromMinor(minor).format()}';
-            refundNote = refundNote.isEmpty ? detail : '$refundNote\n$detail';
-          }
+          final String detail = '[$modeText] 原账单：'
+              '${Money.fromMinor(_refundOriginal!.amountMinor).format()}';
+          refundNote = refundNote.isEmpty ? detail : '$refundNote\n$detail';
           await ref.read(transactionRepositoryProvider).add(
                 bookId: bookId,
                 type: TxnType.income,
@@ -357,6 +358,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 note: refundNote,
                 occurredAt: occurredAt,
                 sourceModule: SourceModule.refund,
+                relatedId: _refundOriginal!.id,
               );
         case RecordTab.lend:
           final String counterparty = _counterpartyController.text.trim();
@@ -454,7 +456,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           _rbAccountId = null;
           _rbToAccountId = null;
           _rbExclude = false;
-          _refundTotalController.clear();
+          _refundOriginal = null;
+          _refundAmountController.clear();
+          _refundAmountAuto = true;
+          _refundMode = RefundMode.full;
           _feeAmount = null;
           _discountAmount = null;
           _feeInputType = _FeeInputType.fee;
@@ -535,14 +540,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         ),
         IconButton(
           icon: const Icon(Icons.backspace_outlined),
-          // AA 自动模式下金额由垫付总额/人数算出，键盘只读，删除按钮禁用。
-          onPressed: _refundAutoMode
-              ? null
-              : () => setState(() {
-                    _amount = _amount.isNotEmpty
-                        ? _amount.substring(0, _amount.length - 1)
-                        : '';
-                  }),
+          onPressed: () => setState(() {
+            _amount = _amount.isNotEmpty
+                ? _amount.substring(0, _amount.length - 1)
+                : '';
+          }),
         ),
       ],
     );
@@ -628,8 +630,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  Widget _dateField() => DateField(
-        label: '日期',
+  Widget _dateField({String label = '日期'}) => DateField(
+        label: label,
         value: _occurredAt,
         onChanged: (DateTime? v) =>
             setState(() => _occurredAt = v ?? DateTime.now()),
@@ -660,45 +662,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         decoration: const InputDecoration(labelText: '备注'),
         maxLines: 2,
       );
-
-  /// AA 均摊人数步进器：最少 2 人（AA 才有意义），上限 20 人。
-  Widget _refundPeopleField() {
-    return Row(
-      children: <Widget>[
-        const Expanded(child: Text('均摊人数')),
-        IconButton(
-          icon: const Icon(Icons.remove_circle_outline),
-          onPressed:
-              _refundPeople > 2 ? () => setState(() => _refundPeople--) : null,
-        ),
-        Text('$_refundPeople', style: Theme.of(context).textTheme.titleMedium),
-        IconButton(
-          icon: const Icon(Icons.add_circle_outline),
-          onPressed:
-              _refundPeople < 20 ? () => setState(() => _refundPeople++) : null,
-        ),
-        const Text(' 人'),
-      ],
-    );
-  }
-
-  /// AA 自动模式金额提示：他人应还 = 垫付总额 × (人数-1) / 人数。
-  Widget _refundAaHint() {
-    final int total = Money.tryParse(_refundTotalController.text).minor;
-    final int m = _refundComputedMinor;
-    return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Text(
-          '自动退回 ${Money.fromMinor(m).format()}'
-          '（垫付 ${Money.fromMinor(total).format()}'
-          ' ÷ $_refundPeople 人 × ${_refundPeople - 1} 人）',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ),
-    );
-  }
 
   Widget _goalField() {
     final AsyncValue<List<SavingsGoal>> goals = ref.watch(savingsListProvider);
@@ -775,60 +738,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           _noteField(),
         ];
       case RecordTab.refund:
-        return <Widget>[
-          _accountField(
-            label: '退回账户',
-            value: _accountId,
-            onChanged: (String? v) => setState(() => _accountId = v),
-          ),
-          const FormGap(),
-          SegmentedButton<RefundMode>(
-            segments: const <ButtonSegment<RefundMode>>[
-              ButtonSegment<RefundMode>(
-                value: RefundMode.full,
-                label: Text('全额退款'),
-                icon: Icon(Icons.replay),
-              ),
-              ButtonSegment<RefundMode>(
-                value: RefundMode.aa,
-                label: Text('AA 付款'),
-                icon: Icon(Icons.group),
-              ),
-            ],
-            selected: <RefundMode>{_refundMode},
-            onSelectionChanged: (Set<RefundMode> next) =>
-                setState(() => _refundMode = next.first),
-          ),
-          if (_refundMode == RefundMode.aa) ...<Widget>[
-            const FormGap(),
-            AmountField(
-              controller: _refundTotalController,
-              label: '垫付总额',
-              helperText: '你先垫付的总额（已含你自己的份额）',
-            ),
-            const FormGap(),
-            _refundPeopleField(),
-            const FormGap(),
-            SegmentedButton<bool>(
-              segments: const <ButtonSegment<bool>>[
-                ButtonSegment<bool>(value: true, label: Text('自动')),
-                ButtonSegment<bool>(value: false, label: Text('自定义')),
-              ],
-              selected: <bool>{_refundAuto},
-              onSelectionChanged: (Set<bool> next) =>
-                  setState(() => _refundAuto = next.first),
-            ),
-            const FormGap(),
-            if (_refundAuto)
-              _refundAaHint()
-            else
-              const Text('请在底部键盘输入实际退回账户的金额'),
-            const FormGap(),
-          ],
-          _dateField(),
-          const FormGap(),
-          _noteField(),
-        ];
+        // 退款改用独立的 _buildRefundBody，不再走 legacy 表单。
+        return const <Widget>[SizedBox.shrink()];
       case RecordTab.lend:
         return <Widget>[
           TextField(
@@ -1890,7 +1801,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     }
   }
 
-  /// 原 ListView + 底部键盘布局，供转账 / 借还 / 报销 / 退款 / 存钱复用。
+  /// 原 ListView + 底部键盘布局，供存钱复用。
   Widget _buildLegacyBody() {
     return Expanded(
       child: Column(
@@ -1916,9 +1827,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             child: AmountKeypad(
               value: _amount,
               enabled: !_saving,
-              onChanged: (String v) => setState(() {
-                if (!_refundAutoMode) _amount = v;
-              }),
+              onChanged: (String v) => setState(() => _amount = v),
               onSave: () => _save(),
               onSaveAndMore: () => _save(andMore: true),
             ),
@@ -1945,7 +1854,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               ),
             ),
           ),
-          _buildReimbursementFooter(),
+          _buildSaveFooter(),
         ],
       ),
     );
@@ -2095,8 +2004,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  /// 报销页底部「保存」按钮。
-  Widget _buildReimbursementFooter() {
+  /// 独立布局页（报销 / 退款）底部「保存」按钮。
+  Widget _buildSaveFooter() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.spaceLg,
@@ -2117,6 +2026,351 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 )
               : const Text('保存'),
         ),
+      ),
+    );
+  }
+
+  /// 退款页独立布局（小青账模板）。
+  Widget _buildRefundBody() {
+    return Expanded(
+      child: Column(
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _buildRefundForm(),
+              ),
+            ),
+          ),
+          _buildSaveFooter(),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildRefundForm() {
+    return <Widget>[
+      _buildSectionTitle('原账单'),
+      const SizedBox(height: AppDimens.spaceSm),
+      _buildRefundOriginalField(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildSectionTitle('退款信息'),
+      const SizedBox(height: AppDimens.spaceSm),
+      _buildRefundModeChips(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildRefundAmountRow(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _dateField(label: '时间'),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildRefundNoteField(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildSectionTitle('账户'),
+      const SizedBox(height: AppDimens.spaceSm),
+      _buildTransferAccountCard(
+        label: '入款账户',
+        value: _accountId,
+        placeholder: '入款账户',
+        onChanged: (String? v) => setState(() => _accountId = v),
+      ),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildRbBookRow(),
+    ];
+  }
+
+  /// 带绿色竖线的分组标题。
+  Widget _buildSectionTitle(String label) {
+    return Row(
+      children: <Widget>[
+        Container(
+          width: 4,
+          height: 16,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: AppDimens.spaceSm),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+        ),
+      ],
+    );
+  }
+
+  /// 原账单选择栏。
+  Widget _buildRefundOriginalField() {
+    final Transaction? txn = _refundOriginal;
+    final String display;
+    if (txn == null) {
+      display = '请选择需要退款的账单';
+    } else {
+      final String date = DateFormat('M月d日').format(
+        DateTime.fromMillisecondsSinceEpoch(txn.occurredAt),
+      );
+      final String note = (txn.note ?? '').trim();
+      display = '$date · ${Money.fromMinor(txn.amountMinor).format()}'
+          '${note.isEmpty ? '' : ' · $note'}';
+    }
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              display,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: txn == null
+                        ? AppColors.textTertiary
+                        : AppColors.textPrimary,
+                  ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          ActionChip(
+            label: const Text('搜索'),
+            onPressed: _onSearchRefundOriginal,
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          ActionChip(
+            label: const Text('选取'),
+            onPressed: _pickRefundOriginal,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onSearchRefundOriginal() async {
+    _toast('账单搜索功能开发中');
+  }
+
+  Future<void> _pickRefundOriginal() async {
+    final String? bookId = ref.read(currentBookIdProvider);
+    final String? selectedId = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext ctx) => _RefundOriginalSheet(bookId: bookId),
+    );
+    if (selectedId == null || !mounted) return;
+    final Transaction? txn =
+        await ref.read(transactionsDaoProvider).getById(selectedId);
+    if (txn != null && mounted) {
+      setState(() => _refundOriginal = txn);
+    }
+  }
+
+  /// 退款模式：全额退款 / AA 付款。
+  Widget _buildRefundModeChips() {
+    return SegmentedButton<RefundMode>(
+      segments: const <ButtonSegment<RefundMode>>[
+        ButtonSegment<RefundMode>(
+          value: RefundMode.aa,
+          label: Text('AA 付款'),
+        ),
+        ButtonSegment<RefundMode>(
+          value: RefundMode.full,
+          label: Text('全额退款'),
+        ),
+      ],
+      selected: <RefundMode>{_refundMode},
+      onSelectionChanged: (Set<RefundMode> next) =>
+          setState(() => _refundMode = next.first),
+    );
+  }
+
+  /// 退款金额行：标签 + 自动/自定义开关，下方显示/输入金额。
+  Widget _buildRefundAmountRow() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Text(
+              '退款金额',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+            ),
+            const Spacer(),
+            SegmentedButton<bool>(
+              segments: const <ButtonSegment<bool>>[
+                ButtonSegment<bool>(value: true, label: Text('自动')),
+                ButtonSegment<bool>(value: false, label: Text('自定义')),
+              ],
+              selected: <bool>{_refundAmountAuto},
+              onSelectionChanged: (Set<bool> next) => setState(() {
+                _refundAmountAuto = next.first;
+                if (_refundAmountAuto) {
+                  _refundAmountController.clear();
+                }
+              }),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimens.spaceSm),
+        if (_refundAmountAuto)
+          _buildRefundAmountDisplay()
+        else
+          _buildRefundAmountInput(),
+      ],
+    );
+  }
+
+  Widget _buildRefundAmountDisplay() {
+    final int m = _refundAmountMinor;
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            ),
+            child: Text(
+              '¥',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                  ),
+            ),
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          Text(
+            m <= 0 ? '0.00' : Money.fromMinor(m).format(showSymbol: false),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefundAmountInput() {
+    final String text = _refundAmountController.text.trim();
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            ),
+            child: Text(
+              '¥',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                  ),
+            ),
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          Expanded(
+            child: TextField(
+              controller: _refundAmountController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.done,
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                hintText: '请输入退款金额',
+                hintStyle: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.textTertiary),
+                border: InputBorder.none,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: text.isNotEmpty
+                        ? AppColors.textPrimary
+                        : AppColors.textTertiary,
+                  ),
+              maxLines: 1,
+              onChanged: (_) => setState(() {}),
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 退款备注输入框（带左侧信息图标）。
+  Widget _buildRefundNoteField() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.spaceMd,
+        vertical: AppDimens.spaceSm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: Icon(
+              Icons.info_outline,
+              size: 18,
+              color: AppColors.textTertiary,
+            ),
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          Expanded(
+            child: TextField(
+              controller: _noteController,
+              decoration: InputDecoration(
+                hintText: '备注',
+                hintStyle: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.textTertiary),
+                border: InputBorder.none,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+              ),
+              maxLines: 2,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2613,15 +2867,128 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             ),
           ),
           const Divider(height: 1),
-          // 主体：报销用独立布局；支出 / 收入 / 转账 / 借还 使用小青账统一布局；其余保持原表单。
+          // 主体：报销 / 退款用独立布局；支出 / 收入 / 转账 / 借还 使用小青账统一布局；
+          // 其余（存钱）保持原表单。
           if (_tab == RecordTab.reimbursement)
             _buildReimbursementBody()
+          else if (_tab == RecordTab.refund)
+            _buildRefundBody()
           else if (_tab.usesNewLayout)
             _buildNewLayoutBody()
           else
             _buildLegacyBody(),
         ],
       ),
+    );
+  }
+}
+
+/// 原账单选择底部面板。
+class _RefundOriginalSheet extends ConsumerStatefulWidget {
+  const _RefundOriginalSheet({required this.bookId});
+
+  final String? bookId;
+
+  @override
+  ConsumerState<_RefundOriginalSheet> createState() =>
+      _RefundOriginalSheetState();
+}
+
+class _RefundOriginalSheetState extends ConsumerState<_RefundOriginalSheet> {
+  final TextEditingController _queryController = TextEditingController();
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AsyncValue<List<Transaction>> value =
+        ref.watch(recentTransactionsProvider);
+    return value.when(
+      data: (List<Transaction> list) {
+        final List<Transaction> expenses = list
+            .where(
+              (Transaction t) => t.type == TxnType.expense && !t.deleted,
+            )
+            .toList(growable: false);
+        final String query = _queryController.text.trim().toLowerCase();
+        final List<Transaction> filtered = query.isEmpty
+            ? expenses
+            : expenses.where((Transaction t) {
+                final String note = (t.note ?? '').toLowerCase();
+                final String amount =
+                    Money.fromMinor(t.amountMinor).format(showSymbol: false);
+                return note.contains(query) || amount.contains(query);
+              }).toList(growable: false);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(AppDimens.spaceMd),
+                child: Text(
+                  '选择原账单',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.spaceMd,
+                ),
+                child: TextField(
+                  controller: _queryController,
+                  decoration: const InputDecoration(
+                    hintText: '搜索备注/金额',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(height: AppDimens.spaceSm),
+              const Divider(height: 1),
+              if (filtered.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(AppDimens.spaceLg),
+                  child: Text('暂无支出账单'),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (BuildContext ctx, int index) {
+                      final Transaction t = filtered[index];
+                      final String date = DateFormat('M月d日').format(
+                        DateTime.fromMillisecondsSinceEpoch(t.occurredAt),
+                      );
+                      final String note = (t.note ?? '').trim();
+                      return ListTile(
+                        title: Text(note.isEmpty ? '支出' : note),
+                        subtitle: Text(date),
+                        trailing: Text(
+                          Money.fromMinor(t.amountMinor).format(),
+                          style: Theme.of(ctx)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        onTap: () => Navigator.of(ctx).pop(t.id),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (Object e, _) => Center(child: Text('账单加载失败：$e')),
     );
   }
 }
