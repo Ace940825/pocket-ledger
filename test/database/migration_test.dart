@@ -85,7 +85,7 @@ void main() {
     await expectLater(db.booksDao.watchAll().first, completes);
     await db.close();
 
-    expect(userVersion(), 5, reason: '迁移成功后 user_version 必须推进到 5');
+    expect(userVersion(), 6, reason: '迁移成功后 user_version 必须推进到 6');
   });
 
   test('升级路径也必须补齐索引（且幂等）', () async {

@@ -192,6 +192,12 @@ class Reimbursements extends Table with SyncColumns {
   TextColumn get attachmentUrls => text().nullable()();
   TextColumn get transactionId => text().nullable()();
 
+  /// 报销账户：产生原始支出的资产账户。
+  TextColumn get accountId => text().nullable()();
+
+  /// 收款账户：收到报销款的资产账户。
+  TextColumn get toAccountId => text().nullable()();
+
   /// 是否不计入收支统计。个人垫款、与公司报销无关的可选标记：
   /// 开启后该条不计入报销页「待收回」汇总。
   BoolColumn get excludeFromStats =>

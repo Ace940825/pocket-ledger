@@ -4098,6 +4098,18 @@ class $ReimbursementsTable extends Reimbursements
   late final GeneratedColumn<String> transactionId = GeneratedColumn<String>(
       'transaction_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _accountIdMeta =
+      const VerificationMeta('accountId');
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+      'account_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _toAccountIdMeta =
+      const VerificationMeta('toAccountId');
+  @override
+  late final GeneratedColumn<String> toAccountId = GeneratedColumn<String>(
+      'to_account_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _excludeFromStatsMeta =
       const VerificationMeta('excludeFromStats');
   @override
@@ -4127,6 +4139,8 @@ class $ReimbursementsTable extends Reimbursements
         note,
         attachmentUrls,
         transactionId,
+        accountId,
+        toAccountId,
         excludeFromStats
       ];
   @override
@@ -4226,6 +4240,16 @@ class $ReimbursementsTable extends Reimbursements
           transactionId.isAcceptableOrUnknown(
               data['transaction_id']!, _transactionIdMeta));
     }
+    if (data.containsKey('account_id')) {
+      context.handle(_accountIdMeta,
+          accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
+    }
+    if (data.containsKey('to_account_id')) {
+      context.handle(
+          _toAccountIdMeta,
+          toAccountId.isAcceptableOrUnknown(
+              data['to_account_id']!, _toAccountIdMeta));
+    }
     if (data.containsKey('exclude_from_stats')) {
       context.handle(
           _excludeFromStatsMeta,
@@ -4276,6 +4300,10 @@ class $ReimbursementsTable extends Reimbursements
           .read(DriftSqlType.string, data['${effectivePrefix}attachment_urls']),
       transactionId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}transaction_id']),
+      accountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}account_id']),
+      toAccountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}to_account_id']),
       excludeFromStats: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}exclude_from_stats'])!,
     );
@@ -4311,6 +4339,12 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
   final String? attachmentUrls;
   final String? transactionId;
 
+  /// 报销账户：产生原始支出的资产账户。
+  final String? accountId;
+
+  /// 收款账户：收到报销款的资产账户。
+  final String? toAccountId;
+
   /// 是否不计入收支统计。个人垫款、与公司报销无关的可选标记：
   /// 开启后该条不计入报销页「待收回」汇总。
   final bool excludeFromStats;
@@ -4332,6 +4366,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       this.note,
       this.attachmentUrls,
       this.transactionId,
+      this.accountId,
+      this.toAccountId,
       required this.excludeFromStats});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4368,6 +4404,12 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
     if (!nullToAbsent || transactionId != null) {
       map['transaction_id'] = Variable<String>(transactionId);
     }
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<String>(accountId);
+    }
+    if (!nullToAbsent || toAccountId != null) {
+      map['to_account_id'] = Variable<String>(toAccountId);
+    }
     map['exclude_from_stats'] = Variable<bool>(excludeFromStats);
     return map;
   }
@@ -4400,6 +4442,12 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       transactionId: transactionId == null && nullToAbsent
           ? const Value.absent()
           : Value(transactionId),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
+      toAccountId: toAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toAccountId),
       excludeFromStats: Value(excludeFromStats),
     );
   }
@@ -4426,6 +4474,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       note: serializer.fromJson<String?>(json['note']),
       attachmentUrls: serializer.fromJson<String?>(json['attachmentUrls']),
       transactionId: serializer.fromJson<String?>(json['transactionId']),
+      accountId: serializer.fromJson<String?>(json['accountId']),
+      toAccountId: serializer.fromJson<String?>(json['toAccountId']),
       excludeFromStats: serializer.fromJson<bool>(json['excludeFromStats']),
     );
   }
@@ -4451,6 +4501,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       'note': serializer.toJson<String?>(note),
       'attachmentUrls': serializer.toJson<String?>(attachmentUrls),
       'transactionId': serializer.toJson<String?>(transactionId),
+      'accountId': serializer.toJson<String?>(accountId),
+      'toAccountId': serializer.toJson<String?>(toAccountId),
       'excludeFromStats': serializer.toJson<bool>(excludeFromStats),
     };
   }
@@ -4473,6 +4525,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           Value<String?> note = const Value.absent(),
           Value<String?> attachmentUrls = const Value.absent(),
           Value<String?> transactionId = const Value.absent(),
+          Value<String?> accountId = const Value.absent(),
+          Value<String?> toAccountId = const Value.absent(),
           bool? excludeFromStats}) =>
       Reimbursement(
         updatedAt: updatedAt ?? this.updatedAt,
@@ -4494,6 +4548,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
             attachmentUrls.present ? attachmentUrls.value : this.attachmentUrls,
         transactionId:
             transactionId.present ? transactionId.value : this.transactionId,
+        accountId: accountId.present ? accountId.value : this.accountId,
+        toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
         excludeFromStats: excludeFromStats ?? this.excludeFromStats,
       );
   Reimbursement copyWithCompanion(ReimbursementsCompanion data) {
@@ -4522,6 +4578,9 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       transactionId: data.transactionId.present
           ? data.transactionId.value
           : this.transactionId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      toAccountId:
+          data.toAccountId.present ? data.toAccountId.value : this.toAccountId,
       excludeFromStats: data.excludeFromStats.present
           ? data.excludeFromStats.value
           : this.excludeFromStats,
@@ -4548,6 +4607,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
           ..write('transactionId: $transactionId, ')
+          ..write('accountId: $accountId, ')
+          ..write('toAccountId: $toAccountId, ')
           ..write('excludeFromStats: $excludeFromStats')
           ..write(')'))
         .toString();
@@ -4572,6 +4633,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       note,
       attachmentUrls,
       transactionId,
+      accountId,
+      toAccountId,
       excludeFromStats);
   @override
   bool operator ==(Object other) =>
@@ -4594,6 +4657,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           other.note == this.note &&
           other.attachmentUrls == this.attachmentUrls &&
           other.transactionId == this.transactionId &&
+          other.accountId == this.accountId &&
+          other.toAccountId == this.toAccountId &&
           other.excludeFromStats == this.excludeFromStats);
 }
 
@@ -4615,6 +4680,8 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
   final Value<String?> note;
   final Value<String?> attachmentUrls;
   final Value<String?> transactionId;
+  final Value<String?> accountId;
+  final Value<String?> toAccountId;
   final Value<bool> excludeFromStats;
   final Value<int> rowid;
   const ReimbursementsCompanion({
@@ -4635,6 +4702,8 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
     this.transactionId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.toAccountId = const Value.absent(),
     this.excludeFromStats = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -4656,6 +4725,8 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
     this.transactionId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.toAccountId = const Value.absent(),
     this.excludeFromStats = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
@@ -4684,6 +4755,8 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     Expression<String>? note,
     Expression<String>? attachmentUrls,
     Expression<String>? transactionId,
+    Expression<String>? accountId,
+    Expression<String>? toAccountId,
     Expression<bool>? excludeFromStats,
     Expression<int>? rowid,
   }) {
@@ -4705,6 +4778,8 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       if (note != null) 'note': note,
       if (attachmentUrls != null) 'attachment_urls': attachmentUrls,
       if (transactionId != null) 'transaction_id': transactionId,
+      if (accountId != null) 'account_id': accountId,
+      if (toAccountId != null) 'to_account_id': toAccountId,
       if (excludeFromStats != null) 'exclude_from_stats': excludeFromStats,
       if (rowid != null) 'rowid': rowid,
     });
@@ -4728,6 +4803,8 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       Value<String?>? note,
       Value<String?>? attachmentUrls,
       Value<String?>? transactionId,
+      Value<String?>? accountId,
+      Value<String?>? toAccountId,
       Value<bool>? excludeFromStats,
       Value<int>? rowid}) {
     return ReimbursementsCompanion(
@@ -4748,6 +4825,8 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       note: note ?? this.note,
       attachmentUrls: attachmentUrls ?? this.attachmentUrls,
       transactionId: transactionId ?? this.transactionId,
+      accountId: accountId ?? this.accountId,
+      toAccountId: toAccountId ?? this.toAccountId,
       excludeFromStats: excludeFromStats ?? this.excludeFromStats,
       rowid: rowid ?? this.rowid,
     );
@@ -4808,6 +4887,12 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     if (transactionId.present) {
       map['transaction_id'] = Variable<String>(transactionId.value);
     }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (toAccountId.present) {
+      map['to_account_id'] = Variable<String>(toAccountId.value);
+    }
     if (excludeFromStats.present) {
       map['exclude_from_stats'] = Variable<bool>(excludeFromStats.value);
     }
@@ -4837,6 +4922,8 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
           ..write('transactionId: $transactionId, ')
+          ..write('accountId: $accountId, ')
+          ..write('toAccountId: $toAccountId, ')
           ..write('excludeFromStats: $excludeFromStats, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -11400,6 +11487,8 @@ typedef $$ReimbursementsTableCreateCompanionBuilder = ReimbursementsCompanion
   Value<String?> note,
   Value<String?> attachmentUrls,
   Value<String?> transactionId,
+  Value<String?> accountId,
+  Value<String?> toAccountId,
   Value<bool> excludeFromStats,
   Value<int> rowid,
 });
@@ -11422,6 +11511,8 @@ typedef $$ReimbursementsTableUpdateCompanionBuilder = ReimbursementsCompanion
   Value<String?> note,
   Value<String?> attachmentUrls,
   Value<String?> transactionId,
+  Value<String?> accountId,
+  Value<String?> toAccountId,
   Value<bool> excludeFromStats,
   Value<int> rowid,
 });
@@ -11488,6 +11579,12 @@ class $$ReimbursementsTableFilterComposer
 
   ColumnFilters<String> get transactionId => $composableBuilder(
       column: $table.transactionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toAccountId => $composableBuilder(
+      column: $table.toAccountId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get excludeFromStats => $composableBuilder(
       column: $table.excludeFromStats,
@@ -11556,6 +11653,12 @@ class $$ReimbursementsTableOrderingComposer
       column: $table.transactionId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toAccountId => $composableBuilder(
+      column: $table.toAccountId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get excludeFromStats => $composableBuilder(
       column: $table.excludeFromStats,
       builder: (column) => ColumnOrderings(column));
@@ -11621,6 +11724,12 @@ class $$ReimbursementsTableAnnotationComposer
   GeneratedColumn<String> get transactionId => $composableBuilder(
       column: $table.transactionId, builder: (column) => column);
 
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get toAccountId => $composableBuilder(
+      column: $table.toAccountId, builder: (column) => column);
+
   GeneratedColumn<bool> get excludeFromStats => $composableBuilder(
       column: $table.excludeFromStats, builder: (column) => column);
 }
@@ -11669,6 +11778,8 @@ class $$ReimbursementsTableTableManager extends RootTableManager<
             Value<String?> note = const Value.absent(),
             Value<String?> attachmentUrls = const Value.absent(),
             Value<String?> transactionId = const Value.absent(),
+            Value<String?> accountId = const Value.absent(),
+            Value<String?> toAccountId = const Value.absent(),
             Value<bool> excludeFromStats = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -11690,6 +11801,8 @@ class $$ReimbursementsTableTableManager extends RootTableManager<
             note: note,
             attachmentUrls: attachmentUrls,
             transactionId: transactionId,
+            accountId: accountId,
+            toAccountId: toAccountId,
             excludeFromStats: excludeFromStats,
             rowid: rowid,
           ),
@@ -11711,6 +11824,8 @@ class $$ReimbursementsTableTableManager extends RootTableManager<
             Value<String?> note = const Value.absent(),
             Value<String?> attachmentUrls = const Value.absent(),
             Value<String?> transactionId = const Value.absent(),
+            Value<String?> accountId = const Value.absent(),
+            Value<String?> toAccountId = const Value.absent(),
             Value<bool> excludeFromStats = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -11732,6 +11847,8 @@ class $$ReimbursementsTableTableManager extends RootTableManager<
             note: note,
             attachmentUrls: attachmentUrls,
             transactionId: transactionId,
+            accountId: accountId,
+            toAccountId: toAccountId,
             excludeFromStats: excludeFromStats,
             rowid: rowid,
           ),

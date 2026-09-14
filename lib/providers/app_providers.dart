@@ -155,3 +155,8 @@ class SyncController extends AutoDisposeAsyncNotifier<SyncState> {
 /// 当前账本 ID。多账本功能展开后由用户切换。
 final StateProvider<String> currentBookIdProvider =
     StateProvider<String>((Ref ref) => 'default');
+
+/// 当前账本实体（异步读取，用于「记一笔」面板的账本只读展示）。
+final FutureProvider<Book?> currentBookProvider = FutureProvider<Book?>(
+  (Ref ref) => ref.watch(booksDaoProvider).getById(ref.watch(currentBookIdProvider)),
+);

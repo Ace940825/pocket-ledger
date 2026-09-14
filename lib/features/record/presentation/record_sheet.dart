@@ -113,6 +113,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   // 报销
   ReimbursementStatus _rbStatus = ReimbursementStatus.pending;
   bool _rbExclude = false;
+  String? _rbAccountId; // 报销账户
+  String? _rbToAccountId; // 收款账户
+  final TextEditingController _rbAmountController = TextEditingController();
 
   // 退款 AA
   RefundMode _refundMode = RefundMode.full;
@@ -146,7 +149,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   final TextEditingController _rbTitleController = TextEditingController();
   final TextEditingController _rbPayerController =
       TextEditingController(text: '本人');
-  final TextEditingController _rbTargetController = TextEditingController();
 
   @override
   void initState() {
@@ -198,7 +200,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     _counterpartyController.dispose();
     _rbTitleController.dispose();
     _rbPayerController.dispose();
-    _rbTargetController.dispose();
+    _rbAmountController.dispose();
     _refundTotalController.dispose();
     super.dispose();
   }
@@ -273,10 +275,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     return Money.tryParse(_lendDiscountAmount!).minor;
   }
 
+  /// 报销收入金额（分）。未输入时返回 0。
+  int get _rbAmountMinor {
+    final String text = _rbAmountController.text.trim();
+    if (text.isEmpty) return 0;
+    return Money.tryParse(text).minor;
+  }
+
   // ---- 保存 ----
 
   Future<void> _save({bool andMore = false}) async {
-    final int minor = _amountMinor;
+    final int minor =
+        _tab == RecordTab.reimbursement ? _rbAmountMinor : _amountMinor;
     if (minor <= 0) {
       _toast('请输入大于 0 的金额');
       return;
@@ -389,7 +399,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           }
         case RecordTab.reimbursement:
           if (_rbTitleController.text.trim().isEmpty) {
-            _toast('请填写事由');
+            _toast('请填写报销账单');
+            return;
+          }
+          if (_rbAccountId == null) {
+            _toast('请选择报销账户');
+            return;
+          }
+          if (_rbToAccountId == null) {
+            _toast('请选择收款账户');
             return;
           }
           await ref.read(reimbursementRepositoryProvider).add(
@@ -401,12 +419,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     ? '本人'
                     : _rbPayerController.text.trim(),
                 occurredAt: occurredAt,
-                target: _rbTargetController.text.trim().isEmpty
-                    ? null
-                    : _rbTargetController.text.trim(),
+                target: null,
                 receivedAt: null,
                 note: _noteController.text.trim(),
                 excludeFromStats: _rbExclude,
+                accountId: _rbAccountId,
+                toAccountId: _rbToAccountId,
               );
         case RecordTab.savings:
           if (_goalId == null) {
@@ -432,7 +450,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           _counterpartyController.clear();
           _rbTitleController.clear();
           _rbPayerController.text = '本人';
-          _rbTargetController.clear();
+          _rbAmountController.clear();
+          _rbAccountId = null;
+          _rbToAccountId = null;
+          _rbExclude = false;
           _refundTotalController.clear();
           _feeAmount = null;
           _discountAmount = null;
@@ -836,45 +857,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           _noteField(),
         ];
       case RecordTab.reimbursement:
-        return <Widget>[
-          TextField(
-            controller: _rbTitleController,
-            decoration: const InputDecoration(labelText: '事由'),
-          ),
-          const FormGap(),
-          TextField(
-            controller: _rbPayerController,
-            decoration: const InputDecoration(labelText: '垫付人'),
-          ),
-          const FormGap(),
-          TextField(
-            controller: _rbTargetController,
-            decoration: const InputDecoration(
-              labelText: '报销方（公司/组织，可选）',
-            ),
-          ),
-          const FormGap(),
-          EnumDropdown<ReimbursementStatus>(
-            label: '状态',
-            value: _rbStatus,
-            values: ReimbursementStatus.values,
-            labelOf: (ReimbursementStatus s) => s.label,
-            onChanged: (ReimbursementStatus s) => setState(() => _rbStatus = s),
-          ),
-          const FormGap(),
-          _dateField(),
-          const FormGap(),
-          SwitchListTile(
-            title: const Text('不计入收支'),
-            subtitle: const Text('个人垫款、与报销统计无关时开启，'
-                '不计入「待收回」汇总'),
-            value: _rbExclude,
-            onChanged: (bool v) => setState(() => _rbExclude = v),
-            contentPadding: EdgeInsets.zero,
-          ),
-          const FormGap(),
-          _noteField(),
-        ];
+        // 报销改用独立的 _buildReimbursementBody，不再走 legacy 表单。
+        return const <Widget>[SizedBox.shrink()];
       case RecordTab.savings:
         return <Widget>[
           SegmentedButton<bool>(
@@ -1944,6 +1928,199 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
+  /// 报销页独立布局（小青账模板）：顶部滚动表单 + 底部固定「保存」按钮。
+  ///
+  /// 报销使用自带「报销收入」输入框（系统数字键盘），不使用自定义数字键盘，
+  /// 因此底部不渲染键盘栏，只放一个「保存」按钮。
+  Widget _buildReimbursementBody() {
+    return Expanded(
+      child: Column(
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _buildReimbursementForm(),
+              ),
+            ),
+          ),
+          _buildReimbursementFooter(),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildReimbursementForm() {
+    return <Widget>[
+      _buildTransferAccountCard(
+        label: '报销账户',
+        value: _rbAccountId,
+        placeholder: '请选择报销账户',
+        onChanged: (String? v) => setState(() => _rbAccountId = v),
+      ),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildRbBillField(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildRbAmountRow(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _dateField(),
+      const SizedBox(height: AppDimens.spaceMd),
+      SwitchListTile(
+        title: const Text('不计入收支'),
+        subtitle: const Text('个人垫款、与报销统计无关时开启'),
+        value: _rbExclude,
+        onChanged: (bool v) => setState(() => _rbExclude = v),
+        contentPadding: EdgeInsets.zero,
+      ),
+      const SizedBox(height: AppDimens.spaceMd),
+      _noteField(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildTransferAccountCard(
+        label: '收款账户',
+        value: _rbToAccountId,
+        placeholder: '请选择收款账户',
+        onChanged: (String? v) => setState(() => _rbToAccountId = v),
+      ),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildRbBookRow(),
+    ];
+  }
+
+  /// 报销账单（事由）。
+  Widget _buildRbBillField() => TextField(
+        controller: _rbTitleController,
+        decoration: const InputDecoration(labelText: '报销账单'),
+        maxLines: 1,
+      );
+
+  /// 报销收入金额输入框：¥ 图标 + 数字输入框，使用系统数字键盘。
+  Widget _buildRbAmountRow() {
+    final String text = _rbAmountController.text.trim();
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            ),
+            child: Text(
+              '¥',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                  ),
+            ),
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          Expanded(
+            child: TextField(
+              controller: _rbAmountController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.done,
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                hintText: '报销收入',
+                hintStyle: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.textTertiary),
+                border: InputBorder.none,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: text.isNotEmpty
+                        ? AppColors.textPrimary
+                        : AppColors.textTertiary,
+                  ),
+              maxLines: 1,
+              onChanged: (_) => setState(() {}),
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 账本（只读展示当前账本名）。
+  Widget _buildRbBookRow() {
+    final AsyncValue<Book?> book = ref.watch(currentBookProvider);
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            Icons.book_outlined,
+            size: 16,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          const Text('账本'),
+          const Spacer(),
+          Text(
+            book.valueOrNull?.name ?? '账本',
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: AppDimens.spaceXs),
+          Icon(
+            Icons.chevron_right,
+            size: 16,
+            color: AppColors.textTertiary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 报销页底部「保存」按钮。
+  Widget _buildReimbursementFooter() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.spaceLg,
+        AppDimens.spaceSm,
+        AppDimens.spaceLg,
+        AppDimens.spaceLg,
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: FilledButton(
+          onPressed: _saving ? null : () => _save(),
+          child: _saving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('保存'),
+        ),
+      ),
+    );
+  }
+
   Widget _buildCategoryGrid(List<Category> categories) {
     final List<Category> parents = categories
         .where((Category c) => c.parentId == null)
@@ -2436,8 +2613,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             ),
           ),
           const Divider(height: 1),
-          // 主体：支出 / 收入 / 转账 / 借还 使用小青账统一布局，其余保持原表单。
-          if (_tab.usesNewLayout)
+          // 主体：报销用独立布局；支出 / 收入 / 转账 / 借还 使用小青账统一布局；其余保持原表单。
+          if (_tab == RecordTab.reimbursement)
+            _buildReimbursementBody()
+          else if (_tab.usesNewLayout)
             _buildNewLayoutBody()
           else
             _buildLegacyBody(),

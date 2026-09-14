@@ -39,6 +39,8 @@ class ReimbursementRepository {
     int? receivedAt,
     String? note,
     bool excludeFromStats = false,
+    String? accountId,
+    String? toAccountId,
   }) {
     _validate(title: title, payer: payer, amountMinor: amountMinor);
 
@@ -59,6 +61,8 @@ class ReimbursementRepository {
               receivedAt: Value<int?>(receivedAt),
               note: Value<String?>(note),
               excludeFromStats: Value<bool>(excludeFromStats),
+              accountId: Value<String?>(accountId),
+              toAccountId: Value<String?>(toAccountId),
               updatedAt: Value<int>(now),
               dirty: const Value<bool>(true),
             ),
@@ -79,6 +83,8 @@ class ReimbursementRepository {
           receivedAt: receivedAt,
           note: note,
           excludeFromStats: excludeFromStats,
+          accountId: accountId,
+          toAccountId: toAccountId,
         ),
       );
       return id;
@@ -96,6 +102,8 @@ class ReimbursementRepository {
     int? receivedAt,
     String? note,
     bool excludeFromStats = false,
+    String? accountId,
+    String? toAccountId,
   }) {
     _validate(title: title, payer: payer, amountMinor: amountMinor);
 
@@ -114,6 +122,8 @@ class ReimbursementRepository {
           receivedAt: Value<int?>(receivedAt),
           note: Value<String?>(note),
           excludeFromStats: Value<bool>(excludeFromStats),
+          accountId: Value<String?>(accountId),
+          toAccountId: Value<String?>(toAccountId),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -134,6 +144,8 @@ class ReimbursementRepository {
           receivedAt: receivedAt,
           note: note,
           excludeFromStats: excludeFromStats,
+          accountId: accountId,
+          toAccountId: toAccountId,
         ),
       );
     });
@@ -210,6 +222,8 @@ class ReimbursementRepository {
     int? receivedAt,
     String? note,
     bool excludeFromStats = false,
+    String? accountId,
+    String? toAccountId,
   }) {
     return <String, Object?>{
       'title': title.trim(),
@@ -221,6 +235,8 @@ class ReimbursementRepository {
       'receivedAt': receivedAt,
       'note': note,
       'excludeFromStats': excludeFromStats,
+      'accountId': accountId,
+      'toAccountId': toAccountId,
     };
   }
 }

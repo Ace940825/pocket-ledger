@@ -324,6 +324,8 @@ abstract final class RecordCodec {
         // （推送侧走 row.toJson() 是全字段，只有解码侧是白名单，极易漏）。
         // self_check.dart 的「RecordCodec.<表> 覆盖全部字段」检查专门守这一条。
         excludeFromStats: Value<bool>(p['excludeFromStats'] as bool? ?? false),
+        accountId: Value<String?>(p['accountId'] as String?),
+        toAccountId: Value<String?>(p['toAccountId'] as String?),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),

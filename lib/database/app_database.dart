@@ -62,7 +62,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -126,6 +126,20 @@ class AppDatabase extends _$AppDatabase {
               m,
               lendRecords,
               lendRecords.discountMinor,
+            );
+          }
+
+          if (from < 6) {
+            // v6：报销新增报销账户 / 收款账户字段。
+            await _addColumnIfMissing(
+              m,
+              reimbursements,
+              reimbursements.accountId,
+            );
+            await _addColumnIfMissing(
+              m,
+              reimbursements,
+              reimbursements.toAccountId,
             );
           }
 
