@@ -359,6 +359,22 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     });
   }
 
+  /// 删除键逻辑：先删当前输入，当前输入为空时删除运算符并恢复第一操作数。
+  void _onBackspace() {
+    if (_amount.isNotEmpty) {
+      setState(() => _amount = _amount.substring(0, _amount.length - 1));
+      return;
+    }
+    if (_pendingOperator != null) {
+      setState(() {
+        // 恢复第一操作数到当前输入，撤销运算符。
+        _amount = _pendingAmount;
+        _pendingOperator = null;
+        _pendingAmount = '';
+      });
+    }
+  }
+
   // ---- 表单字段 ----
 
   Widget _amountDisplay() {
@@ -797,7 +813,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     _buildFunctionBar(),
                     const SizedBox(height: AppDimens.spaceSm),
                     _buildInlineAmount(),
-                    _buildExpression(),
                     const SizedBox(height: AppDimens.spaceSm),
                     _buildDateNoteRow(),
                   ],
@@ -1098,11 +1113,53 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     _toast('模板功能开发中');
   }
 
+  bool get _hasExpression =>
+      _pendingOperator != null && _pendingAmount.isNotEmpty;
+
   Widget _buildInlineAmount() {
     final ThemeData theme = Theme.of(context);
     final String shown = _displayAmount;
     final Color amountColor =
         _tab == RecordTab.expense ? AppColors.expense : AppColors.income;
+    final Widget amountRow = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () {
+              // 收起系统键盘，切回自定义数字键盘。
+              FocusManager.instance.primaryFocus?.unfocus();
+              setState(() => _keyboardExpanded = true);
+            },
+            child: Text(
+              '¥ $shown',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: amountColor,
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          icon: Icon(
+            _keyboardExpanded
+                ? Icons.keyboard_arrow_down
+                : Icons.keyboard_arrow_up,
+            size: 20,
+          ),
+          iconSize: 20,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: _keyboardExpanded ? '收起键盘' : '展开键盘',
+          onPressed: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+            setState(() => _keyboardExpanded = !_keyboardExpanded);
+          },
+        ),
+      ],
+    );
+
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
@@ -1111,69 +1168,42 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         border: Border.all(color: AppColors.divider),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () {
-                // 收起系统键盘，切回自定义数字键盘。
-                FocusManager.instance.primaryFocus?.unfocus();
-                setState(() => _keyboardExpanded = true);
-              },
-              child: Text(
-                '¥ $shown',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: amountColor,
+      child: _hasExpression
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(flex: 2, child: Center(child: amountRow)),
+                Expanded(
+                  flex: 1,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildExpression(),
+                  ),
                 ),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: Icon(
-              _keyboardExpanded
-                  ? Icons.keyboard_arrow_down
-                  : Icons.keyboard_arrow_up,
-            ),
-            tooltip: _keyboardExpanded ? '收起键盘' : '展开键盘',
-            onPressed: () {
-              FocusManager.instance.primaryFocus?.unfocus();
-              setState(() => _keyboardExpanded = !_keyboardExpanded);
-            },
-          ),
-        ],
-      ),
+              ],
+            )
+          : Center(child: amountRow),
     );
   }
 
-  /// 小青账键盘的运算表达式卡片（如 12 - 3），常驻在金额栏下方。
-  ///
-  /// 仅当存在 pending 运算符时渲染；无运算时自动隐藏，避免空卡片占位。
+  /// 小青账键盘的运算表达式（如 12 - 3），显示在金额栏内下方 1/3 区域。
   Widget _buildExpression() {
-    if (_pendingOperator == null || _pendingAmount.isEmpty) {
+    if (!_hasExpression) {
       return const SizedBox.shrink();
     }
     final ThemeData theme = Theme.of(context);
     final String expression = _amount.isEmpty
         ? '$_pendingAmount $_pendingOperator'
         : '$_pendingAmount $_pendingOperator $_amount';
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        border: Border.all(color: AppColors.divider),
-      ),
-      alignment: Alignment.centerRight,
-      child: Text(
-        expression,
-        textAlign: TextAlign.right,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: AppColors.textSecondary,
-        ),
+    return Text(
+      expression,
+      textAlign: TextAlign.right,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: AppColors.textSecondary,
+        height: 1,
       ),
     );
   }
@@ -1262,6 +1292,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         enabled: !_saving,
         onChanged: (String v) => setState(() => _amount = v),
         onOperator: _onOperator,
+        onBackspace: _onBackspace,
         onSave: () => _save(),
         onSaveAndMore: () => _save(andMore: true),
       ),
@@ -1580,6 +1611,7 @@ class _RecordKeypad extends StatelessWidget {
     required this.onSave,
     this.onSaveAndMore,
     this.onOperator,
+    this.onBackspace,
     this.enabled = true,
   });
 
@@ -1588,6 +1620,7 @@ class _RecordKeypad extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback? onSaveAndMore;
   final ValueChanged<String>? onOperator;
+  final VoidCallback? onBackspace;
   final bool enabled;
 
   static const int _maxIntegerDigits = 12;
@@ -1636,6 +1669,8 @@ class _RecordKeypad extends StatelessWidget {
                 ? () {
                     if (value.isNotEmpty) {
                       onChanged(value.substring(0, value.length - 1));
+                    } else {
+                      onBackspace?.call();
                     }
                   }
                 : null,
