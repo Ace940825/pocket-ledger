@@ -878,7 +878,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     border: Border.all(color: AppColors.divider),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: <Widget>[
                       Flexible(
                         child: Text(
@@ -893,7 +893,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                               ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.right,
+                          textAlign: TextAlign.left,
                         ),
                       ),
                     ],
@@ -976,28 +976,75 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   /// 转账页手续费 / 优惠 / 计算器行。
+  ///
+  /// 一个与账户栏等高的圆角卡片，左侧为输入栏，右侧是「手续费」「优惠」两个按钮，
+  /// 计算器作为独立按钮放在卡片右侧。
   Widget _buildTransferFeeRow() {
+    final bool hasFee = _feeAmount != null && _feeAmount!.isNotEmpty;
+    final bool hasDiscount =
+        _discountAmount != null && _discountAmount!.isNotEmpty;
+    final String display;
+    if (hasFee && hasDiscount) {
+      display = '手续费 ¥$_feeAmount  优惠 ¥$_discountAmount';
+    } else if (hasFee) {
+      display = '手续费 ¥$_feeAmount';
+    } else if (hasDiscount) {
+      display = '优惠 ¥$_discountAmount';
+    } else {
+      display = '输入金额';
+    }
     return Row(
       children: <Widget>[
-        _buildTransferTag(
-          label: '手续费',
-          value: _feeAmount,
-          onTap: _onFee,
+        Expanded(
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimens.spaceMd,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: InkWell(
+                    onTap: _onFee,
+                    child: Text(
+                      display,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: hasFee || hasDiscount
+                                ? AppColors.textPrimary
+                                : AppColors.textTertiary,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppDimens.spaceSm),
+                _buildTransferTag(
+                  label: '手续费',
+                  onTap: _onFee,
+                ),
+                const SizedBox(width: AppDimens.spaceXs),
+                _buildTransferTag(
+                  label: '优惠',
+                  onTap: _onDiscount,
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(width: AppDimens.spaceSm),
-        _buildTransferTag(
-          label: '优惠',
-          value: _discountAmount,
-          onTap: _onDiscount,
-        ),
-        const Spacer(),
         InkWell(
           onTap: () => _toast('转账计算器功能开发中'),
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           child: Container(
+            height: 48,
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimens.spaceMd,
-              vertical: AppDimens.spaceSm,
             ),
             decoration: BoxDecoration(
               color: AppColors.surfaceLight,
@@ -1008,7 +1055,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Icon(Icons.calculate_outlined,
-                    size: 16, color: AppColors.textSecondary),
+                    size: 18, color: AppColors.textSecondary),
                 const SizedBox(width: AppDimens.spaceXs),
                 Text(
                   '计算器',
@@ -1024,13 +1071,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
+  /// 转账页绿色标签按钮（仅显示 label，不展示金额）。
   Widget _buildTransferTag({
     required String label,
-    required String? value,
     required VoidCallback onTap,
   }) {
-    final bool hasValue = value != null && value.isNotEmpty;
-    final String display = hasValue ? '$label ¥$value' : label;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -1045,7 +1090,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           border: Border.all(color: AppColors.primary),
         ),
         child: Text(
-          display,
+          label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: AppColors.textPrimary,
               ),
