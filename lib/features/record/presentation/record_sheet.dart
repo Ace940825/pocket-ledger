@@ -835,7 +835,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   /// 转账页卡片式账户选择器（匹配小青账模板）。
   ///
-  /// 左侧显示标签（如「转出账户」），右侧显示账户选择栏（已选账户名或占位符 + 箭头）。
+  /// 左侧是圆角长条标签卡片，右侧是圆角长条账户栏卡片（已选账户名或占位符 + 箭头）。
   Widget _buildTransferAccountCard({
     required String label,
     required String? value,
@@ -853,51 +853,66 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             shown.any((Account a) => a.id == value) ? value : null;
         final Account? selected =
             safe == null ? null : shown.firstWhere((Account a) => a.id == safe);
-        return InkWell(
-          onTap: shown.isEmpty
-              ? null
-              : () => _showTransferAccountPicker(
-                    label: label,
-                    accounts: shown,
-                    selectedId: safe,
-                    onChanged: onChanged,
-                  ),
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              border: Border.all(color: AppColors.divider),
+        return Row(
+          children: <Widget>[
+            // 左侧：标签卡片。
+            Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimens.spaceMd,
+              ),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    label,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textPrimary,
+            const SizedBox(width: AppDimens.spaceSm),
+            // 右侧：账户栏卡片。
+            Expanded(
+              child: InkWell(
+                onTap: shown.isEmpty
+                    ? null
+                    : () => _showTransferAccountPicker(
+                          label: label,
+                          accounts: shown,
+                          selectedId: safe,
+                          onChanged: onChanged,
                         ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                child: Container(
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimens.spaceMd,
                   ),
-                ),
-                Expanded(
-                  flex: 7,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                    border: Border.all(color: AppColors.divider),
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: <Widget>[
                       Flexible(
                         child: Text(
                           selected?.name ?? placeholder,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: selected != null
-                                        ? AppColors.textPrimary
-                                        : AppColors.textTertiary,
-                                  ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color: selected != null
+                                    ? AppColors.textPrimary
+                                    : AppColors.textTertiary,
+                              ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.right,
@@ -911,9 +926,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         );
       },
       loading: () => const LinearProgressIndicator(),
