@@ -153,11 +153,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   /// 当前应保存的字符串金额：若存在 pending 运算符，先计算再返回。
+  ///
+  /// 关键边界：连续按运算符或保存前已输入完上一轮（[ _amount] 为空但挂起结果存在）
+  /// 时，直接以挂起的 [ _pendingAmount] 作为最终结果，避免返回空串被解析成 0。
   String get _effectiveAmount {
-    if (_pendingOperator == null ||
-        _pendingAmount.isEmpty ||
-        _amount.isEmpty) {
+    if (_pendingOperator == null || _pendingAmount.isEmpty) {
       return _amount;
+    }
+    if (_amount.isEmpty) {
+      // 上一轮运算已完成（如 12-3 后又按了一次运算符，或即将保存），
+      // 没有新的第二操作数可算，直接取挂起结果。
+      return _pendingAmount;
     }
     final int a = Money.tryParse(_pendingAmount).minor;
     final int b = Money.tryParse(_amount).minor;
@@ -170,7 +176,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       final int m = _refundComputedMinor;
       return m <= 0 ? '0.00' : Money.fromMinor(m).decimal.toStringAsFixed(2);
     }
-    return _amount.isEmpty ? '0.00' : _amount;
+    // 展示当前输入；无输入时展示挂起的运算结果，让计算过程可见。
+    if (_amount.isNotEmpty) return _amount;
+    if (_pendingAmount.isNotEmpty) return _pendingAmount;
+    return '0.00';
   }
 
   // ---- 保存 ----
