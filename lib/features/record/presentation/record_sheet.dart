@@ -349,31 +349,44 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 sourceModule: SourceModule.refund,
               );
         case RecordTab.lend:
-          if (_lendAction != _LendActionType.borrow) {
-            _toast('${_lendAction.label(_lendDir)}功能开发中');
-            return;
-          }
           final String counterparty = _counterpartyController.text.trim();
-          if (counterparty.isEmpty && _accountId == null) {
-            _toast('请选择或填写对方账户');
-            return;
-          }
-          await ref.read(lendRepositoryProvider).add(
-                bookId: bookId,
-                direction: _lendDir,
-                status: LendStatus.ongoing,
-                counterparty: counterparty.isEmpty
-                    ? (_accountNameOf(_accountId) ?? '')
-                    : counterparty,
-                amountMinor: minor,
-                occurredAt: occurredAt,
-                dueAt: null,
-                note: _noteController.text.trim(),
-                accountId: _accountId,
-                toAccountId: _toAccountId,
-                feeMinor: _lendFeeMinor,
-                discountMinor: _lendDiscountMinor,
+          if (_lendAction == _LendActionType.debtReduction) {
+            if (counterparty.isEmpty) {
+              _toast(
+                '请填写${_lendDir == LendDirection.borrowIn ? '借入账户' : '借出账户'}',
               );
+              return;
+            }
+            await ref.read(lendRepositoryProvider).debtReduction(
+                  bookId: bookId,
+                  direction: _lendDir,
+                  counterparty: counterparty,
+                  amountMinor: minor,
+                  occurredAt: occurredAt,
+                  note: _noteController.text.trim(),
+                );
+          } else {
+            if (counterparty.isEmpty && _accountId == null) {
+              _toast('请选择或填写对方账户');
+              return;
+            }
+            await ref.read(lendRepositoryProvider).add(
+                  bookId: bookId,
+                  direction: _lendDir,
+                  status: LendStatus.ongoing,
+                  counterparty: counterparty.isEmpty
+                      ? (_accountNameOf(_accountId) ?? '')
+                      : counterparty,
+                  amountMinor: minor,
+                  occurredAt: occurredAt,
+                  dueAt: null,
+                  note: _noteController.text.trim(),
+                  accountId: _accountId,
+                  toAccountId: _toAccountId,
+                  feeMinor: _lendFeeMinor,
+                  discountMinor: _lendDiscountMinor,
+                );
+          }
         case RecordTab.reimbursement:
           if (_rbTitleController.text.trim().isEmpty) {
             _toast('请填写事由');
@@ -1363,8 +1376,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   Widget _buildLendActionItem(_LendActionType action) {
     final bool selected = _lendAction == action;
-    final bool isBorrowAction = action == _LendActionType.borrow;
-    final Color activeColor = isBorrowAction ? AppColors.primary : AppColors.textPrimary;
+    const Color activeColor = AppColors.primary;
     return InkWell(
       onTap: () => setState(() => _lendAction = action),
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -1508,6 +1520,52 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           ),
         ),
       ],
+    );
+  }
+
+  /// 债务削减 / 减免页的对方虚拟账户输入框。
+  Widget _buildLendCounterpartyField() {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.spaceMd,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          const Icon(
+            Icons.receipt_long_outlined,
+            size: 20,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          Expanded(
+            child: TextField(
+              controller: _counterpartyController,
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                hintText: _lendDir == LendDirection.borrowIn
+                    ? '借入账户'
+                    : '借出账户',
+                hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+              maxLines: 1,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1791,6 +1849,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           ],
         );
       case RecordTab.lend:
+        final bool isDebtReduction =
+            _lendAction == _LendActionType.debtReduction;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1798,33 +1858,45 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             const SizedBox(height: AppDimens.spaceLg),
             _buildLendActionGrid(),
             const SizedBox(height: AppDimens.spaceLg),
-            _buildLendAccountCard(
-              label: _lendDir == LendDirection.borrowIn ? '借入账户' : '借出账户',
-              value: _accountId,
-              placeholder: _lendDir == LendDirection.borrowIn
-                  ? '借入账户'
-                  : '借出账户',
-              onChanged: (String? v) => setState(() => _accountId = v),
-            ),
-            const SizedBox(height: AppDimens.spaceSm),
-            _buildLendHintLine(
-              _lendDir == LendDirection.borrowIn
-                  ? '虚拟账户：如找小明借钱，小明就是此账户'
-                  : '虚拟账户：如借给小明，小明就是此账户',
-            ),
-            const SizedBox(height: AppDimens.spaceMd),
-            _buildLendAccountCard(
-              label: '资产账户',
-              value: _toAccountId,
-              placeholder: '资产账户',
-              onChanged: (String? v) => setState(() => _toAccountId = v),
-            ),
-            const SizedBox(height: AppDimens.spaceSm),
-            _buildLendHintLine('资产账户：将金额累计到这个账户里'),
-            const SizedBox(height: AppDimens.spaceLg),
-            _buildLendFeeRow(),
-            const SizedBox(height: AppDimens.spaceMd),
-            _buildLendFeeHint(),
+            if (isDebtReduction) ...<Widget>[
+              _buildLendCounterpartyField(),
+              const SizedBox(height: AppDimens.spaceSm),
+              _buildLendHintLine(
+                _lendDir == LendDirection.borrowIn
+                    ? '虚拟账户：如找小明借钱，小明就是此账户'
+                    : '虚拟账户：如借给小明，小明就是此账户',
+              ),
+            ] else ...<Widget>[
+              _buildLendAccountCard(
+                label: _lendDir == LendDirection.borrowIn
+                    ? '借入账户'
+                    : '借出账户',
+                value: _accountId,
+                placeholder: _lendDir == LendDirection.borrowIn
+                    ? '借入账户'
+                    : '借出账户',
+                onChanged: (String? v) => setState(() => _accountId = v),
+              ),
+              const SizedBox(height: AppDimens.spaceSm),
+              _buildLendHintLine(
+                _lendDir == LendDirection.borrowIn
+                    ? '虚拟账户：如找小明借钱，小明就是此账户'
+                    : '虚拟账户：如借给小明，小明就是此账户',
+              ),
+              const SizedBox(height: AppDimens.spaceMd),
+              _buildLendAccountCard(
+                label: '资产账户',
+                value: _toAccountId,
+                placeholder: '资产账户',
+                onChanged: (String? v) => setState(() => _toAccountId = v),
+              ),
+              const SizedBox(height: AppDimens.spaceSm),
+              _buildLendHintLine('资产账户：将金额累计到这个账户里'),
+              const SizedBox(height: AppDimens.spaceLg),
+              _buildLendFeeRow(),
+              const SizedBox(height: AppDimens.spaceMd),
+              _buildLendFeeHint(),
+            ],
           ],
         );
       case RecordTab.reimbursement:
