@@ -1116,10 +1116,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             _buildTransferAccountCard(
-              label: '转出账户',
+              label: '扣款账户',
               value: _accountId,
               excludeId: _toAccountId,
-              placeholder: '扣款账户',
+              placeholder: '转出账户',
               onChanged: (String? v) => setState(() => _accountId = v),
             ),
             const SizedBox(height: AppDimens.spaceMd),
@@ -1156,10 +1156,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             ),
             const SizedBox(height: AppDimens.spaceMd),
             _buildTransferAccountCard(
-              label: '转入账户',
+              label: '入款账户',
               value: _toAccountId,
               excludeId: _accountId,
-              placeholder: '入款账户',
+              placeholder: '转入账户',
               onChanged: (String? v) => setState(() => _toAccountId = v),
             ),
             const SizedBox(height: AppDimens.spaceLg),
