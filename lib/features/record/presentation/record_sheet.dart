@@ -60,6 +60,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   // 金额（自定义键盘维护的原始字符串，单位：元）
   String _amount = '';
 
+  // 小青账键盘算术运算暂存：previous operand / operator。
+  String _pendingAmount = '';
+  String? _pendingOperator;
+
   // 账户
   String? _accountId;
   String? _toAccountId;
@@ -145,7 +149,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   int get _amountMinor {
     if (_refundAutoMode) return _refundComputedMinor;
-    return Money.tryParse(_amount).minor;
+    return Money.tryParse(_effectiveAmount).minor;
+  }
+
+  /// 当前应保存的字符串金额：若存在 pending 运算符，先计算再返回。
+  String get _effectiveAmount {
+    if (_pendingOperator == null ||
+        _pendingAmount.isEmpty ||
+        _amount.isEmpty) {
+      return _amount;
+    }
+    final int a = Money.tryParse(_pendingAmount).minor;
+    final int b = Money.tryParse(_amount).minor;
+    final int result = _pendingOperator == '+' ? a + b : a - b;
+    return Money.fromMinor(result).decimal.toStringAsFixed(2);
   }
 
   String get _displayAmount {
@@ -277,6 +294,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       }
 
       if (!mounted) return;
+      // 清空 pending 运算状态，避免影响下一笔。
+      _pendingAmount = '';
+      _pendingOperator = null;
       if (andMore) {
         // 连续记账：保留 Tab 与账户，清空金额与文本，方便快速下一笔。
         setState(() {
@@ -303,6 +323,31 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// 处理小青账键盘的「+」「-」运算符。
+  void _onOperator(String operator) {
+    if (_amount.isEmpty && _pendingAmount.isEmpty) return;
+    setState(() {
+      if (_amount.isNotEmpty &&
+          _pendingAmount.isNotEmpty &&
+          _pendingOperator != null) {
+        // 连续运算：先结算上一轮，再挂起当前运算符。
+        final int a = Money.tryParse(_pendingAmount).minor;
+        final int b = Money.tryParse(_amount).minor;
+        final int result = _pendingOperator == '+' ? a + b : a - b;
+        _pendingAmount = Money.fromMinor(result).decimal.toStringAsFixed(2);
+        _pendingOperator = operator;
+        _amount = '';
+      } else if (_amount.isNotEmpty) {
+        _pendingAmount = _amount;
+        _pendingOperator = operator;
+        _amount = '';
+      } else {
+        // 当前无新输入，仅切换运算符。
+        _pendingOperator = operator;
+      }
+    });
   }
 
   // ---- 表单字段 ----
@@ -1160,20 +1205,23 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     }
 
     return Container(
+      margin: EdgeInsets.fromLTRB(
+        AppDimens.spaceMd,
+        0,
+        AppDimens.spaceMd,
+        AppDimens.spaceMd + bottomSafe,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(top: BorderSide(color: AppColors.divider)),
+        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
       ),
-      padding: EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        0,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg + bottomSafe,
-      ),
+      padding: const EdgeInsets.all(AppDimens.spaceMd),
       child: _RecordKeypad(
         value: _amount,
         enabled: !_saving,
         onChanged: (String v) => setState(() => _amount = v),
+        onOperator: _onOperator,
         onSave: () => _save(),
         onSaveAndMore: () => _save(andMore: true),
       ),
@@ -1491,6 +1539,7 @@ class _RecordKeypad extends StatelessWidget {
     required this.onChanged,
     required this.onSave,
     this.onSaveAndMore,
+    this.onOperator,
     this.enabled = true,
   });
 
@@ -1498,6 +1547,7 @@ class _RecordKeypad extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onSave;
   final VoidCallback? onSaveAndMore;
+  final ValueChanged<String>? onOperator;
   final bool enabled;
 
   static const int _maxIntegerDigits = 12;
@@ -1525,14 +1575,15 @@ class _RecordKeypad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 小青账风格 4×4 键盘：右侧列 = 删除 / - / + / 保存。
+    // 按键压缩高度、拉长宽度，行列间距统一为 spaceSm，视觉更协调。
     return SizedBox(
-      height: 260,
+      height: 196,
       child: GridView.count(
         crossAxisCount: 4,
         physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 1.45,
+        crossAxisSpacing: AppDimens.spaceSm,
+        mainAxisSpacing: AppDimens.spaceSm,
+        childAspectRatio: 2.0,
         children: <Widget>[
           _Digit('1', () => _input('1')),
           _Digit('2', () => _input('2')),
@@ -1551,20 +1602,20 @@ class _RecordKeypad extends StatelessWidget {
           _Digit('4', () => _input('4')),
           _Digit('5', () => _input('5')),
           _Digit('6', () => _input('6')),
-          const _KeyAction(
+          _KeyAction(
             label: '-',
             icon: Icons.remove,
             showLabel: false,
-            onTap: null,
+            onTap: enabled ? () => onOperator?.call('-') : null,
           ),
           _Digit('7', () => _input('7')),
           _Digit('8', () => _input('8')),
           _Digit('9', () => _input('9')),
-          const _KeyAction(
+          _KeyAction(
             label: '+',
             icon: Icons.add,
             showLabel: false,
-            onTap: null,
+            onTap: enabled ? () => onOperator?.call('+') : null,
           ),
           _KeyAction(
             label: '再记',
