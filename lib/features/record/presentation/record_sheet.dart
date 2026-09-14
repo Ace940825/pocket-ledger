@@ -168,9 +168,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   String get _displayAmount {
     if (_refundAutoMode) {
       final int m = _refundComputedMinor;
-      return m <= 0 ? '' : Money.fromMinor(m).decimal.toStringAsFixed(2);
+      return m <= 0 ? '0.00' : Money.fromMinor(m).decimal.toStringAsFixed(2);
     }
-    return _amount;
+    return _amount.isEmpty ? '0.00' : _amount;
   }
 
   // ---- 保存 ----
@@ -1090,7 +1090,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   Widget _buildInlineAmount() {
     final ThemeData theme = Theme.of(context);
-    final String shown = _displayAmount.isEmpty ? '0.00' : _displayAmount;
+    final String shown = _displayAmount;
     final Color amountColor =
         _tab == RecordTab.expense ? AppColors.expense : AppColors.income;
     return Container(
@@ -1591,6 +1591,7 @@ class _RecordKeypad extends StatelessWidget {
           _KeyAction(
             label: '删除',
             icon: Icons.backspace_outlined,
+            showLabel: false,
             onTap: enabled
                 ? () {
                     if (value.isNotEmpty) {
@@ -1619,7 +1620,6 @@ class _RecordKeypad extends StatelessWidget {
           ),
           _KeyAction(
             label: '再记',
-            icon: Icons.add_task_outlined,
             onTap: enabled ? onSaveAndMore : null,
           ),
           _Digit('0', () => _input('0')),
@@ -1631,7 +1631,6 @@ class _RecordKeypad extends StatelessWidget {
           ),
           _KeyAction(
             label: '保存',
-            icon: Icons.check_circle_outline,
             onTap: enabled ? onSave : null,
           ),
         ],
@@ -1671,13 +1670,13 @@ class _Digit extends StatelessWidget {
 class _KeyAction extends StatelessWidget {
   const _KeyAction({
     required this.label,
-    required this.icon,
+    this.icon,
     required this.onTap,
     this.showLabel = true,
   });
 
   final String label;
-  final IconData icon;
+  final IconData? icon;
   final VoidCallback? onTap;
   final bool showLabel;
 
@@ -1697,11 +1696,12 @@ class _KeyAction extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(
-                icon,
-                size: label == '.' ? 8 : 20,
-                color: active ? theme.colorScheme.primary : theme.disabledColor,
-              ),
+              if (icon != null)
+                Icon(
+                  icon,
+                  size: label == '.' ? 8 : 20,
+                  color: active ? theme.colorScheme.primary : theme.disabledColor,
+                ),
               if (showLabel && label != '.')
                 Text(
                   label,
