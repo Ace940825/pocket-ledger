@@ -824,6 +824,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
+  /// 互换转账的转出/转入账户。
+  void _swapTransferAccounts() {
+    setState(() {
+      final String? tmp = _accountId;
+      _accountId = _toAccountId;
+      _toAccountId = tmp;
+    });
+  }
+
   /// 转账页卡片式账户选择器（匹配小青账模板）。
   Widget _buildTransferAccountCard({
     required String label,
@@ -865,20 +874,29 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               children: <Widget>[
                 Icon(icon, size: 18, color: AppColors.textSecondary),
                 const SizedBox(width: AppDimens.spaceSm),
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 const Spacer(),
-                Text(
-                  selected?.name ?? placeholder,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: selected != null
-                            ? AppColors.textPrimary
-                            : AppColors.textTertiary,
-                      ),
+                Flexible(
+                  child: Text(
+                    selected?.name ?? placeholder,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: selected != null
+                              ? AppColors.textPrimary
+                              : AppColors.textTertiary,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                  ),
                 ),
                 const Icon(
                   Icons.chevron_right,
@@ -1079,50 +1097,70 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            _buildTransferAccountCard(
-              label: '转出账户',
-              icon: Icons.account_balance_wallet_outlined,
-              value: _accountId,
-              excludeId: _toAccountId,
-              placeholder: '扣款账户',
-              onChanged: (String? v) => setState(() => _accountId = v),
-            ),
-            const SizedBox(height: AppDimens.spaceMd),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.spaceMd,
-                  vertical: AppDimens.spaceSm,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  flex: 7,
+                  child: _buildTransferAccountCard(
+                    label: '转出账户',
+                    icon: Icons.account_balance_wallet_outlined,
+                    value: _accountId,
+                    excludeId: _toAccountId,
+                    placeholder: '扣款账户',
+                    onChanged: (String? v) => setState(() => _accountId = v),
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                  border: Border.all(color: AppColors.divider),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(Icons.sync_alt,
-                        size: 16, color: AppColors.textSecondary),
-                    const SizedBox(width: AppDimens.spaceXs),
-                    Text(
-                      '转至',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimens.spaceSm,
+                  ),
+                  child: InkWell(
+                    onTap: _swapTransferAccounts,
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimens.spaceMd,
+                        vertical: AppDimens.spaceSm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius:
+                            BorderRadius.circular(AppDimens.radiusMd),
+                        border: Border.all(color: AppColors.divider),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(Icons.sync_alt,
+                              size: 16, color: AppColors.textSecondary),
+                          const SizedBox(width: AppDimens.spaceXs),
+                          Text(
+                            '转至',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
                           ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: AppDimens.spaceMd),
-            _buildTransferAccountCard(
-              label: '转入账户',
-              icon: Icons.account_balance_wallet_outlined,
-              value: _toAccountId,
-              excludeId: _accountId,
-              placeholder: '入款账户',
-              onChanged: (String? v) => setState(() => _toAccountId = v),
+                Expanded(
+                  flex: 3,
+                  child: _buildTransferAccountCard(
+                    label: '转入账户',
+                    icon: Icons.account_balance_wallet_outlined,
+                    value: _toAccountId,
+                    excludeId: _accountId,
+                    placeholder: '入款账户',
+                    onChanged: (String? v) => setState(() => _toAccountId = v),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppDimens.spaceLg),
             _buildTransferFeeRow(),
