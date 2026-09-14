@@ -1177,7 +1177,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 Expanded(
                   flex: 1,
                   child: Align(
-                    alignment: Alignment.centerRight,
+                    alignment: Alignment.centerLeft,
                     child: _buildExpression(),
                   ),
                 ),
@@ -1198,7 +1198,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         : '$_pendingAmount $_pendingOperator $_amount';
     return Text(
       expression,
-      textAlign: TextAlign.right,
+      textAlign: TextAlign.left,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.bodySmall?.copyWith(
