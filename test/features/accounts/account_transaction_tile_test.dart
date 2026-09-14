@@ -10,6 +10,8 @@ Transaction _txn({
   required String id,
   required TxnType type,
   required int amountMinor,
+  int feeMinor = 0,
+  int discountMinor = 0,
   String accountId = 'acc1',
   String? toAccountId,
   SourceModule sourceModule = SourceModule.ledger,
@@ -24,15 +26,19 @@ Transaction _txn({
     toAccountId: toAccountId,
     occurredAt: DateTime(2026, 9, 10, 12).toUtc().millisecondsSinceEpoch,
     sourceModule: sourceModule,
-    feeMinor: 0,
-    discountMinor: 0,
+    feeMinor: feeMinor,
+    discountMinor: discountMinor,
     updatedAt: 0,
     deleted: false,
     dirty: false,
   );
 }
 
-Future<void> _pump(WidgetTester tester, Transaction txn) async {
+Future<void> _pumpWithAccount(
+  WidgetTester tester,
+  Transaction txn, {
+  required String accountId,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: <Override>[
@@ -50,12 +56,17 @@ Future<void> _pump(WidgetTester tester, Transaction txn) async {
               'acc1': '中国工商银行',
               'acc2': '支付宝',
             },
+            accountId: accountId,
           ),
         ),
       ),
     ),
   );
   await tester.pumpAndSettle();
+}
+
+Future<void> _pump(WidgetTester tester, Transaction txn) async {
+  await _pumpWithAccount(tester, txn, accountId: txn.accountId);
 }
 
 void main() {
@@ -109,6 +120,44 @@ void main() {
 
     expect(find.text('¥900.00'), findsOneWidget);
     expect(find.text('-¥900.00'), findsNothing);
+  });
+
+  testWidgets('转账转出方金额含手续费/优惠', (WidgetTester tester) async {
+    await _pumpWithAccount(
+      tester,
+      _txn(
+        id: 't1',
+        type: TxnType.transfer,
+        amountMinor: 3000,
+        accountId: 'acc1',
+        toAccountId: 'acc2',
+        feeMinor: 200,
+      ),
+      accountId: 'acc1',
+    );
+
+    // 转出方（acc1）实际扣款 = 30 + 2 = 32。
+    expect(find.text('¥32.00'), findsOneWidget);
+    expect(find.text('¥30.00'), findsNothing);
+  });
+
+  testWidgets('转账转入方金额仍显示到账金额', (WidgetTester tester) async {
+    await _pumpWithAccount(
+      tester,
+      _txn(
+        id: 't1',
+        type: TxnType.transfer,
+        amountMinor: 3000,
+        accountId: 'acc1',
+        toAccountId: 'acc2',
+        feeMinor: 200,
+      ),
+      accountId: 'acc2',
+    );
+
+    // 转入方（acc2）到账金额仍是 30。
+    expect(find.text('¥30.00'), findsOneWidget);
+    expect(find.text('¥32.00'), findsNothing);
   });
 
   group('退款必须与普通收入区分', () {

@@ -169,6 +169,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
                   return AccountTransactionTile(
                     transaction: item,
                     accountNames: accountNames,
+                    accountId: widget.accountId,
                     onTap: () => tapTransaction(item),
                   );
                 }
@@ -690,6 +691,7 @@ class _MonthSection extends StatelessWidget {
           AccountTransactionTile(
             transaction: t,
             accountNames: accountNames,
+            accountId: accountId,
             onTap: () => onTapTransaction(t),
           ),
         );

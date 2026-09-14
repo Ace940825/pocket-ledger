@@ -13,6 +13,8 @@ Transaction _txn({
   required String id,
   required TxnType type,
   required int amountMinor,
+  int feeMinor = 0,
+  int discountMinor = 0,
   int occurredAt = 0,
   String accountId = _me,
   String? toAccountId,
@@ -30,8 +32,8 @@ Transaction _txn({
     occurredAt: occurredAt,
     sourceModule: sourceModule,
     transferGroupId: transferGroupId,
-    feeMinor: 0,
-    discountMinor: 0,
+    feeMinor: feeMinor,
+    discountMinor: discountMinor,
     updatedAt: 0,
     deleted: false,
     dirty: false,
@@ -42,12 +44,16 @@ Transaction _txn({
 Transaction _transferOut({
   required String id,
   required int amountMinor,
+  int feeMinor = 0,
+  int discountMinor = 0,
   int occurredAt = 0,
 }) =>
     _txn(
       id: id,
       type: TxnType.transfer,
       amountMinor: amountMinor,
+      feeMinor: feeMinor,
+      discountMinor: discountMinor,
       occurredAt: occurredAt,
       accountId: _me,
       toAccountId: _other,
@@ -59,12 +65,16 @@ Transaction _transferOut({
 Transaction _transferIn({
   required String id,
   required int amountMinor,
+  int feeMinor = 0,
+  int discountMinor = 0,
   int occurredAt = 0,
 }) =>
     _txn(
       id: id,
       type: TxnType.transfer,
       amountMinor: amountMinor,
+      feeMinor: feeMinor,
+      discountMinor: discountMinor,
       occurredAt: occurredAt,
       accountId: _other,
       toAccountId: _me,
@@ -215,6 +225,33 @@ void main() {
           _stats(txns, const AssetStatsSettings(expenseWithTransfer: true));
       expect(stats.expenseMinor, 800, reason: '300 + 500');
       expect(stats.otherMinor, 200, reason: '只剩转入腿');
+    });
+
+    test('转账转出含手续费时按实际扣款统计', () {
+      final MonthStats stats = _stats(
+        <Transaction>[
+          _transferOut(id: 'o1', amountMinor: 3000, feeMinor: 200),
+        ],
+        const AssetStatsSettings(expenseWithTransfer: true),
+      );
+      expect(stats.expenseMinor, 3200, reason: '30 + 2 = 32 元');
+      expect(stats.otherMinor, 0);
+    });
+
+    test('转账转出含优惠时按实际扣款统计', () {
+      final MonthStats stats = _stats(
+        <Transaction>[
+          _transferOut(
+            id: 'o1',
+            amountMinor: 3000,
+            feeMinor: 200,
+            discountMinor: 50,
+          ),
+        ],
+        const AssetStatsSettings(expenseWithTransfer: true),
+      );
+      expect(stats.expenseMinor, 3150, reason: '30 + 2 - 0.5 = 31.5 元');
+      expect(stats.otherMinor, 0);
     });
 
     test('只看转入腿：本账户是转入方时不算支出', () {

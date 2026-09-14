@@ -19,10 +19,14 @@ class AccountTransactionTile extends ConsumerWidget {
     super.key,
     required this.transaction,
     required this.accountNames,
+    required this.accountId,
     this.onTap,
   });
 
   final Transaction transaction;
+
+  /// 当前正在查看的账户 ID。
+  final String accountId;
 
   /// 账户 ID -> 名称映射，用于渲染转账的「从 -> 到」说明。
   final Map<String, String> accountNames;
@@ -79,7 +83,10 @@ class AccountTransactionTile extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
-                _AmountText(transaction: transaction),
+                _AmountText(
+                  transaction: transaction,
+                  accountId: accountId,
+                ),
                 const SizedBox(height: 2),
                 Text(
                   _subtitle(),
@@ -192,9 +199,10 @@ class _CircleIcon extends StatelessWidget {
 }
 
 class _AmountText extends StatelessWidget {
-  const _AmountText({required this.transaction});
+  const _AmountText({required this.transaction, required this.accountId});
 
   final Transaction transaction;
+  final String accountId;
 
   @override
   Widget build(BuildContext context) {
@@ -202,8 +210,16 @@ class _AmountText extends StatelessWidget {
 
     switch (transaction.type) {
       case TxnType.transfer:
+        // 转出方实际扣款 = 到账金额 + 手续费 - 优惠；
+        // 转入方显示到账金额。
+        final bool isOutgoing = transaction.accountId == accountId;
+        final int amount = isOutgoing
+            ? transaction.amountMinor +
+                transaction.feeMinor -
+                transaction.discountMinor
+            : transaction.amountMinor;
         return Text(
-          Money.fromMinor(transaction.amountMinor).format(),
+          Money.fromMinor(amount).format(),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: FontWeight.w600,
             color: AppColors.transfer,

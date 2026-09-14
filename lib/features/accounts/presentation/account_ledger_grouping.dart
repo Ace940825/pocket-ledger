@@ -93,7 +93,8 @@ MonthStats computeMonthStats(
       case TxnType.transfer:
         switch (transferDirectionOf(t, accountId)) {
           case TransferDirection.outgoing:
-            transferOut += t.amountMinor;
+            // 转出方实际扣款要包含手续费 / 优惠。
+            transferOut += t.amountMinor + t.feeMinor - t.discountMinor;
           case TransferDirection.incoming:
             transferIn += t.amountMinor;
           case null:
