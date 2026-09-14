@@ -156,11 +156,11 @@ class LendRepository {
     });
   }
 
-  /// 坏账损失：按 [counterparty] 找到该方向下所有未结清记录，
+  /// 债务削减 / 减免：按 [counterparty] 找到该方向下所有未结清记录，
   /// 按发生时间从早到晚递增 [repaidMinor]，直到用完 [amountMinor]。
   ///
   /// 不创建新记录，也不影响资产账户余额；仅减少剩余债权 / 债务。
-  Future<void> badDebtLoss({
+  Future<void> debtReduction({
     required String bookId,
     required LendDirection direction,
     required String counterparty,
@@ -240,7 +240,7 @@ class LendRepository {
       }
 
       if (remaining > 0) {
-        throw const ValidationFailure('坏账损失金额超过剩余债务');
+        throw const ValidationFailure('削减金额超过剩余债务');
       }
     });
   }

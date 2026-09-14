@@ -30,21 +30,22 @@ enum _FeeInputType { fee, discount }
 enum _LendActionType {
   borrow,
   repay,
-  badDebtLoss;
+  debtReduction;
 
   String label(LendDirection dir) => switch (this) {
         _LendActionType.borrow =>
           dir == LendDirection.borrowIn ? '借入' : '借出',
         _LendActionType.repay =>
           dir == LendDirection.borrowIn ? '还债' : '收债',
-        _LendActionType.badDebtLoss => '坏账损失',
+        _LendActionType.debtReduction =>
+          dir == LendDirection.borrowIn ? '债务削减' : '债务减免',
       };
 
   IconData icon(LendDirection dir) => switch (this) {
         _LendActionType.borrow =>
           dir == LendDirection.borrowIn ? Icons.south_west : Icons.north_east,
         _LendActionType.repay => Icons.check_circle_outline,
-        _LendActionType.badDebtLoss => Icons.money_off,
+        _LendActionType.debtReduction => Icons.content_cut_outlined,
       };
 }
 
@@ -349,14 +350,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               );
         case RecordTab.lend:
           final String counterparty = _counterpartyController.text.trim();
-          if (_lendAction == _LendActionType.badDebtLoss) {
+          if (_lendAction == _LendActionType.debtReduction) {
             if (counterparty.isEmpty) {
               _toast(
                 '请填写${_lendDir == LendDirection.borrowIn ? '借入账户' : '借出账户'}',
               );
               return;
             }
-            await ref.read(lendRepositoryProvider).badDebtLoss(
+            await ref.read(lendRepositoryProvider).debtReduction(
                   bookId: bookId,
                   direction: _lendDir,
                   counterparty: counterparty,
@@ -1361,7 +1362,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  /// 借还页动作图标网格：借入/借出、还债/收债、坏账损失。
+  /// 借还页动作图标网格：借入/借出、还债/收债、债务削减/减免。
   Widget _buildLendActionGrid() {
     const List<_LendActionType> actions = _LendActionType.values;
     return Row(
@@ -1522,7 +1523,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  /// 坏账损失页的对方虚拟账户输入框。
+  /// 债务削减 / 减免页的对方虚拟账户输入框。
   Widget _buildLendCounterpartyField() {
     return Container(
       height: 48,
@@ -1848,8 +1849,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           ],
         );
       case RecordTab.lend:
-        final bool isBadDebtLoss =
-            _lendAction == _LendActionType.badDebtLoss;
+        final bool isDebtReduction =
+            _lendAction == _LendActionType.debtReduction;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1857,7 +1858,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             const SizedBox(height: AppDimens.spaceLg),
             _buildLendActionGrid(),
             const SizedBox(height: AppDimens.spaceLg),
-            if (isBadDebtLoss) ...<Widget>[
+            if (isDebtReduction) ...<Widget>[
               _buildLendCounterpartyField(),
               const SizedBox(height: AppDimens.spaceSm),
               _buildLendHintLine(
