@@ -835,7 +835,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   /// 转账页卡片式账户选择器（匹配小青账模板）。
   ///
-  /// 左侧是圆角长条标签卡片，右侧是圆角长条账户栏卡片（已选账户名或占位符 + 箭头）。
+  /// 左侧是圆角长条账户栏卡片（已选账户名或占位符），右侧是圆角长条标签卡片。
   Widget _buildTransferAccountCard({
     required String label,
     required String? value,
@@ -855,29 +855,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             safe == null ? null : shown.firstWhere((Account a) => a.id == safe);
         return Row(
           children: <Widget>[
-            // 左侧：标签卡片。
-            Container(
-              height: 48,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.spaceMd,
-              ),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: AppDimens.spaceSm),
-            // 右侧：账户栏卡片。
+            // 左侧：账户栏卡片。
             Expanded(
               child: InkWell(
                 onTap: shown.isEmpty
@@ -918,14 +896,31 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                           textAlign: TextAlign.right,
                         ),
                       ),
-                      const Icon(
-                        Icons.chevron_right,
-                        size: 18,
-                        color: AppColors.textTertiary,
-                      ),
                     ],
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(width: AppDimens.spaceSm),
+            // 右侧：标签卡片。
+            Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimens.spaceMd,
+              ),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
