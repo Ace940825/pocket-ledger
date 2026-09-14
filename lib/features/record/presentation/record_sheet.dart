@@ -94,6 +94,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   bool _keyboardExpanded = true;
   bool _isReimbursable = false;
   bool _excludeFromStats = false;
+  bool _excludeFromBudget = false;
   final List<String> _tags = <String>[];
   String? _discountAmount;
 
@@ -1001,10 +1002,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         onTap: _onAddTag,
       ),
       _FunctionItem(
-        label: '不计入',
+        label: '不计收支',
         icon: Icons.visibility_off_outlined,
         onTap: () => setState(() => _excludeFromStats = !_excludeFromStats),
         active: _excludeFromStats,
+      ),
+      _FunctionItem(
+        label: '不计预算',
+        icon: Icons.pie_chart_outline,
+        onTap: () => setState(() => _excludeFromBudget = !_excludeFromBudget),
+        active: _excludeFromBudget,
       ),
       _FunctionItem(
         label: '模板',
