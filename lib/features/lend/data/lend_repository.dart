@@ -32,6 +32,9 @@ class LendRepository {
     int? dueAt,
     String? note,
     String? accountId,
+    String? toAccountId,
+    int feeMinor = 0,
+    int discountMinor = 0,
   }) {
     if (counterparty.trim().isEmpty) {
       throw const ValidationFailure('对方不能为空');
@@ -55,6 +58,9 @@ class LendRepository {
               dueAt: Value<int?>(dueAt),
               note: Value<String?>(note),
               accountId: Value<String?>(accountId),
+              toAccountId: Value<String?>(toAccountId),
+              feeMinor: Value<int>(feeMinor),
+              discountMinor: Value<int>(discountMinor),
               updatedAt: Value<int>(now),
               dirty: const Value<bool>(true),
             ),
@@ -75,6 +81,9 @@ class LendRepository {
           'dueAt': dueAt,
           'note': note,
           'accountId': accountId,
+          'toAccountId': toAccountId,
+          'feeMinor': feeMinor,
+          'discountMinor': discountMinor,
         },
       );
       return id;
@@ -92,6 +101,9 @@ class LendRepository {
     int? dueAt,
     String? note,
     String? accountId,
+    String? toAccountId,
+    int feeMinor = 0,
+    int discountMinor = 0,
   }) {
     if (counterparty.trim().isEmpty) {
       throw const ValidationFailure('对方不能为空');
@@ -113,6 +125,9 @@ class LendRepository {
           dueAt: Value<int?>(dueAt),
           note: Value<String?>(note),
           accountId: Value<String?>(accountId),
+          toAccountId: Value<String?>(toAccountId),
+          feeMinor: Value<int>(feeMinor),
+          discountMinor: Value<int>(discountMinor),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -133,6 +148,9 @@ class LendRepository {
           'dueAt': dueAt,
           'note': note,
           'accountId': accountId,
+          'toAccountId': toAccountId,
+          'feeMinor': feeMinor,
+          'discountMinor': discountMinor,
         },
       );
     });

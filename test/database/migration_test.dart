@@ -85,7 +85,7 @@ void main() {
     await expectLater(db.booksDao.watchAll().first, completes);
     await db.close();
 
-    expect(userVersion(), 4, reason: '迁移成功后 user_version 必须推进到 4');
+    expect(userVersion(), 5, reason: '迁移成功后 user_version 必须推进到 5');
   });
 
   test('升级路径也必须补齐索引（且幂等）', () async {
@@ -119,7 +119,7 @@ void main() {
     await db.close();
 
     expect(reimbursementColumns(), contains('exclude_from_stats'));
-    expect(userVersion(), 4);
+    expect(userVersion(), 5);
   });
 
   test('新建库（user_version=0）走 onCreate，不应触发迁移', () async {
@@ -127,7 +127,7 @@ void main() {
     await db.booksDao.watchAll().first;
     await db.close();
 
-    expect(userVersion(), 4);
+    expect(userVersion(), 5);
     expect(reimbursementColumns(), contains('exclude_from_stats'));
   });
 }

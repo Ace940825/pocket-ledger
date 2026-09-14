@@ -3198,6 +3198,28 @@ class $LendRecordsTable extends LendRecords
   late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
       'account_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _toAccountIdMeta =
+      const VerificationMeta('toAccountId');
+  @override
+  late final GeneratedColumn<String> toAccountId = GeneratedColumn<String>(
+      'to_account_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _feeMinorMeta =
+      const VerificationMeta('feeMinor');
+  @override
+  late final GeneratedColumn<int> feeMinor = GeneratedColumn<int>(
+      'fee_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _discountMinorMeta =
+      const VerificationMeta('discountMinor');
+  @override
+  late final GeneratedColumn<int> discountMinor = GeneratedColumn<int>(
+      'discount_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   @override
   List<GeneratedColumn> get $columns => [
         updatedAt,
@@ -3215,7 +3237,10 @@ class $LendRecordsTable extends LendRecords
         occurredAt,
         dueAt,
         note,
-        accountId
+        accountId,
+        toAccountId,
+        feeMinor,
+        discountMinor
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3302,6 +3327,22 @@ class $LendRecordsTable extends LendRecords
       context.handle(_accountIdMeta,
           accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
     }
+    if (data.containsKey('to_account_id')) {
+      context.handle(
+          _toAccountIdMeta,
+          toAccountId.isAcceptableOrUnknown(
+              data['to_account_id']!, _toAccountIdMeta));
+    }
+    if (data.containsKey('fee_minor')) {
+      context.handle(_feeMinorMeta,
+          feeMinor.isAcceptableOrUnknown(data['fee_minor']!, _feeMinorMeta));
+    }
+    if (data.containsKey('discount_minor')) {
+      context.handle(
+          _discountMinorMeta,
+          discountMinor.isAcceptableOrUnknown(
+              data['discount_minor']!, _discountMinorMeta));
+    }
     return context;
   }
 
@@ -3345,6 +3386,12 @@ class $LendRecordsTable extends LendRecords
           .read(DriftSqlType.string, data['${effectivePrefix}note']),
       accountId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}account_id']),
+      toAccountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}to_account_id']),
+      feeMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}fee_minor'])!,
+      discountMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}discount_minor'])!,
     );
   }
 
@@ -3377,7 +3424,18 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
   final int occurredAt;
   final int? dueAt;
   final String? note;
+
+  /// 关联账户：借出时为应收账户 / 借入时为应付（负债）账户。
   final String? accountId;
+
+  /// 资产账户：借入时实际收到钱的资金账户；借出时实际出钱资金账户。
+  final String? toAccountId;
+
+  /// 利息（分）。借入/借出均可附加利息。
+  final int feeMinor;
+
+  /// 优惠 / 减免（分）。借入/借出时的减免金额。
+  final int discountMinor;
   const LendRecord(
       {required this.updatedAt,
       required this.deleted,
@@ -3394,7 +3452,10 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       required this.occurredAt,
       this.dueAt,
       this.note,
-      this.accountId});
+      this.accountId,
+      this.toAccountId,
+      required this.feeMinor,
+      required this.discountMinor});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -3428,6 +3489,11 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<String>(accountId);
     }
+    if (!nullToAbsent || toAccountId != null) {
+      map['to_account_id'] = Variable<String>(toAccountId);
+    }
+    map['fee_minor'] = Variable<int>(feeMinor);
+    map['discount_minor'] = Variable<int>(discountMinor);
     return map;
   }
 
@@ -3454,6 +3520,11 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
           : Value(accountId),
+      toAccountId: toAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toAccountId),
+      feeMinor: Value(feeMinor),
+      discountMinor: Value(discountMinor),
     );
   }
 
@@ -3479,6 +3550,9 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       dueAt: serializer.fromJson<int?>(json['dueAt']),
       note: serializer.fromJson<String?>(json['note']),
       accountId: serializer.fromJson<String?>(json['accountId']),
+      toAccountId: serializer.fromJson<String?>(json['toAccountId']),
+      feeMinor: serializer.fromJson<int>(json['feeMinor']),
+      discountMinor: serializer.fromJson<int>(json['discountMinor']),
     );
   }
   @override
@@ -3503,6 +3577,9 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       'dueAt': serializer.toJson<int?>(dueAt),
       'note': serializer.toJson<String?>(note),
       'accountId': serializer.toJson<String?>(accountId),
+      'toAccountId': serializer.toJson<String?>(toAccountId),
+      'feeMinor': serializer.toJson<int>(feeMinor),
+      'discountMinor': serializer.toJson<int>(discountMinor),
     };
   }
 
@@ -3522,7 +3599,10 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
           int? occurredAt,
           Value<int?> dueAt = const Value.absent(),
           Value<String?> note = const Value.absent(),
-          Value<String?> accountId = const Value.absent()}) =>
+          Value<String?> accountId = const Value.absent(),
+          Value<String?> toAccountId = const Value.absent(),
+          int? feeMinor,
+          int? discountMinor}) =>
       LendRecord(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -3540,6 +3620,9 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
         dueAt: dueAt.present ? dueAt.value : this.dueAt,
         note: note.present ? note.value : this.note,
         accountId: accountId.present ? accountId.value : this.accountId,
+        toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
+        feeMinor: feeMinor ?? this.feeMinor,
+        discountMinor: discountMinor ?? this.discountMinor,
       );
   LendRecord copyWithCompanion(LendRecordsCompanion data) {
     return LendRecord(
@@ -3564,6 +3647,12 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
       note: data.note.present ? data.note.value : this.note,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      toAccountId:
+          data.toAccountId.present ? data.toAccountId.value : this.toAccountId,
+      feeMinor: data.feeMinor.present ? data.feeMinor.value : this.feeMinor,
+      discountMinor: data.discountMinor.present
+          ? data.discountMinor.value
+          : this.discountMinor,
     );
   }
 
@@ -3585,7 +3674,10 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
           ..write('occurredAt: $occurredAt, ')
           ..write('dueAt: $dueAt, ')
           ..write('note: $note, ')
-          ..write('accountId: $accountId')
+          ..write('accountId: $accountId, ')
+          ..write('toAccountId: $toAccountId, ')
+          ..write('feeMinor: $feeMinor, ')
+          ..write('discountMinor: $discountMinor')
           ..write(')'))
         .toString();
   }
@@ -3607,7 +3699,10 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       occurredAt,
       dueAt,
       note,
-      accountId);
+      accountId,
+      toAccountId,
+      feeMinor,
+      discountMinor);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3627,7 +3722,10 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
           other.occurredAt == this.occurredAt &&
           other.dueAt == this.dueAt &&
           other.note == this.note &&
-          other.accountId == this.accountId);
+          other.accountId == this.accountId &&
+          other.toAccountId == this.toAccountId &&
+          other.feeMinor == this.feeMinor &&
+          other.discountMinor == this.discountMinor);
 }
 
 class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
@@ -3647,6 +3745,9 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
   final Value<int?> dueAt;
   final Value<String?> note;
   final Value<String?> accountId;
+  final Value<String?> toAccountId;
+  final Value<int> feeMinor;
+  final Value<int> discountMinor;
   final Value<int> rowid;
   const LendRecordsCompanion({
     this.updatedAt = const Value.absent(),
@@ -3665,6 +3766,9 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
     this.dueAt = const Value.absent(),
     this.note = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.toAccountId = const Value.absent(),
+    this.feeMinor = const Value.absent(),
+    this.discountMinor = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LendRecordsCompanion.insert({
@@ -3684,6 +3788,9 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
     this.dueAt = const Value.absent(),
     this.note = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.toAccountId = const Value.absent(),
+    this.feeMinor = const Value.absent(),
+    this.discountMinor = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -3710,6 +3817,9 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
     Expression<int>? dueAt,
     Expression<String>? note,
     Expression<String>? accountId,
+    Expression<String>? toAccountId,
+    Expression<int>? feeMinor,
+    Expression<int>? discountMinor,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3729,6 +3839,9 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
       if (dueAt != null) 'due_at': dueAt,
       if (note != null) 'note': note,
       if (accountId != null) 'account_id': accountId,
+      if (toAccountId != null) 'to_account_id': toAccountId,
+      if (feeMinor != null) 'fee_minor': feeMinor,
+      if (discountMinor != null) 'discount_minor': discountMinor,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3750,6 +3863,9 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
       Value<int?>? dueAt,
       Value<String?>? note,
       Value<String?>? accountId,
+      Value<String?>? toAccountId,
+      Value<int>? feeMinor,
+      Value<int>? discountMinor,
       Value<int>? rowid}) {
     return LendRecordsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -3768,6 +3884,9 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
       dueAt: dueAt ?? this.dueAt,
       note: note ?? this.note,
       accountId: accountId ?? this.accountId,
+      toAccountId: toAccountId ?? this.toAccountId,
+      feeMinor: feeMinor ?? this.feeMinor,
+      discountMinor: discountMinor ?? this.discountMinor,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3825,6 +3944,15 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
     }
+    if (toAccountId.present) {
+      map['to_account_id'] = Variable<String>(toAccountId.value);
+    }
+    if (feeMinor.present) {
+      map['fee_minor'] = Variable<int>(feeMinor.value);
+    }
+    if (discountMinor.present) {
+      map['discount_minor'] = Variable<int>(discountMinor.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3850,6 +3978,9 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
           ..write('dueAt: $dueAt, ')
           ..write('note: $note, ')
           ..write('accountId: $accountId, ')
+          ..write('toAccountId: $toAccountId, ')
+          ..write('feeMinor: $feeMinor, ')
+          ..write('discountMinor: $discountMinor, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10885,6 +11016,9 @@ typedef $$LendRecordsTableCreateCompanionBuilder = LendRecordsCompanion
   Value<int?> dueAt,
   Value<String?> note,
   Value<String?> accountId,
+  Value<String?> toAccountId,
+  Value<int> feeMinor,
+  Value<int> discountMinor,
   Value<int> rowid,
 });
 typedef $$LendRecordsTableUpdateCompanionBuilder = LendRecordsCompanion
@@ -10905,6 +11039,9 @@ typedef $$LendRecordsTableUpdateCompanionBuilder = LendRecordsCompanion
   Value<int?> dueAt,
   Value<String?> note,
   Value<String?> accountId,
+  Value<String?> toAccountId,
+  Value<int> feeMinor,
+  Value<int> discountMinor,
   Value<int> rowid,
 });
 
@@ -10968,6 +11105,15 @@ class $$LendRecordsTableFilterComposer
 
   ColumnFilters<String> get accountId => $composableBuilder(
       column: $table.accountId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toAccountId => $composableBuilder(
+      column: $table.toAccountId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get feeMinor => $composableBuilder(
+      column: $table.feeMinor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get discountMinor => $composableBuilder(
+      column: $table.discountMinor, builder: (column) => ColumnFilters(column));
 }
 
 class $$LendRecordsTableOrderingComposer
@@ -11027,6 +11173,16 @@ class $$LendRecordsTableOrderingComposer
 
   ColumnOrderings<String> get accountId => $composableBuilder(
       column: $table.accountId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toAccountId => $composableBuilder(
+      column: $table.toAccountId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get feeMinor => $composableBuilder(
+      column: $table.feeMinor, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get discountMinor => $composableBuilder(
+      column: $table.discountMinor,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$LendRecordsTableAnnotationComposer
@@ -11085,6 +11241,15 @@ class $$LendRecordsTableAnnotationComposer
 
   GeneratedColumn<String> get accountId =>
       $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get toAccountId => $composableBuilder(
+      column: $table.toAccountId, builder: (column) => column);
+
+  GeneratedColumn<int> get feeMinor =>
+      $composableBuilder(column: $table.feeMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get discountMinor => $composableBuilder(
+      column: $table.discountMinor, builder: (column) => column);
 }
 
 class $$LendRecordsTableTableManager extends RootTableManager<
@@ -11126,6 +11291,9 @@ class $$LendRecordsTableTableManager extends RootTableManager<
             Value<int?> dueAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<String?> accountId = const Value.absent(),
+            Value<String?> toAccountId = const Value.absent(),
+            Value<int> feeMinor = const Value.absent(),
+            Value<int> discountMinor = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               LendRecordsCompanion(
@@ -11145,6 +11313,9 @@ class $$LendRecordsTableTableManager extends RootTableManager<
             dueAt: dueAt,
             note: note,
             accountId: accountId,
+            toAccountId: toAccountId,
+            feeMinor: feeMinor,
+            discountMinor: discountMinor,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -11164,6 +11335,9 @@ class $$LendRecordsTableTableManager extends RootTableManager<
             Value<int?> dueAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<String?> accountId = const Value.absent(),
+            Value<String?> toAccountId = const Value.absent(),
+            Value<int> feeMinor = const Value.absent(),
+            Value<int> discountMinor = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               LendRecordsCompanion.insert(
@@ -11183,6 +11357,9 @@ class $$LendRecordsTableTableManager extends RootTableManager<
             dueAt: dueAt,
             note: note,
             accountId: accountId,
+            toAccountId: toAccountId,
+            feeMinor: feeMinor,
+            discountMinor: discountMinor,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

@@ -62,7 +62,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -107,6 +107,25 @@ class AppDatabase extends _$AppDatabase {
               m,
               transactions,
               transactions.discountMinor,
+            );
+          }
+
+          if (from < 5) {
+            // v5：借还新增资产账户 / 利息 / 优惠字段。
+            await _addColumnIfMissing(
+              m,
+              lendRecords,
+              lendRecords.toAccountId,
+            );
+            await _addColumnIfMissing(
+              m,
+              lendRecords,
+              lendRecords.feeMinor,
+            );
+            await _addColumnIfMissing(
+              m,
+              lendRecords,
+              lendRecords.discountMinor,
             );
           }
 

@@ -157,7 +157,18 @@ class LendRecords extends Table with SyncColumns {
   IntColumn get occurredAt => integer()();
   IntColumn get dueAt => integer().nullable()();
   TextColumn get note => text().nullable()();
+
+  /// 关联账户：借出时为应收账户 / 借入时为应付（负债）账户。
   TextColumn get accountId => text().nullable()();
+
+  /// 资产账户：借入时实际收到钱的资金账户；借出时实际出钱资金账户。
+  TextColumn get toAccountId => text().nullable()();
+
+  /// 利息（分）。借入/借出均可附加利息。
+  IntColumn get feeMinor => integer().withDefault(const Constant(0))();
+
+  /// 优惠 / 减免（分）。借入/借出时的减免金额。
+  IntColumn get discountMinor => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => <Column>{id};

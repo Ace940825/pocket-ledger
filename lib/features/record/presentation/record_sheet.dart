@@ -23,8 +23,31 @@ import '../widgets/amount_keypad.dart';
 /// 退款模式：全额退回 / AA 付款分摊。
 enum RefundMode { full, aa }
 
-/// 转账页手续费 / 优惠输入模式。
+/// 转账页 / 借还页 手续费 / 利息 / 优惠输入模式。
 enum _FeeInputType { fee, discount }
+
+/// 借还页动作类型。
+enum _LendActionType {
+  borrow,
+  repay,
+  debtReduction;
+
+  String label(LendDirection dir) => switch (this) {
+        _LendActionType.borrow =>
+          dir == LendDirection.borrowIn ? '借入' : '借出',
+        _LendActionType.repay =>
+          dir == LendDirection.borrowIn ? '还债' : '收债',
+        _LendActionType.debtReduction =>
+          dir == LendDirection.borrowIn ? '债务削减' : '债务减免',
+      };
+
+  IconData icon(LendDirection dir) => switch (this) {
+        _LendActionType.borrow =>
+          dir == LendDirection.borrowIn ? Icons.south_west : Icons.north_east,
+        _LendActionType.repay => Icons.check_circle_outline,
+        _LendActionType.debtReduction => Icons.content_cut_outlined,
+      };
+}
 
 /// 统一「记一笔」底部面板：顶部 7 个 Tab（支出/收入/转账/借还/报销/退款/存钱），
 /// 中间是对应表单，底部是自定义数字键盘。
@@ -76,8 +99,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   DateTime _occurredAt = DateTime.now();
 
   // 借还
-  LendDirection _lendDir = LendDirection.lendOut;
+  LendDirection _lendDir = LendDirection.borrowIn;
   LendStatus _lendStatus = LendStatus.ongoing;
+  _LendActionType _lendAction = _LendActionType.borrow;
+
+  // 借还利息 / 优惠输入。
+  _FeeInputType _lendFeeInputType = _FeeInputType.fee;
+  final TextEditingController _lendFeeController = TextEditingController();
+  final FocusNode _lendFeeFocusNode = FocusNode();
+  String? _lendFeeAmount;
+  String? _lendDiscountAmount;
 
   // 报销
   ReimbursementStatus _rbStatus = ReimbursementStatus.pending;
@@ -123,6 +154,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     _tab = widget.initialTab;
     _noteFocusNode.addListener(_onNoteFocusChanged);
     _feeInputFocusNode.addListener(_onFeeInputFocusChanged);
+    _lendFeeFocusNode.addListener(_onLendFeeFocusChanged);
   }
 
   void _onNoteFocusChanged() {
@@ -143,6 +175,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     }
   }
 
+  void _onLendFeeFocusChanged() {
+    if (_lendFeeFocusNode.hasFocus) {
+      // 借还利息/优惠输入使用系统键盘，临时收起自定义数字键盘避免冲突。
+      if (mounted && _keyboardExpanded) {
+        setState(() => _keyboardExpanded = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _noteFocusNode.removeListener(_onNoteFocusChanged);
@@ -150,6 +191,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     _feeInputFocusNode.removeListener(_onFeeInputFocusChanged);
     _feeInputFocusNode.dispose();
     _feeInputController.dispose();
+    _lendFeeFocusNode.removeListener(_onLendFeeFocusChanged);
+    _lendFeeFocusNode.dispose();
+    _lendFeeController.dispose();
     _noteController.dispose();
     _counterpartyController.dispose();
     _rbTitleController.dispose();
@@ -215,6 +259,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   int get _discountMinor {
     if (_discountAmount == null || _discountAmount!.isEmpty) return 0;
     return Money.tryParse(_discountAmount!).minor;
+  }
+
+  /// 借还利息金额（分）。未输入时返回 0。
+  int get _lendFeeMinor {
+    if (_lendFeeAmount == null || _lendFeeAmount!.isEmpty) return 0;
+    return Money.tryParse(_lendFeeAmount!).minor;
+  }
+
+  /// 借还优惠 / 减免金额（分）。未输入时返回 0。
+  int get _lendDiscountMinor {
+    if (_lendDiscountAmount == null || _lendDiscountAmount!.isEmpty) return 0;
+    return Money.tryParse(_lendDiscountAmount!).minor;
   }
 
   // ---- 保存 ----
@@ -293,19 +349,30 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 sourceModule: SourceModule.refund,
               );
         case RecordTab.lend:
-          if (_counterpartyController.text.trim().isEmpty) {
-            _toast('请填写对方');
+          if (_lendAction != _LendActionType.borrow) {
+            _toast('${_lendAction.label(_lendDir)}功能开发中');
+            return;
+          }
+          final String counterparty = _counterpartyController.text.trim();
+          if (counterparty.isEmpty && _accountId == null) {
+            _toast('请选择或填写对方账户');
             return;
           }
           await ref.read(lendRepositoryProvider).add(
                 bookId: bookId,
                 direction: _lendDir,
-                status: _lendStatus,
-                counterparty: _counterpartyController.text.trim(),
+                status: LendStatus.ongoing,
+                counterparty: counterparty.isEmpty
+                    ? (_accountNameOf(_accountId) ?? '')
+                    : counterparty,
                 amountMinor: minor,
                 occurredAt: occurredAt,
                 dueAt: null,
                 note: _noteController.text.trim(),
+                accountId: _accountId,
+                toAccountId: _toAccountId,
+                feeMinor: _lendFeeMinor,
+                discountMinor: _lendDiscountMinor,
               );
         case RecordTab.reimbursement:
           if (_rbTitleController.text.trim().isEmpty) {
@@ -862,6 +929,19 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
+  /// 根据账户 ID 从当前账户列表中查找名称；未找到返回 null。
+  String? _accountNameOf(String? accountId) {
+    if (accountId == null) return null;
+    final AsyncValue<List<Account>> value = ref.read(accountsProvider);
+    final List<Account>? list = value.valueOrNull;
+    if (list == null) return null;
+    final Account? account = list.cast<Account?>().firstWhere(
+          (Account? a) => a?.id == accountId,
+          orElse: () => null,
+        );
+    return account?.name;
+  }
+
   /// 互换转账的转出/转入账户。
   void _swapTransferAccounts() {
     setState(() {
@@ -1212,6 +1292,428 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
+  // ---- 借还页（小青账风格） ----
+
+  /// 借还页顶部「借入 / 借出」分段开关。
+  Widget _buildLendDirectionToggle() {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: _buildLendDirectionSegment(
+              label: '借入',
+              selected: _lendDir == LendDirection.borrowIn,
+              onTap: () => setState(() => _lendDir = LendDirection.borrowIn),
+            ),
+          ),
+          Expanded(
+            child: _buildLendDirectionSegment(
+              label: '借出',
+              selected: _lendDir == LendDirection.lendOut,
+              onTap: () => setState(() => _lendDir = LendDirection.lendOut),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLendDirectionSegment({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: selected ? Colors.white : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w500 : FontWeight.normal,
+              ),
+        ),
+      ),
+    );
+  }
+
+  /// 借还页动作图标网格：借入/借出、还债/收债、债务削减/减免。
+  Widget _buildLendActionGrid() {
+    const List<_LendActionType> actions = _LendActionType.values;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: <Widget>[
+        for (final _LendActionType action in actions)
+          _buildLendActionItem(action),
+      ],
+    );
+  }
+
+  Widget _buildLendActionItem(_LendActionType action) {
+    final bool selected = _lendAction == action;
+    final bool isBorrowAction = action == _LendActionType.borrow;
+    final Color activeColor = isBorrowAction ? AppColors.primary : AppColors.textPrimary;
+    return InkWell(
+      onTap: () => setState(() => _lendAction = action),
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      child: SizedBox(
+        width: 72,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: selected
+                    ? activeColor.withValues(alpha: 0.12)
+                    : AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              ),
+              child: Icon(
+                action.icon(_lendDir),
+                size: 28,
+                color: selected ? activeColor : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppDimens.spaceXs),
+            Text(
+              action.label(_lendDir),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: selected ? activeColor : AppColors.textSecondary,
+                    fontWeight: selected ? FontWeight.w500 : FontWeight.normal,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 借还页账户选择卡片（借入/借出账户、资产账户）。
+  Widget _buildLendAccountCard({
+    required String label,
+    required String? value,
+    required ValueChanged<String?> onChanged,
+    required String placeholder,
+  }) {
+    final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
+    return accounts.when(
+      data: (List<Account> list) {
+        final String? safe =
+            list.any((Account a) => a.id == value) ? value : null;
+        final Account? selected =
+            safe == null ? null : list.firstWhere((Account a) => a.id == safe);
+        return InkWell(
+          onTap: list.isEmpty
+              ? null
+              : () => _showTransferAccountPicker(
+                    label: label,
+                    accounts: list,
+                    selectedId: safe,
+                    onChanged: (String? v) {
+                      onChanged(v);
+                      // 选择借入/借出账户时，若对方未填写则自动填入账户名。
+                      if (label != '资产账户' &&
+                          _counterpartyController.text.trim().isEmpty &&
+                          v != null) {
+                        final Account? acc = list
+                            .cast<Account?>()
+                            .firstWhere(
+                              (Account? a) => a?.id == v,
+                              orElse: () => null,
+                            );
+                        if (acc != null) {
+                          _counterpartyController.text = acc.name;
+                        }
+                      }
+                    },
+                  ),
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimens.spaceMd,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  label == '资产账户'
+                      ? Icons.account_balance_wallet_outlined
+                      : Icons.account_box_outlined,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: AppDimens.spaceSm),
+                Expanded(
+                  child: Text(
+                    selected?.name ?? placeholder,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: selected != null
+                              ? AppColors.textPrimary
+                              : AppColors.textTertiary,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: AppColors.textTertiary,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const LinearProgressIndicator(),
+      error: (Object e, _) => Text('账户加载失败：$e'),
+    );
+  }
+
+  /// 借还页小字提示行。
+  Widget _buildLendHintLine(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Icon(
+          Icons.info_outline,
+          size: 14,
+          color: AppColors.textTertiary,
+        ),
+        const SizedBox(width: AppDimens.spaceXs),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 借还页利息 / 优惠 / 计算器行。
+  Widget _buildLendFeeRow() {
+    final bool isFee = _lendFeeInputType == _FeeInputType.fee;
+    final String? currentValue = isFee ? _lendFeeAmount : _lendDiscountAmount;
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.spaceMd,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            ),
+            child: Text(
+              '¥',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                  ),
+            ),
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          Expanded(
+            child: TextField(
+              controller: _lendFeeController,
+              focusNode: _lendFeeFocusNode,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.done,
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                hintText: isFee ? '利息' : '优惠',
+                hintStyle: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.textTertiary),
+                border: InputBorder.none,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: currentValue != null && currentValue.isNotEmpty
+                        ? AppColors.textPrimary
+                        : AppColors.textTertiary,
+                  ),
+              maxLines: 1,
+              onChanged: (String v) {
+                final String trimmed = v.trim();
+                setState(() {
+                  if (isFee) {
+                    _lendFeeAmount = trimmed.isEmpty ? null : trimmed;
+                  } else {
+                    _lendDiscountAmount = trimmed.isEmpty ? null : trimmed;
+                  }
+                });
+              },
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          _buildLendFeeTypeToggle(),
+          const SizedBox(width: AppDimens.spaceSm),
+          _buildLendCalculatorButton(),
+        ],
+      ),
+    );
+  }
+
+  /// 「利息 / 优惠」切换开关。
+  Widget _buildLendFeeTypeToggle() {
+    final bool isFee = _lendFeeInputType == _FeeInputType.fee;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _buildLendFeeTypeSegment(
+          label: '利息',
+          selected: isFee,
+          type: _FeeInputType.fee,
+        ),
+        _buildLendFeeTypeSegment(
+          label: '优惠',
+          selected: !isFee,
+          type: _FeeInputType.discount,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLendFeeTypeSegment({
+    required String label,
+    required bool selected,
+    required _FeeInputType type,
+  }) {
+    return InkWell(
+      onTap: () => _onLendFeeInputTypeChanged(type),
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: selected ? Colors.white : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w500 : FontWeight.normal,
+              ),
+        ),
+      ),
+    );
+  }
+
+  /// 借还计算器按钮（文字按钮）。
+  Widget _buildLendCalculatorButton() {
+    return InkWell(
+      onTap: () => _toast('借还计算器功能开发中'),
+      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+      child: Container(
+        height: 28,
+        alignment: Alignment.center,
+        child: Text(
+          '计算器',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+        ),
+      ),
+    );
+  }
+
+  /// 切换借还利息 / 优惠输入模式，并在模式间迁移当前输入值。
+  void _onLendFeeInputTypeChanged(_FeeInputType type) {
+    if (type == _lendFeeInputType) return;
+    _lendFeeFocusNode.requestFocus();
+    setState(() {
+      final String current = _lendFeeController.text.trim();
+      if (_lendFeeInputType == _FeeInputType.fee) {
+        _lendFeeAmount = current.isEmpty ? null : current;
+      } else {
+        _lendDiscountAmount = current.isEmpty ? null : current;
+      }
+      _lendFeeInputType = type;
+      _lendFeeController.text = type == _FeeInputType.fee
+          ? (_lendFeeAmount ?? '')
+          : (_lendDiscountAmount ?? '');
+    });
+  }
+
+  /// 借还页利息说明文案。
+  Widget _buildLendFeeHint() {
+    final String dirLabel =
+        _lendDir == LendDirection.borrowIn ? '借入' : '借出';
+    final String oppositeLabel =
+        _lendDir == LendDirection.borrowIn ? '还债' : '收债';
+    return Container(
+      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(
+            Icons.info_outline,
+            size: 16,
+            color: AppColors.textTertiary,
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          Expanded(
+            child: Text(
+              '利息根据个人需求可在$dirLabel或者$oppositeLabel时候添加；一般在一方添加即可\n'
+              '$dirLabel：\n'
+              '${_lendDir == LendDirection.borrowIn ? '借入' : '借出'}账户 = 借入金额 + 利息\n'
+              '资产账户 = 借入金额\n'
+              '$oppositeLabel：\n'
+              '${_lendDir == LendDirection.borrowIn ? '借入' : '借出'}账户 = 借入金额\n'
+              '资产账户 = 借入金额 + 利息',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 小青账布局顶部滚动区：根据 Tab 显示分类网格、转账字段或借还字段。
   Widget _buildNewLayoutScrollArea() {
     switch (_tab) {
@@ -1292,18 +1794,37 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            TextField(
-              controller: _counterpartyController,
-              decoration: const InputDecoration(
-                labelText: '对方（人/单位）',
-              ),
-            ),
-            const FormGap(),
-            _accountField(
-              label: '账户',
+            _buildLendDirectionToggle(),
+            const SizedBox(height: AppDimens.spaceLg),
+            _buildLendActionGrid(),
+            const SizedBox(height: AppDimens.spaceLg),
+            _buildLendAccountCard(
+              label: _lendDir == LendDirection.borrowIn ? '借入账户' : '借出账户',
               value: _accountId,
+              placeholder: _lendDir == LendDirection.borrowIn
+                  ? '借入账户'
+                  : '借出账户',
               onChanged: (String? v) => setState(() => _accountId = v),
             ),
+            const SizedBox(height: AppDimens.spaceSm),
+            _buildLendHintLine(
+              _lendDir == LendDirection.borrowIn
+                  ? '虚拟账户：如找小明借钱，小明就是此账户'
+                  : '虚拟账户：如借给小明，小明就是此账户',
+            ),
+            const SizedBox(height: AppDimens.spaceMd),
+            _buildLendAccountCard(
+              label: '资产账户',
+              value: _toAccountId,
+              placeholder: '资产账户',
+              onChanged: (String? v) => setState(() => _toAccountId = v),
+            ),
+            const SizedBox(height: AppDimens.spaceSm),
+            _buildLendHintLine('资产账户：将金额累计到这个账户里'),
+            const SizedBox(height: AppDimens.spaceLg),
+            _buildLendFeeRow(),
+            const SizedBox(height: AppDimens.spaceMd),
+            _buildLendFeeHint(),
           ],
         );
       case RecordTab.reimbursement:
