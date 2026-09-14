@@ -38,7 +38,7 @@ enum _LendActionType {
         _LendActionType.repay =>
           dir == LendDirection.borrowIn ? '还债' : '收债',
         _LendActionType.debtReduction =>
-          dir == LendDirection.borrowIn ? '债务削减' : '债务减免',
+          dir == LendDirection.borrowIn ? '债务削减' : '坏账损失',
       };
 
   IconData icon(LendDirection dir) => switch (this) {
@@ -1362,7 +1362,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  /// 借还页动作图标网格：借入/借出、还债/收债、债务削减/减免。
+  /// 借还页动作图标网格：借入/借出、还债/收债、债务削减/坏账损失。
   Widget _buildLendActionGrid() {
     const List<_LendActionType> actions = _LendActionType.values;
     return Row(
@@ -1523,7 +1523,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  /// 债务削减 / 减免页的对方虚拟账户输入框。
+  /// 债务削减 / 坏账损失页的对方虚拟账户输入框。
   Widget _buildLendCounterpartyField() {
     return Container(
       height: 48,
