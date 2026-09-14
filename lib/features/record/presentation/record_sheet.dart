@@ -98,6 +98,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   final List<String> _tags = <String>[];
   String? _discountAmount;
 
+  // 转账
+  String? _feeAmount;
+
   bool _saving = false;
 
   final TextEditingController _noteController = TextEditingController();
@@ -821,6 +824,241 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
+  /// 转账页卡片式账户选择器（匹配小青账模板）。
+  Widget _buildTransferAccountCard({
+    required String label,
+    required IconData icon,
+    required String? value,
+    required ValueChanged<String?> onChanged,
+    String? excludeId,
+    String placeholder = '请选择',
+  }) {
+    final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
+    return accounts.when(
+      data: (List<Account> list) {
+        final List<Account> shown = (excludeId != null && list.length > 1)
+            ? list.where((Account a) => a.id != excludeId).toList()
+            : list;
+        final String? safe =
+            shown.any((Account a) => a.id == value) ? value : null;
+        final Account? selected =
+            safe == null ? null : shown.firstWhere((Account a) => a.id == safe);
+        return InkWell(
+          onTap: shown.isEmpty
+              ? null
+              : () => _showTransferAccountPicker(
+                    label: label,
+                    accounts: shown,
+                    selectedId: safe,
+                    onChanged: onChanged,
+                  ),
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(icon, size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: AppDimens.spaceSm),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                ),
+                const Spacer(),
+                Text(
+                  selected?.name ?? placeholder,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: selected != null
+                            ? AppColors.textPrimary
+                            : AppColors.textTertiary,
+                      ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const LinearProgressIndicator(),
+      error: (Object e, _) => Text('账户加载失败：$e'),
+    );
+  }
+
+  Future<void> _showTransferAccountPicker({
+    required String label,
+    required List<Account> accounts,
+    required String? selectedId,
+    required ValueChanged<String?> onChanged,
+  }) async {
+    final String? result = await showModalBottomSheet<String>(
+      context: context,
+      builder: (BuildContext ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(AppDimens.spaceMd),
+              child: Text(
+                '选择$label',
+                style: Theme.of(ctx).textTheme.titleSmall,
+              ),
+            ),
+            const Divider(height: 1),
+            ListView.separated(
+              shrinkWrap: true,
+              itemCount: accounts.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (BuildContext ctx, int index) {
+                final Account account = accounts[index];
+                final bool selected = account.id == selectedId;
+                return ListTile(
+                  title: Text(account.name),
+                  trailing: selected
+                      ? Icon(Icons.check,
+                          color: Theme.of(ctx).colorScheme.primary)
+                      : null,
+                  onTap: () => Navigator.of(ctx).pop(account.id),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result != null) onChanged(result);
+  }
+
+  /// 转账页手续费 / 优惠 / 计算器行。
+  Widget _buildTransferFeeRow() {
+    return Row(
+      children: <Widget>[
+        _buildTransferTag(
+          label: '手续费',
+          value: _feeAmount,
+          onTap: _onFee,
+        ),
+        const SizedBox(width: AppDimens.spaceSm),
+        _buildTransferTag(
+          label: '优惠',
+          value: _discountAmount,
+          onTap: _onDiscount,
+        ),
+        const Spacer(),
+        InkWell(
+          onTap: () => _toast('转账计算器功能开发中'),
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimens.spaceMd,
+              vertical: AppDimens.spaceSm,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.calculate_outlined,
+                    size: 16, color: AppColors.textSecondary),
+                const SizedBox(width: AppDimens.spaceXs),
+                Text(
+                  '计算器',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTransferTag({
+    required String label,
+    required String? value,
+    required VoidCallback onTap,
+  }) {
+    final bool hasValue = value != null && value.isNotEmpty;
+    final String display = hasValue ? '$label ¥$value' : label;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppDimens.spaceMd,
+          vertical: AppDimens.spaceSm,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          border: Border.all(color: AppColors.primary),
+        ),
+        child: Text(
+          display,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onFee() async {
+    final String? result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => _PromptDialog(
+        title: '手续费',
+        hint: '请输入手续费金额（元）',
+        initial: _feeAmount ?? '',
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() => _feeAmount = result.trim().isEmpty ? null : result.trim());
+  }
+
+  /// 转账页说明文案。
+  Widget _buildTransferHint() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(Icons.info_outline, size: 16, color: AppColors.textTertiary),
+          const SizedBox(width: AppDimens.spaceSm),
+          Expanded(
+            child: Text(
+              '转账、信用卡还款、取现可以用这个功能哦。\n'
+              '转出账户 = 转出金额 + 手续费\n'
+              '转出账户 = 转出金额 - 优惠',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 小青账布局顶部滚动区：根据 Tab 显示分类网格、转账字段或借还字段。
   Widget _buildNewLayoutScrollArea() {
     switch (_tab) {
@@ -841,19 +1079,55 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            _accountField(
+            _buildTransferAccountCard(
               label: '转出账户',
+              icon: Icons.account_balance_wallet_outlined,
               value: _accountId,
               excludeId: _toAccountId,
+              placeholder: '扣款账户',
               onChanged: (String? v) => setState(() => _accountId = v),
             ),
-            const FormGap(),
-            _accountField(
+            const SizedBox(height: AppDimens.spaceMd),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.spaceMd,
+                  vertical: AppDimens.spaceSm,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.sync_alt,
+                        size: 16, color: AppColors.textSecondary),
+                    const SizedBox(width: AppDimens.spaceXs),
+                    Text(
+                      '转至',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppDimens.spaceMd),
+            _buildTransferAccountCard(
               label: '转入账户',
+              icon: Icons.account_balance_wallet_outlined,
               value: _toAccountId,
               excludeId: _accountId,
+              placeholder: '入款账户',
               onChanged: (String? v) => setState(() => _toAccountId = v),
             ),
+            const SizedBox(height: AppDimens.spaceLg),
+            _buildTransferFeeRow(),
+            const SizedBox(height: AppDimens.spaceMd),
+            _buildTransferHint(),
           ],
         );
       case RecordTab.lend:
