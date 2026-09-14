@@ -1017,97 +1017,105 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   /// 转账页手续费 / 优惠 / 计算器行。
   ///
-  /// 整体为与账户栏等高的圆角卡片：左侧是输入框，右侧是「手续费 / 优惠」一体化
-  /// 切换开关；计算器作为独立图标按钮放在最右侧。
+  /// 整体为与账户栏一致的圆角卡片：左侧绿色 ¥ 图标 + 输入框；中间是「手续费 / 优惠」
+  /// 切换开关（选中项为绿色药丸，未选项为灰色文字）；右侧为「计算器」文字按钮。
   Widget _buildTransferFeeRow() {
     final bool isFee = _feeInputType == _FeeInputType.fee;
     final String? currentValue = isFee ? _feeAmount : _discountAmount;
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceMd,
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.spaceMd,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
             ),
-            alignment: Alignment.centerLeft,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Expanded(
-                  child: TextField(
-                    controller: _feeInputController,
-                    focusNode: _feeInputFocusNode,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.done,
-                    textAlignVertical: TextAlignVertical.center,
-                    decoration: InputDecoration(
-                      hintText: isFee ? '手续费' : '优惠',
-                      hintStyle: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: AppColors.textTertiary),
-                      border: InputBorder.none,
-                      filled: false,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: currentValue != null && currentValue.isNotEmpty
-                              ? AppColors.textPrimary
-                              : AppColors.textTertiary,
-                        ),
-                    maxLines: 1,
-                    onChanged: (String v) {
-                      final String trimmed = v.trim();
-                      setState(() {
-                        if (isFee) {
-                          _feeAmount = trimmed.isEmpty ? null : trimmed;
-                        } else {
-                          _discountAmount = trimmed.isEmpty ? null : trimmed;
-                        }
-                      });
-                    },
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            child: Text(
+              '¥',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
                   ),
-                ),
-                const SizedBox(width: AppDimens.spaceSm),
-                _buildFeeTypeToggle(),
-              ],
             ),
           ),
-        ),
-        const SizedBox(width: AppDimens.spaceSm),
-        _buildTransferCalculatorButton(),
-      ],
+          const SizedBox(width: AppDimens.spaceSm),
+          Expanded(
+            child: TextField(
+              controller: _feeInputController,
+              focusNode: _feeInputFocusNode,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.done,
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                hintText: isFee ? '手续费' : '优惠',
+                hintStyle: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.textTertiary),
+                border: InputBorder.none,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: currentValue != null && currentValue.isNotEmpty
+                        ? AppColors.textPrimary
+                        : AppColors.textTertiary,
+                  ),
+              maxLines: 1,
+              onChanged: (String v) {
+                final String trimmed = v.trim();
+                setState(() {
+                  if (isFee) {
+                    _feeAmount = trimmed.isEmpty ? null : trimmed;
+                  } else {
+                    _discountAmount = trimmed.isEmpty ? null : trimmed;
+                  }
+                });
+              },
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          _buildFeeTypeToggle(),
+          const SizedBox(width: AppDimens.spaceSm),
+          _buildTransferCalculatorButton(),
+        ],
+      ),
     );
   }
 
-  /// 「手续费 / 优惠」一体化切换开关。
+  /// 「手续费 / 优惠」切换开关：选中项为绿色药丸，未选项为灰色文字。
   Widget _buildFeeTypeToggle() {
     final bool isFee = _feeInputType == _FeeInputType.fee;
-    return Container(
-      height: 30,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _buildFeeTypeSegment(
-            label: '手续费',
-            selected: isFee,
-            type: _FeeInputType.fee,
-          ),
-          _buildFeeTypeSegment(
-            label: '优惠',
-            selected: !isFee,
-            type: _FeeInputType.discount,
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _buildFeeTypeSegment(
+          label: '手续费',
+          selected: isFee,
+          type: _FeeInputType.fee,
+        ),
+        _buildFeeTypeSegment(
+          label: '优惠',
+          selected: !isFee,
+          type: _FeeInputType.discount,
+        ),
+      ],
     );
   }
 
@@ -1118,19 +1126,19 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }) {
     return InkWell(
       onTap: () => _onFeeInputTypeChanged(type),
-      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       child: Container(
-        height: 26,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
         child: Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: selected ? Colors.white : AppColors.primary,
+                color: selected ? Colors.white : AppColors.textSecondary,
                 fontWeight: selected ? FontWeight.w500 : FontWeight.normal,
               ),
         ),
@@ -1138,24 +1146,19 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  /// 转账计算器按钮（图标按钮，与卡片同高）。
+  /// 转账计算器按钮（文字按钮）。
   Widget _buildTransferCalculatorButton() {
     return InkWell(
       onTap: () => _toast('转账计算器功能开发中'),
-      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
       child: Container(
-        height: 48,
-        width: 48,
+        height: 28,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          border: Border.all(color: AppColors.divider),
-        ),
-        child: const Icon(
-          Icons.calculate_outlined,
-          size: 20,
-          color: AppColors.textSecondary,
+        child: Text(
+          '计算器',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
+              ),
         ),
       ),
     );
