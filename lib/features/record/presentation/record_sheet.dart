@@ -23,6 +23,9 @@ import '../widgets/amount_keypad.dart';
 /// 退款模式：全额退回 / AA 付款分摊。
 enum RefundMode { full, aa }
 
+/// 转账页手续费 / 优惠输入模式。
+enum _FeeInputType { fee, discount }
+
 /// 统一「记一笔」底部面板：顶部 7 个 Tab（支出/收入/转账/借还/报销/退款/存钱），
 /// 中间是对应表单，底部是自定义数字键盘。
 ///
@@ -100,6 +103,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   // 转账
   String? _feeAmount;
+  _FeeInputType _feeInputType = _FeeInputType.fee;
+  final TextEditingController _feeInputController = TextEditingController();
+  final FocusNode _feeInputFocusNode = FocusNode();
 
   bool _saving = false;
 
@@ -116,6 +122,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     super.initState();
     _tab = widget.initialTab;
     _noteFocusNode.addListener(_onNoteFocusChanged);
+    _feeInputFocusNode.addListener(_onFeeInputFocusChanged);
   }
 
   void _onNoteFocusChanged() {
@@ -127,10 +134,22 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     }
   }
 
+  void _onFeeInputFocusChanged() {
+    if (_feeInputFocusNode.hasFocus) {
+      // 手续费/优惠输入使用系统键盘，临时收起自定义数字键盘避免冲突。
+      if (mounted && _keyboardExpanded) {
+        setState(() => _keyboardExpanded = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _noteFocusNode.removeListener(_onNoteFocusChanged);
     _noteFocusNode.dispose();
+    _feeInputFocusNode.removeListener(_onFeeInputFocusChanged);
+    _feeInputFocusNode.dispose();
+    _feeInputController.dispose();
     _noteController.dispose();
     _counterpartyController.dispose();
     _rbTitleController.dispose();
@@ -784,7 +803,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   Widget _buildNewLayoutBody() {
     final double viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
     final bool systemKeyboardOpen =
-        viewInsetsBottom > 0 && _noteFocusNode.hasFocus;
+        viewInsetsBottom > 0 &&
+        (_noteFocusNode.hasFocus || _feeInputFocusNode.hasFocus);
     return Expanded(
       child: Column(
         children: <Widget>[
@@ -977,22 +997,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   /// 转账页手续费 / 优惠 / 计算器行。
   ///
-  /// 一个与账户栏等高的圆角卡片，左侧为输入栏，右侧是「手续费」「优惠」两个按钮，
-  /// 计算器作为独立按钮放在卡片右侧。
+  /// 一个与账户栏等高的圆角卡片，左侧为 TextField 输入栏，右侧是「手续费」「优惠」
+  /// 两个互斥模式按钮；计算器作为独立按钮放在卡片右侧。
   Widget _buildTransferFeeRow() {
-    final bool hasFee = _feeAmount != null && _feeAmount!.isNotEmpty;
-    final bool hasDiscount =
-        _discountAmount != null && _discountAmount!.isNotEmpty;
-    final String display;
-    if (hasFee && hasDiscount) {
-      display = '手续费 ¥$_feeAmount  优惠 ¥$_discountAmount';
-    } else if (hasFee) {
-      display = '手续费 ¥$_feeAmount';
-    } else if (hasDiscount) {
-      display = '优惠 ¥$_discountAmount';
-    } else {
-      display = '输入金额';
-    }
+    final bool isFee = _feeInputType == _FeeInputType.fee;
+    final String? currentValue = isFee ? _feeAmount : _discountAmount;
     return Row(
       children: <Widget>[
         Expanded(
@@ -1009,29 +1018,54 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             child: Row(
               children: <Widget>[
                 Expanded(
-                  child: InkWell(
-                    onTap: _onFee,
-                    child: Text(
-                      display,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: hasFee || hasDiscount
-                                ? AppColors.textPrimary
-                                : AppColors.textTertiary,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  child: TextField(
+                    controller: _feeInputController,
+                    focusNode: _feeInputFocusNode,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      hintText: '输入金额',
+                      hintStyle: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: AppColors.textTertiary),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
                     ),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: currentValue != null && currentValue.isNotEmpty
+                              ? AppColors.textPrimary
+                              : AppColors.textTertiary,
+                        ),
+                    maxLines: 1,
+                    onChanged: (String v) {
+                      final String trimmed = v.trim();
+                      setState(() {
+                        if (isFee) {
+                          _feeAmount =
+                              trimmed.isEmpty ? null : trimmed;
+                        } else {
+                          _discountAmount =
+                              trimmed.isEmpty ? null : trimmed;
+                        }
+                      });
+                    },
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
                   ),
                 ),
                 const SizedBox(width: AppDimens.spaceSm),
-                _buildTransferTag(
+                _buildTransferFeeTypeTag(
                   label: '手续费',
-                  onTap: _onFee,
+                  selected: isFee,
+                  onTap: () => _onFeeInputTypeChanged(_FeeInputType.fee),
                 ),
                 const SizedBox(width: AppDimens.spaceXs),
-                _buildTransferTag(
+                _buildTransferFeeTypeTag(
                   label: '优惠',
-                  onTap: _onDiscount,
+                  selected: !isFee,
+                  onTap: () => _onFeeInputTypeChanged(_FeeInputType.discount),
                 ),
               ],
             ),
@@ -1071,9 +1105,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  /// 转账页绿色标签按钮（仅显示 label，不展示金额）。
-  Widget _buildTransferTag({
+  /// 转账页手续费 / 优惠模式切换按钮。
+  Widget _buildTransferFeeTypeTag({
     required String label,
+    required bool selected,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -1085,31 +1120,37 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           vertical: AppDimens.spaceSm,
         ),
         decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.12),
+          color: selected
+              ? AppColors.primary
+              : AppColors.primary.withOpacity(0.12),
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           border: Border.all(color: AppColors.primary),
         ),
         child: Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textPrimary,
+                color: selected ? Colors.white : AppColors.textPrimary,
               ),
         ),
       ),
     );
   }
 
-  Future<void> _onFee() async {
-    final String? result = await showDialog<String>(
-      context: context,
-      builder: (BuildContext ctx) => _PromptDialog(
-        title: '手续费',
-        hint: '请输入手续费金额（元）',
-        initial: _feeAmount ?? '',
-      ),
-    );
-    if (result == null || !mounted) return;
-    setState(() => _feeAmount = result.trim().isEmpty ? null : result.trim());
+  /// 切换手续费 / 优惠输入模式，并在模式间迁移当前输入值。
+  void _onFeeInputTypeChanged(_FeeInputType type) {
+    if (type == _feeInputType) return;
+    _feeInputFocusNode.requestFocus();
+    setState(() {
+      final String current = _feeInputController.text.trim();
+      if (_feeInputType == _FeeInputType.fee) {
+        _feeAmount = current.isEmpty ? null : current;
+      } else {
+        _discountAmount = current.isEmpty ? null : current;
+      }
+      _feeInputType = type;
+      _feeInputController.text =
+          type == _FeeInputType.fee ? (_feeAmount ?? '') : (_discountAmount ?? '');
+    });
   }
 
   /// 转账页说明文案。
@@ -1473,6 +1514,19 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
+  Future<void> _onDiscount() async {
+    final String? value = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => _PromptDialog(
+        title: '优惠金额',
+        hint: '请输入优惠金额（元）',
+        initial: _discountAmount ?? '',
+      ),
+    );
+    if (value == null || !mounted) return;
+    setState(() => _discountAmount = value.trim().isEmpty ? null : value.trim());
+  }
+
   Future<void> _onSelectAccount() async {
     final AsyncValue<List<Account>> accountsValue = ref.watch(accountsProvider);
     final List<Account>? list = accountsValue.valueOrNull;
@@ -1491,19 +1545,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     if (selected != null && mounted) {
       setState(() => _accountId = selected);
     }
-  }
-
-  Future<void> _onDiscount() async {
-    final String? value = await showDialog<String>(
-      context: context,
-      builder: (BuildContext ctx) => _PromptDialog(
-        title: '优惠金额',
-        hint: '请输入优惠金额（元）',
-        initial: _discountAmount ?? '',
-      ),
-    );
-    if (value == null || !mounted) return;
-    setState(() => _discountAmount = value.trim().isEmpty ? null : value.trim());
   }
 
   void _onAddImage() {
