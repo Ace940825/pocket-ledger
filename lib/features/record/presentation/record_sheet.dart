@@ -1030,10 +1030,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimens.spaceMd,
             ),
+            alignment: Alignment.centerLeft,
             decoration: BoxDecoration(
               color: AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              border: Border.all(color: AppColors.divider),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -1047,12 +1047,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     textInputAction: TextInputAction.done,
                     textAlignVertical: TextAlignVertical.center,
                     decoration: InputDecoration(
-                      hintText: isFee ? '手续费金额' : '优惠金额',
+                      hintText: isFee ? '手续费' : '优惠',
                       hintStyle: Theme.of(context)
                           .textTheme
                           .bodyMedium
                           ?.copyWith(color: AppColors.textTertiary),
                       border: InputBorder.none,
+                      filled: false,
                       contentPadding: EdgeInsets.zero,
                     ),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
