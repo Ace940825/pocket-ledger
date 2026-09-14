@@ -135,6 +135,36 @@ void main() {
     );
   });
 
+  test('手续费加扣款、优惠减扣款，转入到账金额不变', () async {
+    final String from = await cashAccountId();
+    final String to = await addAccount('钱包', AccountType.eWallet);
+
+    await TransactionRepository(db).transfer(
+      bookId: 'default',
+      fromAccountId: from,
+      toAccountId: to,
+      amountMinor: 100000,
+      feeMinor: 500,
+      discountMinor: 200,
+      occurredAt: DateTime(2026, 9, 11, 10).toUtc().millisecondsSinceEpoch,
+    );
+
+    final List<Account> accounts =
+        await db.accountsDao.watchByBook('default').first;
+    final Account fromAcc = accounts.firstWhere((Account a) => a.id == from);
+    final Account toAcc = accounts.firstWhere((Account a) => a.id == to);
+
+    expect(fromAcc.balanceMinor, -100300,
+        reason: '转出方应扣款 1000 + 5 - 2 = 1003 元',);
+    expect(toAcc.balanceMinor, 100000,
+        reason: '转入方到账金额仍为 1000 元',);
+    expect(
+      await db.accountsDao.watchNetAssets('default').first,
+      -300,
+      reason: '手续费 - 优惠 = 3 元为净流出，净资产减少 3 元',
+    );
+  });
+
   test('转出与转入是同一账户时抛校验错误', () async {
     final String from = await cashAccountId();
     expect(

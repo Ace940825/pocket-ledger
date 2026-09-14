@@ -205,6 +205,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     return '0.00';
   }
 
+  /// 转账手续费金额（分）。未输入时返回 0。
+  int get _feeMinor {
+    if (_feeAmount == null || _feeAmount!.isEmpty) return 0;
+    return Money.tryParse(_feeAmount!).minor;
+  }
+
+  /// 转账优惠金额（分）。未输入时返回 0。
+  int get _discountMinor {
+    if (_discountAmount == null || _discountAmount!.isEmpty) return 0;
+    return Money.tryParse(_discountAmount!).minor;
+  }
+
   // ---- 保存 ----
 
   Future<void> _save({bool andMore = false}) async {
@@ -251,6 +263,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 fromAccountId: _accountId!,
                 toAccountId: _toAccountId!,
                 amountMinor: minor,
+                feeMinor: _feeMinor,
+                discountMinor: _discountMinor,
                 occurredAt: occurredAt,
                 note: _noteController.text.trim(),
               );
@@ -340,6 +354,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           _rbPayerController.text = '本人';
           _rbTargetController.clear();
           _refundTotalController.clear();
+          _feeAmount = null;
+          _discountAmount = null;
+          _feeInputType = _FeeInputType.fee;
+          _feeInputController.clear();
         });
         return;
       }
@@ -1016,6 +1034,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               border: Border.all(color: AppColors.divider),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Expanded(
                   child: TextField(
@@ -1024,6 +1043,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     textInputAction: TextInputAction.done,
+                    textAlignVertical: TextAlignVertical.center,
                     decoration: InputDecoration(
                       hintText: '输入金额',
                       hintStyle: Theme.of(context)
@@ -1031,7 +1051,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                           .bodyMedium
                           ?.copyWith(color: AppColors.textTertiary),
                       border: InputBorder.none,
-                      isDense: true,
                       contentPadding: EdgeInsets.zero,
                     ),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(

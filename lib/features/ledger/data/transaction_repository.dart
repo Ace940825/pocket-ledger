@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../../shared/models/money.dart';
 import 'transaction_edit_rules.dart';
 
 /// 记账仓储。
@@ -19,6 +20,10 @@ class TransactionRepository {
   final AppDatabase _db;
 
   /// 新增一条流水。返回新记录的 ID。
+  ///
+  /// [fromAmountMinor] 仅用于转账：表示转出（扣款）账户实际被扣除的金额。
+  /// 当手续费 / 优惠存在时，转出方扣款金额与转入方到账金额不一致，
+  /// 此时 [amountMinor] 为转入到账金额，[fromAmountMinor] 为转出扣款金额。
   Future<String> add({
     required String bookId,
     required TxnType type,
@@ -32,6 +37,7 @@ class TransactionRepository {
     SourceModule sourceModule = SourceModule.ledger,
     String? relatedId,
     String? transferGroupId,
+    int? fromAmountMinor,
   }) {
     if (amountMinor <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -64,24 +70,35 @@ class TransactionRepository {
         ),
       );
 
-      await _applyBalanceDelta(type, accountId, toAccountId, amountMinor, now);
+      await _applyBalanceDelta(
+        type,
+        accountId,
+        toAccountId,
+        amountMinor,
+        now,
+        fromAmountMinor: fromAmountMinor,
+      );
+      final Map<String, Object?> payload = <String, Object?>{
+        'bookId': bookId,
+        'type': type.index,
+        'amountMinor': amountMinor,
+        'currency': currency,
+        'accountId': accountId,
+        'toAccountId': toAccountId,
+        'categoryId': categoryId,
+        'occurredAt': occurredAt,
+        'note': note,
+        'sourceModule': sourceModule.index,
+      };
+      if (fromAmountMinor != null) {
+        payload['fromAmountMinor'] = fromAmountMinor;
+      }
       await _enqueue(
         tableName: 'transactions',
         recordId: id,
         opType: SyncOpType.insert,
         updatedAt: now,
-        payload: <String, Object?>{
-          'bookId': bookId,
-          'type': type.index,
-          'amountMinor': amountMinor,
-          'currency': currency,
-          'accountId': accountId,
-          'toAccountId': toAccountId,
-          'categoryId': categoryId,
-          'occurredAt': occurredAt,
-          'note': note,
-          'sourceModule': sourceModule.index,
-        },
+        payload: payload,
       );
 
       return id;
@@ -254,9 +271,17 @@ class TransactionRepository {
     required int occurredAt,
     String? note,
     String currency = 'CNY',
+    int? feeMinor,
+    int? discountMinor,
   }) {
     if (fromAccountId == toAccountId) {
       throw const ValidationFailure('转出与转入账户不能相同');
+    }
+
+    final int fromAmountMinor =
+        amountMinor + (feeMinor ?? 0) - (discountMinor ?? 0);
+    if (fromAmountMinor <= 0) {
+      throw const ValidationFailure('扣款金额必须大于 0');
     }
 
     final String groupId = const Uuid().v7();
@@ -269,12 +294,29 @@ class TransactionRepository {
         accountId: fromAccountId,
         toAccountId: toAccountId,
         occurredAt: occurredAt,
-        note: note,
+        note: _buildTransferNote(note, feeMinor, discountMinor),
         currency: currency,
         sourceModule: SourceModule.transfer,
         transferGroupId: groupId,
+        fromAmountMinor: fromAmountMinor,
       ),
     );
+  }
+
+  /// 拼接转账备注中的手续费 / 优惠元信息。
+  String? _buildTransferNote(String? note, int? feeMinor, int? discountMinor) {
+    final List<String> parts = <String>[];
+    if (feeMinor != null && feeMinor > 0) {
+      parts.add('手续费：${Money.fromMinor(feeMinor).format()}');
+    }
+    if (discountMinor != null && discountMinor > 0) {
+      parts.add('优惠：${Money.fromMinor(discountMinor).format()}');
+    }
+    if (parts.isEmpty) return note;
+    final String meta = parts.join(' ');
+    final String? trimmed = note?.trim();
+    if (trimmed == null || trimmed.isEmpty) return meta;
+    return '$meta\n$trimmed';
   }
 
   /// 应用余额变动。转账只调整两个账户，不改变净资产。
@@ -283,15 +325,17 @@ class TransactionRepository {
     String accountId,
     String? toAccountId,
     int amountMinor,
-    int now,
-  ) async {
+    int now, {
+    int? fromAmountMinor,
+  }) async {
     switch (type) {
       case TxnType.income:
         await _db.accountsDao.adjustBalance(accountId, amountMinor, now);
       case TxnType.expense:
         await _db.accountsDao.adjustBalance(accountId, -amountMinor, now);
       case TxnType.transfer:
-        await _db.accountsDao.adjustBalance(accountId, -amountMinor, now);
+        final int debit = fromAmountMinor ?? amountMinor;
+        await _db.accountsDao.adjustBalance(accountId, -debit, now);
         if (toAccountId != null) {
           await _db.accountsDao.adjustBalance(toAccountId, amountMinor, now);
         }
