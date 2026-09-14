@@ -1031,10 +1031,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               horizontal: AppDimens.spaceMd,
             ),
             alignment: Alignment.centerLeft,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
