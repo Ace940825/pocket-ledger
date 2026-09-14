@@ -1019,12 +1019,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   Widget _buildFunctionBar() {
     final bool isExpense = _tab == RecordTab.expense;
+    final bool isIncome = _tab == RecordTab.income;
+    // 账户 / 不计收支 / 不计预算：仅支出、收入显示。
+    final bool showAccountStats = isExpense || isIncome;
     final List<_FunctionItem> items = <_FunctionItem>[
-      _FunctionItem(
-        label: '账户',
-        icon: Icons.account_balance_wallet_outlined,
-        onTap: _onSelectAccount,
-      ),
+      if (showAccountStats)
+        _FunctionItem(
+          label: '账户',
+          icon: Icons.account_balance_wallet_outlined,
+          onTap: _onSelectAccount,
+        ),
       if (isExpense)
         _FunctionItem(
           label: '报销',
@@ -1032,11 +1036,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           onTap: () => setState(() => _isReimbursable = !_isReimbursable),
           active: _isReimbursable,
         ),
-      _FunctionItem(
-        label: '优惠',
-        icon: Icons.local_offer_outlined,
-        onTap: _onDiscount,
-      ),
+      if (isExpense)
+        _FunctionItem(
+          label: '优惠',
+          icon: Icons.local_offer_outlined,
+          onTap: _onDiscount,
+        ),
       _FunctionItem(
         label: '图片',
         icon: Icons.image_outlined,
@@ -1047,18 +1052,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         icon: Icons.label_outlined,
         onTap: _onAddTag,
       ),
-      _FunctionItem(
-        label: '不计收支',
-        icon: Icons.visibility_off_outlined,
-        onTap: () => setState(() => _excludeFromStats = !_excludeFromStats),
-        active: _excludeFromStats,
-      ),
-      _FunctionItem(
-        label: '不计预算',
-        icon: Icons.pie_chart_outline,
-        onTap: () => setState(() => _excludeFromBudget = !_excludeFromBudget),
-        active: _excludeFromBudget,
-      ),
+      if (showAccountStats)
+        _FunctionItem(
+          label: '不计收支',
+          icon: Icons.visibility_off_outlined,
+          onTap: () => setState(() => _excludeFromStats = !_excludeFromStats),
+          active: _excludeFromStats,
+        ),
+      if (showAccountStats)
+        _FunctionItem(
+          label: '不计预算',
+          icon: Icons.pie_chart_outline,
+          onTap: () => setState(() => _excludeFromBudget = !_excludeFromBudget),
+          active: _excludeFromBudget,
+        ),
       _FunctionItem(
         label: '模板',
         icon: Icons.bookmark_border_outlined,
