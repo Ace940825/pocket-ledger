@@ -1148,23 +1148,28 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  /// 小青账键盘进行中的运算表达式（如 12 - 3），显示在金额栏下方。
+  /// 小青账键盘的运算表达式卡片（如 12 - 3），常驻在金额栏下方。
+  ///
+  /// 仅当存在 pending 运算符时渲染；无运算时自动隐藏，避免空卡片占位。
   Widget _buildExpression() {
-    if (_pendingOperator == null ||
-        _pendingAmount.isEmpty ||
-        _amount.isEmpty) {
+    if (_pendingOperator == null || _pendingAmount.isEmpty) {
       return const SizedBox.shrink();
     }
     final ThemeData theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceMd,
-        AppDimens.spaceXs,
-        AppDimens.spaceMd,
-        0,
+    final String expression = _amount.isEmpty
+        ? '$_pendingAmount $_pendingOperator'
+        : '$_pendingAmount $_pendingOperator $_amount';
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        border: Border.all(color: AppColors.divider),
       ),
+      alignment: Alignment.centerRight,
       child: Text(
-        '$_pendingAmount $_pendingOperator $_amount',
+        expression,
         textAlign: TextAlign.right,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AppColors.textSecondary,
