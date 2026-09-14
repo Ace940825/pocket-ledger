@@ -82,16 +82,6 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
   /// 是否需要显示「余额同步：同时记一笔账单」卡片（借出/借入默认开启）。
   bool get _isSyncBillVisible => _isReceivableLend || _isPayableBorrow;
 
-  /// 简版模板：资金类（除借记卡）/ 投资。
-  /// 只显示「账户名称 + 金额（计算器图标）」。
-  bool get _isSimple =>
-      !_isDebitCard &&
-      !_isCreditCard &&
-      !_isDebtTemplate &&
-      !_isReceivableLend &&
-      !_isPayableBorrow &&
-      !_isReimbursement;
-
   bool get _isDebt => widget.accountType.isDebt;
 
   @override

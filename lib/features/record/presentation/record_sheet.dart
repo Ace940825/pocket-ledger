@@ -797,6 +797,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     _buildFunctionBar(),
                     const SizedBox(height: AppDimens.spaceSm),
                     _buildInlineAmount(),
+                    _buildExpression(),
                     const SizedBox(height: AppDimens.spaceSm),
                     _buildDateNoteRow(),
                   ],
@@ -1143,6 +1144,31 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  /// 小青账键盘进行中的运算表达式（如 12 - 3），显示在金额栏下方。
+  Widget _buildExpression() {
+    if (_pendingOperator == null ||
+        _pendingAmount.isEmpty ||
+        _amount.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final ThemeData theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.spaceMd,
+        AppDimens.spaceXs,
+        AppDimens.spaceMd,
+        0,
+      ),
+      child: Text(
+        '$_pendingAmount $_pendingOperator $_amount',
+        textAlign: TextAlign.right,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: AppColors.textSecondary,
+        ),
       ),
     );
   }
