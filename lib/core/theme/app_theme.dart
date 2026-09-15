@@ -74,7 +74,9 @@ abstract final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(48),
+          // 不要再用 Size.fromHeight(48)：它的宽度是 double.infinity，
+          // 一旦 FilledButton 被放进 Row 就会触发 infinite width 崩溃。
+          minimumSize: const Size(64, 48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           ),
