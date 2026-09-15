@@ -169,6 +169,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           ..where(
             transactions.bookId.equals(bookId) &
                 transactions.deleted.equals(false) &
+                transactions.excludeFromStats.equals(false) &
                 transactions.type.equals(type.index) &
                 transactions.occurredAt.isBiggerOrEqualValue(startAt) &
                 transactions.occurredAt.isSmallerThanValue(endAt),
@@ -190,6 +191,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           ..where(
             transactions.bookId.equals(bookId) &
                 transactions.deleted.equals(false) &
+                transactions.excludeFromStats.equals(false) &
                 transactions.type.equals(type.index) &
                 transactions.occurredAt.isBiggerOrEqualValue(startAt) &
                 transactions.occurredAt.isSmallerThanValue(endAt),
@@ -266,6 +268,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           ..where(
             t.bookId.equals(bookId) &
                 t.deleted.equals(false) &
+                t.excludeFromStats.equals(false) &
                 t.type.equals(type.index) &
                 t.occurredAt.isBiggerOrEqualValue(startAt) &
                 t.occurredAt.isSmallerThanValue(endAt),

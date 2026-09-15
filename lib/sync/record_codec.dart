@@ -206,6 +206,10 @@ abstract final class RecordCodec {
         transferGroupId: Value<String?>(p['transferGroupId'] as String?),
         feeMinor: Value<int>((p['feeMinor'] as int?) ?? 0),
         discountMinor: Value<int>((p['discountMinor'] as int?) ?? 0),
+        excludeFromStats: Value<bool>((p['excludeFromStats'] as bool?) ?? false),
+        excludeFromBudget:
+            Value<bool>((p['excludeFromBudget'] as bool?) ?? false),
+        isReimbursable: Value<bool>((p['isReimbursable'] as bool?) ?? false),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),

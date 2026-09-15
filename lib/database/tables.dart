@@ -138,6 +138,15 @@ class Transactions extends Table with SyncColumns {
   /// 转账优惠（分）。仅转账有意义，其余场景为 0 / null。
   IntColumn get discountMinor => integer().withDefault(const Constant(0))();
 
+  /// 不计收支：为 true 时该流水不计入收支统计（但账户余额仍照常变动）。
+  BoolColumn get excludeFromStats => boolean().withDefault(const Constant(false))();
+
+  /// 不计预算：为 true 时该流水不计入预算已用额度。
+  BoolColumn get excludeFromBudget => boolean().withDefault(const Constant(false))();
+
+  /// 报销标记：为 true 表示该笔支出可/已用于报销。
+  BoolColumn get isReimbursable => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => <Column>{id};
 }

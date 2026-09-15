@@ -315,6 +315,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 note: _noteController.text.trim(),
                 occurredAt: occurredAt,
                 sourceModule: SourceModule.ledger,
+                discountMinor: _discountMinor,
+                tags: _tags,
+                excludeFromStats: _excludeFromStats,
+                excludeFromBudget: _excludeFromBudget,
+                isReimbursable: _isReimbursable,
               );
         case RecordTab.transfer:
           if (_accountId == null || _toAccountId == null) {
@@ -484,6 +489,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           _discountAmount = null;
           _feeInputType = _FeeInputType.fee;
           _feeInputController.clear();
+          _tags.clear();
+          _isReimbursable = false;
+          _excludeFromStats = false;
+          _excludeFromBudget = false;
         });
         return;
       }

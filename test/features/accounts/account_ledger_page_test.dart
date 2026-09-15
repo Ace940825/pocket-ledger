@@ -61,9 +61,12 @@ void main() {
       sourceModule: SourceModule.ledger,
       feeMinor: 0,
       discountMinor: 0,
-      updatedAt: 0,
-      deleted: false,
-      dirty: false,
+    excludeFromStats: false,
+    excludeFromBudget: false,
+    isReimbursable: false,
+    updatedAt: 0,
+    deleted: false,
+    dirty: false,
     );
   }
 

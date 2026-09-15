@@ -40,6 +40,10 @@ class TransactionRepository {
     int? fromAmountMinor,
     int? feeMinor,
     int? discountMinor,
+    List<String>? tags,
+    bool excludeFromStats = false,
+    bool excludeFromBudget = false,
+    bool isReimbursable = false,
   }) {
     if (amountMinor <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -50,6 +54,8 @@ class TransactionRepository {
 
     final String id = const Uuid().v7();
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final String? tagsJson =
+        (tags == null || tags.isEmpty) ? null : jsonEncode(tags);
 
     return _db.transaction<String>(() async {
       await _db.transactionsDao.insertTx(
@@ -69,6 +75,10 @@ class TransactionRepository {
           transferGroupId: Value<String?>(transferGroupId),
           feeMinor: Value<int>(feeMinor ?? 0),
           discountMinor: Value<int>(discountMinor ?? 0),
+          tags: Value<String?>(tagsJson),
+          excludeFromStats: Value<bool>(excludeFromStats),
+          excludeFromBudget: Value<bool>(excludeFromBudget),
+          isReimbursable: Value<bool>(isReimbursable),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -93,6 +103,10 @@ class TransactionRepository {
         'occurredAt': occurredAt,
         'note': note,
         'sourceModule': sourceModule.index,
+        'tags': tagsJson,
+        'excludeFromStats': excludeFromStats,
+        'excludeFromBudget': excludeFromBudget,
+        'isReimbursable': isReimbursable,
       };
       if (fromAmountMinor != null) {
         payload['fromAmountMinor'] = fromAmountMinor;
@@ -211,6 +225,9 @@ class TransactionRepository {
           transferGroupId: Value<String?>(identity.transferGroupId),
           feeMinor: Value<int>(newFee),
           discountMinor: Value<int>(newDiscount),
+          excludeFromStats: Value<bool>(original.excludeFromStats),
+          excludeFromBudget: Value<bool>(original.excludeFromBudget),
+          isReimbursable: Value<bool>(original.isReimbursable),
           deleted: Value<bool>(original.deleted),
           updatedAt: Value<int>(now),
           syncedAt: Value<int?>(original.syncedAt),
@@ -245,6 +262,10 @@ class TransactionRepository {
           'note': note ?? original.note,
           // 必须是推导后的值：否则云端会把「撒谎的旧标记」同步回来。
           'sourceModule': identity.sourceModule.index,
+          'tags': original.tags,
+          'excludeFromStats': original.excludeFromStats,
+          'excludeFromBudget': original.excludeFromBudget,
+          'isReimbursable': original.isReimbursable,
           'feeMinor': newFee,
           'discountMinor': newDiscount,
         },

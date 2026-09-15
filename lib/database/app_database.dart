@@ -143,6 +143,25 @@ class AppDatabase extends _$AppDatabase {
             );
           }
 
+          if (from < 7) {
+            // v7：流水新增「不计收支 / 不计预算 / 报销标记」三个开关列。
+            await _addColumnIfMissing(
+              m,
+              transactions,
+              transactions.excludeFromStats,
+            );
+            await _addColumnIfMissing(
+              m,
+              transactions,
+              transactions.excludeFromBudget,
+            );
+            await _addColumnIfMissing(
+              m,
+              transactions,
+              transactions.isReimbursable,
+            );
+          }
+
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
           // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
           await _createIndexes();

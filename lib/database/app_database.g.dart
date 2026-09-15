@@ -2230,6 +2230,36 @@ class $TransactionsTable extends Transactions
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _excludeFromStatsMeta =
+      const VerificationMeta('excludeFromStats');
+  @override
+  late final GeneratedColumn<bool> excludeFromStats = GeneratedColumn<bool>(
+      'exclude_from_stats', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("exclude_from_stats" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _excludeFromBudgetMeta =
+      const VerificationMeta('excludeFromBudget');
+  @override
+  late final GeneratedColumn<bool> excludeFromBudget = GeneratedColumn<bool>(
+      'exclude_from_budget', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("exclude_from_budget" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isReimbursableMeta =
+      const VerificationMeta('isReimbursable');
+  @override
+  late final GeneratedColumn<bool> isReimbursable = GeneratedColumn<bool>(
+      'is_reimbursable', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_reimbursable" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
         updatedAt,
@@ -2252,7 +2282,10 @@ class $TransactionsTable extends Transactions
         relatedId,
         transferGroupId,
         feeMinor,
-        discountMinor
+        discountMinor,
+        excludeFromStats,
+        excludeFromBudget,
+        isReimbursable
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2365,6 +2398,24 @@ class $TransactionsTable extends Transactions
           discountMinor.isAcceptableOrUnknown(
               data['discount_minor']!, _discountMinorMeta));
     }
+    if (data.containsKey('exclude_from_stats')) {
+      context.handle(
+          _excludeFromStatsMeta,
+          excludeFromStats.isAcceptableOrUnknown(
+              data['exclude_from_stats']!, _excludeFromStatsMeta));
+    }
+    if (data.containsKey('exclude_from_budget')) {
+      context.handle(
+          _excludeFromBudgetMeta,
+          excludeFromBudget.isAcceptableOrUnknown(
+              data['exclude_from_budget']!, _excludeFromBudgetMeta));
+    }
+    if (data.containsKey('is_reimbursable')) {
+      context.handle(
+          _isReimbursableMeta,
+          isReimbursable.isAcceptableOrUnknown(
+              data['is_reimbursable']!, _isReimbursableMeta));
+    }
     return context;
   }
 
@@ -2418,6 +2469,12 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.int, data['${effectivePrefix}fee_minor'])!,
       discountMinor: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}discount_minor'])!,
+      excludeFromStats: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}exclude_from_stats'])!,
+      excludeFromBudget: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}exclude_from_budget'])!,
+      isReimbursable: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_reimbursable'])!,
     );
   }
 
@@ -2477,6 +2534,15 @@ class Transaction extends DataClass implements Insertable<Transaction> {
 
   /// 转账优惠（分）。仅转账有意义，其余场景为 0 / null。
   final int discountMinor;
+
+  /// 不计收支：为 true 时该流水不计入收支统计（但账户余额仍照常变动）。
+  final bool excludeFromStats;
+
+  /// 不计预算：为 true 时该流水不计入预算已用额度。
+  final bool excludeFromBudget;
+
+  /// 报销标记：为 true 表示该笔支出可/已用于报销。
+  final bool isReimbursable;
   const Transaction(
       {required this.updatedAt,
       required this.deleted,
@@ -2498,7 +2564,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.relatedId,
       this.transferGroupId,
       required this.feeMinor,
-      required this.discountMinor});
+      required this.discountMinor,
+      required this.excludeFromStats,
+      required this.excludeFromBudget,
+      required this.isReimbursable});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2545,6 +2614,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     }
     map['fee_minor'] = Variable<int>(feeMinor);
     map['discount_minor'] = Variable<int>(discountMinor);
+    map['exclude_from_stats'] = Variable<bool>(excludeFromStats);
+    map['exclude_from_budget'] = Variable<bool>(excludeFromBudget);
+    map['is_reimbursable'] = Variable<bool>(isReimbursable);
     return map;
   }
 
@@ -2583,6 +2655,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           : Value(transferGroupId),
       feeMinor: Value(feeMinor),
       discountMinor: Value(discountMinor),
+      excludeFromStats: Value(excludeFromStats),
+      excludeFromBudget: Value(excludeFromBudget),
+      isReimbursable: Value(isReimbursable),
     );
   }
 
@@ -2613,6 +2688,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       transferGroupId: serializer.fromJson<String?>(json['transferGroupId']),
       feeMinor: serializer.fromJson<int>(json['feeMinor']),
       discountMinor: serializer.fromJson<int>(json['discountMinor']),
+      excludeFromStats: serializer.fromJson<bool>(json['excludeFromStats']),
+      excludeFromBudget: serializer.fromJson<bool>(json['excludeFromBudget']),
+      isReimbursable: serializer.fromJson<bool>(json['isReimbursable']),
     );
   }
   @override
@@ -2642,6 +2720,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'transferGroupId': serializer.toJson<String?>(transferGroupId),
       'feeMinor': serializer.toJson<int>(feeMinor),
       'discountMinor': serializer.toJson<int>(discountMinor),
+      'excludeFromStats': serializer.toJson<bool>(excludeFromStats),
+      'excludeFromBudget': serializer.toJson<bool>(excludeFromBudget),
+      'isReimbursable': serializer.toJson<bool>(isReimbursable),
     };
   }
 
@@ -2666,7 +2747,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<String?> relatedId = const Value.absent(),
           Value<String?> transferGroupId = const Value.absent(),
           int? feeMinor,
-          int? discountMinor}) =>
+          int? discountMinor,
+          bool? excludeFromStats,
+          bool? excludeFromBudget,
+          bool? isReimbursable}) =>
       Transaction(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -2692,6 +2776,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
             : this.transferGroupId,
         feeMinor: feeMinor ?? this.feeMinor,
         discountMinor: discountMinor ?? this.discountMinor,
+        excludeFromStats: excludeFromStats ?? this.excludeFromStats,
+        excludeFromBudget: excludeFromBudget ?? this.excludeFromBudget,
+        isReimbursable: isReimbursable ?? this.isReimbursable,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -2728,6 +2815,15 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       discountMinor: data.discountMinor.present
           ? data.discountMinor.value
           : this.discountMinor,
+      excludeFromStats: data.excludeFromStats.present
+          ? data.excludeFromStats.value
+          : this.excludeFromStats,
+      excludeFromBudget: data.excludeFromBudget.present
+          ? data.excludeFromBudget.value
+          : this.excludeFromBudget,
+      isReimbursable: data.isReimbursable.present
+          ? data.isReimbursable.value
+          : this.isReimbursable,
     );
   }
 
@@ -2754,7 +2850,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('relatedId: $relatedId, ')
           ..write('transferGroupId: $transferGroupId, ')
           ..write('feeMinor: $feeMinor, ')
-          ..write('discountMinor: $discountMinor')
+          ..write('discountMinor: $discountMinor, ')
+          ..write('excludeFromStats: $excludeFromStats, ')
+          ..write('excludeFromBudget: $excludeFromBudget, ')
+          ..write('isReimbursable: $isReimbursable')
           ..write(')'))
         .toString();
   }
@@ -2781,7 +2880,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         relatedId,
         transferGroupId,
         feeMinor,
-        discountMinor
+        discountMinor,
+        excludeFromStats,
+        excludeFromBudget,
+        isReimbursable
       ]);
   @override
   bool operator ==(Object other) =>
@@ -2807,7 +2909,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.relatedId == this.relatedId &&
           other.transferGroupId == this.transferGroupId &&
           other.feeMinor == this.feeMinor &&
-          other.discountMinor == this.discountMinor);
+          other.discountMinor == this.discountMinor &&
+          other.excludeFromStats == this.excludeFromStats &&
+          other.excludeFromBudget == this.excludeFromBudget &&
+          other.isReimbursable == this.isReimbursable);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -2832,6 +2937,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> transferGroupId;
   final Value<int> feeMinor;
   final Value<int> discountMinor;
+  final Value<bool> excludeFromStats;
+  final Value<bool> excludeFromBudget;
+  final Value<bool> isReimbursable;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.updatedAt = const Value.absent(),
@@ -2855,6 +2963,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.transferGroupId = const Value.absent(),
     this.feeMinor = const Value.absent(),
     this.discountMinor = const Value.absent(),
+    this.excludeFromStats = const Value.absent(),
+    this.excludeFromBudget = const Value.absent(),
+    this.isReimbursable = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -2879,6 +2990,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.transferGroupId = const Value.absent(),
     this.feeMinor = const Value.absent(),
     this.discountMinor = const Value.absent(),
+    this.excludeFromStats = const Value.absent(),
+    this.excludeFromBudget = const Value.absent(),
+    this.isReimbursable = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -2910,6 +3024,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? transferGroupId,
     Expression<int>? feeMinor,
     Expression<int>? discountMinor,
+    Expression<bool>? excludeFromStats,
+    Expression<bool>? excludeFromBudget,
+    Expression<bool>? isReimbursable,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2934,6 +3051,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (transferGroupId != null) 'transfer_group_id': transferGroupId,
       if (feeMinor != null) 'fee_minor': feeMinor,
       if (discountMinor != null) 'discount_minor': discountMinor,
+      if (excludeFromStats != null) 'exclude_from_stats': excludeFromStats,
+      if (excludeFromBudget != null) 'exclude_from_budget': excludeFromBudget,
+      if (isReimbursable != null) 'is_reimbursable': isReimbursable,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2960,6 +3080,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<String?>? transferGroupId,
       Value<int>? feeMinor,
       Value<int>? discountMinor,
+      Value<bool>? excludeFromStats,
+      Value<bool>? excludeFromBudget,
+      Value<bool>? isReimbursable,
       Value<int>? rowid}) {
     return TransactionsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2983,6 +3106,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       transferGroupId: transferGroupId ?? this.transferGroupId,
       feeMinor: feeMinor ?? this.feeMinor,
       discountMinor: discountMinor ?? this.discountMinor,
+      excludeFromStats: excludeFromStats ?? this.excludeFromStats,
+      excludeFromBudget: excludeFromBudget ?? this.excludeFromBudget,
+      isReimbursable: isReimbursable ?? this.isReimbursable,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3055,6 +3181,15 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (discountMinor.present) {
       map['discount_minor'] = Variable<int>(discountMinor.value);
     }
+    if (excludeFromStats.present) {
+      map['exclude_from_stats'] = Variable<bool>(excludeFromStats.value);
+    }
+    if (excludeFromBudget.present) {
+      map['exclude_from_budget'] = Variable<bool>(excludeFromBudget.value);
+    }
+    if (isReimbursable.present) {
+      map['is_reimbursable'] = Variable<bool>(isReimbursable.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3085,6 +3220,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('transferGroupId: $transferGroupId, ')
           ..write('feeMinor: $feeMinor, ')
           ..write('discountMinor: $discountMinor, ')
+          ..write('excludeFromStats: $excludeFromStats, ')
+          ..write('excludeFromBudget: $excludeFromBudget, ')
+          ..write('isReimbursable: $isReimbursable, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10684,6 +10822,9 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<String?> transferGroupId,
   Value<int> feeMinor,
   Value<int> discountMinor,
+  Value<bool> excludeFromStats,
+  Value<bool> excludeFromBudget,
+  Value<bool> isReimbursable,
   Value<int> rowid,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
@@ -10709,6 +10850,9 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<String?> transferGroupId,
   Value<int> feeMinor,
   Value<int> discountMinor,
+  Value<bool> excludeFromStats,
+  Value<bool> excludeFromBudget,
+  Value<bool> isReimbursable,
   Value<int> rowid,
 });
 
@@ -10789,6 +10933,18 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<int> get discountMinor => $composableBuilder(
       column: $table.discountMinor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get excludeFromStats => $composableBuilder(
+      column: $table.excludeFromStats,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get excludeFromBudget => $composableBuilder(
+      column: $table.excludeFromBudget,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isReimbursable => $composableBuilder(
+      column: $table.isReimbursable,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$TransactionsTableOrderingComposer
@@ -10866,6 +11022,18 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<int> get discountMinor => $composableBuilder(
       column: $table.discountMinor,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get excludeFromStats => $composableBuilder(
+      column: $table.excludeFromStats,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get excludeFromBudget => $composableBuilder(
+      column: $table.excludeFromBudget,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isReimbursable => $composableBuilder(
+      column: $table.isReimbursable,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -10940,6 +11108,15 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<int> get discountMinor => $composableBuilder(
       column: $table.discountMinor, builder: (column) => column);
+
+  GeneratedColumn<bool> get excludeFromStats => $composableBuilder(
+      column: $table.excludeFromStats, builder: (column) => column);
+
+  GeneratedColumn<bool> get excludeFromBudget => $composableBuilder(
+      column: $table.excludeFromBudget, builder: (column) => column);
+
+  GeneratedColumn<bool> get isReimbursable => $composableBuilder(
+      column: $table.isReimbursable, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -10989,6 +11166,9 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> transferGroupId = const Value.absent(),
             Value<int> feeMinor = const Value.absent(),
             Value<int> discountMinor = const Value.absent(),
+            Value<bool> excludeFromStats = const Value.absent(),
+            Value<bool> excludeFromBudget = const Value.absent(),
+            Value<bool> isReimbursable = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion(
@@ -11013,6 +11193,9 @@ class $$TransactionsTableTableManager extends RootTableManager<
             transferGroupId: transferGroupId,
             feeMinor: feeMinor,
             discountMinor: discountMinor,
+            excludeFromStats: excludeFromStats,
+            excludeFromBudget: excludeFromBudget,
+            isReimbursable: isReimbursable,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -11037,6 +11220,9 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> transferGroupId = const Value.absent(),
             Value<int> feeMinor = const Value.absent(),
             Value<int> discountMinor = const Value.absent(),
+            Value<bool> excludeFromStats = const Value.absent(),
+            Value<bool> excludeFromBudget = const Value.absent(),
+            Value<bool> isReimbursable = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
@@ -11061,6 +11247,9 @@ class $$TransactionsTableTableManager extends RootTableManager<
             transferGroupId: transferGroupId,
             feeMinor: feeMinor,
             discountMinor: discountMinor,
+            excludeFromStats: excludeFromStats,
+            excludeFromBudget: excludeFromBudget,
+            isReimbursable: isReimbursable,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

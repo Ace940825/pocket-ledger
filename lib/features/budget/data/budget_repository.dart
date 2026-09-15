@@ -41,6 +41,7 @@ class BudgetRepository {
 
     Expression<bool> predicate = t.bookId.equals(bookId) &
         t.deleted.equals(false) &
+        t.excludeFromBudget.equals(false) &
         t.type.equals(TxnType.expense.index) &
         t.occurredAt.isBiggerOrEqualValue(startAt) &
         t.occurredAt.isSmallerThanValue(endAt);
