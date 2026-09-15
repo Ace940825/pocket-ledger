@@ -3388,28 +3388,37 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                     ),
                   ),
                 ),
-                SegmentedButton<bool>(
-                  segments: const <ButtonSegment<bool>>[
-                    ButtonSegment<bool>(
-                      value: false,
-                      icon: Icon(Icons.grid_view_outlined),
-                      label: Text('宫格'),
-                    ),
-                    ButtonSegment<bool>(
-                      value: true,
-                      icon: Icon(Icons.list_alt_outlined),
-                      label: Text('列表'),
-                    ),
-                  ],
-                  selected: <bool>{_listView},
-                  onSelectionChanged: (Set<bool> next) {
-                    setState(() => _listView = next.first);
-                  },
-                ),
                 const SizedBox(width: AppDimens.spaceSm),
                 FilledButton(
                   onPressed: () => Navigator.of(context).pop('__add__'),
                   child: const Text('添加'),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppDimens.spaceMd),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                SizedBox(
+                  width: 160,
+                  child: SegmentedButton<bool>(
+                    segments: const <ButtonSegment<bool>>[
+                      ButtonSegment<bool>(
+                        value: false,
+                        icon: Icon(Icons.grid_view_outlined),
+                        label: Text('宫格'),
+                      ),
+                      ButtonSegment<bool>(
+                        value: true,
+                        icon: Icon(Icons.list_alt_outlined),
+                        label: Text('列表'),
+                      ),
+                    ],
+                    selected: <bool>{_listView},
+                    onSelectionChanged: (Set<bool> next) {
+                      setState(() => _listView = next.first);
+                    },
+                  ),
                 ),
               ],
             ),
