@@ -263,64 +263,95 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
     final bool? saved = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialog) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setState) => AlertDialog(
-          title: Text(category == null ? '新增分类' : '编辑分类'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: '分类名称'),
-                  autofocus: true,
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                Text(
-                  '图标',
-                  style: Theme.of(ctx).textTheme.bodySmall,
-                ),
-                const SizedBox(height: AppDimens.spaceSm),
-                _IconPicker(
-                  selectedKey: iconKey,
-                  onSelected: (String key) => setState(() => iconKey = key),
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                Text(
-                  '颜色（可选）',
-                  style: Theme.of(ctx).textTheme.bodySmall,
-                ),
-                const SizedBox(height: AppDimens.spaceSm),
-                Wrap(
-                  spacing: AppDimens.spaceSm,
-                  children: <Widget>[
-                    _ColorChip(
-                      selected: colorValue == null,
-                      color: Colors.grey,
-                      onTap: () => setState(() => colorValue = null),
-                    ),
-                    ..._palette.map(
-                      (int c) => _ColorChip(
-                        selected: colorValue == c,
-                        color: Color(c),
-                        onTap: () => setState(() => colorValue = c),
+        builder: (BuildContext ctx, StateSetter setState) => Dialog(
+          insetPadding: const EdgeInsets.all(AppDimens.spaceLg),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+              maxWidth: 400,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    category == null ? '新增分类' : '编辑分类',
+                    style: Theme.of(ctx).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          TextField(
+                            controller: nameController,
+                            decoration: const InputDecoration(
+                              labelText: '分类名称',
+                            ),
+                          ),
+                          const SizedBox(height: AppDimens.spaceMd),
+                          Text(
+                            '图标',
+                            style: Theme.of(ctx).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: AppDimens.spaceSm),
+                          _IconPicker(
+                            selectedKey: iconKey,
+                            onSelected: (String key) =>
+                                setState(() => iconKey = key),
+                          ),
+                          const SizedBox(height: AppDimens.spaceMd),
+                          Text(
+                            '颜色（可选）',
+                            style: Theme.of(ctx).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: AppDimens.spaceSm),
+                          Wrap(
+                            spacing: AppDimens.spaceSm,
+                            children: <Widget>[
+                              _ColorChip(
+                                selected: colorValue == null,
+                                color: Colors.grey,
+                                onTap: () =>
+                                    setState(() => colorValue = null),
+                              ),
+                              ..._palette.map(
+                                (int c) => _ColorChip(
+                                  selected: colorValue == c,
+                                  color: Color(c),
+                                  onTap: () =>
+                                      setState(() => colorValue = c),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: <Widget>[
+                      TextButton(
+                        onPressed: () => Navigator.of(dialog).pop(false),
+                        child: const Text('取消'),
+                      ),
+                      const SizedBox(width: AppDimens.spaceSm),
+                      FilledButton(
+                        onPressed: () => Navigator.of(dialog).pop(true),
+                        child: const Text('保存'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialog).pop(false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialog).pop(true),
-              child: const Text('保存'),
-            ),
-          ],
         ),
       ),
     );
