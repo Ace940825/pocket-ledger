@@ -44,6 +44,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             _buildHeader(context),
+            _buildArchivedToggle(context),
             Expanded(
               child: categories.when(
                 data: (List<Category> list) => _buildList(list),
@@ -99,6 +100,32 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
                 style: TextStyle(fontSize: 15),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArchivedToggle(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.spaceLg,
+        AppDimens.spaceSm,
+        AppDimens.spaceLg,
+        0,
+      ),
+      child: Row(
+        children: <Widget>[
+          Text(
+            '显示封存',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          const Spacer(),
+          Switch(
+            value: _showArchived,
+            onChanged: (bool value) => setState(() => _showArchived = value),
           ),
         ],
       ),
@@ -355,73 +382,58 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           top: Radius.circular(AppDimens.radiusLg),
         ),
       ),
-      builder: (BuildContext sheet) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setSheetState) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.spaceSm,
-                ),
-                child: Row(
-                  children: <Widget>[
-                    IconButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      icon: const Icon(Icons.close),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        '更多',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
+      builder: (BuildContext ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimens.spaceSm,
+              ),
+              child: Row(
+                children: <Widget>[
+                  IconButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      '更多',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 48),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 48),
+                ],
               ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.archive_outlined),
-                title: const Text('显示封存分类'),
-                subtitle: const Text('在列表中同时展示封存分类'),
-                trailing: Switch(
-                  value: _showArchived,
-                  onChanged: (bool value) {
-                    setSheetState(() => _showArchived = value);
-                    setState(() => _showArchived = value);
-                  },
-                ),
-              ),
-              const Divider(height: 1, indent: 56),
-              ListTile(
-                leading: const Icon(Icons.sort_outlined),
-                title: const Text('分类排序'),
-                subtitle: const Text('为主分类排序'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _toast(context, '排序功能后续开放');
-                },
-              ),
-              const Divider(height: 1, indent: 56),
-              ListTile(
-                leading: const Icon(Icons.help_outline),
-                title: const Text('常见问题'),
-                subtitle: const Text('查看疑惑解答'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _toast(context, '常见问题后续开放');
-                },
-              ),
-              const SizedBox(height: AppDimens.spaceMd),
-            ],
-          ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.sort_outlined),
+              title: const Text('分类排序'),
+              subtitle: const Text('为主分类排序'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _toast(context, '排序功能后续开放');
+              },
+            ),
+            const Divider(height: 1, indent: 56),
+            ListTile(
+              leading: const Icon(Icons.help_outline),
+              title: const Text('常见问题'),
+              subtitle: const Text('查看疑惑解答'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _toast(context, '常见问题后续开放');
+              },
+            ),
+            const SizedBox(height: AppDimens.spaceMd),
+          ],
         ),
       ),
     );
