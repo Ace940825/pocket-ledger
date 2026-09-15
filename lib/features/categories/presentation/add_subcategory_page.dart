@@ -48,10 +48,18 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
   void initState() {
     super.initState();
     _selectedIconKey = categoryIconOptions.first.key;
+    _nameController.addListener(_onNameChanged);
+  }
+
+  void _onNameChanged() {
+    if (mounted && _textAsIcon) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
+    _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     super.dispose();
   }
