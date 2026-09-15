@@ -59,6 +59,8 @@ final List<CategoryIconOption> categoryIconOptions = <CategoryIconOption>[
   // 收入 / 投资
   const CategoryIconOption(key: 'salary', icon: Icons.payments_outlined, label: '工资'),
   const CategoryIconOption(key: 'bonus', icon: Icons.card_giftcard_outlined, label: '奖金'),
+  const CategoryIconOption(key: 'red_envelope', icon: Icons.card_giftcard_outlined, label: '红包'),
+  const CategoryIconOption(key: 'refund', icon: Icons.replay_outlined, label: '退款'),
   const CategoryIconOption(key: 'investment', icon: Icons.trending_up_outlined, label: '投资'),
   const CategoryIconOption(key: 'savings', icon: Icons.savings_outlined, label: '储蓄'),
   const CategoryIconOption(key: 'account_balance', icon: Icons.account_balance_outlined, label: '理财'),
@@ -125,6 +127,8 @@ IconData categoryIconData(String? iconKey) {
     'work' => Icons.work_outline,
     'salary' => Icons.payments_outlined,
     'bonus' => Icons.card_giftcard_outlined,
+    'red_envelope' => Icons.card_giftcard_outlined,
+    'refund' => Icons.replay_outlined,
     'investment' => Icons.trending_up_outlined,
     'savings' => Icons.savings_outlined,
     'account_balance' => Icons.account_balance_outlined,
