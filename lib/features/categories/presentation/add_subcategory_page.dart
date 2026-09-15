@@ -236,30 +236,34 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           ),
         ),
         const SizedBox(height: AppDimens.spaceMd),
-        Wrap(
-          spacing: AppDimens.spaceSm,
-          runSpacing: AppDimens.spaceSm,
-          children: parents.map((Category parent) {
-            final bool selected = parent.id == _selectedParent.id;
-            return ChoiceChip(
-              label: Text(parent.name),
-              selected: selected,
-              selectedColor: color.withOpacity(0.15),
-              checkmarkColor: color,
-              labelStyle: TextStyle(
-                color: selected ? color : AppColors.textPrimary,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              shape: StadiumBorder(
-                side: BorderSide(
-                  color: selected ? color : AppColors.divider,
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: parents.map((Category parent) {
+              final bool selected = parent.id == _selectedParent.id;
+              return Padding(
+                padding: const EdgeInsets.only(right: AppDimens.spaceSm),
+                child: ChoiceChip(
+                  label: Text(parent.name),
+                  selected: selected,
+                  selectedColor: color.withOpacity(0.15),
+                  checkmarkColor: color,
+                  labelStyle: TextStyle(
+                    color: selected ? color : AppColors.textPrimary,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  shape: StadiumBorder(
+                    side: BorderSide(
+                      color: selected ? color : AppColors.divider,
+                    ),
+                  ),
+                  onSelected: (_) {
+                    setState(() => _selectedParent = parent);
+                  },
                 ),
-              ),
-              onSelected: (_) {
-                setState(() => _selectedParent = parent);
-              },
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
       ],
     );
