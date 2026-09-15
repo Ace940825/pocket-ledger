@@ -51,6 +51,9 @@ dependencies:
   # 文件与分享
   csv: ^6.0.0
 
+  # 图片附件：从相册/相机选取票据与物品照片
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

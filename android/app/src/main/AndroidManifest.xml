@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 图片附件：拍照需要相机权限（相册走系统照片选择器，无需存储权限） -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <application
         android:label="pocket_ledger"
         android:name="${applicationName}"

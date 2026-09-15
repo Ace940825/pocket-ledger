@@ -44,6 +44,7 @@ class TransactionRepository {
     bool excludeFromStats = false,
     bool excludeFromBudget = false,
     bool isReimbursable = false,
+    List<String>? attachmentUrls,
   }) {
     if (amountMinor <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -56,6 +57,7 @@ class TransactionRepository {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final String? tagsJson =
         (tags == null || tags.isEmpty) ? null : jsonEncode(tags);
+    final String? attachmentUrlsJson = _encodeAttachmentUrls(attachmentUrls);
 
     return _db.transaction<String>(() async {
       await _db.transactionsDao.insertTx(
@@ -76,6 +78,7 @@ class TransactionRepository {
           feeMinor: Value<int>(feeMinor ?? 0),
           discountMinor: Value<int>(discountMinor ?? 0),
           tags: Value<String?>(tagsJson),
+          attachmentUrls: Value<String?>(attachmentUrlsJson),
           excludeFromStats: Value<bool>(excludeFromStats),
           excludeFromBudget: Value<bool>(excludeFromBudget),
           isReimbursable: Value<bool>(isReimbursable),
@@ -107,6 +110,7 @@ class TransactionRepository {
         'excludeFromStats': excludeFromStats,
         'excludeFromBudget': excludeFromBudget,
         'isReimbursable': isReimbursable,
+        'attachmentUrls': attachmentUrlsJson,
       };
       if (fromAmountMinor != null) {
         payload['fromAmountMinor'] = fromAmountMinor;
@@ -153,6 +157,7 @@ class TransactionRepository {
     SourceModule? sourceModule,
     int? feeMinor,
     int? discountMinor,
+    List<String>? attachmentUrls,
   }) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final TxnType newType = type ?? original.type;
@@ -160,6 +165,9 @@ class TransactionRepository {
     final String newAccountId = accountId ?? original.accountId;
     final int newFee = feeMinor ?? original.feeMinor;
     final int newDiscount = discountMinor ?? original.discountMinor;
+    final List<String>? newAttachmentList =
+        attachmentUrls ?? _decodeAttachmentUrls(original.attachmentUrls);
+    final String? newAttachmentUrls = _encodeAttachmentUrls(newAttachmentList);
 
     if (newAmount <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -218,7 +226,7 @@ class TransactionRepository {
           categoryId: Value<String?>(categoryId ?? original.categoryId),
           occurredAt: Value<int>(occurredAt ?? original.occurredAt),
           note: Value<String?>(note ?? original.note),
-          attachmentUrls: Value<String?>(original.attachmentUrls),
+          attachmentUrls: Value<String?>(newAttachmentUrls),
           tags: Value<String?>(original.tags),
           sourceModule: Value<SourceModule>(identity.sourceModule),
           relatedId: Value<String?>(original.relatedId),
@@ -266,6 +274,7 @@ class TransactionRepository {
           'excludeFromStats': original.excludeFromStats,
           'excludeFromBudget': original.excludeFromBudget,
           'isReimbursable': original.isReimbursable,
+          'attachmentUrls': newAttachmentUrls,
           'feeMinor': newFee,
           'discountMinor': newDiscount,
         },
@@ -331,6 +340,7 @@ class TransactionRepository {
     String currency = 'CNY',
     int? feeMinor,
     int? discountMinor,
+    List<String>? attachmentUrls,
   }) {
     if (fromAccountId == toAccountId) {
       throw const ValidationFailure('转出与转入账户不能相同');
@@ -359,6 +369,7 @@ class TransactionRepository {
         fromAmountMinor: fromAmountMinor,
         feeMinor: feeMinor,
         discountMinor: discountMinor,
+        attachmentUrls: attachmentUrls,
       ),
     );
   }
@@ -446,4 +457,20 @@ class TransactionRepository {
       ),
     );
   }
+}
+
+/// 把图片路径列表编码为 JSON 字符串（空列表 / null 记为 null）。
+String? _encodeAttachmentUrls(List<String>? list) =>
+    (list == null || list.isEmpty) ? null : jsonEncode(list);
+
+/// 把存储的 JSON 字符串解码回图片路径列表（容错：非列表 / 空串返回 null）。
+List<String>? _decodeAttachmentUrls(String? json) {
+  if (json == null || json.isEmpty) return null;
+  try {
+    final Object? decoded = jsonDecode(json);
+    if (decoded is List) return decoded.cast<String>();
+  } catch (_) {
+    // 历史脏数据不应让读取中断。
+  }
+  return null;
 }

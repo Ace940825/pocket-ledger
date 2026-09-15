@@ -1,7 +1,14 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
@@ -139,6 +146,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   bool _excludeFromBudget = false;
   final List<String> _tags = <String>[];
   String? _discountAmount;
+
+  // 图片附件：本地持久化后的绝对路径列表（存于 appDocs/attachments）。
+  final List<String> _attachmentPaths = <String>[];
 
   // 转账
   String? _feeAmount;
@@ -323,6 +333,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 excludeFromStats: _excludeFromStats,
                 excludeFromBudget: _excludeFromBudget,
                 isReimbursable: _isReimbursable,
+                attachmentUrls: _attachmentPaths,
               );
         case RecordTab.transfer:
           if (_accountId == null || _toAccountId == null) {
@@ -342,6 +353,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 discountMinor: _discountMinor,
                 occurredAt: occurredAt,
                 note: _noteController.text.trim(),
+                attachmentUrls: _attachmentPaths,
               );
         case RecordTab.refund:
           if (_refundOriginals.isEmpty) {
@@ -387,6 +399,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 occurredAt: occurredAt,
                 sourceModule: SourceModule.refund,
                 relatedId: relatedId,
+                attachmentUrls: _attachmentPaths,
               );
         case RecordTab.lend:
           final String counterparty = _counterpartyController.text.trim();
@@ -520,6 +533,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           _isReimbursable = false;
           _excludeFromStats = false;
           _excludeFromBudget = false;
+          _attachmentPaths.clear();
         });
         return;
       }
@@ -1739,7 +1753,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               : expenseCategoriesProvider,
         );
         return categories.when(
-          data: _buildCategoryGrid,
+          data: (List<Category> list) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _buildCategoryGrid(list),
+              _buildAttachmentSection(),
+            ],
+          ),
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (Object e, StackTrace? s) =>
               Center(child: Text('分类加载失败：$e')),
@@ -1802,6 +1822,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             _buildTransferFeeRow(),
             const SizedBox(height: AppDimens.spaceMd),
             _buildTransferHint(),
+            const SizedBox(height: AppDimens.spaceLg),
+            _buildAttachmentSection(),
           ],
         );
       case RecordTab.lend:
@@ -2162,6 +2184,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         placeholder: '入款账户',
         onChanged: (String? v) => setState(() => _accountId = v),
       ),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildAttachmentSection(),
       const SizedBox(height: AppDimens.spaceMd),
       _buildRbBookRow(),
     ];
@@ -2616,9 +2640,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           onTap: _onDiscount,
         ),
       _FunctionItem(
-        label: '图片',
+        label: _attachmentPaths.isEmpty ? '图片' : '图片 ${_attachmentPaths.length}',
         icon: Icons.image_outlined,
         onTap: _onAddImage,
+        active: _attachmentPaths.isNotEmpty,
       ),
       _FunctionItem(
         label: _tags.isEmpty ? '标签' : '标签 ${_tags.length}',
@@ -2722,8 +2747,138 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     }
   }
 
-  void _onAddImage() {
-    _toast('图片附件功能开发中');
+  Future<void> _onAddImage() async {
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (BuildContext ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('拍照'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('从相册选择'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+
+    final XFile? picked = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 80,
+    );
+    if (picked == null || !mounted) return;
+
+    final String? stored = await _copyPickedImageToStorage(picked);
+    if (stored != null && mounted) {
+      setState(() => _attachmentPaths.add(stored));
+    }
+  }
+
+  /// 把系统返回的临时图片复制到应用私有附件目录，返回持久化后的绝对路径。
+  ///
+  /// image_picker 返回的路径多在系统缓存/临时区，重启或清理后可能失效；
+  /// 复制到 `<appDocs>/attachments/` 才能保证长期可读（与流水一起持久化）。
+  Future<String?> _copyPickedImageToStorage(XFile file) async {
+    try {
+      final Directory docs = await getApplicationDocumentsDirectory();
+      final Directory dir = Directory(p.join(docs.path, 'attachments'));
+      if (!await dir.exists()) await dir.create(recursive: true);
+      final String ext = p.extension(file.path).isNotEmpty
+          ? p.extension(file.path).toLowerCase()
+          : '.jpg';
+      final String fileName = '${const Uuid().v7()}$ext';
+      final File dst = File(p.join(dir.path, fileName));
+      final File src = File(file.path);
+      if (await src.exists()) {
+        await src.copy(dst.path);
+      } else {
+        final Uint8List? bytes = await file.readAsBytes();
+        if (bytes == null) return null;
+        await dst.writeAsBytes(bytes);
+      }
+      return dst.path;
+    } catch (e) {
+      _toast('图片保存失败：$e');
+      return null;
+    }
+  }
+
+  /// 图片附件预览网格：缩略图 + 删除 + 点击查看大图。
+  Widget _buildAttachmentSection() {
+    if (_attachmentPaths.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SizedBox(height: AppDimens.spaceMd),
+        _buildSectionTitle('图片附件'),
+        const SizedBox(height: AppDimens.spaceSm),
+        Wrap(
+          spacing: AppDimens.spaceSm,
+          runSpacing: AppDimens.spaceSm,
+          children: <Widget>[
+            for (final String path in _attachmentPaths)
+              _buildAttachmentThumb(path),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAttachmentThumb(String path) {
+    return Stack(
+      children: <Widget>[
+        InkWell(
+          onTap: () => _openImage(path),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            child: Image.file(
+              File(path),
+              width: 72,
+              height: 72,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 72,
+                height: 72,
+                color: AppColors.surfaceLight,
+                child: const Icon(
+                  Icons.broken_image_outlined,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: -2,
+          top: -2,
+          child: InkWell(
+            onTap: () => setState(() => _attachmentPaths.remove(path)),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.cancel, size: 18, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _openImage(String path) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(child: Image.file(File(path))),
+    );
   }
 
   Future<void> _onAddTag() async {
@@ -2979,6 +3134,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 setState(() {
                   _tab = next.first;
                   _categoryId = null;
+                  _attachmentPaths.clear();
                 });
               },
             ),
