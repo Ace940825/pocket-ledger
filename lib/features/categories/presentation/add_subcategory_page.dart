@@ -69,10 +69,13 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppDimens.spaceLg,
@@ -134,7 +137,8 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildParentCard(ThemeData theme, Color color) {
