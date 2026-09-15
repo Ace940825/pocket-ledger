@@ -3392,6 +3392,11 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                 ),
                 const SizedBox(width: AppDimens.spaceSm),
                 FilledButton(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onPressed: () => Navigator.of(context).pop('__add__'),
                   child: const Text('添加'),
                 ),
