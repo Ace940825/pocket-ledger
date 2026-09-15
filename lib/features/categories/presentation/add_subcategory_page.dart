@@ -28,25 +28,12 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
   String? _selectedIconKey;
   bool _textAsIcon = false;
   bool _saving = false;
-
-  static const List<String> _quickNames = <String>[
-    '餐饮',
-    '购物',
-    '娱乐',
-    '交通',
-    '职业收入',
-    '学习',
-    '旅游',
-    '医疗',
-    '会员',
-    '通讯',
-    '日常',
-    '人情',
-  ];
+  late Category _selectedParent;
 
   @override
   void initState() {
     super.initState();
+    _selectedParent = widget.parent;
     _selectedIconKey = categoryIconOptions.first.key;
     _nameController.addListener(_onNameChanged);
   }
@@ -67,9 +54,8 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final Color parentColor = widget.parent.colorValue != null
-        ? Color(widget.parent.colorValue!)
-        : AppColors.primary;
+    final AsyncValue<List<Category>> categoriesAsync =
+        ref.watch(allCategoriesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -83,40 +69,60 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppDimens.spaceLg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              _buildParentCard(theme, parentColor),
-              const SizedBox(height: AppDimens.spaceLg),
-              _buildNameField(theme),
-              const SizedBox(height: AppDimens.spaceLg),
-              _buildTextAsIconTile(theme),
-              const SizedBox(height: AppDimens.spaceSm),
-              _buildHint(theme),
-              const SizedBox(height: AppDimens.spaceLg),
-              _buildQuickNames(theme),
-              const SizedBox(height: AppDimens.spaceLg),
-              _buildIconPicker(theme, parentColor),
-              const SizedBox(height: AppDimens.spaceXxl),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('保存'),
-                ),
+        child: categoriesAsync.when(
+          data: (List<Category> all) {
+            final Color parentColor = _selectedParent.colorValue != null
+                ? Color(_selectedParent.colorValue!)
+                : AppColors.primary;
+            final List<Category> parents = all
+                .where((Category c) =>
+                    c.parentId == null &&
+                    c.type == _selectedParent.type &&
+                    !c.deleted)
+                .toList(growable: false);
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _buildParentCard(theme, parentColor),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  _buildNameField(theme),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  _buildTextAsIconTile(theme),
+                  const SizedBox(height: AppDimens.spaceSm),
+                  _buildHint(theme),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  _buildParentSelector(theme, parentColor, parents),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  _buildIconPicker(theme, parentColor),
+                  const SizedBox(height: AppDimens.spaceXxl),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _saving ? null : _save,
+                      child: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('保存'),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (Object e, StackTrace? _) => Center(
+            child: Text(
+              '加载分类失败: $e',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ),
         ),
       ),
@@ -134,7 +140,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
       child: Row(
         children: <Widget>[
           Text(
-            '一级分类',
+            '所属一级分类',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -142,20 +148,20 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           const Spacer(),
           CircleAvatar(
             backgroundColor: color.withOpacity(0.15),
-            child: widget.parent.iconKey == kCategoryIconText &&
-                    widget.parent.name.isNotEmpty
+            child: _selectedParent.iconKey == kCategoryIconText &&
+                    _selectedParent.name.isNotEmpty
                 ? Text(
-                    widget.parent.name[0],
+                    _selectedParent.name[0],
                     style: TextStyle(
                       color: color,
                       fontWeight: FontWeight.w600,
                     ),
                   )
-                : Icon(categoryIconData(widget.parent.iconKey), color: color),
+                : Icon(categoryIconData(_selectedParent.iconKey), color: color),
           ),
           const SizedBox(width: AppDimens.spaceSm),
           Text(
-            widget.parent.name,
+            _selectedParent.name,
             style: theme.textTheme.bodyLarge,
           ),
         ],
@@ -215,21 +221,47 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
     );
   }
 
-  Widget _buildQuickNames(ThemeData theme) {
-    return Wrap(
-      spacing: AppDimens.spaceSm,
-      runSpacing: AppDimens.spaceSm,
-      children: _quickNames.map((String name) {
-        return ActionChip(
-          label: Text(name),
-          onPressed: () {
-            _nameController.text = name;
-            _nameController.selection = TextSelection.collapsed(
-              offset: name.length,
+  Widget _buildParentSelector(
+    ThemeData theme,
+    Color color,
+    List<Category> parents,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          '切换一级分类',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AppDimens.spaceMd),
+        Wrap(
+          spacing: AppDimens.spaceSm,
+          runSpacing: AppDimens.spaceSm,
+          children: parents.map((Category parent) {
+            final bool selected = parent.id == _selectedParent.id;
+            return ChoiceChip(
+              label: Text(parent.name),
+              selected: selected,
+              selectedColor: color.withOpacity(0.15),
+              checkmarkColor: color,
+              labelStyle: TextStyle(
+                color: selected ? color : AppColors.textPrimary,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: selected ? color : AppColors.divider,
+                ),
+              ),
+              onSelected: (_) {
+                setState(() => _selectedParent = parent);
+              },
             );
-          },
-        );
-      }).toList(),
+          }).toList(),
+        ),
+      ],
     );
   }
 
@@ -319,9 +351,9 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
       await ref.read(categoryRepositoryProvider).add(
             bookId: bookId,
             name: name,
-            type: widget.parent.type,
-            parentId: widget.parent.id,
-            colorValue: widget.parent.colorValue,
+            type: _selectedParent.type,
+            parentId: _selectedParent.id,
+            colorValue: _selectedParent.colorValue,
             iconKey: _textAsIcon ? kCategoryIconText : _selectedIconKey,
           );
       if (mounted) {
