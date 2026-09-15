@@ -6,6 +6,7 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_dimens.dart';
 import '../../../../../database/app_database.dart';
 import '../../../../../domain/enums.dart';
+import '../../providers/ledger_providers.dart';
 import '../../../../../shared/models/money.dart';
 import '../../../../../shared/widgets/attachment_viewer.dart';
 import '../../../../../shared/widgets/money_text.dart';
@@ -52,6 +53,24 @@ class TransactionTile extends ConsumerWidget {
     final List<String>? attachments =
         parseAttachmentUrls(transaction.attachmentUrls);
 
+    // 退款：展示其关联的原账单，让用户一眼看出「退的是哪笔」。
+    final String refundFromSuffix;
+    if (transaction.sourceModule == SourceModule.refund &&
+        transaction.relatedId != null) {
+      final Transaction? original =
+          ref.watch(transactionDetailProvider(transaction.relatedId!)).valueOrNull;
+      if (original != null) {
+        final String label = original.note != null && original.note!.isNotEmpty
+            ? original.note!
+            : (categories[original.categoryId]?.name ?? '原账单');
+        refundFromSuffix = ' · 来自：$label';
+      } else {
+        refundFromSuffix = '';
+      }
+    } else {
+      refundFromSuffix = '';
+    }
+
     return RepaintBoundary(
       child: ListTile(
         onTap: onTap,
@@ -66,7 +85,7 @@ class TransactionTile extends ConsumerWidget {
         title: Text(title, style: theme.textTheme.bodyLarge),
         subtitle: Text(
           '${DateFormat('MM-dd HH:mm').format(occurred)}'
-          '${_noteSuffix()}',
+          '${_noteSuffix()}$refundFromSuffix',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

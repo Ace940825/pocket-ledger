@@ -9,6 +9,7 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../providers/asset_stats_settings.dart';
+import '../../accounts/providers/accounts_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
@@ -28,6 +29,13 @@ class ReimbursementPage extends ConsumerWidget {
     final bool groupByMonth =
         ref.watch(assetStatsSettingsProvider).groupByMonthReimburse;
 
+    // 账户 ID -> 名称，用于列表项展示「报销账户 / 收款账户」。
+    final Map<String, String> accountNames = <String, String>{
+      for (final Account a in ref.watch(accountsProvider).valueOrNull ??
+          <Account>[])
+        a.id: a.name,
+    };
+
     return ModuleListScaffold<Reimbursement>(
       title: '报销',
       items: records,
@@ -43,7 +51,8 @@ class ReimbursementPage extends ConsumerWidget {
         title: Text(r.title),
         subtitle: Text(
           '${r.payer} 垫付 · ${Money.fromMinor(r.amountMinor).format()}'
-          '${r.target == null || r.target!.isEmpty ? '' : ' · 向 ${r.target}'}',
+          '${r.target == null || r.target!.isEmpty ? '' : ' · 向 ${r.target}'}'
+          '${_accountSuffix(r, accountNames)}',
         ),
         trailing: PopupMenuButton<_MenuAction>(
           onSelected: (_MenuAction action) => _onMenu(context, ref, r, action),
@@ -77,6 +86,20 @@ class ReimbursementPage extends ConsumerWidget {
       return null;
     }
     return _MonthHeader(label: ledgerMonthLabel(item.occurredAt));
+  }
+
+  /// 列表副标题追加「报销账户 / 收款账户」名称（为空则该段不显示）。
+  static String _accountSuffix(
+    Reimbursement r,
+    Map<String, String> accountNames,
+  ) {
+    final String? from = r.accountId == null ? null : accountNames[r.accountId];
+    final String? to =
+        r.toAccountId == null ? null : accountNames[r.toAccountId];
+    final List<String> parts = <String>[];
+    if (from != null && from.isNotEmpty) parts.add('报销账户 $from');
+    if (to != null && to.isNotEmpty) parts.add('收款账户 $to');
+    return parts.isEmpty ? '' : ' · ${parts.join(' · ')}';
   }
 
   Future<void> _onMenu(
@@ -129,6 +152,12 @@ class ReimbursementPage extends ConsumerWidget {
             .toLocal()
         : DateTime.now();
     int? receivedAt = record?.receivedAt;
+    String? accountId = record?.accountId;
+    String? toAccountId = record?.toAccountId;
+
+    // 账户下拉选项（报销账户 / 收款账户）。
+    final List<Account> accounts =
+        ref.read(accountsProvider).valueOrNull ?? <Account>[];
 
     final bool? saved = await showDialog<bool>(
       context: context,
@@ -157,6 +186,34 @@ class ReimbursementPage extends ConsumerWidget {
                   decoration: const InputDecoration(
                     labelText: '报销方（公司 / 组织，可选）',
                   ),
+                ),
+                const FormGap(),
+                DropdownButtonFormField<String>(
+                  value: accountId,
+                  decoration: const InputDecoration(labelText: '报销账户'),
+                  hint: const Text('选择原始支出账户（可选）'),
+                  items: <DropdownMenuItem<String>>[
+                    for (final Account a in accounts)
+                      DropdownMenuItem<String>(
+                        value: a.id,
+                        child: Text(a.name),
+                      ),
+                  ],
+                  onChanged: (String? v) => setState(() => accountId = v),
+                ),
+                const FormGap(),
+                DropdownButtonFormField<String>(
+                  value: toAccountId,
+                  decoration: const InputDecoration(labelText: '收款账户'),
+                  hint: const Text('选择收到报销款的账户（可选）'),
+                  items: <DropdownMenuItem<String>>[
+                    for (final Account a in accounts)
+                      DropdownMenuItem<String>(
+                        value: a.id,
+                        child: Text(a.name),
+                      ),
+                  ],
+                  onChanged: (String? v) => setState(() => toAccountId = v),
                 ),
                 const FormGap(),
                 EnumDropdown<ReimbursementStatus>(
@@ -244,6 +301,8 @@ class ReimbursementPage extends ConsumerWidget {
           receivedAt: receivedAt,
           note: note.isEmpty ? null : note,
           excludeFromStats: excludeFromStats,
+          accountId: accountId,
+          toAccountId: toAccountId,
         );
       } else {
         await repo.update(
@@ -257,6 +316,8 @@ class ReimbursementPage extends ConsumerWidget {
           receivedAt: receivedAt,
           note: note.isEmpty ? null : note,
           excludeFromStats: excludeFromStats,
+          accountId: accountId,
+          toAccountId: toAccountId,
         );
       }
     } on AppFailure catch (e) {
