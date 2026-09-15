@@ -95,28 +95,30 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
                   AppDimens.spaceLg,
                   AppDimens.spaceLg,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    _buildIconPicker(theme, parentColor),
-                    const SizedBox(height: AppDimens.spaceXxl),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _saving ? null : _save,
-                        child: _saving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('保存'),
-                      ),
-                    ),
-                  ],
+                child: _buildIconPicker(theme, parentColor),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppDimens.spaceLg,
+                0,
+                AppDimens.spaceLg,
+                AppDimens.spaceLg,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('保存'),
                 ),
               ),
             ),
