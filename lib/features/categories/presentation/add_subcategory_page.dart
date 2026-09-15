@@ -208,7 +208,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
         crossAxisCount: 6,
         mainAxisSpacing: AppDimens.spaceSm,
         crossAxisSpacing: AppDimens.spaceSm,
-        childAspectRatio: 0.85,
+        childAspectRatio: 1,
       ),
       itemCount: categoryIconOptions.length,
       itemBuilder: (BuildContext context, int index) {
@@ -227,21 +227,8 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
                 color: selected ? color : AppColors.divider,
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Icon(option.icon, color: color),
-                const SizedBox(height: 4),
-                Text(
-                  option.label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 10,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+            child: Center(
+              child: Icon(option.icon, color: color),
             ),
           ),
         );
