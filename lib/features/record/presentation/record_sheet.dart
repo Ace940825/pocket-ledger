@@ -3344,46 +3344,44 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
             ),
             Row(
               children: <Widget>[
+                InkWell(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  onTap: () => Navigator.of(context).pop(widget.parent.id),
+                  child: CircleAvatar(
+                    backgroundColor: color.withOpacity(0.15),
+                    child: widget.parent.iconKey == kCategoryIconText &&
+                            widget.parent.name.isNotEmpty
+                        ? Text(
+                            widget.parent.name[0],
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                        : Icon(
+                            categoryIconData(widget.parent.iconKey),
+                            color: color,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: AppDimens.spaceSm),
                 Expanded(
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     onTap: () => Navigator.of(context).pop(widget.parent.id),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        CircleAvatar(
-                          backgroundColor: color.withOpacity(0.15),
-                          child: widget.parent.iconKey == kCategoryIconText &&
-                                  widget.parent.name.isNotEmpty
-                              ? Text(
-                                  widget.parent.name[0],
-                                  style: TextStyle(
-                                    color: color,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                )
-                              : Icon(
-                                  categoryIconData(widget.parent.iconKey),
-                                  color: color,
-                                ),
+                        Text(
+                          widget.parent.name,
+                          style: theme.textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(width: AppDimens.spaceSm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                widget.parent.name,
-                                style: theme.textTheme.titleMedium,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                '点击此处直接选择「${widget.parent.name}」',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            ],
+                        Text(
+                          '点击此处直接选择「${widget.parent.name}」',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
                           ),
                         ),
                       ],
