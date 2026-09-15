@@ -3262,6 +3262,77 @@ class _CategoryItem extends StatelessWidget {
   }
 }
 
+/// 宫格 / 列表横向切换按钮。
+class _ViewToggle extends StatelessWidget {
+  const _ViewToggle({
+    required this.listView,
+    required this.onChanged,
+  });
+
+  final bool listView;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+
+    Widget buildOption({
+      required bool value,
+      required IconData icon,
+      required String label,
+    }) {
+      final bool selected = listView == value;
+      return Material(
+        color: selected ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => onChanged(value),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  icon,
+                  size: 16,
+                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        buildOption(
+          value: false,
+          icon: Icons.grid_view_outlined,
+          label: '宫格',
+        ),
+        const SizedBox(width: AppDimens.spaceSm),
+        buildOption(
+          value: true,
+          icon: Icons.list_alt_outlined,
+          label: '列表',
+        ),
+      ],
+    );
+  }
+}
+
 /// 二级分类底部面板：仿小青账网格 + 列表切换 + 添加子分类入口。
 class _SubcategorySheet extends StatefulWidget {
   const _SubcategorySheet({
@@ -3378,26 +3449,9 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: <Widget>[
-                SizedBox(
-                  width: 160,
-                  child: SegmentedButton<bool>(
-                    segments: const <ButtonSegment<bool>>[
-                      ButtonSegment<bool>(
-                        value: false,
-                        icon: Icon(Icons.grid_view_outlined),
-                        label: Text('宫格'),
-                      ),
-                      ButtonSegment<bool>(
-                        value: true,
-                        icon: Icon(Icons.list_alt_outlined),
-                        label: Text('列表'),
-                      ),
-                    ],
-                    selected: <bool>{_listView},
-                    onSelectionChanged: (Set<bool> next) {
-                      setState(() => _listView = next.first);
-                    },
-                  ),
+                _ViewToggle(
+                  listView: _listView,
+                  onChanged: (bool value) => setState(() => _listView = value),
                 ),
               ],
             ),
