@@ -102,6 +102,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   // 借还
   LendDirection _lendDir = LendDirection.borrowIn;
   LendStatus _lendStatus = LendStatus.ongoing;
+
+  /// 还债 / 收债时选择的资金账户：现金收支落到这个账户，余额随之变化。
+  String? _repayAccountId;
   _LendActionType _lendAction = _LendActionType.borrow;
 
   // 借还利息 / 优惠输入。
@@ -403,9 +406,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   note: _noteController.text.trim(),
                 );
           } else if (_lendAction == _LendActionType.repay) {
-            // 还债 / 收债：冲销该对方名下未结清债务，不新增记录。
+            // 还债 / 收债：冲销该对方名下未结清债务，并把现金收支落到指定资金账户。
             if (counterparty.isEmpty) {
               _toast('请填写对方账户');
+              return;
+            }
+            if (_repayAccountId == null) {
+              _toast(
+                _lendDir == LendDirection.borrowIn
+                    ? '请选择还款账户'
+                    : '请选择收款账户',
+              );
               return;
             }
             await ref.read(lendRepositoryProvider).repay(
@@ -415,6 +426,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   amountMinor: minor,
                   occurredAt: occurredAt,
                   note: _noteController.text.trim(),
+                  accountId: _repayAccountId,
                 );
           } else {
             // 借入 / 借出：新建一笔未结清债务。
@@ -1317,7 +1329,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     final bool selected = _lendAction == action;
     const Color activeColor = AppColors.primary;
     return InkWell(
-      onTap: () => setState(() => _lendAction = action),
+      onTap: () => setState(() {
+            _lendAction = action;
+            _repayAccountId = null;
+          }),
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       child: SizedBox(
         width: 72,
@@ -1359,6 +1374,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     required String? value,
     required ValueChanged<String?> onChanged,
     required String placeholder,
+    bool autoFillCounterparty = true,
   }) {
     final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
     return accounts.when(
@@ -1377,7 +1393,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     onChanged: (String? v) {
                       onChanged(v);
                       // 选择借入/借出账户时，若对方未填写则自动填入账户名。
-                      if (label != '资产账户' &&
+                      if (autoFillCounterparty &&
+                          label != '资产账户' &&
                           _counterpartyController.text.trim().isEmpty &&
                           v != null) {
                         final Account? acc = list
@@ -1812,6 +1829,26 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                         ? '虚拟账户：如找小明借钱，小明就是此账户'
                         : '虚拟账户：如借给小明，小明就是此账户'),
               ),
+              if (isRepay) ...<Widget>[
+                const SizedBox(height: AppDimens.spaceMd),
+                _buildLendAccountCard(
+                  label: _lendDir == LendDirection.borrowIn
+                      ? '还款账户'
+                      : '收款账户',
+                  value: _repayAccountId,
+                  placeholder: _lendDir == LendDirection.borrowIn
+                      ? '选择还款账户（现金从此扣出）'
+                      : '选择收款账户（现金存入此账户）',
+                  onChanged: (String? v) => setState(() => _repayAccountId = v),
+                  autoFillCounterparty: false,
+                ),
+                const SizedBox(height: AppDimens.spaceSm),
+                _buildLendHintLine(
+                  _lendDir == LendDirection.borrowIn
+                      ? '还债：现金从该账户扣出，余额相应减少'
+                      : '收债：现金存入该账户，余额相应增加',
+                ),
+              ],
             ] else ...<Widget>[
               _buildLendAccountCard(
                 label: _lendDir == LendDirection.borrowIn

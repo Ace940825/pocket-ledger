@@ -1,22 +1,27 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:pocket_ledger/core/errors/failures.dart';
 import 'package:pocket_ledger/database/app_database.dart';
 import 'package:pocket_ledger/domain/enums.dart';
+import 'package:pocket_ledger/features/ledger/data/transaction_repository.dart';
 import 'package:pocket_ledger/features/lend/data/lend_repository.dart';
 
 /// [LendRepository.repay]（还债 / 收债）冲销行为的回归测试（真 SQLite，内存库）。
 ///
-/// 锁死核心不变量：**repay 不新增记录，只冲减该对方名下未结清债务的
-/// [LendRecords.repaidMinor]**，足量时转「已结清(settled)」；超额 / 无匹配均抛错。
+/// 锁死核心不变量：
+/// 1. **repay 不新增借还记录**，只冲减该对方名下未结清债务的
+///    [LendRecords.repaidMinor]，足量时转「已结清(settled)」；超额 / 无匹配均抛错；
+/// 2. 给定 [accountId] 时，repay 同时写一条真实现金流水，让账户余额随之变化，
+///    且与冲销处于同一事务（报错则两者都不落库）。
 void main() {
   late AppDatabase db;
   late LendRepository repo;
 
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
-    repo = LendRepository(db);
+    repo = LendRepository(db, TransactionRepository(db));
   });
 
   tearDown(() => db.close());
@@ -168,5 +173,94 @@ void main() {
     final LendRecord b = rs.firstWhere((LendRecord r) => r.counterparty == 'B');
     expect(a.repaidMinor, 400);
     expect(b.repaidMinor, 0, reason: 'B 的债务不应被 A 的还款冲销');
+  });
+
+  group('收债 / 还债 同时记现金流水并改动账户余额', () {
+    Future<String> addAccount(String id) async {
+      await db.accountsDao.insertAccount(
+        AccountsCompanion(
+          id: Value<String>(id),
+          bookId: const Value<String>('b1'),
+          name: Value<String>(id),
+          type: Value<AccountType>(AccountType.cash),
+          updatedAt: const Value<int>(0),
+        ),
+      );
+      return id;
+    }
+
+    Future<int> balanceOf(String id) async {
+      final Account? a = await db.accountsDao.getById(id);
+      return a?.balanceMinor ?? 0;
+    }
+
+    Future<List<Transaction>> txns() =>
+        db.transactionsDao.watchRecent(bookId: 'b1', limit: 100).first;
+
+    test('还债(借入) 写支出流水，账户余额减少', () async {
+      final String acc = await addAccount('acc-repay');
+      await addDebt(LendDirection.borrowIn, '小红', 500, 1000);
+
+      await repo.repay(
+        bookId: 'b1',
+        direction: LendDirection.borrowIn,
+        counterparty: '小红',
+        amountMinor: 500,
+        occurredAt: 2000,
+        accountId: acc,
+      );
+
+      expect(await balanceOf(acc), -500, reason: '还债=现金流出，余额 -500');
+      final List<Transaction> ts = await txns();
+      expect(ts, hasLength(1), reason: '应产生 1 条现金流水');
+      expect(ts.single.type, TxnType.expense, reason: '还债记支出');
+      expect(ts.single.accountId, acc);
+      expect(ts.single.amountMinor, 500);
+      expect(ts.single.sourceModule, SourceModule.lend);
+
+      // 借还记录仍被冲销，且不新增。
+      final List<LendRecord> rs = await all();
+      expect(rs.length, 1);
+      expect(rs.first.repaidMinor, 500);
+      expect(rs.first.status, LendStatus.settled);
+    });
+
+    test('收债(借出) 写收入流水，账户余额增加', () async {
+      final String acc = await addAccount('acc-collect');
+      await addDebt(LendDirection.lendOut, '小明', 800, 1000);
+
+      await repo.repay(
+        bookId: 'b1',
+        direction: LendDirection.lendOut,
+        counterparty: '小明',
+        amountMinor: 800,
+        occurredAt: 2000,
+        accountId: acc,
+      );
+
+      expect(await balanceOf(acc), 800, reason: '收债=现金流入，余额 +800');
+      final List<Transaction> ts = await txns();
+      expect(ts, hasLength(1));
+      expect(ts.single.type, TxnType.income, reason: '收债记收入');
+      expect(ts.single.accountId, acc);
+      expect(ts.single.amountMinor, 800);
+    });
+
+    test('找不到可冲销债务时抛错，且不产生任何现金流水 / 不动余额', () async {
+      final String acc = await addAccount('acc-no');
+      expect(
+        () => repo.repay(
+          bookId: 'b1',
+          direction: LendDirection.lendOut,
+          counterparty: '不存在',
+          amountMinor: 100,
+          occurredAt: 1,
+          accountId: acc,
+        ),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(await txns(), isEmpty, reason: '报错不应写入流水');
+      expect(await balanceOf(acc), 0, reason: '报错不应改动余额');
+    });
   });
 }

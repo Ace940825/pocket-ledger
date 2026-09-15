@@ -2,12 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../../features/ledger/providers/ledger_providers.dart';
 import '../../../providers/app_providers.dart';
 import '../data/lend_repository.dart';
 
 final Provider<LendRepository> lendRepositoryProvider =
     Provider<LendRepository>(
-  (Ref ref) => LendRepository(ref.watch(appDatabaseProvider)),
+  (Ref ref) => LendRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(transactionRepositoryProvider),
+  ),
 );
 
 final AutoDisposeStreamProvider<List<LendRecord>> lendListProvider =
