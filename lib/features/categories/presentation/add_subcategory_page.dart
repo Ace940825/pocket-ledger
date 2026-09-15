@@ -189,7 +189,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           const SizedBox(width: AppDimens.spaceSm),
           Expanded(
             child: Text(
-              '选择分类图标后，名称会自动填充，也可以手动修改分类名称。',
+              '分类名称需手动输入，选择图标后不会自动填充名称。',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AppColors.textTertiary,
               ),
@@ -215,12 +215,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
         final CategoryIconOption option = categoryIconOptions[index];
         final bool selected = option.key == _selectedIconKey;
         return InkWell(
-          onTap: () {
-            setState(() => _selectedIconKey = option.key);
-            if (_nameController.text.trim().isEmpty) {
-              _nameController.text = option.label;
-            }
-          },
+          onTap: () => setState(() => _selectedIconKey = option.key),
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           child: Container(
             decoration: BoxDecoration(
