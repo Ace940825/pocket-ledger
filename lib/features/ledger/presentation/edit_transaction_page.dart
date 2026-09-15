@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/config/env.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../domain/enums.dart';
+import '../../../../features/settings/providers/sync_settings_providers.dart';
 import '../../../../providers/app_providers.dart';
 import '../../../../shared/models/money.dart';
+import '../../../../shared/widgets/attachment_viewer.dart';
 import '../../../database/app_database.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../data/transaction_repository.dart';
@@ -52,6 +55,10 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
   bool _initialized = false;
   bool _saving = false;
 
+  /// 已有图片附件（兼容本机路径与云端 `/api/file/<key>` URL）。
+  /// 编辑页支持查看与删除，新增上传仍在「记一笔」完成。
+  List<String> _attachmentUrls = <String>[];
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -89,6 +96,8 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
           _noteController.text = txn.note ?? '';
           _feeMinor = txn.feeMinor;
           _discountMinor = txn.discountMinor;
+          _attachmentUrls = parseAttachmentUrls(txn.attachmentUrls) ??
+              <String>[];
         }
       });
 
@@ -195,6 +204,16 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
               decoration: const InputDecoration(labelText: '备注'),
               maxLines: 2,
             ),
+            if (_attachmentUrls.isNotEmpty) ...<Widget>[
+              const SizedBox(height: AppDimens.spaceMd),
+              _AttachmentSection(
+                urls: _attachmentUrls,
+                baseUrl: ref.watch(syncSettingsProvider).value?.baseUrl ??
+                    Env.syncBaseUrl,
+                onDeleted: (String url) =>
+                    setState(() => _attachmentUrls.remove(url)),
+              ),
+            ],
             const SizedBox(height: AppDimens.spaceXl),
             FilledButton(
               onPressed: _saving ? null : _save,
@@ -279,6 +298,8 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
           // 转账时保留原手续费 / 优惠，避免编辑后余额回滚出错。
           feeMinor: _type == TxnType.transfer ? _feeMinor : null,
           discountMinor: _type == TxnType.transfer ? _discountMinor : null,
+          // 附件（含删除后的最新列表）随编辑一并落库并触发同步。
+          attachmentUrls: _attachmentUrls,
         );
       } else {
         await repo.add(
@@ -436,6 +457,43 @@ class _CategoryPicker extends StatelessWidget {
       },
       loading: () => const LinearProgressIndicator(),
       error: (Object e, StackTrace? s) => Text('分类加载失败：$e'),
+    );
+  }
+}
+
+/// 编辑页的图片附件展示区：缩略图网格，可删除（新增上传在「记一笔」完成）。
+class _AttachmentSection extends StatelessWidget {
+  const _AttachmentSection({
+    required this.urls,
+    required this.baseUrl,
+    required this.onDeleted,
+  });
+
+  final List<String> urls;
+  final String baseUrl;
+  final ValueChanged<String> onDeleted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text('图片附件', style: TextStyle(fontWeight: FontWeight.w500)),
+        const SizedBox(height: AppDimens.spaceSm),
+        Wrap(
+          spacing: AppDimens.spaceSm,
+          runSpacing: AppDimens.spaceSm,
+          children: <Widget>[
+            for (final String url in urls)
+              AttachmentThumb(
+                url: url,
+                baseUrl: baseUrl,
+                showDelete: true,
+                onDeleted: () => onDeleted(url),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

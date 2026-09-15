@@ -7,6 +7,7 @@ import '../../../../../core/constants/app_dimens.dart';
 import '../../../../../database/app_database.dart';
 import '../../../../../domain/enums.dart';
 import '../../../../../shared/models/money.dart';
+import '../../../../../shared/widgets/attachment_viewer.dart';
 import '../../../../../shared/widgets/money_text.dart';
 import '../../../accounts/providers/accounts_providers.dart';
 
@@ -47,6 +48,10 @@ class TransactionTile extends ConsumerWidget {
       TxnType.transfer => transaction.amountMinor,
     };
 
+    // 有图片附件时在金额前显示一个回形针角标，点击进详情/编辑页即可查看原图。
+    final List<String>? attachments =
+        parseAttachmentUrls(transaction.attachmentUrls);
+
     return RepaintBoundary(
       child: ListTile(
         onTap: onTap,
@@ -65,15 +70,29 @@ class TransactionTile extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: transaction.type == TxnType.transfer
-            ? Text(
-                Money.fromMinor(transaction.amountMinor).format(),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.transfer,
-                  fontWeight: FontWeight.w600,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (attachments != null && attachments.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.only(right: AppDimens.spaceSm),
+                child: Icon(
+                  Icons.attach_file,
+                  size: 16,
+                  color: AppColors.textTertiary,
                 ),
-              )
-            : MoneyText(Money.fromMinor(signedMinor), signed: true),
+              ),
+            transaction.type == TxnType.transfer
+                ? Text(
+                    Money.fromMinor(transaction.amountMinor).format(),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppColors.transfer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                : MoneyText(Money.fromMinor(signedMinor), signed: true),
+          ],
+        ),
       ),
     );
   }

@@ -10,15 +10,19 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/config/env.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../../features/settings/providers/sync_settings_providers.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/attachment_viewer.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../sync/sync_adapter.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../lend/providers/lend_providers.dart';
@@ -310,6 +314,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
     setState(() => _saving = true);
     try {
+      String? savedId;
       switch (_tab) {
         case RecordTab.expense:
         case RecordTab.income:
@@ -317,7 +322,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             _toast('请选择账户');
             return;
           }
-          await ref.read(transactionRepositoryProvider).add(
+          savedId = await ref.read(transactionRepositoryProvider).add(
                 bookId: bookId,
                 type: _tab == RecordTab.expense
                     ? TxnType.expense
@@ -344,7 +349,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             _toast('转出与转入账户不能相同');
             return;
           }
-          await ref.read(transactionRepositoryProvider).transfer(
+          savedId = await ref.read(transactionRepositoryProvider).transfer(
                 bookId: bookId,
                 fromAccountId: _accountId!,
                 toAccountId: _toAccountId!,
@@ -390,7 +395,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               ? _refundOriginals.first.id
               : null;
 
-          await ref.read(transactionRepositoryProvider).add(
+          savedId = await ref.read(transactionRepositoryProvider).add(
                 bookId: bookId,
                 type: TxnType.income,
                 amountMinor: minor,
@@ -502,6 +507,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 _goalId!,
                 _saveDeposit ? minor : -minor,
               );
+      }
+
+      // 附件：写库成功后异步上传到云端，让其他设备也能查看原图。
+      // 不阻塞保存返回——上传失败会保留本机路径，本地仍可见，下次联网重试。
+      if (savedId != null && _attachmentPaths.isNotEmpty && mounted) {
+        _uploadAttachments(savedId);
       }
 
       if (!mounted) return;
@@ -2833,52 +2844,50 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   Widget _buildAttachmentThumb(String path) {
-    return Stack(
-      children: <Widget>[
-        InkWell(
-          onTap: () => _openImage(path),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-            child: Image.file(
-              File(path),
-              width: 72,
-              height: 72,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 72,
-                height: 72,
-                color: AppColors.surfaceLight,
-                child: const Icon(
-                  Icons.broken_image_outlined,
-                  color: AppColors.textTertiary,
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: -2,
-          top: -2,
-          child: InkWell(
-            onTap: () => setState(() => _attachmentPaths.remove(path)),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.cancel, size: 18, color: Colors.white),
-            ),
-          ),
-        ),
-      ],
+    return AttachmentThumb(
+      url: path,
+      baseUrl: _attachmentBaseUrl,
+      showDelete: true,
+      onDeleted: () => setState(() => _attachmentPaths.remove(path)),
     );
   }
 
-  void _openImage(String path) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => Dialog(child: Image.file(File(path))),
-    );
+  /// 当前同步端点（拼接相对附件地址用）。未配置时使用编译期默认值。
+  String get _attachmentBaseUrl =>
+      ref.watch(syncSettingsProvider).value?.baseUrl ?? Env.syncBaseUrl;
+
+  /// 把本笔流水的本地附件异步上传到云端 R2，并把返回的 `/api/file/<key>` URL
+  /// 写回流水（替换本机路径），使其他设备 pull 后即可查看原图。
+  ///
+  /// 使用稳定的 [remoteKey]（`$txnId_$index$ext`）保证幂等：重传同一笔会覆盖
+  /// 同一对象、URL 不变。离线或单张失败时保留本机路径，不阻断其余图片。
+  Future<void> _uploadAttachments(String txnId) async {
+    final SyncAdapter adapter = ref.read(syncAdapterProvider);
+    if (!await adapter.isAvailable()) return; // 离线：保留本机路径
+
+    final List<String> finalUrls = <String>[];
+    for (int i = 0; i < _attachmentPaths.length; i++) {
+      final String local = _attachmentPaths[i];
+      final String ext = p.extension(local).isNotEmpty
+          ? p.extension(local).toLowerCase()
+          : '.jpg';
+      final String key = '${txnId}_$i$ext';
+      try {
+        finalUrls.add(await adapter.uploadFile(local, remoteKey: key));
+      } catch (_) {
+        finalUrls.add(local); // 上传失败保留本机路径
+      }
+    }
+
+    if (!mounted) return;
+    final Transaction? txn =
+        await ref.read(transactionsDaoProvider).getById(txnId);
+    if (txn != null && mounted) {
+      await ref.read(transactionRepositoryProvider).updateTransaction(
+            original: txn,
+            attachmentUrls: finalUrls,
+          );
+    }
   }
 
   Future<void> _onAddTag() async {
