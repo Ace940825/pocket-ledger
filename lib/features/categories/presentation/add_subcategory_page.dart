@@ -54,8 +54,9 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final AsyncValue<List<Category>> categoriesAsync =
-        ref.watch(allCategoriesProvider);
+    final Color parentColor = _selectedParent.colorValue != null
+        ? Color(_selectedParent.colorValue!)
+        : AppColors.primary;
 
     return Scaffold(
       appBar: AppBar(
@@ -69,61 +70,59 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
         ],
       ),
       body: SafeArea(
-        child: categoriesAsync.when(
-          data: (List<Category> all) {
-            final Color parentColor = _selectedParent.colorValue != null
-                ? Color(_selectedParent.colorValue!)
-                : AppColors.primary;
-            final List<Category> parents = all
-                .where((Category c) =>
-                    c.parentId == null &&
-                    c.type == _selectedParent.type &&
-                    !c.deleted)
-                .toList(growable: false);
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(AppDimens.spaceLg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  _buildParentCard(theme, parentColor),
-                  const SizedBox(height: AppDimens.spaceLg),
-                  _buildNameField(theme),
-                  const SizedBox(height: AppDimens.spaceLg),
-                  _buildTextAsIconTile(theme),
-                  const SizedBox(height: AppDimens.spaceSm),
-                  _buildHint(theme),
-                  const SizedBox(height: AppDimens.spaceLg),
-                  _buildParentSelector(theme, parentColor, parents),
-                  const SizedBox(height: AppDimens.spaceLg),
-                  _buildIconPicker(theme, parentColor),
-                  const SizedBox(height: AppDimens.spaceXxl),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _saving ? null : _save,
-                      child: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('保存'),
-                    ),
-                  ),
-                ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppDimens.spaceLg,
+                AppDimens.spaceLg,
+                AppDimens.spaceLg,
+                0,
               ),
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (Object e, StackTrace? _) => Center(
-            child: Text(
-              '加载分类失败: $e',
-              style: Theme.of(context).textTheme.bodyMedium,
+              child: _buildParentCard(theme, parentColor),
             ),
-          ),
+            const SizedBox(height: AppDimens.spaceLg),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimens.spaceLg,
+                  0,
+                  AppDimens.spaceLg,
+                  AppDimens.spaceLg,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    _buildNameField(theme),
+                    const SizedBox(height: AppDimens.spaceLg),
+                    _buildTextAsIconTile(theme),
+                    const SizedBox(height: AppDimens.spaceSm),
+                    _buildHint(theme),
+                    const SizedBox(height: AppDimens.spaceLg),
+                    _buildIconPicker(theme, parentColor),
+                    const SizedBox(height: AppDimens.spaceXxl),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _saving ? null : _save,
+                        child: _saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('保存'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -176,7 +175,6 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
         labelText: '分类名称',
         border: OutlineInputBorder(),
       ),
-      autofocus: true,
       textInputAction: TextInputAction.done,
     );
   }
@@ -218,54 +216,6 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildParentSelector(
-    ThemeData theme,
-    Color color,
-    List<Category> parents,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          '切换一级分类',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: AppDimens.spaceMd),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: parents.map((Category parent) {
-              final bool selected = parent.id == _selectedParent.id;
-              return Padding(
-                padding: const EdgeInsets.only(right: AppDimens.spaceSm),
-                child: ChoiceChip(
-                  label: Text(parent.name),
-                  selected: selected,
-                  selectedColor: color.withOpacity(0.15),
-                  checkmarkColor: color,
-                  labelStyle: TextStyle(
-                    color: selected ? color : AppColors.textPrimary,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                  shape: StadiumBorder(
-                    side: BorderSide(
-                      color: selected ? color : AppColors.divider,
-                    ),
-                  ),
-                  onSelected: (_) {
-                    setState(() => _selectedParent = parent);
-                  },
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
     );
   }
 
