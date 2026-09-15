@@ -14,8 +14,7 @@ import '../providers/categories_providers.dart';
 
 /// 分类管理页：按小青账模板重构。
 ///
-/// - 顶部：返回、支出/收入 Tab、更多
-/// - 显示封存开关
+/// - 顶部：返回、支出/收入 Tab、更多（底部菜单）
 /// - 一级分类可展开查看子分类
 /// - 左侧圆角浅灰图标方块，中间名称，右侧三点菜单
 /// - 底部「添加分类」大按钮
@@ -45,7 +44,6 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             _buildHeader(context),
-            _buildArchivedToggle(context),
             Expanded(
               child: categories.when(
                 data: (List<Category> list) => _buildList(list),
@@ -92,24 +90,8 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
               ),
             ),
           ),
-          PopupMenuButton<String>(
-            onSelected: (String value) {
-              if (value == 'sort') {
-                _toast(context, '排序功能后续开放');
-              } else if (value == 'batch') {
-                _toast(context, '批量管理后续开放');
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'sort',
-                child: Text('分类排序'),
-              ),
-              const PopupMenuItem<String>(
-                value: 'batch',
-                child: Text('批量管理'),
-              ),
-            ],
+          GestureDetector(
+            onTap: () => _showMoreSheet(context),
             child: const Padding(
               padding: EdgeInsets.all(AppDimens.spaceMd),
               child: Text(
@@ -117,32 +99,6 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
                 style: TextStyle(fontSize: 15),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildArchivedToggle(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceMd,
-        AppDimens.spaceLg,
-        0,
-      ),
-      child: Row(
-        children: <Widget>[
-          Text(
-            '显示封存',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-          const Spacer(),
-          Switch(
-            value: _showArchived,
-            onChanged: (bool value) => setState(() => _showArchived = value),
           ),
         ],
       ),
@@ -389,6 +345,86 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showMoreSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppDimens.radiusLg),
+        ),
+      ),
+      builder: (BuildContext sheet) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSheetState) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.spaceSm,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    IconButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        '更多',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.archive_outlined),
+                title: const Text('显示封存分类'),
+                subtitle: const Text('在列表中同时展示封存分类'),
+                trailing: Switch(
+                  value: _showArchived,
+                  onChanged: (bool value) {
+                    setSheetState(() => _showArchived = value);
+                    setState(() => _showArchived = value);
+                  },
+                ),
+              ),
+              const Divider(height: 1, indent: 56),
+              ListTile(
+                leading: const Icon(Icons.sort_outlined),
+                title: const Text('分类排序'),
+                subtitle: const Text('为主分类排序'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _toast(context, '排序功能后续开放');
+                },
+              ),
+              const Divider(height: 1, indent: 56),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('常见问题'),
+                subtitle: const Text('查看疑惑解答'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _toast(context, '常见问题后续开放');
+                },
+              ),
+              const SizedBox(height: AppDimens.spaceMd),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
