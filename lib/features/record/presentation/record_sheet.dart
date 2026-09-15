@@ -3424,7 +3424,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
               Padding(
                 padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
                 child: Text(
-                  '暂无子分类，可选择上方「${widget.parent.name}」或点击下方「添加」新建',
+                  '暂无子分类，可选择上方「${widget.parent.name}」，或点击「添加」新建',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: AppColors.textTertiary,
                   ),
@@ -3453,6 +3453,12 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
       crossAxisSpacing: AppDimens.spaceSm,
       childAspectRatio: 0.88,
       children: <Widget>[
+        _CategoryItem(
+          label: '添加',
+          icon: Icons.add,
+          color: AppColors.textTertiary,
+          onTap: () => Navigator.of(context).pop('__add__'),
+        ),
         for (final Category child in widget.children)
           _CategoryItem(
             label: child.name,
@@ -3464,12 +3470,6 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
             selected: child.id == widget.selectedId,
             onTap: () => Navigator.of(context).pop(child.id),
           ),
-        _CategoryItem(
-          label: '添加',
-          icon: Icons.add,
-          color: AppColors.textTertiary,
-          onTap: () => Navigator.of(context).pop('__add__'),
-        ),
       ],
     );
   }
@@ -3479,7 +3479,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
       shrinkWrap: true,
       itemCount: widget.children.length + 1,
       itemBuilder: (BuildContext context, int index) {
-        if (index == widget.children.length) {
+        if (index == 0) {
           return ListTile(
             leading: CircleAvatar(
               backgroundColor: AppColors.textTertiary.withOpacity(0.15),
@@ -3489,7 +3489,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
             onTap: () => Navigator.of(context).pop('__add__'),
           );
         }
-        final Category child = widget.children[index];
+        final Category child = widget.children[index - 1];
         return ListTile(
           leading: CircleAvatar(
             backgroundColor: color.withOpacity(0.15),
