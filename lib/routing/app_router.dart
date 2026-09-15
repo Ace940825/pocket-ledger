@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../database/app_database.dart';
 import '../features/accounts/presentation/account_ledger_page.dart';
 import '../features/accounts/presentation/accounts_page.dart';
 import '../features/accounts/presentation/add_account_page.dart';
 import '../features/budget/presentation/budget_page.dart';
+import '../features/categories/presentation/add_subcategory_page.dart';
 import '../features/categories/presentation/category_manage_page.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/installment/presentation/installment_detail_page.dart';
@@ -38,6 +40,7 @@ abstract final class Routes {
 
   static const String more = '/more';
   static const String categories = '/categories';
+  static const String addSubcategory = '/categories/add-subcategory';
   static const String transfer = '/transfer';
   static const String lend = '/lend';
   static const String reimbursement = '/reimbursement';
@@ -133,6 +136,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: Routes.categories,
         builder: (_, __) => const CategoryManagePage(),
+      ),
+      GoRoute(
+        path: Routes.addSubcategory,
+        builder: (_, GoRouterState state) => AddSubcategoryPage(
+          parent: state.extra! as Category,
+        ),
       ),
       GoRoute(
         path: Routes.transfer,

@@ -21,6 +21,7 @@ class CategoryRepository {
     required String bookId,
     required String name,
     required CategoryType type,
+    String? parentId,
     int? colorValue,
     String? iconKey,
   }) {
@@ -38,6 +39,7 @@ class CategoryRepository {
           bookId: Value<String>(bookId),
           name: Value<String>(name.trim()),
           type: Value<CategoryType>(type),
+          parentId: Value<String?>(parentId),
           colorValue: Value<int?>(colorValue),
           iconKey: Value<String?>(iconKey),
           updatedAt: Value<int>(now),
@@ -53,6 +55,7 @@ class CategoryRepository {
           'bookId': bookId,
           'name': name.trim(),
           'type': type.index,
+          'parentId': parentId,
           'colorValue': colorValue,
           'iconKey': iconKey,
         },
@@ -68,6 +71,7 @@ class CategoryRepository {
     required String bookId,
     required String name,
     required CategoryType type,
+    String? parentId,
     int? colorValue,
     String? iconKey,
   }) {
@@ -84,6 +88,8 @@ class CategoryRepository {
           bookId: Value<String>(bookId),
           name: Value<String>(name.trim()),
           type: Value<CategoryType>(type),
+          parentId:
+              parentId == null ? const Value.absent() : Value<String?>(parentId),
           colorValue: Value<int?>(colorValue),
           iconKey: Value<String?>(iconKey),
           updatedAt: Value<int>(now),
@@ -99,6 +105,7 @@ class CategoryRepository {
           'bookId': bookId,
           'name': name.trim(),
           'type': type.index,
+          if (parentId != null) 'parentId': parentId,
           'colorValue': colorValue,
           'iconKey': iconKey,
         },

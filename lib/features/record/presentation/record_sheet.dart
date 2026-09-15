@@ -22,6 +22,7 @@ import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/attachment_viewer.dart';
 import '../../../shared/widgets/calculator_sheet.dart';
+import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../sync/sync_adapter.dart';
@@ -2573,7 +2574,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         final int colorIndex = index % AppColors.chartPalette.length;
         return _CategoryItem(
           label: cat.name,
-          icon: _categoryIcon(cat.iconKey),
+          icon: categoryIconData(cat.iconKey),
+          textIcon: cat.iconKey == kCategoryIconText && cat.name.isNotEmpty
+              ? cat.name[0]
+              : null,
           color: cat.colorValue != null
               ? Color(cat.colorValue!)
               : AppColors.chartPalette[colorIndex],
@@ -2582,29 +2586,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         );
       },
     );
-  }
-
-  IconData _categoryIcon(String? iconKey) {
-    if (iconKey == null || iconKey.isEmpty) {
-      return Icons.category_outlined;
-    }
-    // 简单映射：小青账默认图标用 Material 图标兜底。
-    return switch (iconKey) {
-      'restaurant' => Icons.restaurant_outlined,
-      'shopping' => Icons.shopping_bag_outlined,
-      'transport' => Icons.directions_bus_outlined,
-      'home' => Icons.home_outlined,
-      'daily' => Icons.local_convenience_store_outlined,
-      'heart' => Icons.favorite_outline,
-      'entertainment' => Icons.movie_outlined,
-      'travel' => Icons.flight_outlined,
-      'medical' => Icons.local_hospital_outlined,
-      'member' => Icons.card_membership_outlined,
-      'salary' => Icons.payments_outlined,
-      'bonus' => Icons.card_giftcard_outlined,
-      'investment' => Icons.trending_up_outlined,
-      _ => Icons.category_outlined,
-    };
   }
 
   void _onCategoryTap(Category parent, List<Category> all) {
@@ -2633,7 +2614,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
     if (selected == null || !mounted) return;
     if (selected == '__add__') {
-      _toast('分类管理功能开发中');
+      await context.push(
+        '/categories/add-subcategory',
+        extra: parent,
+      );
       return;
     }
     setState(() => _categoryId = selected);
@@ -3226,12 +3210,16 @@ class _CategoryItem extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onTap,
+    this.textIcon,
+    this.selected = false,
     this.onMore,
   });
 
   final String label;
   final IconData icon;
+  final String? textIcon;
   final Color color;
+  final bool selected;
   final VoidCallback onTap;
   final VoidCallback? onMore;
 
@@ -3244,6 +3232,9 @@ class _CategoryItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          border: selected
+              ? Border.all(color: color, width: 2)
+              : Border.all(color: Colors.transparent),
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -3253,7 +3244,16 @@ class _CategoryItem extends StatelessWidget {
               children: <Widget>[
                 CircleAvatar(
                   backgroundColor: color.withOpacity(0.2),
-                  child: Icon(icon, color: color, size: 24),
+                  child: textIcon != null && textIcon!.isNotEmpty
+                      ? Text(
+                          textIcon![0],
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : Icon(icon, color: color, size: 24),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -3292,8 +3292,8 @@ class _CategoryItem extends StatelessWidget {
   }
 }
 
-/// 二级分类底部面板。
-class _SubcategorySheet extends StatelessWidget {
+/// 二级分类底部面板：仿小青账网格 + 列表切换 + 添加子分类入口。
+class _SubcategorySheet extends StatefulWidget {
   const _SubcategorySheet({
     required this.parent,
     required this.children,
@@ -3305,47 +3305,171 @@ class _SubcategorySheet extends StatelessWidget {
   final String? selectedId;
 
   @override
+  State<_SubcategorySheet> createState() => _SubcategorySheetState();
+}
+
+class _SubcategorySheetState extends State<_SubcategorySheet> {
+  bool _listView = false;
+
+  Color get _parentColor =>
+      widget.parent.colorValue != null
+          ? Color(widget.parent.colorValue!)
+          : AppColors.primary;
+
+  @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final Color color = _parentColor;
+
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.fromLTRB(
+          AppDimens.spaceLg,
+          AppDimens.spaceSm,
+          AppDimens.spaceLg,
+          AppDimens.spaceLg,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(parent.name, style: theme.textTheme.titleMedium),
-            const SizedBox(height: AppDimens.spaceMd),
-            Wrap(
-              spacing: AppDimens.spaceSm,
-              runSpacing: AppDimens.spaceSm,
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppDimens.spaceMd),
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
               children: <Widget>[
-                for (final Category child in children)
-                  ChoiceChip(
-                    label: Text(child.name),
-                    selected: child.id == selectedId,
-                    onSelected: (_) => Navigator.of(context).pop(child.id),
+                CircleAvatar(
+                  backgroundColor: color.withOpacity(0.15),
+                  child: widget.parent.iconKey == kCategoryIconText &&
+                          widget.parent.name.isNotEmpty
+                      ? Text(
+                          widget.parent.name[0],
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : Icon(
+                          categoryIconData(widget.parent.iconKey),
+                          color: color,
+                        ),
+                ),
+                const SizedBox(width: AppDimens.spaceSm),
+                Expanded(
+                  child: Text(
+                    widget.parent.name,
+                    style: theme.textTheme.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ),
+                SegmentedButton<bool>(
+                  segments: const <ButtonSegment<bool>>[
+                    ButtonSegment<bool>(
+                      value: false,
+                      icon: Icon(Icons.grid_view_outlined),
+                      label: Text('宫格'),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      icon: Icon(Icons.list_alt_outlined),
+                      label: Text('列表'),
+                    ),
+                  ],
+                  selected: <bool>{_listView},
+                  onSelectionChanged: (Set<bool> next) {
+                    setState(() => _listView = next.first);
+                  },
+                ),
+                const SizedBox(width: AppDimens.spaceSm),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop('__add__'),
+                  child: const Text('添加'),
+                ),
               ],
             ),
             const SizedBox(height: AppDimens.spaceMd),
-            Row(
-              children: <Widget>[
-                TextButton.icon(
-                  onPressed: () => Navigator.of(context).pop('__add__'),
-                  icon: const Icon(Icons.add),
-                  label: const Text('添加'),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('取消'),
-                ),
-              ],
+            Flexible(
+              child: _listView
+                  ? _buildList(theme, color)
+                  : _buildGrid(theme, color),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildGrid(ThemeData theme, Color color) {
+    return GridView.count(
+      shrinkWrap: true,
+      crossAxisCount: 5,
+      mainAxisSpacing: AppDimens.spaceSm,
+      crossAxisSpacing: AppDimens.spaceSm,
+      childAspectRatio: 0.88,
+      children: <Widget>[
+        for (final Category child in widget.children)
+          _CategoryItem(
+            label: child.name,
+            icon: categoryIconData(child.iconKey),
+            textIcon: child.iconKey == kCategoryIconText && child.name.isNotEmpty
+                ? child.name[0]
+                : null,
+            color: color,
+            selected: child.id == widget.selectedId,
+            onTap: () => Navigator.of(context).pop(child.id),
+          ),
+        _CategoryItem(
+          label: '添加',
+          icon: Icons.add,
+          color: AppColors.textTertiary,
+          onTap: () => Navigator.of(context).pop('__add__'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildList(ThemeData theme, Color color) {
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: widget.children.length + 1,
+      itemBuilder: (BuildContext context, int index) {
+        if (index == widget.children.length) {
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundColor: AppColors.textTertiary.withOpacity(0.15),
+              child: const Icon(Icons.add, color: AppColors.textTertiary),
+            ),
+            title: const Text('添加子分类'),
+            onTap: () => Navigator.of(context).pop('__add__'),
+          );
+        }
+        final Category child = widget.children[index];
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundColor: color.withOpacity(0.15),
+            child: child.iconKey == kCategoryIconText && child.name.isNotEmpty
+                ? Text(
+                    child.name[0],
+                    style: TextStyle(color: color, fontWeight: FontWeight.w600),
+                  )
+                : Icon(categoryIconData(child.iconKey), color: color),
+          ),
+          title: Text(child.name),
+          trailing: child.id == widget.selectedId
+              ? Icon(Icons.check, color: theme.colorScheme.primary)
+              : null,
+          onTap: () => Navigator.of(context).pop(child.id),
+        );
+      },
     );
   }
 }
