@@ -2603,7 +2603,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   ) async {
     final String? selected = await showModalBottomSheet<String>(
       context: context,
-      isScrollControlled: true,
+      isScrollControlled: false,
       builder: (BuildContext ctx) => _SubcategorySheet(
         parent: parent,
         children: children,
