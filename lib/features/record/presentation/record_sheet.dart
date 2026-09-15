@@ -2582,7 +2582,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               ? Color(cat.colorValue!)
               : AppColors.chartPalette[colorIndex],
           onTap: () => _onCategoryTap(cat, categories),
-          onMore: () => _onCategoryMore(cat),
         );
       },
     );
@@ -2619,10 +2618,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       return;
     }
     setState(() => _categoryId = selected);
-  }
-
-  void _onCategoryMore(Category category) {
-    // 暂不提供分类管理菜单；后续可扩展为「编辑 / 删除 / 添加子分类」。
   }
 
   Widget _buildFunctionBar() {
@@ -3201,7 +3196,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 }
 
-/// 分类网格项：图标 + 名称 + 右上角「更多」入口。
+/// 分类网格项：图标 + 名称。
 class _CategoryItem extends StatelessWidget {
   const _CategoryItem({
     required this.label,
@@ -3210,7 +3205,6 @@ class _CategoryItem extends StatelessWidget {
     required this.onTap,
     this.textIcon,
     this.selected = false,
-    this.onMore,
   });
 
   final String label;
@@ -3219,7 +3213,6 @@ class _CategoryItem extends StatelessWidget {
   final Color color;
   final bool selected;
   final VoidCallback onTap;
-  final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) {
@@ -3262,27 +3255,6 @@ class _CategoryItem extends StatelessWidget {
                 ),
               ],
             ),
-            if (onMore != null)
-              Positioned(
-                top: 2,
-                right: 2,
-                child: InkWell(
-                  onTap: onMore,
-                  customBorder: const CircleBorder(),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.25),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.more_horiz,
-                      size: 12,
-                      color: color,
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
