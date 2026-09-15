@@ -3319,11 +3319,9 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
     final ThemeData theme = Theme.of(context);
     final Color color = _parentColor;
 
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width,
-        ),
+    return SizedBox(
+      width: MediaQuery.sizeOf(context).width,
+      child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             AppDimens.spaceLg,
@@ -3335,7 +3333,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-            Center(
+              Center(
               child: Container(
                 width: 40,
                 height: 4,
@@ -3437,7 +3435,10 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                   ),
                 ),
               ),
-            Flexible(
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.35,
+              ),
               child: _listView
                   ? _buildList(theme, color)
                   : _buildGrid(theme, color),
