@@ -402,7 +402,22 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   occurredAt: occurredAt,
                   note: _noteController.text.trim(),
                 );
+          } else if (_lendAction == _LendActionType.repay) {
+            // 还债 / 收债：冲销该对方名下未结清债务，不新增记录。
+            if (counterparty.isEmpty) {
+              _toast('请填写对方账户');
+              return;
+            }
+            await ref.read(lendRepositoryProvider).repay(
+                  bookId: bookId,
+                  direction: _lendDir,
+                  counterparty: counterparty,
+                  amountMinor: minor,
+                  occurredAt: occurredAt,
+                  note: _noteController.text.trim(),
+                );
           } else {
+            // 借入 / 借出：新建一笔未结清债务。
             if (counterparty.isEmpty && _accountId == null) {
               _toast('请选择或填写对方账户');
               return;
@@ -1775,6 +1790,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       case RecordTab.lend:
         final bool isDebtReduction =
             _lendAction == _LendActionType.debtReduction;
+        final bool isRepay = _lendAction == _LendActionType.repay;
+        // 减免 / 还款都按「对方账户」冲销未结清债务，不需要资产账户卡片。
+        final bool usesCounterparty = isDebtReduction || isRepay;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1782,13 +1800,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             const SizedBox(height: AppDimens.spaceLg),
             _buildLendActionGrid(),
             const SizedBox(height: AppDimens.spaceLg),
-            if (isDebtReduction) ...<Widget>[
+            if (usesCounterparty) ...<Widget>[
               _buildLendCounterpartyField(),
               const SizedBox(height: AppDimens.spaceSm),
               _buildLendHintLine(
-                _lendDir == LendDirection.borrowIn
-                    ? '虚拟账户：如找小明借钱，小明就是此账户'
-                    : '虚拟账户：如借给小明，小明就是此账户',
+                isRepay
+                    ? (_lendDir == LendDirection.borrowIn
+                        ? '输入欠款对象，将冲销其名下未结清借入债务（按发生时间从早到晚抵扣）'
+                        : '输入借款对象，将冲销其名下未结清借出债务（按发生时间从早到晚抵扣）')
+                    : (_lendDir == LendDirection.borrowIn
+                        ? '虚拟账户：如找小明借钱，小明就是此账户'
+                        : '虚拟账户：如借给小明，小明就是此账户'),
               ),
             ] else ...<Widget>[
               _buildLendAccountCard(
