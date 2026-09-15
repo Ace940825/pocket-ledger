@@ -45,7 +45,6 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             _buildHeader(context),
-            _buildTypeTabs(context),
             _buildArchivedToggle(context),
             Expanded(
               child: categories.when(
@@ -73,6 +72,18 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           ),
+          const SizedBox(width: AppDimens.spaceSm),
+          _TypeTab(
+            label: '支出分类',
+            selected: _type == CategoryType.expense,
+            onTap: () => setState(() => _type = CategoryType.expense),
+          ),
+          const SizedBox(width: AppDimens.spaceXl),
+          _TypeTab(
+            label: '收入分类',
+            selected: _type == CategoryType.income,
+            onTap: () => setState(() => _type = CategoryType.income),
+          ),
           const Spacer(),
           PopupMenuButton<String>(
             onSelected: (String value) {
@@ -99,27 +110,6 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
                 style: TextStyle(fontSize: 15),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypeTabs(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
-      child: Row(
-        children: <Widget>[
-          _TypeTab(
-            label: '支出分类',
-            selected: _type == CategoryType.expense,
-            onTap: () => setState(() => _type = CategoryType.expense),
-          ),
-          const SizedBox(width: AppDimens.spaceXl),
-          _TypeTab(
-            label: '收入分类',
-            selected: _type == CategoryType.income,
-            onTap: () => setState(() => _type = CategoryType.income),
           ),
         ],
       ),
