@@ -83,6 +83,21 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
               child: _buildParentCard(theme, parentColor),
             ),
             const SizedBox(height: AppDimens.spaceLg),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+              child: _buildNameField(theme),
+            ),
+            const SizedBox(height: AppDimens.spaceLg),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+              child: _buildTextAsIconTile(theme),
+            ),
+            const SizedBox(height: AppDimens.spaceSm),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+              child: _buildHint(theme),
+            ),
+            const SizedBox(height: AppDimens.spaceLg),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(
@@ -94,12 +109,6 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    _buildNameField(theme),
-                    const SizedBox(height: AppDimens.spaceLg),
-                    _buildTextAsIconTile(theme),
-                    const SizedBox(height: AppDimens.spaceSm),
-                    _buildHint(theme),
-                    const SizedBox(height: AppDimens.spaceLg),
                     _buildIconPicker(theme, parentColor),
                     const SizedBox(height: AppDimens.spaceXxl),
                     SizedBox(
