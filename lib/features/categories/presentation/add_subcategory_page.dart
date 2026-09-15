@@ -26,7 +26,6 @@ class AddSubcategoryPage extends ConsumerStatefulWidget {
 class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
   final TextEditingController _nameController = TextEditingController();
   String? _selectedIconKey;
-  bool _textAsIcon = false;
   bool _saving = false;
   late Category _selectedParent;
 
@@ -35,18 +34,10 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
     super.initState();
     _selectedParent = widget.parent;
     _selectedIconKey = categoryIconOptions.first.key;
-    _nameController.addListener(_onNameChanged);
-  }
-
-  void _onNameChanged() {
-    if (mounted && _textAsIcon) {
-      setState(() {});
-    }
   }
 
   @override
   void dispose() {
-    _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     super.dispose();
   }
@@ -91,11 +82,6 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
               child: _buildNameField(theme),
             ),
             const SizedBox(height: AppDimens.spaceLg),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
-              child: _buildTextAsIconTile(theme),
-            ),
-            const SizedBox(height: AppDimens.spaceSm),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
               child: _buildHint(theme),
@@ -160,16 +146,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           const Spacer(),
           CircleAvatar(
             backgroundColor: color.withOpacity(0.15),
-            child: _selectedParent.iconKey == kCategoryIconText &&
-                    _selectedParent.name.isNotEmpty
-                ? Text(
-                    _selectedParent.name[0],
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                : Icon(categoryIconData(_selectedParent.iconKey), color: color),
+            child: Icon(categoryIconData(_selectedParent.iconKey), color: color),
           ),
           const SizedBox(width: AppDimens.spaceSm),
           Text(
@@ -192,16 +169,6 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
     );
   }
 
-  Widget _buildTextAsIconTile(ThemeData theme) {
-    return SwitchListTile(
-      value: _textAsIcon,
-      onChanged: (bool v) => setState(() => _textAsIcon = v),
-      title: const Text('文字作为图标'),
-      subtitle: const Text('开启后会将分类名称的首字作为图标'),
-      contentPadding: EdgeInsets.zero,
-    );
-  }
-
   Widget _buildHint(ThemeData theme) {
     return Container(
       padding: const EdgeInsets.all(AppDimens.spaceMd),
@@ -220,7 +187,6 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           const SizedBox(width: AppDimens.spaceSm),
           Expanded(
             child: Text(
-              '可以用 emoji 开头，图标自动为 emoji 图标。\n'
               '选择分类图标后，名称会自动填充，也可以手动修改分类名称。',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AppColors.textTertiary,
@@ -233,25 +199,6 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
   }
 
   Widget _buildIconPicker(ThemeData theme, Color color) {
-    if (_textAsIcon) {
-      return Center(
-        child: CircleAvatar(
-          radius: 36,
-          backgroundColor: color.withOpacity(0.15),
-          child: Text(
-            _nameController.text.isNotEmpty
-                ? _nameController.text[0]
-                : '字',
-            style: TextStyle(
-              color: color,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      );
-    }
-
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -321,7 +268,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
             type: _selectedParent.type,
             parentId: _selectedParent.id,
             colorValue: _selectedParent.colorValue,
-            iconKey: _textAsIcon ? kCategoryIconText : _selectedIconKey,
+            iconKey: _selectedIconKey,
           );
       if (mounted) {
         context.pop();

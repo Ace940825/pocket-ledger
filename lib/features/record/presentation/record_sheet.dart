@@ -2575,9 +2575,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         return _CategoryItem(
           label: cat.name,
           icon: categoryIconData(cat.iconKey),
-          textIcon: cat.iconKey == kCategoryIconText && cat.name.isNotEmpty
-              ? cat.name[0]
-              : null,
           color: cat.colorValue != null
               ? Color(cat.colorValue!)
               : AppColors.chartPalette[colorIndex],
@@ -3203,13 +3200,11 @@ class _CategoryItem extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onTap,
-    this.textIcon,
     this.selected = false,
   });
 
   final String label;
   final IconData icon;
-  final String? textIcon;
   final Color color;
   final bool selected;
   final VoidCallback onTap;
@@ -3235,16 +3230,7 @@ class _CategoryItem extends StatelessWidget {
               children: <Widget>[
                 CircleAvatar(
                   backgroundColor: color.withOpacity(0.2),
-                  child: textIcon != null && textIcon!.isNotEmpty
-                      ? Text(
-                          textIcon![0],
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        )
-                      : Icon(icon, color: color, size: 24),
+                  child: Icon(icon, color: color, size: 24),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -3394,19 +3380,10 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                   onTap: () => Navigator.of(context).pop(widget.parent.id),
                   child: CircleAvatar(
                     backgroundColor: color.withOpacity(0.15),
-                    child: widget.parent.iconKey == kCategoryIconText &&
-                            widget.parent.name.isNotEmpty
-                        ? Text(
-                            widget.parent.name[0],
-                            style: TextStyle(
-                              color: color,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        : Icon(
-                            categoryIconData(widget.parent.iconKey),
-                            color: color,
-                          ),
+                  child: Icon(
+                    categoryIconData(widget.parent.iconKey),
+                    color: color,
+                  ),
                   ),
                 ),
                 const SizedBox(width: AppDimens.spaceSm),
@@ -3493,9 +3470,6 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
           _CategoryItem(
             label: child.name,
             icon: categoryIconData(child.iconKey),
-            textIcon: child.iconKey == kCategoryIconText && child.name.isNotEmpty
-                ? child.name[0]
-                : null,
             color: color,
             selected: child.id == widget.selectedId,
             onTap: () => Navigator.of(context).pop(child.id),
@@ -3513,12 +3487,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
         return ListTile(
           leading: CircleAvatar(
             backgroundColor: color.withOpacity(0.15),
-            child: child.iconKey == kCategoryIconText && child.name.isNotEmpty
-                ? Text(
-                    child.name[0],
-                    style: TextStyle(color: color, fontWeight: FontWeight.w600),
-                  )
-                : Icon(categoryIconData(child.iconKey), color: color),
+            child: Icon(categoryIconData(child.iconKey), color: color),
           ),
           title: Text(child.name),
           trailing: child.id == widget.selectedId
