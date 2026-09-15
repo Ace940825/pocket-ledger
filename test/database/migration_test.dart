@@ -41,15 +41,19 @@ void main() {
     db.dispose();
   }
 
-  List<String> reimbursementColumns() {
+  List<String> columnsOf(String table) {
     final raw.Database db = raw.sqlite3.open(dbPath());
     final List<String> names = db
-        .select('PRAGMA table_info(reimbursements)')
+        .select('PRAGMA table_info($table)')
         .map((raw.Row r) => r['name'] as String)
         .toList();
     db.dispose();
     return names;
   }
+
+  List<String> reimbursementColumns() => columnsOf('reimbursements');
+
+  List<String> transactionColumns() => columnsOf('transactions');
 
   int userVersion() {
     final raw.Database db = raw.sqlite3.open(dbPath());
@@ -103,23 +107,35 @@ void main() {
     expect(indexCount(), before);
   });
 
-  test('真正的 v1 库（缺列）升级时仍会补上该列', () async {
+  test('v6 库缺 transactions 三列时升级到 v7 会补上', () async {
     await createCurrentSchema();
 
-    // 用 SQLite 3.35+ 的 DROP COLUMN 把库退回「v1 语义」。
+    // 模拟已发布 v6 库：transactions 表已有 v7 三列，但 user_version 仍是 6。
     final raw.Database rawDb = raw.sqlite3.open(dbPath());
-    rawDb.execute('ALTER TABLE reimbursements DROP COLUMN exclude_from_stats');
-    rawDb.execute('PRAGMA user_version = 1');
+    rawDb.execute(
+      'ALTER TABLE transactions DROP COLUMN exclude_from_stats',
+    );
+    rawDb.execute(
+      'ALTER TABLE transactions DROP COLUMN exclude_from_budget',
+    );
+    rawDb.execute(
+      'ALTER TABLE transactions DROP COLUMN is_reimbursable',
+    );
+    rawDb.execute('PRAGMA user_version = 6');
     rawDb.dispose();
 
-    expect(reimbursementColumns(), isNot(contains('exclude_from_stats')));
+    expect(transactionColumns(), isNot(contains('exclude_from_stats')));
+    expect(transactionColumns(), isNot(contains('exclude_from_budget')));
+    expect(transactionColumns(), isNot(contains('is_reimbursable')));
 
     final AppDatabase db = AppDatabase(NativeDatabase(File(dbPath())));
     await db.booksDao.watchAll().first;
     await db.close();
 
-    expect(reimbursementColumns(), contains('exclude_from_stats'));
-    expect(userVersion(), 5);
+    expect(transactionColumns(), contains('exclude_from_stats'));
+    expect(transactionColumns(), contains('exclude_from_budget'));
+    expect(transactionColumns(), contains('is_reimbursable'));
+    expect(userVersion(), 7);
   });
 
   test('新建库（user_version=0）走 onCreate，不应触发迁移', () async {
@@ -127,7 +143,10 @@ void main() {
     await db.booksDao.watchAll().first;
     await db.close();
 
-    expect(userVersion(), 5);
+    expect(userVersion(), 7);
     expect(reimbursementColumns(), contains('exclude_from_stats'));
+    expect(transactionColumns(), contains('exclude_from_stats'));
+    expect(transactionColumns(), contains('exclude_from_budget'));
+    expect(transactionColumns(), contains('is_reimbursable'));
   });
 }
