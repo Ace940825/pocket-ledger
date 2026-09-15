@@ -2592,10 +2592,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     final List<Category> children = all
         .where((Category c) => c.parentId == parent.id)
         .toList(growable: false);
-    if (children.isEmpty) {
-      setState(() => _categoryId = parent.id);
-      return;
-    }
+    // 小青账交互：点任意父分类都弹出二级菜单（即使暂无子分类，
+    // 也给出「添加」入口，并能直接选中父分类记账）。
     _showSubcategorySheet(parent, children);
   }
 
@@ -3346,29 +3344,50 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
             ),
             Row(
               children: <Widget>[
-                CircleAvatar(
-                  backgroundColor: color.withOpacity(0.15),
-                  child: widget.parent.iconKey == kCategoryIconText &&
-                          widget.parent.name.isNotEmpty
-                      ? Text(
-                          widget.parent.name[0],
-                          style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        )
-                      : Icon(
-                          categoryIconData(widget.parent.iconKey),
-                          color: color,
-                        ),
-                ),
-                const SizedBox(width: AppDimens.spaceSm),
                 Expanded(
-                  child: Text(
-                    widget.parent.name,
-                    style: theme.textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                    onTap: () => Navigator.of(context).pop(widget.parent.id),
+                    child: Row(
+                      children: <Widget>[
+                        CircleAvatar(
+                          backgroundColor: color.withOpacity(0.15),
+                          child: widget.parent.iconKey == kCategoryIconText &&
+                                  widget.parent.name.isNotEmpty
+                              ? Text(
+                                  widget.parent.name[0],
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                )
+                              : Icon(
+                                  categoryIconData(widget.parent.iconKey),
+                                  color: color,
+                                ),
+                        ),
+                        const SizedBox(width: AppDimens.spaceSm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                widget.parent.name,
+                                style: theme.textTheme.titleMedium,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '点击此处直接选择「${widget.parent.name}」',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 SegmentedButton<bool>(
@@ -3397,6 +3416,16 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
               ],
             ),
             const SizedBox(height: AppDimens.spaceMd),
+            if (widget.children.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
+                child: Text(
+                  '暂无子分类，可选择上方「${widget.parent.name}」或点「添加」新建',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ),
             Flexible(
               child: _listView
                   ? _buildList(theme, color)
