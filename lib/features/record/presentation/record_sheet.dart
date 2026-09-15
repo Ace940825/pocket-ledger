@@ -2698,11 +2698,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         icon: Icons.bookmark_border_outlined,
         onTap: _onSaveTemplate,
       ),
-      _FunctionItem(
-        label: '计算器',
-        icon: Icons.calculate_outlined,
-        onTap: _openCalculator,
-      ),
     ];
 
     return SizedBox(
