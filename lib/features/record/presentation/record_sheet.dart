@@ -3390,16 +3390,6 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                     ),
                   ),
                 ),
-                const SizedBox(width: AppDimens.spaceSm),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: () => Navigator.of(context).pop('__add__'),
-                  child: const Text('添加'),
-                ),
               ],
             ),
             const SizedBox(height: AppDimens.spaceMd),
@@ -3434,7 +3424,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
               Padding(
                 padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
                 child: Text(
-                  '暂无子分类，可选择上方「${widget.parent.name}」或点「添加」新建',
+                  '暂无子分类，可选择上方「${widget.parent.name}」或点击下方「添加」新建',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: AppColors.textTertiary,
                   ),
