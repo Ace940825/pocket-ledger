@@ -3320,17 +3320,21 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
     final Color color = _parentColor;
 
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppDimens.spaceLg,
-          AppDimens.spaceSm,
-          AppDimens.spaceLg,
-          AppDimens.spaceLg,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppDimens.spaceLg,
+            AppDimens.spaceSm,
+            AppDimens.spaceLg,
+            AppDimens.spaceLg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
             Center(
               child: Container(
                 width: 40,
@@ -3441,7 +3445,8 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildGrid(ThemeData theme, Color color) {
