@@ -9392,6 +9392,626 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
   }
 }
 
+class $RecordTemplatesTable extends RecordTemplates
+    with TableInfo<$RecordTemplatesTable, RecordTemplate> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecordTemplatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+      'book_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tabIndexMeta =
+      const VerificationMeta('tabIndex');
+  @override
+  late final GeneratedColumn<int> tabIndex = GeneratedColumn<int>(
+      'tab_index', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _accountIdMeta =
+      const VerificationMeta('accountId');
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+      'account_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _categoryIdMeta =
+      const VerificationMeta('categoryId');
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+      'category_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
+  @override
+  late final GeneratedColumn<String> tags = GeneratedColumn<String>(
+      'tags', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _excludeFromStatsMeta =
+      const VerificationMeta('excludeFromStats');
+  @override
+  late final GeneratedColumn<bool> excludeFromStats = GeneratedColumn<bool>(
+      'exclude_from_stats', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("exclude_from_stats" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _excludeFromBudgetMeta =
+      const VerificationMeta('excludeFromBudget');
+  @override
+  late final GeneratedColumn<bool> excludeFromBudget = GeneratedColumn<bool>(
+      'exclude_from_budget', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("exclude_from_budget" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isReimbursableMeta =
+      const VerificationMeta('isReimbursable');
+  @override
+  late final GeneratedColumn<bool> isReimbursable = GeneratedColumn<bool>(
+      'is_reimbursable', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_reimbursable" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        bookId,
+        name,
+        tabIndex,
+        accountId,
+        categoryId,
+        note,
+        tags,
+        excludeFromStats,
+        excludeFromBudget,
+        isReimbursable,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'record_templates';
+  @override
+  VerificationContext validateIntegrity(Insertable<RecordTemplate> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('book_id')) {
+      context.handle(_bookIdMeta,
+          bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta));
+    } else if (isInserting) {
+      context.missing(_bookIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('tab_index')) {
+      context.handle(_tabIndexMeta,
+          tabIndex.isAcceptableOrUnknown(data['tab_index']!, _tabIndexMeta));
+    } else if (isInserting) {
+      context.missing(_tabIndexMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(_accountIdMeta,
+          accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+          _categoryIdMeta,
+          categoryId.isAcceptableOrUnknown(
+              data['category_id']!, _categoryIdMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('tags')) {
+      context.handle(
+          _tagsMeta, tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta));
+    }
+    if (data.containsKey('exclude_from_stats')) {
+      context.handle(
+          _excludeFromStatsMeta,
+          excludeFromStats.isAcceptableOrUnknown(
+              data['exclude_from_stats']!, _excludeFromStatsMeta));
+    }
+    if (data.containsKey('exclude_from_budget')) {
+      context.handle(
+          _excludeFromBudgetMeta,
+          excludeFromBudget.isAcceptableOrUnknown(
+              data['exclude_from_budget']!, _excludeFromBudgetMeta));
+    }
+    if (data.containsKey('is_reimbursable')) {
+      context.handle(
+          _isReimbursableMeta,
+          isReimbursable.isAcceptableOrUnknown(
+              data['is_reimbursable']!, _isReimbursableMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RecordTemplate map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecordTemplate(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      bookId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}book_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      tabIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}tab_index'])!,
+      accountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}account_id']),
+      categoryId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category_id']),
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      tags: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tags']),
+      excludeFromStats: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}exclude_from_stats'])!,
+      excludeFromBudget: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}exclude_from_budget'])!,
+      isReimbursable: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_reimbursable'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $RecordTemplatesTable createAlias(String alias) {
+    return $RecordTemplatesTable(attachedDatabase, alias);
+  }
+}
+
+class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
+  final String id;
+  final String bookId;
+
+  /// 模板名称，如「滴滴通勤」。
+  final String name;
+
+  /// 适用 Tab：[RecordTab] 的 index（支出/收入/转账/借还/退款/报销）。
+  final int tabIndex;
+
+  /// 默认账户（可选）。
+  final String? accountId;
+
+  /// 默认分类（可选）。
+  final String? categoryId;
+
+  /// 默认备注（可选）。
+  final String? note;
+
+  /// 标签 JSON 数组（可选）。
+  final String? tags;
+  final bool excludeFromStats;
+  final bool excludeFromBudget;
+  final bool isReimbursable;
+
+  /// 创建时间（UTC 毫秒），用于列表按时间倒序。
+  final int createdAt;
+  const RecordTemplate(
+      {required this.id,
+      required this.bookId,
+      required this.name,
+      required this.tabIndex,
+      this.accountId,
+      this.categoryId,
+      this.note,
+      this.tags,
+      required this.excludeFromStats,
+      required this.excludeFromBudget,
+      required this.isReimbursable,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['book_id'] = Variable<String>(bookId);
+    map['name'] = Variable<String>(name);
+    map['tab_index'] = Variable<int>(tabIndex);
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<String>(accountId);
+    }
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || tags != null) {
+      map['tags'] = Variable<String>(tags);
+    }
+    map['exclude_from_stats'] = Variable<bool>(excludeFromStats);
+    map['exclude_from_budget'] = Variable<bool>(excludeFromBudget);
+    map['is_reimbursable'] = Variable<bool>(isReimbursable);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  RecordTemplatesCompanion toCompanion(bool nullToAbsent) {
+    return RecordTemplatesCompanion(
+      id: Value(id),
+      bookId: Value(bookId),
+      name: Value(name),
+      tabIndex: Value(tabIndex),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      tags: tags == null && nullToAbsent ? const Value.absent() : Value(tags),
+      excludeFromStats: Value(excludeFromStats),
+      excludeFromBudget: Value(excludeFromBudget),
+      isReimbursable: Value(isReimbursable),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory RecordTemplate.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecordTemplate(
+      id: serializer.fromJson<String>(json['id']),
+      bookId: serializer.fromJson<String>(json['bookId']),
+      name: serializer.fromJson<String>(json['name']),
+      tabIndex: serializer.fromJson<int>(json['tabIndex']),
+      accountId: serializer.fromJson<String?>(json['accountId']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      note: serializer.fromJson<String?>(json['note']),
+      tags: serializer.fromJson<String?>(json['tags']),
+      excludeFromStats: serializer.fromJson<bool>(json['excludeFromStats']),
+      excludeFromBudget: serializer.fromJson<bool>(json['excludeFromBudget']),
+      isReimbursable: serializer.fromJson<bool>(json['isReimbursable']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'bookId': serializer.toJson<String>(bookId),
+      'name': serializer.toJson<String>(name),
+      'tabIndex': serializer.toJson<int>(tabIndex),
+      'accountId': serializer.toJson<String?>(accountId),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'note': serializer.toJson<String?>(note),
+      'tags': serializer.toJson<String?>(tags),
+      'excludeFromStats': serializer.toJson<bool>(excludeFromStats),
+      'excludeFromBudget': serializer.toJson<bool>(excludeFromBudget),
+      'isReimbursable': serializer.toJson<bool>(isReimbursable),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  RecordTemplate copyWith(
+          {String? id,
+          String? bookId,
+          String? name,
+          int? tabIndex,
+          Value<String?> accountId = const Value.absent(),
+          Value<String?> categoryId = const Value.absent(),
+          Value<String?> note = const Value.absent(),
+          Value<String?> tags = const Value.absent(),
+          bool? excludeFromStats,
+          bool? excludeFromBudget,
+          bool? isReimbursable,
+          int? createdAt}) =>
+      RecordTemplate(
+        id: id ?? this.id,
+        bookId: bookId ?? this.bookId,
+        name: name ?? this.name,
+        tabIndex: tabIndex ?? this.tabIndex,
+        accountId: accountId.present ? accountId.value : this.accountId,
+        categoryId: categoryId.present ? categoryId.value : this.categoryId,
+        note: note.present ? note.value : this.note,
+        tags: tags.present ? tags.value : this.tags,
+        excludeFromStats: excludeFromStats ?? this.excludeFromStats,
+        excludeFromBudget: excludeFromBudget ?? this.excludeFromBudget,
+        isReimbursable: isReimbursable ?? this.isReimbursable,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  RecordTemplate copyWithCompanion(RecordTemplatesCompanion data) {
+    return RecordTemplate(
+      id: data.id.present ? data.id.value : this.id,
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      name: data.name.present ? data.name.value : this.name,
+      tabIndex: data.tabIndex.present ? data.tabIndex.value : this.tabIndex,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      categoryId:
+          data.categoryId.present ? data.categoryId.value : this.categoryId,
+      note: data.note.present ? data.note.value : this.note,
+      tags: data.tags.present ? data.tags.value : this.tags,
+      excludeFromStats: data.excludeFromStats.present
+          ? data.excludeFromStats.value
+          : this.excludeFromStats,
+      excludeFromBudget: data.excludeFromBudget.present
+          ? data.excludeFromBudget.value
+          : this.excludeFromBudget,
+      isReimbursable: data.isReimbursable.present
+          ? data.isReimbursable.value
+          : this.isReimbursable,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecordTemplate(')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('name: $name, ')
+          ..write('tabIndex: $tabIndex, ')
+          ..write('accountId: $accountId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('note: $note, ')
+          ..write('tags: $tags, ')
+          ..write('excludeFromStats: $excludeFromStats, ')
+          ..write('excludeFromBudget: $excludeFromBudget, ')
+          ..write('isReimbursable: $isReimbursable, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      bookId,
+      name,
+      tabIndex,
+      accountId,
+      categoryId,
+      note,
+      tags,
+      excludeFromStats,
+      excludeFromBudget,
+      isReimbursable,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecordTemplate &&
+          other.id == this.id &&
+          other.bookId == this.bookId &&
+          other.name == this.name &&
+          other.tabIndex == this.tabIndex &&
+          other.accountId == this.accountId &&
+          other.categoryId == this.categoryId &&
+          other.note == this.note &&
+          other.tags == this.tags &&
+          other.excludeFromStats == this.excludeFromStats &&
+          other.excludeFromBudget == this.excludeFromBudget &&
+          other.isReimbursable == this.isReimbursable &&
+          other.createdAt == this.createdAt);
+}
+
+class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
+  final Value<String> id;
+  final Value<String> bookId;
+  final Value<String> name;
+  final Value<int> tabIndex;
+  final Value<String?> accountId;
+  final Value<String?> categoryId;
+  final Value<String?> note;
+  final Value<String?> tags;
+  final Value<bool> excludeFromStats;
+  final Value<bool> excludeFromBudget;
+  final Value<bool> isReimbursable;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const RecordTemplatesCompanion({
+    this.id = const Value.absent(),
+    this.bookId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.tabIndex = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.note = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.excludeFromStats = const Value.absent(),
+    this.excludeFromBudget = const Value.absent(),
+    this.isReimbursable = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecordTemplatesCompanion.insert({
+    required String id,
+    required String bookId,
+    required String name,
+    required int tabIndex,
+    this.accountId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.note = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.excludeFromStats = const Value.absent(),
+    this.excludeFromBudget = const Value.absent(),
+    this.isReimbursable = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        bookId = Value(bookId),
+        name = Value(name),
+        tabIndex = Value(tabIndex),
+        createdAt = Value(createdAt);
+  static Insertable<RecordTemplate> custom({
+    Expression<String>? id,
+    Expression<String>? bookId,
+    Expression<String>? name,
+    Expression<int>? tabIndex,
+    Expression<String>? accountId,
+    Expression<String>? categoryId,
+    Expression<String>? note,
+    Expression<String>? tags,
+    Expression<bool>? excludeFromStats,
+    Expression<bool>? excludeFromBudget,
+    Expression<bool>? isReimbursable,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (bookId != null) 'book_id': bookId,
+      if (name != null) 'name': name,
+      if (tabIndex != null) 'tab_index': tabIndex,
+      if (accountId != null) 'account_id': accountId,
+      if (categoryId != null) 'category_id': categoryId,
+      if (note != null) 'note': note,
+      if (tags != null) 'tags': tags,
+      if (excludeFromStats != null) 'exclude_from_stats': excludeFromStats,
+      if (excludeFromBudget != null) 'exclude_from_budget': excludeFromBudget,
+      if (isReimbursable != null) 'is_reimbursable': isReimbursable,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecordTemplatesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? bookId,
+      Value<String>? name,
+      Value<int>? tabIndex,
+      Value<String?>? accountId,
+      Value<String?>? categoryId,
+      Value<String?>? note,
+      Value<String?>? tags,
+      Value<bool>? excludeFromStats,
+      Value<bool>? excludeFromBudget,
+      Value<bool>? isReimbursable,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return RecordTemplatesCompanion(
+      id: id ?? this.id,
+      bookId: bookId ?? this.bookId,
+      name: name ?? this.name,
+      tabIndex: tabIndex ?? this.tabIndex,
+      accountId: accountId ?? this.accountId,
+      categoryId: categoryId ?? this.categoryId,
+      note: note ?? this.note,
+      tags: tags ?? this.tags,
+      excludeFromStats: excludeFromStats ?? this.excludeFromStats,
+      excludeFromBudget: excludeFromBudget ?? this.excludeFromBudget,
+      isReimbursable: isReimbursable ?? this.isReimbursable,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (tabIndex.present) {
+      map['tab_index'] = Variable<int>(tabIndex.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (tags.present) {
+      map['tags'] = Variable<String>(tags.value);
+    }
+    if (excludeFromStats.present) {
+      map['exclude_from_stats'] = Variable<bool>(excludeFromStats.value);
+    }
+    if (excludeFromBudget.present) {
+      map['exclude_from_budget'] = Variable<bool>(excludeFromBudget.value);
+    }
+    if (isReimbursable.present) {
+      map['is_reimbursable'] = Variable<bool>(isReimbursable.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecordTemplatesCompanion(')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('name: $name, ')
+          ..write('tabIndex: $tabIndex, ')
+          ..write('accountId: $accountId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('note: $note, ')
+          ..write('tags: $tags, ')
+          ..write('excludeFromStats: $excludeFromStats, ')
+          ..write('excludeFromBudget: $excludeFromBudget, ')
+          ..write('isReimbursable: $isReimbursable, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PendingOpsTable extends PendingOps
     with TableInfo<$PendingOpsTable, PendingOp> {
   @override
@@ -9846,6 +10466,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $InvestmentHoldingsTable investmentHoldings =
       $InvestmentHoldingsTable(this);
   late final $InventoryItemsTable inventoryItems = $InventoryItemsTable(this);
+  late final $RecordTemplatesTable recordTemplates =
+      $RecordTemplatesTable(this);
   late final $PendingOpsTable pendingOps = $PendingOpsTable(this);
   late final BooksDao booksDao = BooksDao(this as AppDatabase);
   late final AccountsDao accountsDao = AccountsDao(this as AppDatabase);
@@ -9870,6 +10492,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         budgets,
         investmentHoldings,
         inventoryItems,
+        recordTemplates,
         pendingOps
       ];
 }
@@ -14011,6 +14634,291 @@ typedef $$InventoryItemsTableProcessedTableManager = ProcessedTableManager<
     ),
     InventoryItem,
     PrefetchHooks Function()>;
+typedef $$RecordTemplatesTableCreateCompanionBuilder = RecordTemplatesCompanion
+    Function({
+  required String id,
+  required String bookId,
+  required String name,
+  required int tabIndex,
+  Value<String?> accountId,
+  Value<String?> categoryId,
+  Value<String?> note,
+  Value<String?> tags,
+  Value<bool> excludeFromStats,
+  Value<bool> excludeFromBudget,
+  Value<bool> isReimbursable,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$RecordTemplatesTableUpdateCompanionBuilder = RecordTemplatesCompanion
+    Function({
+  Value<String> id,
+  Value<String> bookId,
+  Value<String> name,
+  Value<int> tabIndex,
+  Value<String?> accountId,
+  Value<String?> categoryId,
+  Value<String?> note,
+  Value<String?> tags,
+  Value<bool> excludeFromStats,
+  Value<bool> excludeFromBudget,
+  Value<bool> isReimbursable,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$RecordTemplatesTableFilterComposer
+    extends Composer<_$AppDatabase, $RecordTemplatesTable> {
+  $$RecordTemplatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get bookId => $composableBuilder(
+      column: $table.bookId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get tabIndex => $composableBuilder(
+      column: $table.tabIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+      column: $table.categoryId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get excludeFromStats => $composableBuilder(
+      column: $table.excludeFromStats,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get excludeFromBudget => $composableBuilder(
+      column: $table.excludeFromBudget,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isReimbursable => $composableBuilder(
+      column: $table.isReimbursable,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$RecordTemplatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecordTemplatesTable> {
+  $$RecordTemplatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get bookId => $composableBuilder(
+      column: $table.bookId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get tabIndex => $composableBuilder(
+      column: $table.tabIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+      column: $table.categoryId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get excludeFromStats => $composableBuilder(
+      column: $table.excludeFromStats,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get excludeFromBudget => $composableBuilder(
+      column: $table.excludeFromBudget,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isReimbursable => $composableBuilder(
+      column: $table.isReimbursable,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$RecordTemplatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecordTemplatesTable> {
+  $$RecordTemplatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get bookId =>
+      $composableBuilder(column: $table.bookId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get tabIndex =>
+      $composableBuilder(column: $table.tabIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+      column: $table.categoryId, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get tags =>
+      $composableBuilder(column: $table.tags, builder: (column) => column);
+
+  GeneratedColumn<bool> get excludeFromStats => $composableBuilder(
+      column: $table.excludeFromStats, builder: (column) => column);
+
+  GeneratedColumn<bool> get excludeFromBudget => $composableBuilder(
+      column: $table.excludeFromBudget, builder: (column) => column);
+
+  GeneratedColumn<bool> get isReimbursable => $composableBuilder(
+      column: $table.isReimbursable, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$RecordTemplatesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RecordTemplatesTable,
+    RecordTemplate,
+    $$RecordTemplatesTableFilterComposer,
+    $$RecordTemplatesTableOrderingComposer,
+    $$RecordTemplatesTableAnnotationComposer,
+    $$RecordTemplatesTableCreateCompanionBuilder,
+    $$RecordTemplatesTableUpdateCompanionBuilder,
+    (
+      RecordTemplate,
+      BaseReferences<_$AppDatabase, $RecordTemplatesTable, RecordTemplate>
+    ),
+    RecordTemplate,
+    PrefetchHooks Function()> {
+  $$RecordTemplatesTableTableManager(
+      _$AppDatabase db, $RecordTemplatesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecordTemplatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecordTemplatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecordTemplatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> bookId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<int> tabIndex = const Value.absent(),
+            Value<String?> accountId = const Value.absent(),
+            Value<String?> categoryId = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String?> tags = const Value.absent(),
+            Value<bool> excludeFromStats = const Value.absent(),
+            Value<bool> excludeFromBudget = const Value.absent(),
+            Value<bool> isReimbursable = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RecordTemplatesCompanion(
+            id: id,
+            bookId: bookId,
+            name: name,
+            tabIndex: tabIndex,
+            accountId: accountId,
+            categoryId: categoryId,
+            note: note,
+            tags: tags,
+            excludeFromStats: excludeFromStats,
+            excludeFromBudget: excludeFromBudget,
+            isReimbursable: isReimbursable,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String bookId,
+            required String name,
+            required int tabIndex,
+            Value<String?> accountId = const Value.absent(),
+            Value<String?> categoryId = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String?> tags = const Value.absent(),
+            Value<bool> excludeFromStats = const Value.absent(),
+            Value<bool> excludeFromBudget = const Value.absent(),
+            Value<bool> isReimbursable = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RecordTemplatesCompanion.insert(
+            id: id,
+            bookId: bookId,
+            name: name,
+            tabIndex: tabIndex,
+            accountId: accountId,
+            categoryId: categoryId,
+            note: note,
+            tags: tags,
+            excludeFromStats: excludeFromStats,
+            excludeFromBudget: excludeFromBudget,
+            isReimbursable: isReimbursable,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RecordTemplatesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $RecordTemplatesTable,
+    RecordTemplate,
+    $$RecordTemplatesTableFilterComposer,
+    $$RecordTemplatesTableOrderingComposer,
+    $$RecordTemplatesTableAnnotationComposer,
+    $$RecordTemplatesTableCreateCompanionBuilder,
+    $$RecordTemplatesTableUpdateCompanionBuilder,
+    (
+      RecordTemplate,
+      BaseReferences<_$AppDatabase, $RecordTemplatesTable, RecordTemplate>
+    ),
+    RecordTemplate,
+    PrefetchHooks Function()>;
 typedef $$PendingOpsTableCreateCompanionBuilder = PendingOpsCompanion Function({
   Value<int> localSeq,
   required String targetTable,
@@ -14245,6 +15153,8 @@ class $AppDatabaseManager {
       $$InvestmentHoldingsTableTableManager(_db, _db.investmentHoldings);
   $$InventoryItemsTableTableManager get inventoryItems =>
       $$InventoryItemsTableTableManager(_db, _db.inventoryItems);
+  $$RecordTemplatesTableTableManager get recordTemplates =>
+      $$RecordTemplatesTableTableManager(_db, _db.recordTemplates);
   $$PendingOpsTableTableManager get pendingOps =>
       $$PendingOpsTableTableManager(_db, _db.pendingOps);
 }

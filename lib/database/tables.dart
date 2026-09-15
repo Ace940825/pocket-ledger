@@ -365,3 +365,45 @@ class PendingOps extends Table {
   /// 失败重试次数，用于指数退避与错误上报
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
 }
+
+/// 记一笔模板（本地，不参与云端同步）。
+///
+/// 用户把常用的「账户 + 分类 + 备注 + 标签 + 开关」存为模板，
+/// 下次记一笔时点一下即可一键填充。金额不存——每次使用仍需手填。
+/// 刻意不混入 [SyncColumns]：模板是纯本地偏好，跨设备同步意义不大，
+/// 也避免触动同步编解码白名单与 self_check 的「12 张业务表」断言。
+class RecordTemplates extends Table {
+  TextColumn get id => text()();
+  TextColumn get bookId => text()();
+
+  /// 模板名称，如「滴滴通勤」。
+  TextColumn get name => text()();
+
+  /// 适用 Tab：[RecordTab] 的 index（支出/收入/转账/借还/退款/报销）。
+  IntColumn get tabIndex => integer()();
+
+  /// 默认账户（可选）。
+  TextColumn get accountId => text().nullable()();
+
+  /// 默认分类（可选）。
+  TextColumn get categoryId => text().nullable()();
+
+  /// 默认备注（可选）。
+  TextColumn get note => text().nullable()();
+
+  /// 标签 JSON 数组（可选）。
+  TextColumn get tags => text().nullable()();
+
+  BoolColumn get excludeFromStats =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get excludeFromBudget =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get isReimbursable =>
+      boolean().withDefault(const Constant(false))();
+
+  /// 创建时间（UTC 毫秒），用于列表按时间倒序。
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => <Column>{id};
+}

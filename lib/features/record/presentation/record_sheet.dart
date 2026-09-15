@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -20,6 +21,7 @@ import '../../../features/settings/providers/sync_settings_providers.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/attachment_viewer.dart';
+import '../../../shared/widgets/calculator_sheet.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../sync/sync_adapter.dart';
@@ -28,6 +30,7 @@ import '../../ledger/providers/ledger_providers.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../../savings/providers/savings_providers.dart';
+import '../providers/record_template_providers.dart';
 import '../record_tab.dart';
 import '../widgets/amount_keypad.dart';
 import 'bill_selection_page.dart';
@@ -1217,7 +1220,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   /// 转账计算器按钮（文字按钮）。
   Widget _buildTransferCalculatorButton() {
     return InkWell(
-      onTap: () => _toast('转账计算器功能开发中'),
+      onTap: _openCalculator,
       borderRadius: BorderRadius.circular(AppDimens.radiusSm),
       child: Container(
         height: 28,
@@ -1680,7 +1683,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   /// 借还计算器按钮（文字按钮）。
   Widget _buildLendCalculatorButton() {
     return InkWell(
-      onTap: () => _toast('借还计算器功能开发中'),
+      onTap: _openCalculator,
       borderRadius: BorderRadius.circular(AppDimens.radiusSm),
       child: Container(
         height: 28,
@@ -1693,6 +1696,21 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         ),
       ),
     );
+  }
+
+  /// 打开快捷计算器（四则运算 / AA 分摊），把结果写回金额输入框。
+  Future<void> _openCalculator() async {
+    final double? result = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => CalculatorSheet(initial: _amount.isEmpty ? null : _amount),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _amount = result.toStringAsFixed(2);
+      _pendingAmount = '';
+      _pendingOperator = null;
+    });
   }
 
   /// 切换借还利息 / 优惠输入模式，并在模式间迁移当前输入值。
@@ -2680,6 +2698,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         icon: Icons.bookmark_border_outlined,
         onTap: _onSaveTemplate,
       ),
+      _FunctionItem(
+        label: '计算器',
+        icon: Icons.calculate_outlined,
+        onTap: _openCalculator,
+      ),
     ];
 
     return SizedBox(
@@ -2906,8 +2929,44 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     });
   }
 
-  void _onSaveTemplate() {
-    _toast('模板功能开发中');
+  /// 打开「记一笔模板」面板：可把当前填写存为模板，也可一键套用已有模板。
+  Future<void> _onSaveTemplate() async {
+    final RecordTemplateDraft draft = RecordTemplateDraft(
+      tabIndex: _tab.index,
+      accountId: _accountId,
+      categoryId: _categoryId,
+      note: _noteController.text.trim(),
+      tags: _tags.isEmpty ? null : jsonEncode(_tags),
+      excludeFromStats: _excludeFromStats,
+      excludeFromBudget: _excludeFromBudget,
+      isReimbursable: _isReimbursable,
+    );
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext ctx) => _TemplateSheet(
+        draft: draft,
+        onApply: _applyTemplate,
+      ),
+    );
+  }
+
+  /// 套用模板：填充 Tab / 账户 / 分类 / 备注 / 标签 / 开关（金额不填）。
+  void _applyTemplate(RecordTemplate t) {
+    setState(() {
+      _tab = RecordTab.values[t.tabIndex];
+      _accountId = t.accountId;
+      _categoryId = t.categoryId;
+      _noteController.text = t.note ?? '';
+      _tags.clear();
+      if (t.tags != null && t.tags!.isNotEmpty) {
+        final List<dynamic>? decoded = jsonDecode(t.tags!) as List<dynamic>?;
+        if (decoded != null) _tags.addAll(decoded.cast<String>());
+      }
+      _excludeFromStats = t.excludeFromStats;
+      _excludeFromBudget = t.excludeFromBudget;
+      _isReimbursable = t.isReimbursable;
+    });
   }
 
   bool get _hasExpression =>
@@ -3387,6 +3446,290 @@ class _PromptDialogState extends State<_PromptDialog> {
           child: const Text('确定'),
         ),
       ],
+    );
+  }
+}
+
+/// 记一笔模板草稿：从当前记一笔面板抓取的可复用字段（金额除外，金额每次仍需手填）。
+class RecordTemplateDraft {
+  const RecordTemplateDraft({
+    required this.tabIndex,
+    this.accountId,
+    this.categoryId,
+    this.note,
+    this.tags,
+    this.excludeFromStats = false,
+    this.excludeFromBudget = false,
+    this.isReimbursable = false,
+  });
+
+  final int tabIndex;
+  final String? accountId;
+  final String? categoryId;
+  final String? note;
+  final String? tags;
+  final bool excludeFromStats;
+  final bool excludeFromBudget;
+  final bool isReimbursable;
+}
+
+/// 模板面板：保存当前组合为模板，或套用已有模板一键填充记一笔表单。
+class _TemplateSheet extends ConsumerStatefulWidget {
+  const _TemplateSheet({
+    required this.draft,
+    required this.onApply,
+  });
+
+  final RecordTemplateDraft draft;
+  final ValueChanged<RecordTemplate> onApply;
+
+  @override
+  ConsumerState<_TemplateSheet> createState() => _TemplateSheetState();
+}
+
+class _TemplateSheetState extends ConsumerState<_TemplateSheet> {
+  final TextEditingController _nameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  String _resolveAccountName(
+    AsyncValue<List<Account>> accounts,
+    String? id,
+  ) {
+    if (id == null) return '';
+    return accounts.maybeWhen(
+      data: (List<Account> list) {
+        final Account? a = list.cast<Account?>().firstWhere(
+          (Account? x) => x?.id == id,
+          orElse: () => null,
+        );
+        return a?.name ?? '';
+      },
+      orElse: () => '',
+    );
+  }
+
+  String _summaryFor(
+    RecordTemplate t,
+    AsyncValue<List<Account>> accounts,
+  ) {
+    final RecordTab tab = RecordTab.values[t.tabIndex];
+    final String acc = _resolveAccountName(accounts, t.accountId);
+    final List<String> parts = <String>[tab.label];
+    if (acc.isNotEmpty) parts.add('账户 $acc');
+    if (t.note != null && t.note!.isNotEmpty) parts.add(t.note!);
+    if (t.tags != null && t.tags!.isNotEmpty) parts.add('标签 ${t.tags}');
+    final List<String> sw = <String>[
+      if (t.excludeFromStats) '不计收支',
+      if (t.excludeFromBudget) '不计预算',
+      if (t.isReimbursable) '可报销',
+    ];
+    if (sw.isNotEmpty) parts.add(sw.join('/'));
+    return parts.join(' · ');
+  }
+
+  Future<void> _save() async {
+    final String name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入模板名称')),
+      );
+      return;
+    }
+    final RecordTemplateDraft d = widget.draft;
+    await ref.read(recordTemplateRepositoryProvider).add(
+          bookId: ref.read(currentBookIdProvider),
+          name: name,
+          tabIndex: d.tabIndex,
+          accountId: d.accountId,
+          categoryId: d.categoryId,
+          note: d.note,
+          tags: d.tags,
+          excludeFromStats: d.excludeFromStats,
+          excludeFromBudget: d.excludeFromBudget,
+          isReimbursable: d.isReimbursable,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已保存模板「$name」')),
+    );
+    _nameController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final RecordTab tab = RecordTab.values[widget.draft.tabIndex];
+    final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
+    final String accountName =
+        _resolveAccountName(accounts, widget.draft.accountId);
+
+    String? categoryName;
+    final int ti = widget.draft.tabIndex;
+    if (widget.draft.categoryId != null &&
+        (ti == RecordTab.expense.index || ti == RecordTab.income.index)) {
+      final AsyncValue<List<Category>> cats = ref.watch(
+        ti == RecordTab.income.index
+            ? incomeCategoriesProvider
+            : expenseCategoriesProvider,
+      );
+      categoryName = cats.maybeWhen(
+        data: (List<Category> list) {
+          final Category? c = list.cast<Category?>().firstWhere(
+            (Category? x) => x?.id == widget.draft.categoryId,
+            orElse: () => null,
+          );
+          return c?.name;
+        },
+        orElse: () => null,
+      );
+    }
+
+    final List<String> switches = <String>[
+      if (widget.draft.excludeFromStats) '不计收支',
+      if (widget.draft.excludeFromBudget) '不计预算',
+      if (widget.draft.isReimbursable) '可报销',
+    ];
+    final String draftSummary = <String>[
+      tab.label,
+      if (accountName.isNotEmpty) '账户 $accountName',
+      if (categoryName != null && categoryName.isNotEmpty)
+        '分类 $categoryName',
+      if (widget.draft.note != null && widget.draft.note!.isNotEmpty)
+        widget.draft.note!,
+      if (switches.isNotEmpty) switches.join('/'),
+    ].join(' · ');
+
+    final AsyncValue<List<RecordTemplate>> templates =
+        ref.watch(recordTemplatesProvider);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.82,
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppDimens.spaceLg,
+                AppDimens.spaceLg,
+                AppDimens.spaceMd,
+                AppDimens.spaceSm,
+              ),
+              child: Row(
+                children: <Widget>[
+                  Text('记一笔模板', style: theme.textTheme.titleMedium),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(AppDimens.spaceLg),
+                children: <Widget>[
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: '模板名称',
+                      hintText: '如「滴滴通勤」「午饭」',
+                    ),
+                  ),
+                  const SizedBox(height: AppDimens.spaceMd),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppDimens.spaceMd),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius:
+                          BorderRadius.circular(AppDimens.radiusMd),
+                    ),
+                    child: Text(
+                      '将保存：$draftSummary',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  FilledButton.icon(
+                    onPressed: _save,
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    label: const Text('保存为模板'),
+                  ),
+                  const SizedBox(height: AppDimens.spaceXl),
+                  Text('已有模板', style: theme.textTheme.titleSmall),
+                  const SizedBox(height: AppDimens.spaceSm),
+                  templates.when(
+                    data: (List<RecordTemplate> list) => list.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(
+                              vertical: AppDimens.spaceLg,
+                            ),
+                            child: Text(
+                              '还没有模板，先在上方保存一个',
+                              style: TextStyle(color: AppColors.textTertiary),
+                            ),
+                          )
+                        : Column(
+                            children: <Widget>[
+                              for (final RecordTemplate t in list)
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(t.name),
+                                  subtitle: Text(
+                                    _summaryFor(t, accounts),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      TextButton(
+                                        onPressed: () {
+                                          widget.onApply(t);
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: const Text('套用'),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: AppColors.textTertiary,
+                                        ),
+                                        onPressed: () => ref
+                                            .read(recordTemplateRepositoryProvider)
+                                            .remove(t.id),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (Object e, StackTrace? s) =>
+                        Center(child: Text('加载失败：$e')),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

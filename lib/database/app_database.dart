@@ -39,6 +39,7 @@ part 'app_database.g.dart';
     Budgets,
     InvestmentHoldings,
     InventoryItems,
+    RecordTemplates,
     PendingOps,
   ],
   daos: <Type>[
@@ -62,7 +63,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -162,6 +163,11 @@ class AppDatabase extends _$AppDatabase {
             );
           }
 
+          if (from < 8) {
+            // v8：新增本地「记一笔模板」表（不参与云端同步）。
+            await _createTableIfMissing(m, recordTemplates);
+          }
+
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
           // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
           await _createIndexes();
@@ -191,6 +197,24 @@ class AppDatabase extends _$AppDatabase {
         info.any((QueryRow row) => row.read<String>('name') == column.name);
     if (!exists) {
       await m.addColumn(table, column);
+    }
+  }
+
+  /// 幂等建表：先探测表是否已存在，不存在才 `CREATE TABLE`。
+  ///
+  /// 用于「新增整张表」的版本迁移（[ _addColumnIfMissing] 只处理加列）。
+  /// 升级路径只会跑一次，但仍做存在性探测，避免重复 CREATE TABLE 报错，
+  /// 也方便 `createCurrentSchema` 这类测试反复重建时不踩坑。
+  Future<void> _createTableIfMissing(
+    Migrator m,
+    TableInfo<Table, dynamic> table,
+  ) async {
+    final List<QueryRow> info = await customSelect(
+      'SELECT name FROM sqlite_master '
+      'WHERE type = \'table\' AND name = \'${table.actualTableName}\'',
+    ).get();
+    if (info.isEmpty) {
+      await m.createTable(table);
     }
   }
 
