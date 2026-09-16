@@ -264,39 +264,12 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
   }
 
   Future<void> _editInterval() async {
-    final TextEditingController controller =
-        TextEditingController(text: '$_interval');
     final int? value = await showDialog<int>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: const Text('设置间隔'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            hintText: '请输入 1-120 之间的数字',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              final int? parsed = int.tryParse(controller.text.trim());
-              if (parsed != null && parsed >= 1 && parsed <= 120) {
-                Navigator.of(ctx).pop(parsed);
-              }
-            },
-            child: const Text('确定'),
-          ),
-        ],
+      builder: (BuildContext ctx) => _IntervalInputDialog(
+        initialValue: _interval,
       ),
     );
-    controller.dispose();
     if (value != null && mounted) {
       setState(() => _interval = value);
     }
@@ -446,6 +419,77 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 间隔数字输入弹窗。
+///
+/// 用独立 [StatefulWidget] 管理 [TextEditingController]，确保 controller 在
+/// dialog 自己的 [dispose] 中释放；关闭前主动 unfocus，避免软键盘收起和弹窗
+/// 卸载竞争触发 `_dependents.isEmpty` 断言。
+class _IntervalInputDialog extends StatefulWidget {
+  const _IntervalInputDialog({required this.initialValue});
+
+  final int initialValue;
+
+  @override
+  State<_IntervalInputDialog> createState() => _IntervalInputDialogState();
+}
+
+class _IntervalInputDialogState extends State<_IntervalInputDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: '${widget.initialValue}');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _pop({int? value}) {
+    // 先释放焦点、收起键盘，再 pop，避免键盘高度变化与弹窗卸载竞争。
+    FocusScope.of(context).unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context).pop(value);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('设置间隔'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          hintText: '请输入 1-120 之间的数字',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => _pop(),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: () {
+            final int? parsed = int.tryParse(_controller.text.trim());
+            if (parsed != null && parsed >= 1 && parsed <= 120) {
+              _pop(value: parsed);
+            }
+          },
+          child: const Text('确定'),
+        ),
+      ],
     );
   }
 }
