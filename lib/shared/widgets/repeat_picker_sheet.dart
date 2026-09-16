@@ -389,24 +389,39 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
   }
 
   Widget _buildMonthDayGrid(ThemeData theme) {
-    final List<Widget> children = <Widget>[];
-    for (int day = 1; day <= 31; day++) {
-      children.add(_optionChip(
-        label: '$day',
-        selected: _monthDay == day,
-        onTap: () => setState(() => _monthDay = day),
-      ),);
-    }
-    children.add(_optionChip(
-      label: '月末',
-      selected: _monthDay == -1,
-      onTap: () => setState(() => _monthDay = -1),
-    ),);
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      alignment: WrapAlignment.center,
-      children: children,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        const int columns = 5;
+        const double spacing = 10;
+        const double aspectRatio = 1.5;
+        final double cellWidth =
+            (constraints.maxWidth - (columns - 1) * spacing) / columns;
+        final double cellHeight = cellWidth / aspectRatio;
+
+        final List<Widget> children = <Widget>[];
+        for (int day = 1; day <= 31; day++) {
+          children.add(_optionChip(
+            label: '$day',
+            selected: _monthDay == day,
+            onTap: () => setState(() => _monthDay = day),
+            width: cellWidth,
+            height: cellHeight,
+          ));
+        }
+        children.add(_optionChip(
+          label: '月末',
+          selected: _monthDay == -1,
+          onTap: () => setState(() => _monthDay = -1),
+          width: cellWidth,
+          height: cellHeight,
+        ));
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          alignment: WrapAlignment.center,
+          children: children,
+        );
+      },
     );
   }
 
@@ -449,12 +464,13 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
     required bool selected,
     required VoidCallback onTap,
     double? width,
+    double? height,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: width ?? 64,
-        height: 40,
+        height: height ?? 40,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected ? AppColors.textPrimary : AppColors.surfaceLight,
