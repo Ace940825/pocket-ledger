@@ -1,3 +1,5 @@
+import 'dart:math' show max, min;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,6 +11,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
+import '../domain/fee_utils.dart';
 import '../providers/installment_providers.dart';
 import 'installment_detail_page.dart';
 
@@ -39,8 +42,7 @@ class InstallmentPage extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 '${Money.fromMinor(p.totalMinor).format()} · '
-                '${p.totalPeriods} 期 · 每期约 '
-                '${Money.fromMinor(perPeriod + p.feePerPeriodMinor).format()}',
+                '${p.totalPeriods} 期${_feeSubtitle(p, perPeriod)}',
               ),
               const SizedBox(height: 6),
               ClipRRect(
@@ -177,3 +179,33 @@ class InstallmentPage extends ConsumerWidget {
 /// 供详情页复用的日期格式化。
 String formatDueDate(int msUtc) => DateFormat('yyyy-MM-dd')
     .format(DateTime.fromMillisecondsSinceEpoch(msUtc, isUtc: true).toLocal());
+
+/// 列表副标题里的利息说明：按真实每期利息数组展示，首期/尾期全扣时不再用平均。
+String _feeSubtitle(InstallmentPlan p, int perPeriod) {
+  final List<int> fees = feeByPeriodOf(p);
+  if (fees.isEmpty) return ' · 每期 ${Money.fromMinor(perPeriod).format()}';
+  final int first = fees.first;
+  final int last = fees.last;
+  final bool uniform = fees.every((int e) => e == first);
+
+  if (first == 0 && last == 0) {
+    return ' · 每期 ${Money.fromMinor(perPeriod).format()}';
+  }
+  if (uniform) {
+    return ' · 每期约 ${Money.fromMinor(perPeriod + first).format()}'
+        '（含手续费 ${Money.fromMinor(first).format()}）';
+  }
+  if (first > 0 && fees.skip(1).every((int e) => e == 0)) {
+    return ' · 每期 ${Money.fromMinor(perPeriod).format()}'
+        ' · 首期含手续费 ${Money.fromMinor(first).format()}';
+  }
+  if (last > 0 && fees.take(fees.length - 1).every((int e) => e == 0)) {
+    return ' · 每期 ${Money.fromMinor(perPeriod).format()}'
+        ' · 尾期含手续费 ${Money.fromMinor(last).format()}';
+  }
+  final int minFee = fees.reduce(min);
+  final int maxFee = fees.reduce(max);
+  return ' · 每期 ${Money.fromMinor(perPeriod).format()}'
+      ' · 手续费 ${Money.fromMinor(minFee).format()}'
+      '~${Money.fromMinor(maxFee).format()}';
+}

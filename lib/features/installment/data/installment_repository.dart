@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -89,6 +91,7 @@ class InstallmentRepository {
               totalMinor: Value<int>(totalMinor),
               totalPeriods: Value<int>(totalPeriods),
               feePerPeriodMinor: Value<int>(feePerPeriodMinor),
+              feeByPeriodMinor: Value<String>(jsonEncode(feeByPeriod)),
               firstDueAt: Value<int>(firstDueAt),
               accountId: Value<String?>(accountId),
               note: Value<String?>(note),
@@ -141,6 +144,7 @@ class InstallmentRepository {
           'totalMinor': totalMinor,
           'totalPeriods': totalPeriods,
           'feePerPeriodMinor': feePerPeriodMinor,
+          'feeByPeriodMinor': jsonEncode(feeByPeriod),
           'firstDueAt': firstDueAt,
           'accountId': accountId,
           'note': note,

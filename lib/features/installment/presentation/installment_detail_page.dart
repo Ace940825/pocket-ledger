@@ -5,6 +5,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
+import '../domain/fee_utils.dart';
 import '../providers/installment_providers.dart';
 import 'installment_page.dart';
 
@@ -65,7 +66,9 @@ class InstallmentDetailPage extends ConsumerWidget {
           }
           final int paidCount =
               list.where((InstallmentPeriod p) => p.paidAt != null).length;
-          final int fee = planAsync.valueOrNull?.feePerPeriodMinor ?? 0;
+          final InstallmentPlan? plan = planAsync.valueOrNull;
+          final List<int> fees =
+              plan == null ? const <int>[] : feeByPeriodOf(plan);
 
           return ListView.separated(
             itemCount: list.length + 1,
@@ -79,8 +82,7 @@ class InstallmentDetailPage extends ConsumerWidget {
                     title: const Text('剩余待还'),
                     subtitle: Text(
                       '$paidCount/${list.length} 期已还'
-                      '${fee > 0 ? ' · 每期含手续费 '
-                          '${Money.fromMinor(fee).format()}' : ''}',
+                      '${_feeSuffix(fees)}',
                     ),
                     trailing: Text(
                       Money.fromMinor(remainingMinor).format(),
@@ -126,4 +128,25 @@ class InstallmentDetailPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// 详情顶部「剩余待还」卡片的利息说明：按真实每期利息数组展示，
+/// 首期/尾期全扣时不再用平均利息误导。
+String _feeSuffix(List<int> fees) {
+  if (fees.isEmpty) return '';
+  final int first = fees.first;
+  final int last = fees.last;
+  if (first == 0 && last == 0) return '';
+  if (fees.every((int e) => e == first)) {
+    return ' · 每期含手续费 ${Money.fromMinor(first).format()}';
+  }
+  if (first > 0 && fees.skip(1).every((int e) => e == 0)) {
+    return ' · 首期含手续费 ${Money.fromMinor(first).format()}';
+  }
+  if (last > 0 && fees.take(fees.length - 1).every((int e) => e == 0)) {
+    return ' · 尾期含手续费 ${Money.fromMinor(last).format()}';
+  }
+  final int total =
+      fees.fold<int>(0, (int sum, int v) => sum + v);
+  return ' · 利息合计 ${Money.fromMinor(total).format()}';
 }

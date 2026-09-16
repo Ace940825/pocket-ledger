@@ -5831,6 +5831,12 @@ class $InstallmentPlansTable extends InstallmentPlans
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _feeByPeriodMinorMeta =
+      const VerificationMeta('feeByPeriodMinor');
+  @override
+  late final GeneratedColumn<String> feeByPeriodMinor = GeneratedColumn<String>(
+      'fee_by_period_minor', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _currencyMeta =
       const VerificationMeta('currency');
   @override
@@ -5879,6 +5885,7 @@ class $InstallmentPlansTable extends InstallmentPlans
         totalPeriods,
         paidPeriods,
         feePerPeriodMinor,
+        feeByPeriodMinor,
         currency,
         accountId,
         firstDueAt,
@@ -5958,6 +5965,12 @@ class $InstallmentPlansTable extends InstallmentPlans
           feePerPeriodMinor.isAcceptableOrUnknown(
               data['fee_per_period_minor']!, _feePerPeriodMinorMeta));
     }
+    if (data.containsKey('fee_by_period_minor')) {
+      context.handle(
+          _feeByPeriodMinorMeta,
+          feeByPeriodMinor.isAcceptableOrUnknown(
+              data['fee_by_period_minor']!, _feeByPeriodMinorMeta));
+    }
     if (data.containsKey('currency')) {
       context.handle(_currencyMeta,
           currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta));
@@ -6015,6 +6028,8 @@ class $InstallmentPlansTable extends InstallmentPlans
           .read(DriftSqlType.int, data['${effectivePrefix}paid_periods'])!,
       feePerPeriodMinor: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}fee_per_period_minor'])!,
+      feeByPeriodMinor: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}fee_by_period_minor']),
       currency: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}currency'])!,
       accountId: attachedDatabase.typeMapping
@@ -6048,8 +6063,18 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
   /// 已还期数
   final int paidPeriods;
 
-  /// 每期手续费 / 利息（分）
+  /// 每期手续费 / 利息（分）——历史_average_值，仅用于兼容旧数据与云端回退。
+  ///
+  /// 真实的「每期利息明细」以 [feeByPeriodMinor]（JSON 数组）为准；该列为 null
+  /// 时，UI 会按本列平摊显示。
   final int feePerPeriodMinor;
+
+  /// 每期手续费 / 利息明细（分），JSON 数组字符串，长度等于 [totalPeriods]。
+  ///
+  /// 用于支持「按期均摊 / 首期全部扣除 / 尾期全部扣除」等利息扣除方式：
+  /// 均摊时各元素相等；首期全扣时仅下标 0 非零；尾期全扣时仅末位非零。
+  /// 为 null 表示旧数据，按 [feePerPeriodMinor] 平摊处理。
+  final String? feeByPeriodMinor;
   final String currency;
   final String? accountId;
   final int firstDueAt;
@@ -6067,6 +6092,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       required this.totalPeriods,
       required this.paidPeriods,
       required this.feePerPeriodMinor,
+      this.feeByPeriodMinor,
       required this.currency,
       this.accountId,
       required this.firstDueAt,
@@ -6088,6 +6114,9 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
     map['total_periods'] = Variable<int>(totalPeriods);
     map['paid_periods'] = Variable<int>(paidPeriods);
     map['fee_per_period_minor'] = Variable<int>(feePerPeriodMinor);
+    if (!nullToAbsent || feeByPeriodMinor != null) {
+      map['fee_by_period_minor'] = Variable<String>(feeByPeriodMinor);
+    }
     map['currency'] = Variable<String>(currency);
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<String>(accountId);
@@ -6115,6 +6144,9 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       totalPeriods: Value(totalPeriods),
       paidPeriods: Value(paidPeriods),
       feePerPeriodMinor: Value(feePerPeriodMinor),
+      feeByPeriodMinor: feeByPeriodMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(feeByPeriodMinor),
       currency: Value(currency),
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
@@ -6140,6 +6172,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       totalPeriods: serializer.fromJson<int>(json['totalPeriods']),
       paidPeriods: serializer.fromJson<int>(json['paidPeriods']),
       feePerPeriodMinor: serializer.fromJson<int>(json['feePerPeriodMinor']),
+      feeByPeriodMinor: serializer.fromJson<String?>(json['feeByPeriodMinor']),
       currency: serializer.fromJson<String>(json['currency']),
       accountId: serializer.fromJson<String?>(json['accountId']),
       firstDueAt: serializer.fromJson<int>(json['firstDueAt']),
@@ -6162,6 +6195,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       'totalPeriods': serializer.toJson<int>(totalPeriods),
       'paidPeriods': serializer.toJson<int>(paidPeriods),
       'feePerPeriodMinor': serializer.toJson<int>(feePerPeriodMinor),
+      'feeByPeriodMinor': serializer.toJson<String?>(feeByPeriodMinor),
       'currency': serializer.toJson<String>(currency),
       'accountId': serializer.toJson<String?>(accountId),
       'firstDueAt': serializer.toJson<int>(firstDueAt),
@@ -6182,6 +6216,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
           int? totalPeriods,
           int? paidPeriods,
           int? feePerPeriodMinor,
+          Value<String?> feeByPeriodMinor = const Value.absent(),
           String? currency,
           Value<String?> accountId = const Value.absent(),
           int? firstDueAt,
@@ -6199,6 +6234,9 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
         totalPeriods: totalPeriods ?? this.totalPeriods,
         paidPeriods: paidPeriods ?? this.paidPeriods,
         feePerPeriodMinor: feePerPeriodMinor ?? this.feePerPeriodMinor,
+        feeByPeriodMinor: feeByPeriodMinor.present
+            ? feeByPeriodMinor.value
+            : this.feeByPeriodMinor,
         currency: currency ?? this.currency,
         accountId: accountId.present ? accountId.value : this.accountId,
         firstDueAt: firstDueAt ?? this.firstDueAt,
@@ -6224,6 +6262,9 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       feePerPeriodMinor: data.feePerPeriodMinor.present
           ? data.feePerPeriodMinor.value
           : this.feePerPeriodMinor,
+      feeByPeriodMinor: data.feeByPeriodMinor.present
+          ? data.feeByPeriodMinor.value
+          : this.feeByPeriodMinor,
       currency: data.currency.present ? data.currency.value : this.currency,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       firstDueAt:
@@ -6248,6 +6289,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
           ..write('totalPeriods: $totalPeriods, ')
           ..write('paidPeriods: $paidPeriods, ')
           ..write('feePerPeriodMinor: $feePerPeriodMinor, ')
+          ..write('feeByPeriodMinor: $feeByPeriodMinor, ')
           ..write('currency: $currency, ')
           ..write('accountId: $accountId, ')
           ..write('firstDueAt: $firstDueAt, ')
@@ -6270,6 +6312,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       totalPeriods,
       paidPeriods,
       feePerPeriodMinor,
+      feeByPeriodMinor,
       currency,
       accountId,
       firstDueAt,
@@ -6290,6 +6333,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
           other.totalPeriods == this.totalPeriods &&
           other.paidPeriods == this.paidPeriods &&
           other.feePerPeriodMinor == this.feePerPeriodMinor &&
+          other.feeByPeriodMinor == this.feeByPeriodMinor &&
           other.currency == this.currency &&
           other.accountId == this.accountId &&
           other.firstDueAt == this.firstDueAt &&
@@ -6309,6 +6353,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
   final Value<int> totalPeriods;
   final Value<int> paidPeriods;
   final Value<int> feePerPeriodMinor;
+  final Value<String?> feeByPeriodMinor;
   final Value<String> currency;
   final Value<String?> accountId;
   final Value<int> firstDueAt;
@@ -6327,6 +6372,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
     this.totalPeriods = const Value.absent(),
     this.paidPeriods = const Value.absent(),
     this.feePerPeriodMinor = const Value.absent(),
+    this.feeByPeriodMinor = const Value.absent(),
     this.currency = const Value.absent(),
     this.accountId = const Value.absent(),
     this.firstDueAt = const Value.absent(),
@@ -6346,6 +6392,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
     required int totalPeriods,
     this.paidPeriods = const Value.absent(),
     this.feePerPeriodMinor = const Value.absent(),
+    this.feeByPeriodMinor = const Value.absent(),
     this.currency = const Value.absent(),
     this.accountId = const Value.absent(),
     required int firstDueAt,
@@ -6371,6 +6418,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
     Expression<int>? totalPeriods,
     Expression<int>? paidPeriods,
     Expression<int>? feePerPeriodMinor,
+    Expression<String>? feeByPeriodMinor,
     Expression<String>? currency,
     Expression<String>? accountId,
     Expression<int>? firstDueAt,
@@ -6390,6 +6438,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
       if (totalPeriods != null) 'total_periods': totalPeriods,
       if (paidPeriods != null) 'paid_periods': paidPeriods,
       if (feePerPeriodMinor != null) 'fee_per_period_minor': feePerPeriodMinor,
+      if (feeByPeriodMinor != null) 'fee_by_period_minor': feeByPeriodMinor,
       if (currency != null) 'currency': currency,
       if (accountId != null) 'account_id': accountId,
       if (firstDueAt != null) 'first_due_at': firstDueAt,
@@ -6411,6 +6460,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
       Value<int>? totalPeriods,
       Value<int>? paidPeriods,
       Value<int>? feePerPeriodMinor,
+      Value<String?>? feeByPeriodMinor,
       Value<String>? currency,
       Value<String?>? accountId,
       Value<int>? firstDueAt,
@@ -6429,6 +6479,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
       totalPeriods: totalPeriods ?? this.totalPeriods,
       paidPeriods: paidPeriods ?? this.paidPeriods,
       feePerPeriodMinor: feePerPeriodMinor ?? this.feePerPeriodMinor,
+      feeByPeriodMinor: feeByPeriodMinor ?? this.feeByPeriodMinor,
       currency: currency ?? this.currency,
       accountId: accountId ?? this.accountId,
       firstDueAt: firstDueAt ?? this.firstDueAt,
@@ -6474,6 +6525,9 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
     if (feePerPeriodMinor.present) {
       map['fee_per_period_minor'] = Variable<int>(feePerPeriodMinor.value);
     }
+    if (feeByPeriodMinor.present) {
+      map['fee_by_period_minor'] = Variable<String>(feeByPeriodMinor.value);
+    }
     if (currency.present) {
       map['currency'] = Variable<String>(currency.value);
     }
@@ -6509,6 +6563,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
           ..write('totalPeriods: $totalPeriods, ')
           ..write('paidPeriods: $paidPeriods, ')
           ..write('feePerPeriodMinor: $feePerPeriodMinor, ')
+          ..write('feeByPeriodMinor: $feeByPeriodMinor, ')
           ..write('currency: $currency, ')
           ..write('accountId: $accountId, ')
           ..write('firstDueAt: $firstDueAt, ')
@@ -13008,6 +13063,7 @@ typedef $$InstallmentPlansTableCreateCompanionBuilder
   required int totalPeriods,
   Value<int> paidPeriods,
   Value<int> feePerPeriodMinor,
+  Value<String?> feeByPeriodMinor,
   Value<String> currency,
   Value<String?> accountId,
   required int firstDueAt,
@@ -13028,6 +13084,7 @@ typedef $$InstallmentPlansTableUpdateCompanionBuilder
   Value<int> totalPeriods,
   Value<int> paidPeriods,
   Value<int> feePerPeriodMinor,
+  Value<String?> feeByPeriodMinor,
   Value<String> currency,
   Value<String?> accountId,
   Value<int> firstDueAt,
@@ -13077,6 +13134,10 @@ class $$InstallmentPlansTableFilterComposer
 
   ColumnFilters<int> get feePerPeriodMinor => $composableBuilder(
       column: $table.feePerPeriodMinor,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get feeByPeriodMinor => $composableBuilder(
+      column: $table.feeByPeriodMinor,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get currency => $composableBuilder(
@@ -13139,6 +13200,10 @@ class $$InstallmentPlansTableOrderingComposer
       column: $table.feePerPeriodMinor,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get feeByPeriodMinor => $composableBuilder(
+      column: $table.feeByPeriodMinor,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get currency => $composableBuilder(
       column: $table.currency, builder: (column) => ColumnOrderings(column));
 
@@ -13197,6 +13262,9 @@ class $$InstallmentPlansTableAnnotationComposer
   GeneratedColumn<int> get feePerPeriodMinor => $composableBuilder(
       column: $table.feePerPeriodMinor, builder: (column) => column);
 
+  GeneratedColumn<String> get feeByPeriodMinor => $composableBuilder(
+      column: $table.feeByPeriodMinor, builder: (column) => column);
+
   GeneratedColumn<String> get currency =>
       $composableBuilder(column: $table.currency, builder: (column) => column);
 
@@ -13251,6 +13319,7 @@ class $$InstallmentPlansTableTableManager extends RootTableManager<
             Value<int> totalPeriods = const Value.absent(),
             Value<int> paidPeriods = const Value.absent(),
             Value<int> feePerPeriodMinor = const Value.absent(),
+            Value<String?> feeByPeriodMinor = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> accountId = const Value.absent(),
             Value<int> firstDueAt = const Value.absent(),
@@ -13270,6 +13339,7 @@ class $$InstallmentPlansTableTableManager extends RootTableManager<
             totalPeriods: totalPeriods,
             paidPeriods: paidPeriods,
             feePerPeriodMinor: feePerPeriodMinor,
+            feeByPeriodMinor: feeByPeriodMinor,
             currency: currency,
             accountId: accountId,
             firstDueAt: firstDueAt,
@@ -13289,6 +13359,7 @@ class $$InstallmentPlansTableTableManager extends RootTableManager<
             required int totalPeriods,
             Value<int> paidPeriods = const Value.absent(),
             Value<int> feePerPeriodMinor = const Value.absent(),
+            Value<String?> feeByPeriodMinor = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> accountId = const Value.absent(),
             required int firstDueAt,
@@ -13308,6 +13379,7 @@ class $$InstallmentPlansTableTableManager extends RootTableManager<
             totalPeriods: totalPeriods,
             paidPeriods: paidPeriods,
             feePerPeriodMinor: feePerPeriodMinor,
+            feeByPeriodMinor: feeByPeriodMinor,
             currency: currency,
             accountId: accountId,
             firstDueAt: firstDueAt,

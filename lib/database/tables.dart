@@ -244,8 +244,19 @@ class InstallmentPlans extends Table with SyncColumns {
   /// 已还期数
   IntColumn get paidPeriods => integer().withDefault(const Constant(0))();
 
-  /// 每期手续费 / 利息（分）
+  /// 每期手续费 / 利息（分）——历史_average_值，仅用于兼容旧数据与云端回退。
+  ///
+  /// 真实的「每期利息明细」以 [feeByPeriodMinor]（JSON 数组）为准；该列为 null
+  /// 时，UI 会按本列平摊显示。
   IntColumn get feePerPeriodMinor => integer().withDefault(const Constant(0))();
+
+  /// 每期手续费 / 利息明细（分），JSON 数组字符串，长度等于 [totalPeriods]。
+  ///
+  /// 用于支持「按期均摊 / 首期全部扣除 / 尾期全部扣除」等利息扣除方式：
+  /// 均摊时各元素相等；首期全扣时仅下标 0 非零；尾期全扣时仅末位非零。
+  /// 为 null 表示旧数据，按 [feePerPeriodMinor] 平摊处理。
+  TextColumn get feeByPeriodMinor => text().nullable()();
+
   TextColumn get currency => text().withDefault(const Constant('CNY'))();
   TextColumn get accountId => text().nullable()();
   IntColumn get firstDueAt => integer()();

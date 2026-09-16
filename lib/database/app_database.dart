@@ -63,7 +63,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -166,6 +166,16 @@ class AppDatabase extends _$AppDatabase {
           if (from < 8) {
             // v8：新增本地「记一笔模板」表（不参与云端同步）。
             await _createTableIfMissing(m, recordTemplates);
+          }
+
+          if (from < 9) {
+            // v9：分期计划新增「每期利息明细」数组列，承载首期/尾期全扣等
+            // 非均摊利息扣除方式。历史数据的该列为 null，UI 按平均利息平摊。
+            await _addColumnIfMissing(
+              m,
+              installmentPlans,
+              installmentPlans.feeByPeriodMinor,
+            );
           }
 
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
