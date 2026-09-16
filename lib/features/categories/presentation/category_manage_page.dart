@@ -116,16 +116,16 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
       ),
       child: Row(
         children: <Widget>[
-          Switch(
-            value: _showArchived,
-            onChanged: (bool value) => setState(() => _showArchived = value),
-          ),
-          const SizedBox(width: AppDimens.spaceSm),
           Text(
             '显示封存',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          Switch(
+            value: _showArchived,
+            onChanged: (bool value) => setState(() => _showArchived = value),
           ),
           const Spacer(),
         ],
