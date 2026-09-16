@@ -5851,6 +5851,12 @@ class $InstallmentPlansTable extends InstallmentPlans
   late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
       'account_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _repeatRuleMeta =
+      const VerificationMeta('repeatRule');
+  @override
+  late final GeneratedColumn<String> repeatRule = GeneratedColumn<String>(
+      'repeat_rule', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _firstDueAtMeta =
       const VerificationMeta('firstDueAt');
   @override
@@ -5888,6 +5894,7 @@ class $InstallmentPlansTable extends InstallmentPlans
         feeByPeriodMinor,
         currency,
         accountId,
+        repeatRule,
         firstDueAt,
         note,
         isFinished
@@ -5979,6 +5986,12 @@ class $InstallmentPlansTable extends InstallmentPlans
       context.handle(_accountIdMeta,
           accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
     }
+    if (data.containsKey('repeat_rule')) {
+      context.handle(
+          _repeatRuleMeta,
+          repeatRule.isAcceptableOrUnknown(
+              data['repeat_rule']!, _repeatRuleMeta));
+    }
     if (data.containsKey('first_due_at')) {
       context.handle(
           _firstDueAtMeta,
@@ -6034,6 +6047,8 @@ class $InstallmentPlansTable extends InstallmentPlans
           .read(DriftSqlType.string, data['${effectivePrefix}currency'])!,
       accountId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}account_id']),
+      repeatRule: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}repeat_rule']),
       firstDueAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}first_due_at'])!,
       note: attachedDatabase.typeMapping
@@ -6077,6 +6092,12 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
   final String? feeByPeriodMinor;
   final String currency;
   final String? accountId;
+
+  /// 重复周期规则，JSON 字符串。
+  ///
+  /// 旧数据为 null 时按「每月」处理。结构示例：
+  /// `{ "unit": "month", "interval": 1, "monthDays": [15] }`
+  final String? repeatRule;
   final int firstDueAt;
   final String? note;
   final bool isFinished;
@@ -6095,6 +6116,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       this.feeByPeriodMinor,
       required this.currency,
       this.accountId,
+      this.repeatRule,
       required this.firstDueAt,
       this.note,
       required this.isFinished});
@@ -6120,6 +6142,9 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
     map['currency'] = Variable<String>(currency);
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<String>(accountId);
+    }
+    if (!nullToAbsent || repeatRule != null) {
+      map['repeat_rule'] = Variable<String>(repeatRule);
     }
     map['first_due_at'] = Variable<int>(firstDueAt);
     if (!nullToAbsent || note != null) {
@@ -6151,6 +6176,9 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
           : Value(accountId),
+      repeatRule: repeatRule == null && nullToAbsent
+          ? const Value.absent()
+          : Value(repeatRule),
       firstDueAt: Value(firstDueAt),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       isFinished: Value(isFinished),
@@ -6175,6 +6203,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       feeByPeriodMinor: serializer.fromJson<String?>(json['feeByPeriodMinor']),
       currency: serializer.fromJson<String>(json['currency']),
       accountId: serializer.fromJson<String?>(json['accountId']),
+      repeatRule: serializer.fromJson<String?>(json['repeatRule']),
       firstDueAt: serializer.fromJson<int>(json['firstDueAt']),
       note: serializer.fromJson<String?>(json['note']),
       isFinished: serializer.fromJson<bool>(json['isFinished']),
@@ -6198,6 +6227,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       'feeByPeriodMinor': serializer.toJson<String?>(feeByPeriodMinor),
       'currency': serializer.toJson<String>(currency),
       'accountId': serializer.toJson<String?>(accountId),
+      'repeatRule': serializer.toJson<String?>(repeatRule),
       'firstDueAt': serializer.toJson<int>(firstDueAt),
       'note': serializer.toJson<String?>(note),
       'isFinished': serializer.toJson<bool>(isFinished),
@@ -6219,6 +6249,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
           Value<String?> feeByPeriodMinor = const Value.absent(),
           String? currency,
           Value<String?> accountId = const Value.absent(),
+          Value<String?> repeatRule = const Value.absent(),
           int? firstDueAt,
           Value<String?> note = const Value.absent(),
           bool? isFinished}) =>
@@ -6239,6 +6270,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
             : this.feeByPeriodMinor,
         currency: currency ?? this.currency,
         accountId: accountId.present ? accountId.value : this.accountId,
+        repeatRule: repeatRule.present ? repeatRule.value : this.repeatRule,
         firstDueAt: firstDueAt ?? this.firstDueAt,
         note: note.present ? note.value : this.note,
         isFinished: isFinished ?? this.isFinished,
@@ -6267,6 +6299,8 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
           : this.feeByPeriodMinor,
       currency: data.currency.present ? data.currency.value : this.currency,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      repeatRule:
+          data.repeatRule.present ? data.repeatRule.value : this.repeatRule,
       firstDueAt:
           data.firstDueAt.present ? data.firstDueAt.value : this.firstDueAt,
       note: data.note.present ? data.note.value : this.note,
@@ -6292,6 +6326,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
           ..write('feeByPeriodMinor: $feeByPeriodMinor, ')
           ..write('currency: $currency, ')
           ..write('accountId: $accountId, ')
+          ..write('repeatRule: $repeatRule, ')
           ..write('firstDueAt: $firstDueAt, ')
           ..write('note: $note, ')
           ..write('isFinished: $isFinished')
@@ -6315,6 +6350,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
       feeByPeriodMinor,
       currency,
       accountId,
+      repeatRule,
       firstDueAt,
       note,
       isFinished);
@@ -6336,6 +6372,7 @@ class InstallmentPlan extends DataClass implements Insertable<InstallmentPlan> {
           other.feeByPeriodMinor == this.feeByPeriodMinor &&
           other.currency == this.currency &&
           other.accountId == this.accountId &&
+          other.repeatRule == this.repeatRule &&
           other.firstDueAt == this.firstDueAt &&
           other.note == this.note &&
           other.isFinished == this.isFinished);
@@ -6356,6 +6393,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
   final Value<String?> feeByPeriodMinor;
   final Value<String> currency;
   final Value<String?> accountId;
+  final Value<String?> repeatRule;
   final Value<int> firstDueAt;
   final Value<String?> note;
   final Value<bool> isFinished;
@@ -6375,6 +6413,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
     this.feeByPeriodMinor = const Value.absent(),
     this.currency = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.repeatRule = const Value.absent(),
     this.firstDueAt = const Value.absent(),
     this.note = const Value.absent(),
     this.isFinished = const Value.absent(),
@@ -6395,6 +6434,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
     this.feeByPeriodMinor = const Value.absent(),
     this.currency = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.repeatRule = const Value.absent(),
     required int firstDueAt,
     this.note = const Value.absent(),
     this.isFinished = const Value.absent(),
@@ -6421,6 +6461,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
     Expression<String>? feeByPeriodMinor,
     Expression<String>? currency,
     Expression<String>? accountId,
+    Expression<String>? repeatRule,
     Expression<int>? firstDueAt,
     Expression<String>? note,
     Expression<bool>? isFinished,
@@ -6441,6 +6482,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
       if (feeByPeriodMinor != null) 'fee_by_period_minor': feeByPeriodMinor,
       if (currency != null) 'currency': currency,
       if (accountId != null) 'account_id': accountId,
+      if (repeatRule != null) 'repeat_rule': repeatRule,
       if (firstDueAt != null) 'first_due_at': firstDueAt,
       if (note != null) 'note': note,
       if (isFinished != null) 'is_finished': isFinished,
@@ -6463,6 +6505,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
       Value<String?>? feeByPeriodMinor,
       Value<String>? currency,
       Value<String?>? accountId,
+      Value<String?>? repeatRule,
       Value<int>? firstDueAt,
       Value<String?>? note,
       Value<bool>? isFinished,
@@ -6482,6 +6525,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
       feeByPeriodMinor: feeByPeriodMinor ?? this.feeByPeriodMinor,
       currency: currency ?? this.currency,
       accountId: accountId ?? this.accountId,
+      repeatRule: repeatRule ?? this.repeatRule,
       firstDueAt: firstDueAt ?? this.firstDueAt,
       note: note ?? this.note,
       isFinished: isFinished ?? this.isFinished,
@@ -6534,6 +6578,9 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
     }
+    if (repeatRule.present) {
+      map['repeat_rule'] = Variable<String>(repeatRule.value);
+    }
     if (firstDueAt.present) {
       map['first_due_at'] = Variable<int>(firstDueAt.value);
     }
@@ -6566,6 +6613,7 @@ class InstallmentPlansCompanion extends UpdateCompanion<InstallmentPlan> {
           ..write('feeByPeriodMinor: $feeByPeriodMinor, ')
           ..write('currency: $currency, ')
           ..write('accountId: $accountId, ')
+          ..write('repeatRule: $repeatRule, ')
           ..write('firstDueAt: $firstDueAt, ')
           ..write('note: $note, ')
           ..write('isFinished: $isFinished, ')
@@ -13066,6 +13114,7 @@ typedef $$InstallmentPlansTableCreateCompanionBuilder
   Value<String?> feeByPeriodMinor,
   Value<String> currency,
   Value<String?> accountId,
+  Value<String?> repeatRule,
   required int firstDueAt,
   Value<String?> note,
   Value<bool> isFinished,
@@ -13087,6 +13136,7 @@ typedef $$InstallmentPlansTableUpdateCompanionBuilder
   Value<String?> feeByPeriodMinor,
   Value<String> currency,
   Value<String?> accountId,
+  Value<String?> repeatRule,
   Value<int> firstDueAt,
   Value<String?> note,
   Value<bool> isFinished,
@@ -13145,6 +13195,9 @@ class $$InstallmentPlansTableFilterComposer
 
   ColumnFilters<String> get accountId => $composableBuilder(
       column: $table.accountId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get repeatRule => $composableBuilder(
+      column: $table.repeatRule, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get firstDueAt => $composableBuilder(
       column: $table.firstDueAt, builder: (column) => ColumnFilters(column));
@@ -13210,6 +13263,9 @@ class $$InstallmentPlansTableOrderingComposer
   ColumnOrderings<String> get accountId => $composableBuilder(
       column: $table.accountId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get repeatRule => $composableBuilder(
+      column: $table.repeatRule, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get firstDueAt => $composableBuilder(
       column: $table.firstDueAt, builder: (column) => ColumnOrderings(column));
 
@@ -13271,6 +13327,9 @@ class $$InstallmentPlansTableAnnotationComposer
   GeneratedColumn<String> get accountId =>
       $composableBuilder(column: $table.accountId, builder: (column) => column);
 
+  GeneratedColumn<String> get repeatRule => $composableBuilder(
+      column: $table.repeatRule, builder: (column) => column);
+
   GeneratedColumn<int> get firstDueAt => $composableBuilder(
       column: $table.firstDueAt, builder: (column) => column);
 
@@ -13322,6 +13381,7 @@ class $$InstallmentPlansTableTableManager extends RootTableManager<
             Value<String?> feeByPeriodMinor = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> accountId = const Value.absent(),
+            Value<String?> repeatRule = const Value.absent(),
             Value<int> firstDueAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<bool> isFinished = const Value.absent(),
@@ -13342,6 +13402,7 @@ class $$InstallmentPlansTableTableManager extends RootTableManager<
             feeByPeriodMinor: feeByPeriodMinor,
             currency: currency,
             accountId: accountId,
+            repeatRule: repeatRule,
             firstDueAt: firstDueAt,
             note: note,
             isFinished: isFinished,
@@ -13362,6 +13423,7 @@ class $$InstallmentPlansTableTableManager extends RootTableManager<
             Value<String?> feeByPeriodMinor = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> accountId = const Value.absent(),
+            Value<String?> repeatRule = const Value.absent(),
             required int firstDueAt,
             Value<String?> note = const Value.absent(),
             Value<bool> isFinished = const Value.absent(),
@@ -13382,6 +13444,7 @@ class $$InstallmentPlansTableTableManager extends RootTableManager<
             feeByPeriodMinor: feeByPeriodMinor,
             currency: currency,
             accountId: accountId,
+            repeatRule: repeatRule,
             firstDueAt: firstDueAt,
             note: note,
             isFinished: isFinished,

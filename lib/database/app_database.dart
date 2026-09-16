@@ -63,7 +63,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -175,6 +175,17 @@ class AppDatabase extends _$AppDatabase {
               m,
               installmentPlans,
               installmentPlans.feeByPeriodMinor,
+            );
+          }
+
+          if (from < 10) {
+            // v10：分期计划新增「重复周期规则」列，用于支持每天/每周/每月/
+            // 每年以及间隔、指定星期/日期/月份等复杂重复方式。历史数据为
+            // null，Repository 会按原默认「每月」生成每期明细。
+            await _addColumnIfMissing(
+              m,
+              installmentPlans,
+              installmentPlans.repeatRule,
             );
           }
 

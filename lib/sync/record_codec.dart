@@ -377,6 +377,7 @@ abstract final class RecordCodec {
         paidPeriods: Value<int>((p['paidPeriods'] as int?) ?? 0),
         feePerPeriodMinor: Value<int>((p['feePerPeriodMinor'] as int?) ?? 0),
         feeByPeriodMinor: Value<String?>((p['feeByPeriodMinor'] as String?)),
+        repeatRule: Value<String?>(p['repeatRule'] as String?),
         currency: Value<String>((p['currency'] as String?) ?? 'CNY'),
         accountId: Value<String?>(p['accountId'] as String?),
         note: Value<String?>(p['note'] as String?),

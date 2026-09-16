@@ -259,6 +259,13 @@ class InstallmentPlans extends Table with SyncColumns {
 
   TextColumn get currency => text().withDefault(const Constant('CNY'))();
   TextColumn get accountId => text().nullable()();
+
+  /// 重复周期规则，JSON 字符串。
+  ///
+  /// 旧数据为 null 时按「每月」处理。结构示例：
+  /// `{ "unit": "month", "interval": 1, "monthDays": [15] }`
+  TextColumn get repeatRule => text().nullable()();
+
   IntColumn get firstDueAt => integer()();
   TextColumn get note => text().nullable()();
   BoolColumn get isFinished => boolean().withDefault(const Constant(false))();

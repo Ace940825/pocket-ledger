@@ -8,6 +8,8 @@ import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../database/sync_enqueue.dart';
 import '../../../domain/enums.dart';
+import '../domain/installment_dates.dart';
+import '../domain/repeat_rule.dart';
 
 /// 分期仓储。计划（[InstallmentPlans]）与每期明细（[InstallmentPeriods]）成对维护。
 ///
@@ -53,12 +55,15 @@ class InstallmentRepository {
   /// [feeByPeriodMinor] 为可选的每期手续费/利息（分），长度必须等于 [totalPeriods]。
   /// 传 null 时，手续费按 0 处理；用于支持「按期均摊 / 首期全部扣除 / 尾期全部扣除」
   /// 等利息扣除方式。
+  ///
+  /// [repeatRule] 为可选的重复周期规则；传 null 时按原默认「每月」生成每期明细。
   Future<String> addPlan({
     required String bookId,
     required String title,
     required int totalMinor,
     required int totalPeriods,
     List<int>? feeByPeriodMinor,
+    InstallmentRepeatRule? repeatRule,
     required int firstDueAt,
     String? accountId,
     String? note,
@@ -82,6 +87,12 @@ class InstallmentRepository {
     final int feePerPeriodMinor =
         totalPeriods == 0 ? 0 : totalFee ~/ totalPeriods;
 
+    final List<DateTime> dueDates = computeInstallmentDueDates(
+      firstDue: firstDue,
+      rule: repeatRule,
+      totalPeriods: totalPeriods,
+    );
+
     return _db.transaction<String>(() async {
       await _db.into(_db.installmentPlans).insert(
             InstallmentPlansCompanion(
@@ -92,6 +103,7 @@ class InstallmentRepository {
               totalPeriods: Value<int>(totalPeriods),
               feePerPeriodMinor: Value<int>(feePerPeriodMinor),
               feeByPeriodMinor: Value<String>(jsonEncode(feeByPeriod)),
+              repeatRule: Value<String?>(repeatRule?.toJsonString()),
               firstDueAt: Value<int>(firstDueAt),
               accountId: Value<String?>(accountId),
               note: Value<String?>(note),
@@ -103,8 +115,7 @@ class InstallmentRepository {
       for (int i = 0; i < totalPeriods; i++) {
         final String periodId = const Uuid().v7();
         final int amount = base + (i == totalPeriods - 1 ? remainder : 0);
-        final int dueAt =
-            addMonths(firstDue, i).toUtc().millisecondsSinceEpoch;
+        final int dueAt = dueDates[i].toUtc().millisecondsSinceEpoch;
         final int periodFee = feeByPeriod.length > i ? feeByPeriod[i] : 0;
 
         await _db.into(_db.installmentPeriods).insert(
@@ -145,6 +156,7 @@ class InstallmentRepository {
           'totalPeriods': totalPeriods,
           'feePerPeriodMinor': feePerPeriodMinor,
           'feeByPeriodMinor': jsonEncode(feeByPeriod),
+          'repeatRule': repeatRule?.toJsonString(),
           'firstDueAt': firstDueAt,
           'accountId': accountId,
           'note': note,

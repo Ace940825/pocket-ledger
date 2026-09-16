@@ -101,7 +101,7 @@ void main() {
     await expectLater(db.booksDao.watchAll().first, completes);
     await db.close();
 
-    expect(userVersion(), 9, reason: '迁移成功后 user_version 必须推进到 9');
+    expect(userVersion(), 10, reason: '迁移成功后 user_version 必须推进到 10');
   });
 
   test('升级路径也必须补齐索引（且幂等）', () async {
@@ -147,7 +147,7 @@ void main() {
     expect(transactionColumns(), contains('exclude_from_stats'));
     expect(transactionColumns(), contains('exclude_from_budget'));
     expect(transactionColumns(), contains('is_reimbursable'));
-    expect(userVersion(), 9, reason: 'v6→v9 升级后 user_version 必须推进到 9');
+    expect(userVersion(), 10, reason: 'v6→v10 升级后 user_version 必须推进到 10');
     // v8 迁移同时补齐本地模板表。
     expect(tableExists('record_templates'), isTrue);
   });
@@ -157,7 +157,7 @@ void main() {
     await db.booksDao.watchAll().first;
     await db.close();
 
-    expect(userVersion(), 9);
+    expect(userVersion(), 10);
     expect(reimbursementColumns(), contains('exclude_from_stats'));
     expect(transactionColumns(), contains('exclude_from_stats'));
     expect(transactionColumns(), contains('exclude_from_budget'));
@@ -186,11 +186,40 @@ void main() {
     await db.booksDao.watchAll().first; // 走 v8→v9 onUpgrade
     await db.close();
 
-    expect(userVersion(), 9);
+    expect(userVersion(), 10);
     expect(
       columnsOf('installment_plans'),
       contains('fee_by_period_minor'),
       reason: 'v9 迁移必须补齐每期利息明细列',
+    );
+  });
+
+  test('v10 升级为 installment_plans 补齐 repeat_rule 列', () async {
+    await createCurrentSchema();
+
+    // 模拟已发布 v9 库：分期计划表还没有 v10 新增的 repeat_rule 列。
+    final raw.Database rawDb = raw.sqlite3.open(dbPath());
+    rawDb.execute(
+      'ALTER TABLE installment_plans DROP COLUMN repeat_rule',
+    );
+    rawDb.execute('PRAGMA user_version = 9');
+    rawDb.dispose();
+
+    expect(
+      columnsOf('installment_plans'),
+      isNot(contains('repeat_rule')),
+      reason: '前置：v9 库不应有该列',
+    );
+
+    final AppDatabase db = AppDatabase(NativeDatabase(File(dbPath())));
+    await db.booksDao.watchAll().first; // 走 v9→v10 onUpgrade
+    await db.close();
+
+    expect(userVersion(), 10);
+    expect(
+      columnsOf('installment_plans'),
+      contains('repeat_rule'),
+      reason: 'v10 迁移必须补齐重复周期规则列',
     );
   });
 }

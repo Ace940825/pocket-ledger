@@ -11,7 +11,10 @@ import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/date_picker_sheet.dart';
+import '../../../shared/widgets/repeat_picker_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../domain/installment_dates.dart';
+import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
 
 /// 添加分期页（小青账模板）。
@@ -38,7 +41,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     DateTime.now().day,
   );
 
-  String _repeatLabel = '每月';
+  late InstallmentRepeatRule _repeatRule;
   String _roundingLabel = '四舍五入';
   String _remainderLabel = '首期';
   String _precisionLabel = '小数点后2位';
@@ -51,6 +54,15 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   String? _categoryId;
 
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _repeatRule = InstallmentRepeatRule.defaultFor(
+      RepeatUnit.month,
+      firstDue: _firstDueAt,
+    );
+  }
 
   @override
   void dispose() {
@@ -154,16 +166,12 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                           ),
                           _buildSelectorRow(
                             label: '重复周期',
-                            value: _repeatLabel,
+                            value: _repeatRule.displayLabel(
+                              fallbackDay: _firstDueAt.day,
+                            ),
                             subtitle: '默认按月重复，入账日与开始时间一致',
                             icon: Icons.repeat_outlined,
-                            onTap: () => _showOptionSheet(
-                              title: '重复周期',
-                              options: const <String>['每月', '每周', '每年'],
-                              selected: _repeatLabel,
-                              onSelected: (String v) =>
-                                  setState(() => _repeatLabel = v),
-                            ),
+                            onTap: _pickRepeatRule,
                           ),
                           _buildSelectorRow(
                             label: '余数计算方式',
@@ -546,7 +554,23 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           _firstDueAt.millisecond,
           _firstDueAt.microsecond,
         );
+        // 当开始时间改变时，把重复规则也同步到新的日期/月份，避免「每月 31 日」
+        // 但开始时间只有 30 号这类错位。
+        _repeatRule = InstallmentRepeatRule.defaultFor(
+          _repeatRule.unit,
+          firstDue: _firstDueAt,
+        ).copyWith(interval: _repeatRule.interval);
       });
+    }
+  }
+
+  Future<void> _pickRepeatRule() async {
+    final InstallmentRepeatRule? picked = await RepeatPickerSheet.show(
+      context,
+      initialRule: _repeatRule,
+    );
+    if (picked != null && mounted) {
+      setState(() => _repeatRule = picked);
     }
   }
 
@@ -895,6 +919,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             totalMinor: principal,
             totalPeriods: _periods,
             feeByPeriodMinor: feeByPeriod,
+            repeatRule: _repeatRule,
             firstDueAt: _firstDueAt.toUtc().millisecondsSinceEpoch,
             accountId: _accountId,
             note: _noteController.text.trim().isEmpty
@@ -923,6 +948,11 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     final int base = principal ~/ _periods;
     final int remainder = principal - base * _periods;
     final List<int> feeByPeriod = _buildFeeByPeriod(interest, _periods);
+    final List<DateTime> dueDates = computeInstallmentDueDates(
+      firstDue: _firstDueAt,
+      rule: _repeatRule,
+      totalPeriods: _periods,
+    );
 
     showModalBottomSheet<void>(
       context: context,
@@ -961,13 +991,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                     dense: true,
                     title: Text('第 ${index + 1} 期'),
                     subtitle: Text(
-                      DateFormat('yyyy-MM-dd').format(
-                        DateTime(
-                          _firstDueAt.year,
-                          _firstDueAt.month + index,
-                          _firstDueAt.day,
-                        ),
-                      ),
+                      DateFormat('yyyy-MM-dd').format(dueDates[index]),
                     ),
                     trailing: Text(Money.fromMinor(total).format()),
                   );
