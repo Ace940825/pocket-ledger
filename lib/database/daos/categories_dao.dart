@@ -127,6 +127,22 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
         .then((int? v) => v ?? 0);
   }
 
+  /// 取某类型下一级分类的最大 sortOrder，用于子分类升主时追加排序。
+  Future<int> maxRootSortOrder(String bookId, int type) {
+    final Expression<int> maxExpr = categories.sortOrder.max();
+    return (selectOnly(categories)
+          ..addColumns(<Expression<Object>>[maxExpr])
+          ..where(
+            categories.bookId.equals(bookId) &
+                categories.type.equals(type) &
+                categories.parentId.isNull() &
+                categories.deleted.equals(false),
+          ))
+        .map((TypedResult row) => row.read(maxExpr))
+        .getSingle()
+        .then((int? v) => v ?? 0);
+  }
+
   /// 列出某父分类的直接子分类 ID（改挂时同步同步队列用）。
   Future<List<String>> childIds(String parentId) {
     return (selectOnly(categories)

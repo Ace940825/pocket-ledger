@@ -610,6 +610,8 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
     VoidCallback? onAddChild,
   }) async {
     final bool isParent = category.parentId == null;
+    final String name = category.name;
+    final String parentName = widget.category.name;
     final Color color = category.colorValue != null
         ? Color(category.colorValue!)
         : AppColors.primary;
@@ -662,26 +664,45 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.edit_outlined),
-              title: const Text('编辑分类'),
+              title: Text(isParent ? '编辑分类' : '编辑子分类'),
+              subtitle: Text(
+                isParent ? '修改「$name」分类' : '修改「$name」子分类',
+              ),
               onTap: () => Navigator.of(sheet).pop('edit'),
             ),
             if (isParent) ...<Widget>[
               ListTile(
                 leading: const Icon(Icons.sort_outlined),
                 title: const Text('分类排序'),
+                subtitle: const Text('为主分类排序'),
                 onTap: () => Navigator.of(sheet).pop('sort'),
               ),
               ListTile(
                 leading: const Icon(Icons.subdirectory_arrow_right_outlined),
                 title: const Text('改为子分类'),
+                subtitle: Text('将「$name」归入其他主分类'),
                 onTap: () => Navigator.of(sheet).pop('toSub'),
               ),
+            ] else ...<Widget>[
               ListTile(
-                leading: const Icon(Icons.swap_horiz_outlined),
-                title: const Text('账单迁移'),
-                onTap: () => Navigator.of(sheet).pop('migrate'),
+                leading: const Icon(Icons.vertical_align_top_outlined),
+                title: const Text('改为主分类'),
+                subtitle: Text('将「$name」变为主分类'),
+                onTap: () => Navigator.of(sheet).pop('toParent'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.sort_outlined),
+                title: const Text('子分类排序'),
+                subtitle: Text('为「$parentName」下的子分类排序'),
+                onTap: () => Navigator.of(sheet).pop('childSort'),
               ),
             ],
+            ListTile(
+              leading: const Icon(Icons.swap_horiz_outlined),
+              title: const Text('账单迁移'),
+              subtitle: Text('仅迁移「$name」分类下的账单'),
+              onTap: () => Navigator.of(sheet).pop('migrate'),
+            ),
             ListTile(
               leading: Icon(
                 category.isArchived
@@ -689,7 +710,14 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
                     : Icons.archive_outlined,
               ),
               title: Text(
-                category.isArchived ? '取消封存分类' : '封存分类',
+                category.isArchived
+                    ? (isParent ? '取消封存分类' : '取消封存子分类')
+                    : (isParent ? '封存分类' : '封存子分类'),
+              ),
+              subtitle: Text(
+                category.isArchived
+                    ? '将「$name」解封并恢复显示'
+                    : '将「$name」封存，简化分类列表',
               ),
               onTap: () => Navigator.of(sheet).pop(
                 category.isArchived ? 'unarchive' : 'archive',
@@ -701,9 +729,14 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
                 Icons.delete_outline,
                 color: AppColors.expense,
               ),
-              title: const Text(
-                '删除分类',
-                style: TextStyle(color: AppColors.expense),
+              title: Text(
+                isParent ? '删除分类' : '删除子分类',
+                style: const TextStyle(color: AppColors.expense),
+              ),
+              subtitle: Text(
+                isParent
+                    ? '迁移账单后删除，或直接删除分类'
+                    : '迁移账单后删除，或直接删除子分类',
               ),
               onTap: () => Navigator.of(sheet).pop('delete'),
             ),
@@ -718,8 +751,17 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
       onEdit();
     } else if (action == 'sort') {
       await _showSortSheet(context, ref, category);
+    } else if (action == 'childSort') {
+      await _showChildSortSheet(
+        context,
+        ref,
+        widget.category.id,
+        widget.children,
+      );
     } else if (action == 'toSub') {
       await _showChangeParentSheet(context, ref, category);
+    } else if (action == 'toParent') {
+      await _showPromoteSheet(context, ref, category);
     } else if (action == 'migrate') {
       await _showMigrateSheet(context, ref, category);
     } else if (action == 'archive') {
@@ -1371,6 +1413,124 @@ Future<void> _showMigrateSheet(
   } on AppFailure catch (e) {
     if (context.mounted) _toast(context, e.message);
   }
+}
+
+/// 改为主分类：将子分类提升为一级分类。
+Future<void> _showPromoteSheet(
+  BuildContext context,
+  WidgetRef ref,
+  Category category,
+) async {
+  final bool? confirmed = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialog) => AlertDialog(
+      title: const Text('改为主分类'),
+      content: Text('「${category.name}」将变为主分类。'),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(false),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialog).pop(true),
+          child: const Text('确定'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+
+  try {
+    await ref.read(categoryRepositoryProvider).promoteToParent(category.id);
+    if (context.mounted) _toast(context, '「${category.name}」已变为主分类');
+  } on AppFailure catch (e) {
+    if (context.mounted) _toast(context, e.message);
+  }
+}
+
+/// 子分类排序：拖拽重排同一主分类下的子分类顺序。
+Future<void> _showChildSortSheet(
+  BuildContext context,
+  WidgetRef ref,
+  String parentId,
+  List<Category> children,
+) async {
+  final List<Category> items = children.toList()
+    ..sort((Category a, Category b) => a.sortOrder.compareTo(b.sortOrder));
+  if (items.length < 2) {
+    _toast(context, '子分类不足两个，无需排序');
+    return;
+  }
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+    ),
+    builder: (BuildContext sheet) => SafeArea(
+      child: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSheetState) {
+          return SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.7,
+            child: Column(
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.all(AppDimens.spaceMd),
+                  child: Row(
+                    children: <Widget>[
+                      const SizedBox(width: 48),
+                      const Expanded(
+                        child: Text(
+                          '子分类排序',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ReorderableListView(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppDimens.spaceSm,
+                    ),
+                    buildDefaultDragHandles: true,
+                    onReorder: (int oldIndex, int newIndex) async {
+                      setSheetState(() {
+                        if (newIndex > oldIndex) newIndex -= 1;
+                        final Category moved = items.removeAt(oldIndex);
+                        items.insert(newIndex, moved);
+                      });
+                      final List<String> ids =
+                          items.map((Category c) => c.id).toList();
+                      await ref
+                          .read(categoryRepositoryProvider)
+                          .reorderChildren(parentId, ids);
+                    },
+                    children: <Widget>[
+                      for (final Category c in items)
+                        _SortTile(key: ValueKey<String>(c.id), category: c),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppDimens.spaceMd),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 void _toast(BuildContext context, String message) {

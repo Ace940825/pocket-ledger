@@ -151,8 +151,69 @@ class CategoryRepository {
     await _db.transaction<void>(() async {
       for (int i = 0; i < orderedIds.length; i++) {
         await _db.categoriesDao.setSortOrder(orderedIds[i], i, now);
-        await _enqueue(orderedIds[i], SyncOpType.update, now,
-            <String, Object?>{'sortOrder': i});
+        await _enqueue(
+          orderedIds[i],
+          SyncOpType.update,
+          now,
+          <String, Object?>{'sortOrder': i},
+        );
+      }
+    });
+  }
+
+  /// 将子分类提升为一级分类。
+  ///
+  /// 子分类原来的直接子分类会一并提升（parentId 改为其原父分类的 parentId，
+  /// 也就是 null）。sortOrder 追加到一级分类末尾。
+  Future<void> promoteToParent(String id) async {
+    final Category? cat = await _db.categoriesDao.getById(id);
+    if (cat == null) {
+      throw const NotFoundFailure('分类不存在');
+    }
+    if (cat.parentId == null) {
+      // 已经是一级分类，无需操作。
+      return;
+    }
+
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final int maxSo =
+        await _db.categoriesDao.maxRootSortOrder(cat.bookId, cat.type.index);
+
+    await _db.transaction<void>(() async {
+      await _db.categoriesDao.updateCategory(
+        CategoriesCompanion(
+          id: Value<String>(cat.id),
+          bookId: Value<String>(cat.bookId),
+          name: Value<String>(cat.name),
+          type: Value<CategoryType>(cat.type),
+          parentId: const Value<String?>(null),
+          colorValue: Value<int?>(cat.colorValue),
+          iconKey: Value<String?>(cat.iconKey),
+          sortOrder: Value<int>(maxSo + 1),
+          updatedAt: Value<int>(now),
+          dirty: const Value<bool>(true),
+        ),
+      );
+      await _enqueue(cat.id, SyncOpType.update, now, <String, Object?>{
+        'parentId': null,
+        'sortOrder': maxSo + 1,
+      });
+    });
+  }
+
+  /// 重排某父分类下的直接子分类顺序。传入按目标顺序排列的子分类 ID 列表。
+  Future<void> reorderChildren(String parentId, List<String> orderedIds) async {
+    if (orderedIds.isEmpty) return;
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      for (int i = 0; i < orderedIds.length; i++) {
+        await _db.categoriesDao.setSortOrder(orderedIds[i], i, now);
+        await _enqueue(
+          orderedIds[i],
+          SyncOpType.update,
+          now,
+          <String, Object?>{'sortOrder': i},
+        );
       }
     });
   }
