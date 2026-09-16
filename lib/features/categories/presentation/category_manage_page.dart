@@ -175,11 +175,9 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           ref: ref,
           onEdit: () => _showEditor(context, ref, category: parent),
           onDelete: () => _confirmDelete(context, ref, parent),
-          onAddChild: () => _showEditor(
-            context,
-            ref,
-            type: parent.type,
-            parentId: parent.id,
+          onAddChild: () => context.push(
+            Routes.addSubcategory,
+            extra: parent,
           ),
           onChildEdit: (Category child) {
             context.push(
