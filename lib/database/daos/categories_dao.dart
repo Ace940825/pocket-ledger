@@ -61,6 +61,32 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// 封存分类。仅置 isArchived = true，保留数据与流水关联，可恢复。
+  Future<int> archive(String id, int updatedAt) {
+    return (update(categories)
+          ..where(($CategoriesTable tbl) => tbl.id.equals(id)))
+        .write(
+      CategoriesCompanion(
+        isArchived: const Value<bool>(true),
+        dirty: const Value<bool>(true),
+        updatedAt: Value<int>(updatedAt),
+      ),
+    );
+  }
+
+  /// 解封分类（撤销 [archive]）。
+  Future<int> unarchive(String id, int updatedAt) {
+    return (update(categories)
+          ..where(($CategoriesTable tbl) => tbl.id.equals(id)))
+        .write(
+      CategoriesCompanion(
+        isArchived: const Value<bool>(false),
+        dirty: const Value<bool>(true),
+        updatedAt: Value<int>(updatedAt),
+      ),
+    );
+  }
+
   /// 批量写入默认分类，仅在首次初始化时调用。
   Future<void> seedDefaults(String bookId, List<CategoriesCompanion> items) {
     return batch((Batch batch) {

@@ -168,6 +168,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           category: parent,
           children: children,
           showArchived: _showArchived,
+          ref: ref,
           onEdit: () => _showEditor(context, ref, category: parent),
           onDelete: () => _confirmDelete(context, ref, parent),
           onAddChild: () => _showEditor(
@@ -378,11 +379,6 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
     }
   }
 
-  void _toast(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
   Future<void> _showMoreSheet(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -499,6 +495,7 @@ class _ParentCategoryTile extends StatefulWidget {
     required this.category,
     required this.children,
     required this.showArchived,
+    required this.ref,
     required this.onEdit,
     required this.onDelete,
     required this.onAddChild,
@@ -509,6 +506,7 @@ class _ParentCategoryTile extends StatefulWidget {
   final Category category;
   final List<Category> children;
   final bool showArchived;
+  final WidgetRef ref;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onAddChild;
@@ -542,9 +540,11 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
           onTap: () => setState(() => _expanded = !_expanded),
           onMore: () => _showCategoryMenu(
             context,
+            widget.ref,
             widget.category,
             onEdit: widget.onEdit,
             onDelete: widget.onDelete,
+            onAddChild: widget.onAddChild,
           ),
         ),
         if (_expanded)
@@ -582,6 +582,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
                         category: child,
                         onTap: () => _showCategoryMenu(
                           context,
+                          widget.ref,
                           child,
                           onEdit: () => widget.onChildEdit(child),
                           onDelete: () => widget.onChildDelete(child),
@@ -601,24 +602,97 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
 
   Future<void> _showCategoryMenu(
     BuildContext context,
+    WidgetRef ref,
     Category category, {
     required VoidCallback onEdit,
     required VoidCallback onDelete,
+    VoidCallback? onAddChild,
   }) async {
+    final bool isParent = category.parentId == null;
+    final Color color = category.colorValue != null
+        ? Color(category.colorValue!)
+        : AppColors.primary;
+
     final String? action = await showModalBottomSheet<String>(
       context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppDimens.radiusLg),
+        ),
+      ),
       builder: (BuildContext sheet) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(AppDimens.spaceMd),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius:
+                          BorderRadius.circular(AppDimens.radiusMd),
+                    ),
+                    child: Icon(
+                      categoryIconData(category.iconKey),
+                      color: color,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: AppDimens.spaceMd),
+                  Expanded(
+                    child: Text(
+                      category.name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(sheet).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.edit_outlined),
-              title: const Text('编辑'),
+              title: const Text('编辑分类'),
               onTap: () => Navigator.of(sheet).pop('edit'),
             ),
+            if (isParent)
+              ListTile(
+                leading: const Icon(Icons.add_circle_outline),
+                title: const Text('添加子分类'),
+                onTap: () => Navigator.of(sheet).pop('addChild'),
+              ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: AppColors.expense),
-              title: const Text('删除', style: TextStyle(color: AppColors.expense)),
+              leading: Icon(
+                category.isArchived
+                    ? Icons.unarchive_outlined
+                    : Icons.archive_outlined,
+              ),
+              title: Text(
+                category.isArchived ? '取消封存分类' : '封存分类',
+              ),
+              onTap: () => Navigator.of(sheet).pop(
+                category.isArchived ? 'unarchive' : 'archive',
+              ),
+            ),
+            const Divider(height: 1, indent: 56),
+            ListTile(
+              leading: const Icon(
+                Icons.delete_outline,
+                color: AppColors.expense,
+              ),
+              title: const Text(
+                '删除分类',
+                style: TextStyle(color: AppColors.expense),
+              ),
               onTap: () => Navigator.of(sheet).pop('delete'),
             ),
             const SizedBox(height: AppDimens.spaceMd),
@@ -626,8 +700,24 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
         ),
       ),
     );
+
+    if (action == null) return;
     if (action == 'edit') {
       onEdit();
+    } else if (action == 'addChild' && onAddChild != null) {
+      onAddChild();
+    } else if (action == 'archive') {
+      try {
+        await ref.read(categoryRepositoryProvider).archive(category.id);
+      } on AppFailure catch (e) {
+        if (context.mounted) _toast(context, e.message);
+      }
+    } else if (action == 'unarchive') {
+      try {
+        await ref.read(categoryRepositoryProvider).unarchive(category.id);
+      } on AppFailure catch (e) {
+        if (context.mounted) _toast(context, e.message);
+      }
     } else if (action == 'delete') {
       onDelete();
     }
@@ -887,4 +977,9 @@ class _ColorChip extends StatelessWidget {
       ),
     );
   }
+}
+
+void _toast(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(message)));
 }

@@ -122,6 +122,28 @@ class CategoryRepository {
     });
   }
 
+  /// 封存分类。
+  Future<void> archive(String id) async {
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      await _db.categoriesDao.archive(id, now);
+      await _enqueue(id, SyncOpType.update, now, <String, Object?>{
+        'isArchived': true,
+      });
+    });
+  }
+
+  /// 解封分类。
+  Future<void> unarchive(String id) async {
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      await _db.categoriesDao.unarchive(id, now);
+      await _enqueue(id, SyncOpType.update, now, <String, Object?>{
+        'isArchived': false,
+      });
+    });
+  }
+
   Future<void> _enqueue(
     String recordId,
     SyncOpType opType,
