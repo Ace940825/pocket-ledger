@@ -562,13 +562,20 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               ),
             ),
             const Divider(height: 1),
-            ...options.map(
-              (String option) => ListTile(
-                title: Text(option),
-                trailing: option == selected
-                    ? const Icon(Icons.check, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(ctx).pop(option),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (BuildContext ctx, int index) {
+                  final String option = options[index];
+                  return ListTile(
+                    title: Text(option),
+                    trailing: option == selected
+                        ? const Icon(Icons.check, color: AppColors.primary)
+                        : null,
+                    onTap: () => Navigator.of(ctx).pop(option),
+                  );
+                },
               ),
             ),
             const SizedBox(height: AppDimens.spaceMd),
@@ -643,13 +650,20 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               ),
             ),
             const Divider(height: 1),
-            ...accounts.map(
-              (Account account) => ListTile(
-                title: Text(account.name),
-                trailing: account.id == _accountId
-                    ? const Icon(Icons.check, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(ctx).pop(account.id),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: accounts.length,
+                itemBuilder: (BuildContext ctx, int index) {
+                  final Account account = accounts[index];
+                  return ListTile(
+                    title: Text(account.name),
+                    trailing: account.id == _accountId
+                        ? const Icon(Icons.check, color: AppColors.primary)
+                        : null,
+                    onTap: () => Navigator.of(ctx).pop(account.id),
+                  );
+                },
               ),
             ),
             const SizedBox(height: AppDimens.spaceMd),
@@ -772,16 +786,23 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               ),
             ),
             const Divider(height: 1),
-            ...parents.map(
-              (Category category) => ListTile(
-                leading: category.iconKey != null
-                    ? Icon(categoryIconData(category.iconKey))
-                    : null,
-                title: Text(category.name),
-                trailing: category.id == _categoryId
-                    ? const Icon(Icons.check, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(ctx).pop(category.id),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: parents.length,
+                itemBuilder: (BuildContext ctx, int index) {
+                  final Category category = parents[index];
+                  return ListTile(
+                    leading: category.iconKey != null
+                        ? Icon(categoryIconData(category.iconKey))
+                        : null,
+                    title: Text(category.name),
+                    trailing: category.id == _categoryId
+                        ? const Icon(Icons.check, color: AppColors.primary)
+                        : null,
+                    onTap: () => Navigator.of(ctx).pop(category.id),
+                  );
+                },
               ),
             ),
             const SizedBox(height: AppDimens.spaceMd),
