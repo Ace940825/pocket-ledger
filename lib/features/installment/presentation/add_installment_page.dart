@@ -42,6 +42,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   String _remainderLabel = '首期';
   String _precisionLabel = '小数点后2位';
   String _principalTimingLabel = '分期时记入';
+  /// 利息扣除方式：按期均摊、首期全部扣除、尾期全部扣除。
   String _interestDeductLabel = '按期均摊';
   String _interestTimingLabel = '分期时记入';
 
@@ -64,6 +65,32 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
 
   int get _interestMinor =>
       Money.tryParse(_interestController.text.trim()).minor;
+
+  /// 根据「利息扣除方式」把总利息拆成每期的手续费（分）。
+  ///
+  /// - 按期均摊：利息平均分，余数归末期（与本金余数规则一致）。
+  /// - 首期全部扣除：全部利息算入第 1 期。
+  /// - 尾期全部扣除：全部利息算入最后一期。
+  List<int> _buildFeeByPeriod(int totalInterest, int periods) {
+    if (periods <= 0 || totalInterest <= 0) {
+      return List<int>.filled(periods.clamp(1, 120), 0, growable: false);
+    }
+    final List<int> result = List<int>.filled(periods, 0, growable: false);
+    switch (_interestDeductLabel) {
+      case '首期全部扣除':
+        result[0] = totalInterest;
+      case '尾期全部扣除':
+        result[periods - 1] = totalInterest;
+      case '按期均摊':
+      default:
+        final int base = totalInterest ~/ periods;
+        final int remainder = totalInterest - base * periods;
+        for (int i = 0; i < periods; i++) {
+          result[i] = base + (i == periods - 1 ? remainder : 0);
+        }
+    }
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +241,11 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                             icon: Icons.percent_outlined,
                             onTap: () => _showOptionSheet(
                               title: '利息扣除方式',
-                              options: const <String>['按期均摊', '首期一次性扣除'],
+                              options: const <String>[
+                                '按期均摊',
+                                '首期全部扣除',
+                                '尾期全部扣除',
+                              ],
                               selected: _interestDeductLabel,
                               onSelected: (String v) => setState(
                                   () => _interestDeductLabel = v),
@@ -822,14 +853,14 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
 
     setState(() => _saving = true);
     try {
-      final int feePerPeriod = _periods == 0 ? 0 : _interestMinor ~/ _periods;
       final String bookId = ref.read(currentBookIdProvider);
+      final List<int> feeByPeriod = _buildFeeByPeriod(_interestMinor, _periods);
       await ref.read(installmentRepositoryProvider).addPlan(
             bookId: bookId,
             title: name,
             totalMinor: principal,
             totalPeriods: _periods,
-            feePerPeriodMinor: feePerPeriod,
+            feeByPeriodMinor: feeByPeriod,
             firstDueAt: _firstDueAt.toUtc().millisecondsSinceEpoch,
             accountId: _accountId,
             note: _noteController.text.trim().isEmpty
@@ -857,7 +888,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
 
     final int base = principal ~/ _periods;
     final int remainder = principal - base * _periods;
-    final int feePerPeriod = _periods == 0 ? 0 : interest ~/ _periods;
+    final List<int> feeByPeriod = _buildFeeByPeriod(interest, _periods);
 
     showModalBottomSheet<void>(
       context: context,
@@ -888,7 +919,10 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       (_remainderLabel == '末期' && index == _periods - 1
                           ? remainder
                           : 0);
-                  final int total = amount + feePerPeriod;
+                  final int periodFee = feeByPeriod.length > index
+                      ? feeByPeriod[index]
+                      : 0;
+                  final int total = amount + periodFee;
                   return ListTile(
                     dense: true,
                     title: Text('第 ${index + 1} 期'),

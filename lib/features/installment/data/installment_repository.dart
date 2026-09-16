@@ -47,12 +47,16 @@ class InstallmentRepository {
   ///
   /// 均摊余数放在**最后一期**：例如 1000 元分 3 期，前两期各 333.33，
   /// 末期 333.34，保证各期之和严格等于总额，不会因四舍五入丢分。
+  ///
+  /// [feeByPeriodMinor] 为可选的每期手续费/利息（分），长度必须等于 [totalPeriods]。
+  /// 传 null 时，手续费按 0 处理；用于支持「按期均摊 / 首期全部扣除 / 尾期全部扣除」
+  /// 等利息扣除方式。
   Future<String> addPlan({
     required String bookId,
     required String title,
     required int totalMinor,
     required int totalPeriods,
-    int feePerPeriodMinor = 0,
+    List<int>? feeByPeriodMinor,
     required int firstDueAt,
     String? accountId,
     String? note,
@@ -70,6 +74,11 @@ class InstallmentRepository {
 
     final int base = totalMinor ~/ totalPeriods;
     final int remainder = totalMinor - base * totalPeriods;
+    final List<int> feeByPeriod = feeByPeriodMinor ??
+        List<int>.filled(totalPeriods, 0, growable: false);
+    final int totalFee = feeByPeriod.fold<int>(0, (int sum, int v) => sum + v);
+    final int feePerPeriodMinor =
+        totalPeriods == 0 ? 0 : totalFee ~/ totalPeriods;
 
     return _db.transaction<String>(() async {
       await _db.into(_db.installmentPlans).insert(
@@ -93,13 +102,14 @@ class InstallmentRepository {
         final int amount = base + (i == totalPeriods - 1 ? remainder : 0);
         final int dueAt =
             addMonths(firstDue, i).toUtc().millisecondsSinceEpoch;
+        final int periodFee = feeByPeriod.length > i ? feeByPeriod[i] : 0;
 
         await _db.into(_db.installmentPeriods).insert(
               InstallmentPeriodsCompanion(
                 id: Value<String>(periodId),
                 planId: Value<String>(planId),
                 periodIndex: Value<int>(i + 1),
-                amountMinor: Value<int>(amount + feePerPeriodMinor),
+                amountMinor: Value<int>(amount + periodFee),
                 dueAt: Value<int>(dueAt),
                 updatedAt: Value<int>(now),
                 dirty: const Value<bool>(true),
@@ -114,7 +124,7 @@ class InstallmentRepository {
           payload: <String, Object?>{
             'planId': planId,
             'periodIndex': i + 1,
-            'amountMinor': amount + feePerPeriodMinor,
+            'amountMinor': amount + periodFee,
             'dueAt': dueAt,
           },
         );

@@ -157,13 +157,14 @@ class InstallmentPage extends ConsumerWidget {
     }
 
     final String note = noteController.text.trim();
+    final int feeMinor = Money.fromDecimal(fee).minor;
     try {
       await ref.read(installmentRepositoryProvider).addPlan(
             bookId: ref.read(currentBookIdProvider),
             title: titleController.text,
             totalMinor: Money.fromDecimal(total).minor,
             totalPeriods: periods,
-            feePerPeriodMinor: Money.fromDecimal(fee).minor,
+            feeByPeriodMinor: List<int>.filled(periods, feeMinor),
             firstDueAt: firstDue.toUtc().millisecondsSinceEpoch,
             note: note.isEmpty ? null : note,
           );
