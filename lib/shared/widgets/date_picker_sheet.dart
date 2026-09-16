@@ -17,15 +17,18 @@ class DatePickerSheet {
   DatePickerSheet._();
 
   /// 弹出底部日期选择器。
+  ///
+  /// 交互约定：
+  /// - 点击日期直接返回并关闭面板。
+  /// - 点击左上角关闭按钮返回 `null`。
+  /// - 点击「当前时间」快速定位到今天。
+  /// - 点击年月文本展开年份选择，选择年份后自动折叠。
   static Future<DateTime?> show(
     BuildContext context, {
     required DateTime initialDate,
     DateTime? firstDate,
     DateTime? lastDate,
-    String title = '选择日期',
     String currentTimeLabel = '当前时间',
-    String cancelLabel = '取消',
-    String confirmLabel = '确定',
   }) async {
     return showModalBottomSheet<DateTime>(
       context: context,
@@ -39,10 +42,7 @@ class DatePickerSheet {
         initialDate: initialDate,
         firstDate: firstDate ?? DateTime(2000),
         lastDate: lastDate ?? DateTime(2100),
-        title: title,
         currentTimeLabel: currentTimeLabel,
-        cancelLabel: cancelLabel,
-        confirmLabel: confirmLabel,
       ),
     );
   }
@@ -53,19 +53,13 @@ class _DatePickerSheetBody extends StatefulWidget {
     required this.initialDate,
     required this.firstDate,
     required this.lastDate,
-    required this.title,
     required this.currentTimeLabel,
-    required this.cancelLabel,
-    required this.confirmLabel,
   });
 
   final DateTime initialDate;
   final DateTime firstDate;
   final DateTime lastDate;
-  final String title;
   final String currentTimeLabel;
-  final String cancelLabel;
-  final String confirmLabel;
 
   @override
   State<_DatePickerSheetBody> createState() => _DatePickerSheetBodyState();
@@ -74,6 +68,7 @@ class _DatePickerSheetBody extends StatefulWidget {
 class _DatePickerSheetBodyState extends State<_DatePickerSheetBody> {
   late DateTime _selected;
   late DateTime _displayedMonth;
+  bool _isYearPickerOpen = false;
 
   @override
   void initState() {
@@ -102,6 +97,16 @@ class _DatePickerSheetBodyState extends State<_DatePickerSheetBody> {
     }
   }
 
+  void _selectYear(int year) {
+    final DateTime candidate = DateTime(year, _displayedMonth.month);
+    if (_isMonthAllowed(candidate)) {
+      setState(() {
+        _displayedMonth = candidate;
+        _isYearPickerOpen = false;
+      });
+    }
+  }
+
   bool _isMonthAllowed(DateTime month) {
     final DateTime first = DateTime(widget.firstDate.year, widget.firstDate.month);
     final DateTime last = DateTime(widget.lastDate.year, widget.lastDate.month);
@@ -113,9 +118,13 @@ class _DatePickerSheetBodyState extends State<_DatePickerSheetBody> {
   }
 
   void _selectDay(int day) {
-    final DateTime candidate = DateTime(_displayedMonth.year, _displayedMonth.month, day);
+    final DateTime candidate = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month,
+      day,
+    );
     if (_isDayAllowed(candidate)) {
-      setState(() => _selected = candidate);
+      Navigator.of(context).pop(candidate);
     }
   }
 
@@ -154,7 +163,6 @@ class _DatePickerSheetBodyState extends State<_DatePickerSheetBody> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final List<int?> days = _buildDaysMatrix();
     final bool canGoPrevious = _isMonthAllowed(
       DateTime(_displayedMonth.year, _displayedMonth.month - 1),
     );
@@ -168,7 +176,7 @@ class _DatePickerSheetBodyState extends State<_DatePickerSheetBody> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            // Header
+            // Header: close + current time
             Row(
               children: <Widget>[
                 IconButton(
@@ -183,76 +191,138 @@ class _DatePickerSheetBodyState extends State<_DatePickerSheetBody> {
               ],
             ),
             const SizedBox(height: AppDimens.spaceMd),
-            // Month navigator
+            // Month navigator: left-aligned year-month with expand arrow,
+            // month prev/next on the right.
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
+                InkWell(
+                  onTap: () => setState(
+                    () => _isYearPickerOpen = !_isYearPickerOpen,
+                  ),
+                  borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppDimens.spaceSm,
+                      vertical: AppDimens.spaceXs,
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Text(
+                          DateFormat('yyyy年M月').format(_displayedMonth),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        const SizedBox(width: AppDimens.spaceXs),
+                        Icon(
+                          _isYearPickerOpen
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          color: AppColors.textSecondary,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.chevron_left),
-                  onPressed: canGoPrevious ? _previousMonth : null,
-                ),
-                Text(
-                  DateFormat('yyyy年M月').format(_displayedMonth),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  onPressed:
+                      canGoPrevious && !_isYearPickerOpen ? _previousMonth : null,
                 ),
                 IconButton(
                   icon: const Icon(Icons.chevron_right),
-                  onPressed: canGoNext ? _nextMonth : null,
+                  onPressed:
+                      canGoNext && !_isYearPickerOpen ? _nextMonth : null,
                 ),
               ],
             ),
             const SizedBox(height: AppDimens.spaceMd),
-            // Weekday labels
-            const _WeekdayRow(),
-            const SizedBox(height: AppDimens.spaceSm),
-            // Day grid
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 7,
-              childAspectRatio: 1,
-              children: days.map((int? day) {
-                if (day == null) return const SizedBox.shrink();
-                final DateTime date = DateTime(
-                  _displayedMonth.year,
-                  _displayedMonth.month,
-                  day,
-                );
-                final bool isSelected = _selected.year == date.year &&
-                    _selected.month == date.month &&
-                    _selected.day == date.day;
-                final bool isAllowed = _isDayAllowed(date);
-                return _DayCell(
-                  day: day,
-                  isSelected: isSelected,
-                  isEnabled: isAllowed,
-                  onTap: () => _selectDay(day),
-                );
-              }).toList(growable: false),
-            ),
-            const SizedBox(height: AppDimens.spaceLg),
-            // Actions
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(widget.cancelLabel),
-                  ),
-                ),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(context).pop(_selected),
-                    child: Text(widget.confirmLabel),
-                  ),
-                ),
-              ],
-            ),
+            // Body: year picker or weekday + day grid
+            if (_isYearPickerOpen)
+              _buildYearPicker()
+            else ...<Widget>[
+              const _WeekdayRow(),
+              const SizedBox(height: AppDimens.spaceSm),
+              _buildDayGrid(),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildYearPicker() {
+    final int start = widget.firstDate.year;
+    final int end = widget.lastDate.year;
+    final List<int> years = <int>[
+      for (int y = start; y <= end; y++) y,
+    ];
+    return SizedBox(
+      height: 280,
+      child: GridView.builder(
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          childAspectRatio: 1.5,
+        ),
+        itemCount: years.length,
+        itemBuilder: (BuildContext context, int index) {
+          final int year = years[index];
+          final bool isSelected = year == _displayedMonth.year;
+          return Center(
+            child: InkWell(
+              onTap: () => _selectYear(year),
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 64,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                ),
+                child: Text(
+                  '$year',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: isSelected ? Colors.white : AppColors.textPrimary,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDayGrid() {
+    final List<int?> days = _buildDaysMatrix();
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 7,
+      childAspectRatio: 1,
+      children: days.map((int? day) {
+        if (day == null) return const SizedBox.shrink();
+        final DateTime date = DateTime(
+          _displayedMonth.year,
+          _displayedMonth.month,
+          day,
+        );
+        final bool isSelected = _selected.year == date.year &&
+            _selected.month == date.month &&
+            _selected.day == date.day;
+        final bool isAllowed = _isDayAllowed(date);
+        return _DayCell(
+          day: day,
+          isSelected: isSelected,
+          isEnabled: isAllowed,
+          onTap: () => _selectDay(day),
+        );
+      }).toList(growable: false),
     );
   }
 }

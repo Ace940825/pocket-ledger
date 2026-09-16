@@ -532,10 +532,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       initialDate: _firstDueAt,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      title: '选择日期',
       currentTimeLabel: '当前时间',
-      cancelLabel: '取消',
-      confirmLabel: '确定',
     );
     if (picked != null && mounted) {
       setState(() {
