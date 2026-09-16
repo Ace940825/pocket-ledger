@@ -38,7 +38,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
   late RepeatUnit _unit;
   late int _interval;
   int? _weekDay;
-  int? _monthDay;
+  final Set<int> _monthDays = <int>{};
   int? _month;
 
   late final TextEditingController _intervalController;
@@ -54,7 +54,12 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
     _unit = rule.unit;
     _interval = rule.interval.clamp(1, 120);
     _weekDay = rule.weekDay;
-    _monthDay = rule.monthDay;
+    _monthDays.clear();
+    if (rule.monthDays != null && rule.monthDays!.isNotEmpty) {
+      _monthDays.addAll(rule.monthDays!);
+    } else if (rule.monthDay != null) {
+      _monthDays.add(rule.monthDay!);
+    }
     _month = rule.month;
     _intervalController = TextEditingController(text: '$_interval');
     _intervalFocusNode = FocusNode();
@@ -86,7 +91,9 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         unit: _unit,
         interval: _interval,
         weekDay: _unit == RepeatUnit.week ? _weekDay : null,
-        monthDay: _unit == RepeatUnit.month ? _monthDay : null,
+        monthDays: _unit == RepeatUnit.month && _monthDays.isNotEmpty
+            ? _monthDays.toList()
+            : null,
         month: _unit == RepeatUnit.year ? _month : null,
       );
 
@@ -242,7 +249,11 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: GestureDetector(
-              onTap: () => setState(() => _unit = unit),
+              onTap: () {
+                // 切换 每天/每周/每月/每年 时收起键盘，避免数字键盘遮挡新内容。
+                FocusScope.of(context).unfocus();
+                setState(() => _unit = unit);
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
@@ -315,7 +326,6 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
               fontWeight: FontWeight.w600,
             ),
             onSubmitted: (_) => _commitIntervalText(),
-            onTapOutside: (_) => _intervalFocusNode.unfocus(),
           ),
         ),
         _stepperButton(
@@ -412,8 +422,14 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         for (int day = 1; day <= 31; day++) {
           children.add(_optionChip(
             label: '$day',
-            selected: _monthDay == day,
-            onTap: () => setState(() => _monthDay = day),
+            selected: _monthDays.contains(day),
+            onTap: () => setState(() {
+              if (_monthDays.contains(day)) {
+                _monthDays.remove(day);
+              } else {
+                _monthDays.add(day);
+              }
+            }),
             width: cellWidth,
             height: cellHeight,
             fontSize: fontSize,
@@ -421,8 +437,14 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         }
         children.add(_optionChip(
           label: '月末',
-          selected: _monthDay == -1,
-          onTap: () => setState(() => _monthDay = -1),
+          selected: _monthDays.contains(-1),
+          onTap: () => setState(() {
+            if (_monthDays.contains(-1)) {
+              _monthDays.remove(-1);
+            } else {
+              _monthDays.add(-1);
+            }
+          }),
           width: cellWidth,
           height: cellHeight,
           fontSize: fontSize,

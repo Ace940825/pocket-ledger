@@ -29,6 +29,7 @@ List<DateTime> computeInstallmentDueDates({
         firstDue,
         effective.interval,
         effective.monthDay,
+        effective.monthDays,
         totalPeriods,
       );
     case RepeatUnit.year:
@@ -78,19 +79,22 @@ List<DateTime> _monthly(
   DateTime firstDue,
   int interval,
   int? monthDay,
+  List<int>? monthDays,
   int total,
 ) {
   final List<DateTime> result = <DateTime>[];
 
-  // 目标日期：1-31，-1 表示月末。未指定时沿用 firstDue 的 day。
-  final int targetDay = monthDay ?? firstDue.day;
-
-  DateTime current = _clampToDay(firstDue, targetDay);
+  // 目标日期列表：1-31，-1 表示月末。未指定时沿用 firstDue 的 day。
+  final List<int> targetDays = monthDays ??
+      (monthDay != null ? <int>[monthDay] : null) ??
+      <int>[firstDue.day];
 
   for (int i = 0; i < total; i++) {
+    final int day = targetDays[i % targetDays.length];
+    final int group = i ~/ targetDays.length;
+    final DateTime base = addMonths(firstDue, group * interval);
+    final DateTime current = _clampToDay(base, day);
     result.add(current);
-    current = addMonths(current, interval);
-    current = _clampToDay(current, targetDay);
   }
   return result;
 }

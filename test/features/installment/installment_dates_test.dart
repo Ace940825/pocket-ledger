@@ -62,6 +62,40 @@ void main() {
       expect(dates[2], DateTime(2026, 11, 30, 14, 38));
     });
 
+    test('每月多选日期：按选择顺序轮询', () {
+      final List<DateTime> dates = computeInstallmentDueDates(
+        firstDue: firstDue,
+        rule: const InstallmentRepeatRule(
+          unit: RepeatUnit.month,
+          interval: 1,
+          monthDays: <int>[5, 15, -1],
+        ),
+        totalPeriods: 6,
+      );
+      expect(dates[0], DateTime(2026, 9, 5, 14, 38));
+      expect(dates[1], DateTime(2026, 9, 15, 14, 38));
+      expect(dates[2], DateTime(2026, 9, 30, 14, 38));
+      expect(dates[3], DateTime(2026, 10, 5, 14, 38));
+      expect(dates[4], DateTime(2026, 10, 15, 14, 38));
+      expect(dates[5], DateTime(2026, 10, 31, 14, 38));
+    });
+
+    test('每月多选日期：间隔跨月', () {
+      final List<DateTime> dates = computeInstallmentDueDates(
+        firstDue: firstDue,
+        rule: const InstallmentRepeatRule(
+          unit: RepeatUnit.month,
+          interval: 2,
+          monthDays: <int>[5, 15],
+        ),
+        totalPeriods: 4,
+      );
+      expect(dates[0], DateTime(2026, 9, 5, 14, 38));
+      expect(dates[1], DateTime(2026, 9, 15, 14, 38));
+      expect(dates[2], DateTime(2026, 11, 5, 14, 38));
+      expect(dates[3], DateTime(2026, 11, 15, 14, 38));
+    });
+
     test('每天间隔 7：每 7 天', () {
       final List<DateTime> dates = computeInstallmentDueDates(
         firstDue: firstDue,

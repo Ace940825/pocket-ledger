@@ -17,6 +17,7 @@ class InstallmentRepeatRule {
     this.interval = 1,
     this.weekDay,
     this.monthDay,
+    this.monthDays,
     this.month,
   });
 
@@ -34,7 +35,14 @@ class InstallmentRepeatRule {
   final int? weekDay;
 
   /// 每月几号执行，取值 1-31，`-1` 表示月末。仅 [unit] 为 [RepeatUnit.month] 时有效。
+  ///
+  /// 旧版单值字段，保留以兼容历史数据与现有测试。新代码优先使用 [monthDays]。
   final int? monthDay;
+
+  /// 每月执行的日期列表，取值 1-31，`-1` 表示月末。仅 [unit] 为 [RepeatUnit.month] 时有效。
+  ///
+  /// 支持多选，例如 `[5, 15, -1]` 表示每月 5 日、15 日与月末。
+  final List<int>? monthDays;
 
   /// 每年几月执行，取值 1-12。仅 [unit] 为 [RepeatUnit.year] 时有效。
   final int? month;
@@ -43,17 +51,28 @@ class InstallmentRepeatRule {
   static const InstallmentRepeatRule monthly = InstallmentRepeatRule(
     unit: RepeatUnit.month,
     interval: 1,
-    monthDay: null,
   );
 
+  /// 返回有效的每月日期列表。
+  ///
+  /// 优先使用 [monthDays]，若为空则退回到单值 [monthDay]。
+  List<int>? get _effectiveMonthDays {
+    if (monthDays != null && monthDays!.isNotEmpty) return monthDays;
+    if (monthDay != null) return <int>[monthDay!];
+    return null;
+  }
+
   /// 序列化为 JSON 字符串。
-  String toJsonString() => jsonEncode(<String, Object?>{
-        'unit': unit.name,
-        'interval': interval,
-        if (weekDay != null) 'weekDay': weekDay,
-        if (monthDay != null) 'monthDay': monthDay,
-        if (month != null) 'month': month,
-      });
+  String toJsonString() {
+    final List<int>? days = _effectiveMonthDays;
+    return jsonEncode(<String, Object?>{
+      'unit': unit.name,
+      'interval': interval,
+      if (weekDay != null) 'weekDay': weekDay,
+      if (days != null && days.isNotEmpty) 'monthDays': days,
+      if (month != null) 'month': month,
+    });
+  }
 
   /// 从 JSON 字符串解析。
   static InstallmentRepeatRule? fromJsonString(String? raw) {
@@ -64,11 +83,18 @@ class InstallmentRepeatRule {
       final String unitName = (json['unit'] as String?) ?? 'month';
       final RepeatUnit unit = RepeatUnit.values.byName(unitName);
       final int interval = (json['interval'] as int?)?.clamp(1, 120) ?? 1;
+
+      final List<int>? parsedMonthDays =
+          (json['monthDays'] as List<dynamic>?)
+              ?.map((dynamic d) => (d as num).toInt())
+              .toList();
+
       return InstallmentRepeatRule(
         unit: unit,
         interval: interval,
         weekDay: json['weekDay'] as int?,
         monthDay: json['monthDay'] as int?,
+        monthDays: parsedMonthDays,
         month: json['month'] as int?,
       );
     } on Object {
@@ -81,6 +107,7 @@ class InstallmentRepeatRule {
     int? interval,
     int? weekDay,
     int? monthDay,
+    List<int>? monthDays,
     int? month,
   }) =>
       InstallmentRepeatRule(
@@ -88,6 +115,7 @@ class InstallmentRepeatRule {
         interval: interval ?? this.interval,
         weekDay: weekDay ?? this.weekDay,
         monthDay: monthDay ?? this.monthDay,
+        monthDays: monthDays ?? this.monthDays,
         month: month ?? this.month,
       );
 
@@ -95,21 +123,36 @@ class InstallmentRepeatRule {
   ///
   /// 例如：「每月 16 日」「每 2 周 周一」「每 3 天」「每年 9 月」。
   String displayLabel({int? fallbackDay}) {
-    final String intervalText = interval == 1 ? '' : '$interval';
     switch (unit) {
       case RepeatUnit.day:
-        return interval == 1 ? '每天' : '每 $intervalText 天';
+        return interval == 1 ? '每天' : '每 $interval 天';
       case RepeatUnit.week:
         final String dayLabel = _weekDayLabel(weekDay);
-        return '每 $intervalText 周 $dayLabel'.trim();
+        final String prefix =
+            interval == 1 ? '每周' : '每 $interval 周';
+        return '$prefix $dayLabel'.trim();
       case RepeatUnit.month:
-        final String dayLabel = monthDay == -1
-            ? '月末'
-            : '${monthDay ?? fallbackDay ?? 1} 日';
-        return '每 $intervalText 月 $dayLabel'.trim();
+        final List<int>? days = _effectiveMonthDays;
+        final String prefix =
+            interval == 1 ? '每月' : '每 $interval 月';
+        if (days == null || days.isEmpty) {
+          final String dayLabel = '${fallbackDay ?? 1} 日';
+          return '$prefix $dayLabel'.trim();
+        }
+        if (days.length == 1) {
+          final String dayLabel =
+              days.first == -1 ? '月末' : '${days.first} 日';
+          return '$prefix $dayLabel'.trim();
+        }
+        final String daysLabel = days
+            .map((int d) => d == -1 ? '月末' : '${d}日')
+            .join('、');
+        return '$prefix $daysLabel'.trim();
       case RepeatUnit.year:
         final String monthLabel = month == null ? '' : '$month 月';
-        return '每 $intervalText 年 $monthLabel'.trim();
+        final String prefix =
+            interval == 1 ? '每年' : '每 $interval 年';
+        return '$prefix $monthLabel'.trim();
     }
   }
 
@@ -131,7 +174,7 @@ class InstallmentRepeatRule {
         return InstallmentRepeatRule(
           unit: RepeatUnit.month,
           interval: 1,
-          monthDay: firstDue.day,
+          monthDays: <int>[firstDue.day],
         );
       case RepeatUnit.year:
         return InstallmentRepeatRule(
