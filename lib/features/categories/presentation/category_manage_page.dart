@@ -169,6 +169,12 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           showArchived: _showArchived,
           onEdit: () => _showEditor(context, ref, category: parent),
           onDelete: () => _confirmDelete(context, ref, parent),
+          onAddChild: () => _showEditor(
+            context,
+            ref,
+            type: parent.type,
+            parentId: parent.id,
+          ),
           onChildEdit: (Category child) =>
               _showEditor(context, ref, category: child),
           onChildDelete: (Category child) =>
@@ -233,6 +239,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
     WidgetRef ref, {
     Category? category,
     CategoryType? type,
+    String? parentId,
   }) async {
     final TextEditingController nameController =
         TextEditingController(text: category?.name ?? '');
@@ -350,6 +357,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           bookId: ref.read(currentBookIdProvider),
           name: name,
           type: editorType,
+          parentId: parentId,
           colorValue: colorValue,
           iconKey: iconKey,
         );
@@ -492,6 +500,7 @@ class _ParentCategoryTile extends StatefulWidget {
     required this.showArchived,
     required this.onEdit,
     required this.onDelete,
+    required this.onAddChild,
     required this.onChildEdit,
     required this.onChildDelete,
   });
@@ -501,6 +510,7 @@ class _ParentCategoryTile extends StatefulWidget {
   final bool showArchived;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onAddChild;
   final ValueChanged<Category> onChildEdit;
   final ValueChanged<Category> onChildDelete;
 
@@ -513,7 +523,6 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasChildren = widget.children.isNotEmpty;
     final List<Category> visibleChildren = widget.showArchived
         ? widget.children
         : widget.children
@@ -525,15 +534,11 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
       children: <Widget>[
         _CategoryRow(
           category: widget.category,
-          leading: hasChildren
-              ? _ExpandArrow(
-                  expanded: _expanded,
-                  onTap: () => setState(() => _expanded = !_expanded),
-                )
-              : const SizedBox(width: 32),
-          onTap: hasChildren
-              ? () => setState(() => _expanded = !_expanded)
-              : widget.onEdit,
+          leading: _ExpandArrow(
+            expanded: _expanded,
+            onTap: () => setState(() => _expanded = !_expanded),
+          ),
+          onTap: () => setState(() => _expanded = !_expanded),
           onMore: () => _showCategoryMenu(
             context,
             widget.category,
@@ -541,26 +546,27 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
             onDelete: widget.onDelete,
           ),
         ),
-        if (_expanded && visibleChildren.isNotEmpty)
+        if (_expanded)
           Padding(
             padding: const EdgeInsets.only(left: 32),
             child: Column(
-              children: visibleChildren
-                  .map(
-                    (Category child) => _CategoryRow(
-                      category: child,
-                      leading: const SizedBox(width: 32),
-                      isChild: true,
-                      onTap: () => widget.onChildEdit(child),
-                      onMore: () => _showCategoryMenu(
-                        context,
-                        child,
-                        onEdit: () => widget.onChildEdit(child),
-                        onDelete: () => widget.onChildDelete(child),
-                      ),
+              children: <Widget>[
+                ...visibleChildren.map(
+                  (Category child) => _CategoryRow(
+                    category: child,
+                    leading: const SizedBox(width: 32),
+                    isChild: true,
+                    onTap: () => widget.onChildEdit(child),
+                    onMore: () => _showCategoryMenu(
+                      context,
+                      child,
+                      onEdit: () => widget.onChildEdit(child),
+                      onDelete: () => widget.onChildDelete(child),
                     ),
-                  )
-                  .toList(),
+                  ),
+                ),
+                _AddChildRow(onTap: widget.onAddChild),
+              ],
             ),
           ),
         const Divider(height: 1, indent: 56),
@@ -679,6 +685,47 @@ class _CategoryRow extends StatelessWidget {
                 Icons.more_horiz,
                 color: AppColors.textTertiary,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddChildRow extends StatelessWidget {
+  const _AddChildRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: AppDimens.listTileHeight,
+        child: Row(
+          children: <Widget>[
+            const SizedBox(width: 32),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              ),
+              child: Icon(
+                Icons.add_circle_outline,
+                color: AppColors.primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: AppDimens.spaceMd),
+            Text(
+              '添加子分类',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
             ),
           ],
         ),
