@@ -227,20 +227,23 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
               ? null
               : () => setState(() => _interval--),
         ),
-        Container(
-          width: 56,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            border: Border.symmetric(
-              horizontal: BorderSide(color: AppColors.divider),
+        GestureDetector(
+          onTap: _editInterval,
+          child: Container(
+            width: 56,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              border: Border.symmetric(
+                horizontal: BorderSide(color: AppColors.divider),
+              ),
             ),
-          ),
-          child: Text(
-            '$_interval',
-            style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            child: Text(
+              '$_interval',
+              style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
         ),
         _stepperButton(
@@ -258,6 +261,45 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         ),
       ],
     );
+  }
+
+  Future<void> _editInterval() async {
+    final TextEditingController controller =
+        TextEditingController(text: '$_interval');
+    final int? value = await showDialog<int>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('设置间隔'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            hintText: '请输入 1-120 之间的数字',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              final int? parsed = int.tryParse(controller.text.trim());
+              if (parsed != null && parsed >= 1 && parsed <= 120) {
+                Navigator.of(ctx).pop(parsed);
+              }
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value != null && mounted) {
+      setState(() => _interval = value);
+    }
   }
 
   Widget _stepperButton({
@@ -331,13 +373,13 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         label: '$day',
         selected: _monthDay == day,
         onTap: () => setState(() => _monthDay = day),
-      ));
+      ),);
     }
     children.add(_optionChip(
       label: '月末',
       selected: _monthDay == -1,
       onTap: () => setState(() => _monthDay = -1),
-    ));
+    ),);
     return Wrap(
       spacing: 10,
       runSpacing: 10,
@@ -361,16 +403,20 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
       '11月',
       '12月',
     ];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      alignment: WrapAlignment.center,
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 2.8,
       children: List<Widget>.generate(12, (int index) {
         final int value = index + 1;
         return _optionChip(
           label: labels[index],
           selected: _month == value,
           onTap: () => setState(() => _month = value),
+          width: double.infinity,
         );
       }),
     );
@@ -380,11 +426,12 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
     required String label,
     required bool selected,
     required VoidCallback onTap,
+    double? width,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 64,
+        width: width ?? 64,
         height: 40,
         alignment: Alignment.center,
         decoration: BoxDecoration(
