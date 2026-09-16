@@ -546,28 +546,28 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
             onEdit: widget.onEdit,
             onDelete: widget.onDelete,
           ),
-          onAddChild: widget.onAddChild,
         ),
         if (_expanded)
           Padding(
             padding: const EdgeInsets.only(left: 32),
             child: Column(
-              children: visibleChildren
-                  .map(
-                    (Category child) => _CategoryRow(
-                      category: child,
-                      leading: const SizedBox(width: 32),
-                      isChild: true,
-                      onTap: () => widget.onChildEdit(child),
-                      onMore: () => _showCategoryMenu(
-                        context,
-                        child,
-                        onEdit: () => widget.onChildEdit(child),
-                        onDelete: () => widget.onChildDelete(child),
-                      ),
+              children: <Widget>[
+                ...visibleChildren.map(
+                  (Category child) => _CategoryRow(
+                    category: child,
+                    leading: const SizedBox(width: 32),
+                    isChild: true,
+                    onTap: () => widget.onChildEdit(child),
+                    onMore: () => _showCategoryMenu(
+                      context,
+                      child,
+                      onEdit: () => widget.onChildEdit(child),
+                      onDelete: () => widget.onChildDelete(child),
                     ),
-                  )
-                  .toList(),
+                  ),
+                ),
+                _AddChildRow(onTap: widget.onAddChild),
+              ],
             ),
           ),
         const Divider(height: 1, indent: 56),
@@ -617,7 +617,6 @@ class _CategoryRow extends StatelessWidget {
     required this.onTap,
     required this.onMore,
     this.isChild = false,
-    this.onAddChild,
   });
 
   final Category category;
@@ -625,7 +624,6 @@ class _CategoryRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onMore;
   final bool isChild;
-  final VoidCallback? onAddChild;
 
   @override
   Widget build(BuildContext context) {
@@ -682,20 +680,53 @@ class _CategoryRow extends StatelessWidget {
                       ),
                 ),
               ),
-            if (onAddChild != null)
-              IconButton(
-                onPressed: onAddChild,
-                icon: const Icon(
-                  Icons.add_circle_outline,
-                  color: AppColors.primary,
-                ),
-              ),
             IconButton(
               onPressed: onMore,
               icon: const Icon(
                 Icons.more_horiz,
                 color: AppColors.textTertiary,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddChildRow extends StatelessWidget {
+  const _AddChildRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: AppDimens.listTileHeight,
+        child: Row(
+          children: <Widget>[
+            const SizedBox(width: 32),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              ),
+              child: Icon(
+                Icons.add_circle_outline,
+                color: AppColors.primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: AppDimens.spaceMd),
+            Text(
+              '添加子分类',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
             ),
           ],
         ),
