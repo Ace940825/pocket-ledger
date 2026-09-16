@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../database/app_database.dart';
+import '../domain/enums.dart';
 import '../features/accounts/presentation/account_ledger_page.dart';
 import '../features/accounts/presentation/accounts_page.dart';
 import '../features/accounts/presentation/add_account_page.dart';
 import '../features/budget/presentation/budget_page.dart';
+import '../features/categories/presentation/add_category_page.dart';
 import '../features/categories/presentation/add_subcategory_page.dart';
 import '../features/categories/presentation/category_manage_page.dart';
+import '../features/categories/presentation/edit_category_page.dart';
 import '../features/categories/presentation/edit_subcategory_page.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/installment/presentation/installment_detail_page.dart';
@@ -41,6 +44,8 @@ abstract final class Routes {
 
   static const String more = '/more';
   static const String categories = '/categories';
+  static const String addCategory = '/categories/add';
+  static const String editCategory = '/categories/edit';
   static const String addSubcategory = '/categories/add-subcategory';
   static const String editSubcategory = '/categories/edit-subcategory';
   static const String transfer = '/transfer';
@@ -138,6 +143,18 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: Routes.categories,
         builder: (_, __) => const CategoryManagePage(),
+      ),
+      GoRoute(
+        path: Routes.addCategory,
+        builder: (_, GoRouterState state) => AddCategoryPage(
+          type: state.extra! as CategoryType,
+        ),
+      ),
+      GoRoute(
+        path: Routes.editCategory,
+        builder: (_, GoRouterState state) => EditCategoryPage(
+          category: state.extra! as Category,
+        ),
       ),
       GoRoute(
         path: Routes.addSubcategory,

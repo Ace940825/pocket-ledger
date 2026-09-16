@@ -7,11 +7,8 @@ import '../../../../core/constants/app_dimens.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
-import '../../../../providers/app_providers.dart';
 import '../../../../shared/widgets/category_icons.dart';
-import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
-import '../data/category_repository.dart';
 import '../providers/categories_providers.dart';
 import '../../../routing/app_router.dart';
 
@@ -168,7 +165,10 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           children: children,
           showArchived: _showArchived,
           ref: ref,
-          onEdit: () => _showEditor(context, ref, category: parent),
+          onEdit: () => context.push(
+            Routes.editCategory,
+            extra: parent,
+          ),
           onDelete: () => _confirmDelete(context, ref, parent),
           onAddChild: () => context.push(
             Routes.addSubcategory,
@@ -199,7 +199,10 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
         width: double.infinity,
         height: 48,
         child: FilledButton(
-          onPressed: () => _showEditor(context, ref, type: _type),
+          onPressed: () => context.push(
+            Routes.addCategory,
+            extra: _type,
+          ),
           child: const Text('添加分类'),
         ),
       ),
@@ -232,149 +235,6 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
 
     try {
       await ref.read(categoryRepositoryProvider).remove(category.id);
-    } on AppFailure catch (e) {
-      if (context.mounted) _toast(context, e.message);
-    }
-  }
-
-  Future<void> _showEditor(
-    BuildContext context,
-    WidgetRef ref, {
-    Category? category,
-    CategoryType? type,
-    String? parentId,
-  }) async {
-    final TextEditingController nameController =
-        TextEditingController(text: category?.name ?? '');
-    int? colorValue = category?.colorValue;
-    String? iconKey = category?.iconKey;
-    final CategoryType editorType = category?.type ?? type ?? _type;
-
-    final bool? saved = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setState) => Dialog(
-          insetPadding: const EdgeInsets.all(AppDimens.spaceLg),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
-              maxWidth: 400,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(AppDimens.spaceLg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    category == null ? '新增分类' : '编辑分类',
-                    style: Theme.of(ctx).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: AppDimens.spaceLg),
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          TextField(
-                            controller: nameController,
-                            decoration: const InputDecoration(
-                              labelText: '分类名称',
-                            ),
-                          ),
-                          const SizedBox(height: AppDimens.spaceMd),
-                          Text(
-                            '图标',
-                            style: Theme.of(ctx).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: AppDimens.spaceSm),
-                          _IconPicker(
-                            selectedKey: iconKey,
-                            onSelected: (String key) =>
-                                setState(() => iconKey = key),
-                          ),
-                          const SizedBox(height: AppDimens.spaceMd),
-                          Text(
-                            '颜色（可选）',
-                            style: Theme.of(ctx).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: AppDimens.spaceSm),
-                          Wrap(
-                            spacing: AppDimens.spaceSm,
-                            children: <Widget>[
-                              _ColorChip(
-                                selected: colorValue == null,
-                                color: Colors.grey,
-                                onTap: () =>
-                                    setState(() => colorValue = null),
-                              ),
-                              ..._palette.map(
-                                (int c) => _ColorChip(
-                                  selected: colorValue == c,
-                                  color: Color(c),
-                                  onTap: () =>
-                                      setState(() => colorValue = c),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppDimens.spaceLg),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: <Widget>[
-                      TextButton(
-                        onPressed: () => Navigator.of(dialog).pop(false),
-                        child: const Text('取消'),
-                      ),
-                      const SizedBox(width: AppDimens.spaceSm),
-                      FilledButton(
-                        onPressed: () => Navigator.of(dialog).pop(true),
-                        child: const Text('保存'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    if (saved != true || !context.mounted) return;
-    final String name = nameController.text.trim();
-    if (name.isEmpty) {
-      _toast(context, '分类名称不能为空');
-      return;
-    }
-
-    try {
-      final CategoryRepository repo = ref.read(categoryRepositoryProvider);
-      if (category == null) {
-        await repo.add(
-          bookId: ref.read(currentBookIdProvider),
-          name: name,
-          type: editorType,
-          parentId: parentId,
-          colorValue: colorValue,
-          iconKey: iconKey,
-        );
-      } else {
-        await repo.update(
-          id: category.id,
-          bookId: category.bookId,
-          name: name,
-          type: editorType,
-          parentId: category.parentId,
-          colorValue: colorValue,
-          iconKey: iconKey,
-        );
-      }
     } on AppFailure catch (e) {
       if (context.mounted) _toast(context, e.message);
     }
@@ -884,108 +744,13 @@ class _ExpandArrow extends StatelessWidget {
   }
 }
 
-class _IconPicker extends StatelessWidget {
-  const _IconPicker({required this.selectedKey, required this.onSelected});
-
-  final String? selectedKey;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 56,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categoryIconOptions.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppDimens.spaceSm),
-        itemBuilder: (BuildContext context, int index) {
-          final CategoryIconOption option = categoryIconOptions[index];
-          final bool selected = option.key == selectedKey;
-          return InkWell(
-            onTap: () => onSelected(option.key),
-            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: selected
-                    ? AppColors.primary.withValues(alpha: 0.15)
-                    : AppColors.surfaceLight,
-                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                border: Border.all(
-                  color: selected ? AppColors.primary : AppColors.divider,
-                ),
-              ),
-              child: Icon(option.icon, color: AppColors.primary, size: 22),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// 预设分类配色（与 AppColors.chartPalette 同源，便于视觉统一）。
-const List<int> _palette = <int>[
-  0xFFE57373,
-  0xFFF06292,
-  0xFFBA68C8,
-  0xFF9575CD,
-  0xFF7986CB,
-  0xFF64B5F6,
-  0xFF4FC3F7,
-  0xFF4DB6AC,
-  0xFF81C784,
-  0xFFFFB74D,
-  0xFFA1887F,
-  0xFF90A4AE,
-];
-
-class _ColorChip extends StatelessWidget {
-  const _ColorChip({
-    required this.selected,
-    required this.color,
-    required this.onTap,
-  });
-
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        margin: const EdgeInsets.only(bottom: AppDimens.spaceSm),
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: selected
-              ? Border.all(color: Theme.of(context).colorScheme.onSurface, width: 2)
-              : null,
-        ),
-        child: selected
-            ? const Icon(Icons.check, color: Colors.white, size: 18)
-            : null,
-      ),
-    );
-  }
-}
-
 /// 分类排序：拖拽重排一级分类顺序。
 Future<void> _showSortSheet(
   BuildContext context,
   WidgetRef ref,
   CategoryType type,
 ) async {
-  final AsyncValue<List<Category>> prov = ref.read(
-    type == CategoryType.income
-        ? incomeCategoriesProvider
-        : expenseCategoriesProvider,
-  );
+  final AsyncValue<List<Category>> prov = ref.read(allCategoriesProvider);
   final List<Category>? all = prov.value;
   if (all == null) {
     _toast(context, '数据加载中，请稍后再试');
@@ -1104,11 +869,7 @@ Future<void> _showChangeParentSheet(
   WidgetRef ref,
   Category category,
 ) async {
-  final AsyncValue<List<Category>> prov = ref.read(
-    category.type == CategoryType.income
-        ? incomeCategoriesProvider
-        : expenseCategoriesProvider,
-  );
+  final AsyncValue<List<Category>> prov = ref.read(allCategoriesProvider);
   final List<Category>? all = prov.value;
   if (all == null) {
     _toast(context, '数据加载中，请稍后再试');
@@ -1230,11 +991,7 @@ Future<void> _showMigrateSheet(
   WidgetRef ref,
   Category category,
 ) async {
-  final AsyncValue<List<Category>> prov = ref.read(
-    category.type == CategoryType.income
-        ? incomeCategoriesProvider
-        : expenseCategoriesProvider,
-  );
+  final AsyncValue<List<Category>> prov = ref.read(allCategoriesProvider);
   final List<Category>? all = prov.value;
   if (all == null) {
     _toast(context, '数据加载中，请稍后再试');
