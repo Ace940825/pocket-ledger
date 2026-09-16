@@ -624,124 +624,126 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
         ),
       ),
       builder: (BuildContext sheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(AppDimens.spaceMd),
-              child: Row(
-                children: <Widget>[
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
-                      borderRadius:
-                          BorderRadius.circular(AppDimens.radiusMd),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(AppDimens.spaceMd),
+                child: Row(
+                  children: <Widget>[
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius:
+                            BorderRadius.circular(AppDimens.radiusMd),
+                      ),
+                      child: Icon(
+                        categoryIconData(category.iconKey),
+                        color: color,
+                        size: 22,
+                      ),
                     ),
-                    child: Icon(
-                      categoryIconData(category.iconKey),
-                      color: color,
-                      size: 22,
+                    const SizedBox(width: AppDimens.spaceMd),
+                    Expanded(
+                      child: Text(
+                        category.name,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: AppDimens.spaceMd),
-                  Expanded(
-                    child: Text(
-                      category.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                    IconButton(
+                      onPressed: () => Navigator.of(sheet).pop(),
+                      icon: const Icon(Icons.close),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(sheet).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: Text(isParent ? '编辑分类' : '编辑子分类'),
-              subtitle: Text(
-                isParent ? '修改「$name」分类' : '修改「$name」子分类',
-              ),
-              onTap: () => Navigator.of(sheet).pop('edit'),
-            ),
-            if (isParent) ...<Widget>[
+              const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.sort_outlined),
-                title: const Text('分类排序'),
-                subtitle: const Text('为主分类排序'),
-                onTap: () => Navigator.of(sheet).pop('sort'),
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(isParent ? '编辑分类' : '编辑子分类'),
+                subtitle: Text(
+                  isParent ? '修改「$name」分类' : '修改「$name」子分类',
+                ),
+                onTap: () => Navigator.of(sheet).pop('edit'),
+              ),
+              if (isParent) ...<Widget>[
+                ListTile(
+                  leading: const Icon(Icons.sort_outlined),
+                  title: const Text('分类排序'),
+                  subtitle: const Text('为主分类排序'),
+                  onTap: () => Navigator.of(sheet).pop('sort'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.subdirectory_arrow_right_outlined),
+                  title: const Text('改为子分类'),
+                  subtitle: Text('将「$name」归入其他主分类'),
+                  onTap: () => Navigator.of(sheet).pop('toSub'),
+                ),
+              ] else ...<Widget>[
+                ListTile(
+                  leading: const Icon(Icons.vertical_align_top_outlined),
+                  title: const Text('改为主分类'),
+                  subtitle: Text('将「$name」变为主分类'),
+                  onTap: () => Navigator.of(sheet).pop('toParent'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.sort_outlined),
+                  title: const Text('子分类排序'),
+                  subtitle: Text('为「$parentName」下的子分类排序'),
+                  onTap: () => Navigator.of(sheet).pop('childSort'),
+                ),
+              ],
+              ListTile(
+                leading: const Icon(Icons.swap_horiz_outlined),
+                title: const Text('账单迁移'),
+                subtitle: Text('仅迁移「$name」分类下的账单'),
+                onTap: () => Navigator.of(sheet).pop('migrate'),
               ),
               ListTile(
-                leading: const Icon(Icons.subdirectory_arrow_right_outlined),
-                title: const Text('改为子分类'),
-                subtitle: Text('将「$name」归入其他主分类'),
-                onTap: () => Navigator.of(sheet).pop('toSub'),
+                leading: Icon(
+                  category.isArchived
+                      ? Icons.unarchive_outlined
+                      : Icons.archive_outlined,
+                ),
+                title: Text(
+                  category.isArchived
+                      ? (isParent ? '取消封存分类' : '取消封存子分类')
+                      : (isParent ? '封存分类' : '封存子分类'),
+                ),
+                subtitle: Text(
+                  category.isArchived
+                      ? '将「$name」解封并恢复显示'
+                      : '将「$name」封存，简化分类列表',
+                ),
+                onTap: () => Navigator.of(sheet).pop(
+                  category.isArchived ? 'unarchive' : 'archive',
+                ),
               ),
-            ] else ...<Widget>[
+              const Divider(height: 1, indent: 56),
               ListTile(
-                leading: const Icon(Icons.vertical_align_top_outlined),
-                title: const Text('改为主分类'),
-                subtitle: Text('将「$name」变为主分类'),
-                onTap: () => Navigator.of(sheet).pop('toParent'),
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.expense,
+                ),
+                title: Text(
+                  isParent ? '删除分类' : '删除子分类',
+                  style: const TextStyle(color: AppColors.expense),
+                ),
+                subtitle: Text(
+                  isParent
+                      ? '迁移账单后删除，或直接删除分类'
+                      : '迁移账单后删除，或直接删除子分类',
+                ),
+                onTap: () => Navigator.of(sheet).pop('delete'),
               ),
-              ListTile(
-                leading: const Icon(Icons.sort_outlined),
-                title: const Text('子分类排序'),
-                subtitle: Text('为「$parentName」下的子分类排序'),
-                onTap: () => Navigator.of(sheet).pop('childSort'),
-              ),
+              const SizedBox(height: AppDimens.spaceMd),
             ],
-            ListTile(
-              leading: const Icon(Icons.swap_horiz_outlined),
-              title: const Text('账单迁移'),
-              subtitle: Text('仅迁移「$name」分类下的账单'),
-              onTap: () => Navigator.of(sheet).pop('migrate'),
-            ),
-            ListTile(
-              leading: Icon(
-                category.isArchived
-                    ? Icons.unarchive_outlined
-                    : Icons.archive_outlined,
-              ),
-              title: Text(
-                category.isArchived
-                    ? (isParent ? '取消封存分类' : '取消封存子分类')
-                    : (isParent ? '封存分类' : '封存子分类'),
-              ),
-              subtitle: Text(
-                category.isArchived
-                    ? '将「$name」解封并恢复显示'
-                    : '将「$name」封存，简化分类列表',
-              ),
-              onTap: () => Navigator.of(sheet).pop(
-                category.isArchived ? 'unarchive' : 'archive',
-              ),
-            ),
-            const Divider(height: 1, indent: 56),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline,
-                color: AppColors.expense,
-              ),
-              title: Text(
-                isParent ? '删除分类' : '删除子分类',
-                style: const TextStyle(color: AppColors.expense),
-              ),
-              subtitle: Text(
-                isParent
-                    ? '迁移账单后删除，或直接删除分类'
-                    : '迁移账单后删除，或直接删除子分类',
-              ),
-              onTap: () => Navigator.of(sheet).pop('delete'),
-            ),
-            const SizedBox(height: AppDimens.spaceMd),
-          ],
+          ),
         ),
       ),
     );
