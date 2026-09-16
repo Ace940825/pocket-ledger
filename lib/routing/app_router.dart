@@ -14,6 +14,7 @@ import '../features/categories/presentation/category_manage_page.dart';
 import '../features/categories/presentation/edit_category_page.dart';
 import '../features/categories/presentation/edit_subcategory_page.dart';
 import '../features/home/presentation/home_page.dart';
+import '../features/installment/presentation/add_installment_page.dart';
 import '../features/installment/presentation/installment_detail_page.dart';
 import '../features/installment/presentation/installment_page.dart';
 import '../features/inventory/presentation/inventory_page.dart';
@@ -53,6 +54,7 @@ abstract final class Routes {
   static const String reimbursement = '/reimbursement';
   static const String savings = '/savings';
   static const String installment = '/installment';
+  static const String installmentAdd = '/installment/add';
   static const String installmentDetail = '/installment/:planId';
   static const String investment = '/investment';
   static const String inventory = '/inventory';
@@ -189,6 +191,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: Routes.installment,
         builder: (_, __) => const InstallmentPage(),
+      ),
+      GoRoute(
+        path: Routes.installmentAdd,
+        builder: (_, __) => const AddInstallmentPage(),
       ),
       GoRoute(
         path: Routes.installmentDetail,
