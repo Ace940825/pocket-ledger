@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// 记一笔面板顶部的 7 个业务 Tab（参考小青账）。
+/// 记一笔面板顶部的 8 个业务 Tab（参考小青账）。
 ///
 /// 这是**纯 UI 层**的枚举，与数据库存储无关——它只是决定面板里显示哪一组表单。
 /// 真正的存储语义由 [TxnType] / [SourceModule] 承载，避免在 intEnum 下标存储里
@@ -12,7 +12,8 @@ enum RecordTab {
   lend,
   reimbursement,
   refund,
-  savings;
+  savings,
+  installment;
 
   String get label => switch (this) {
         RecordTab.expense => '支出',
@@ -22,6 +23,7 @@ enum RecordTab {
         RecordTab.reimbursement => '报销',
         RecordTab.refund => '退款',
         RecordTab.savings => '存钱',
+        RecordTab.installment => '分期',
       };
 
   IconData get icon => switch (this) {
@@ -32,6 +34,7 @@ enum RecordTab {
         RecordTab.reimbursement => Icons.receipt_long_outlined,
         RecordTab.refund => Icons.assignment_return_outlined,
         RecordTab.savings => Icons.savings_outlined,
+        RecordTab.installment => Icons.calendar_month_outlined,
       };
 
   /// 是否使用小青账统一布局：顶部滚动表单 + 底部固定功能栏/金额栏/日期备注栏/键盘。

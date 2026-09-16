@@ -28,6 +28,7 @@ import '../../../shared/widgets/form_fields.dart';
 import '../../../sync/sync_adapter.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
+import '../../installment/providers/installment_providers.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../../savings/providers/savings_providers.dart';
@@ -147,6 +148,23 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   bool _saveDeposit = true;
   String? _goalId;
 
+  // 分期：在「记一笔」面板内直接新建分期计划。
+  final TextEditingController _installmentTitleController =
+      TextEditingController();
+  final TextEditingController _installmentAmountController =
+      TextEditingController();
+  final TextEditingController _installmentFeeController =
+      TextEditingController();
+  final TextEditingController _installmentNoteController =
+      TextEditingController();
+  int _installmentPeriods = 12;
+  DateTime _installmentFirstDue = DateTime(
+    DateTime.now().year,
+    DateTime.now().month + 1,
+    DateTime.now().day,
+  );
+  String? _installmentAccountId;
+
   // 支出 / 收入新布局状态
   bool _keyboardExpanded = true;
   bool _isReimbursable = false;
@@ -225,6 +243,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     _rbPayerController.dispose();
     _rbAmountController.dispose();
     _refundAmountController.dispose();
+    _installmentTitleController.dispose();
+    _installmentAmountController.dispose();
+    _installmentFeeController.dispose();
+    _installmentNoteController.dispose();
     super.dispose();
   }
 
@@ -304,11 +326,28 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     return Money.tryParse(text).minor;
   }
 
+  /// 分期总金额（分）。未输入时返回 0。
+  int get _installmentAmountMinor {
+    final String text = _installmentAmountController.text.trim();
+    if (text.isEmpty) return 0;
+    return Money.tryParse(text).minor;
+  }
+
+  /// 分期每期手续费（分）。未输入时返回 0。
+  int get _installmentFeeMinor {
+    final String text = _installmentFeeController.text.trim();
+    if (text.isEmpty) return 0;
+    return Money.tryParse(text).minor;
+  }
+
   // ---- 保存 ----
 
   Future<void> _save({bool andMore = false}) async {
-    final int minor =
-        _tab == RecordTab.reimbursement ? _rbAmountMinor : _amountMinor;
+    final int minor = _tab == RecordTab.reimbursement
+        ? _rbAmountMinor
+        : (_tab == RecordTab.installment
+            ? _installmentAmountMinor
+            : _amountMinor);
     if (minor <= 0) {
       _toast('请输入大于 0 的金额');
       return;
@@ -511,6 +550,28 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 _goalId!,
                 _saveDeposit ? minor : -minor,
               );
+        case RecordTab.installment:
+          if (_installmentTitleController.text.trim().isEmpty) {
+            _toast('请填写分期名称');
+            return;
+          }
+          if (minor <= 0) {
+            _toast('请输入大于 0 的总金额');
+            return;
+          }
+          await ref.read(installmentRepositoryProvider).addPlan(
+                bookId: bookId,
+                title: _installmentTitleController.text.trim(),
+                totalMinor: minor,
+                totalPeriods: _installmentPeriods,
+                feePerPeriodMinor: _installmentFeeMinor,
+                firstDueAt:
+                    _installmentFirstDue.toUtc().millisecondsSinceEpoch,
+                accountId: _installmentAccountId,
+                note: _installmentNoteController.text.trim().isEmpty
+                    ? null
+                    : _installmentNoteController.text.trim(),
+              );
       }
 
       // 附件：写库成功后异步上传到云端，让其他设备也能查看原图。
@@ -540,6 +601,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           _refundAmountController.clear();
           _refundAmountAuto = true;
           _refundMode = RefundMode.full;
+          _installmentTitleController.clear();
+          _installmentAmountController.clear();
+          _installmentFeeController.clear();
+          _installmentNoteController.clear();
+          _installmentPeriods = 12;
+          _installmentFirstDue = DateTime(
+            DateTime.now().year,
+            DateTime.now().month + 1,
+            DateTime.now().day,
+          );
+          _installmentAccountId = null;
           _feeAmount = null;
           _discountAmount = null;
           _feeInputType = _FeeInputType.fee;
@@ -871,6 +943,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           const FormGap(),
           _noteField(),
         ];
+      case RecordTab.installment:
+        // 分期使用独立布局（_buildInstallmentBody），不走 legacy 表单。
+        return const <Widget>[SizedBox.shrink()];
     }
   }
 
@@ -1937,6 +2012,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       case RecordTab.reimbursement:
       case RecordTab.refund:
       case RecordTab.savings:
+      case RecordTab.installment:
         return const SizedBox.shrink();
     }
   }
@@ -2545,6 +2621,235 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       ),
     );
   }
+
+  /// 分期页独立布局（小青账模板）：顶部滚动表单 + 底部固定「保存」按钮。
+  ///
+  /// 与报销 / 退款一致，分期使用自带「总金额」输入框（系统键盘），
+  /// 不使用自定义数字键盘，因此底部只放一个「保存」按钮。
+  Widget _buildInstallmentBody() {
+    return Expanded(
+      child: Column(
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _buildInstallmentForm(),
+              ),
+            ),
+          ),
+          _buildSaveFooter(),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildInstallmentForm() {
+    return <Widget>[
+      _buildSectionTitle('分期信息'),
+      const SizedBox(height: AppDimens.spaceSm),
+      _buildInstallmentMoneyRow(
+        _installmentAmountController,
+        '分期总金额（元）',
+      ),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildInstallmentTitleField(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildInstallmentPeriodStepper(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildInstallmentDueField(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildInstallmentMoneyRow(
+        _installmentFeeController,
+        '每期手续费（元，可选）',
+      ),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildTransferAccountCard(
+        label: '扣款账户',
+        value: _installmentAccountId,
+        placeholder: '选择扣款账户（可选）',
+        onChanged: (String? v) => setState(() => _installmentAccountId = v),
+      ),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildInstallmentNoteField(),
+      const SizedBox(height: AppDimens.spaceMd),
+      _buildRbBookRow(),
+    ];
+  }
+
+  /// 金额输入框：¥ 图标 + 数字输入框（系统键盘）。
+  Widget _buildInstallmentMoneyRow(
+    TextEditingController controller,
+    String hint,
+  ) {
+    final String text = controller.text.trim();
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            ),
+            child: Text(
+              '¥',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                  ),
+            ),
+          ),
+          const SizedBox(width: AppDimens.spaceSm),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.done,
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.textTertiary),
+                border: InputBorder.none,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: text.isNotEmpty
+                        ? AppColors.textPrimary
+                        : AppColors.textTertiary,
+                  ),
+              maxLines: 1,
+              onChanged: (_) => setState(() {}),
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstallmentTitleField() => TextField(
+        controller: _installmentTitleController,
+        decoration: const InputDecoration(labelText: '分期名称'),
+        maxLines: 1,
+      );
+
+  /// 期数步进器：1 - 120 期。
+  Widget _buildInstallmentPeriodStepper() {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      child: Row(
+        children: <Widget>[
+          Text('期数', style: Theme.of(context).textTheme.bodyMedium),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline),
+            onPressed: _installmentPeriods <= 1
+                ? null
+                : () => setState(() => _installmentPeriods--),
+          ),
+          SizedBox(
+            width: 36,
+            child: Text(
+              '$_installmentPeriods',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed: _installmentPeriods >= 120
+                ? null
+                : () => setState(() => _installmentPeriods++),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 首期还款日选择行。
+  Widget _buildInstallmentDueField() {
+    return InkWell(
+      onTap: _pickInstallmentDue,
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '首期还款日',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const Spacer(),
+            Text(
+              DateFormat('yyyy年M月d日').format(_installmentFirstDue),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(width: AppDimens.spaceXs),
+            Icon(
+              Icons.chevron_right,
+              size: 16,
+              color: AppColors.textTertiary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickInstallmentDue() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _installmentFirstDue,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null && mounted) {
+      setState(() => _installmentFirstDue = picked);
+    }
+  }
+
+  Widget _buildInstallmentNoteField() => TextField(
+        controller: _installmentNoteController,
+        decoration: const InputDecoration(labelText: '备注'),
+        maxLines: 2,
+      );
 
   Widget _buildCategoryGrid(List<Category> categories) {
     final List<Category> parents = categories
@@ -3183,6 +3488,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             _buildReimbursementBody()
           else if (_tab == RecordTab.refund)
             _buildRefundBody()
+          else if (_tab == RecordTab.installment)
+            _buildInstallmentBody()
           else if (_tab.usesNewLayout)
             _buildNewLayoutBody()
           else
