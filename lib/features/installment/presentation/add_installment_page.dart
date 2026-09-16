@@ -10,6 +10,7 @@ import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/date_picker_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../providers/installment_providers.dart';
 
@@ -526,14 +527,29 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   }
 
   Future<void> _pickFirstDue() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
+    final DateTime? picked = await DatePickerSheet.show(
+      context,
       initialDate: _firstDueAt,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
+      title: '选择日期',
+      currentTimeLabel: '当前时间',
+      cancelLabel: '取消',
+      confirmLabel: '确定',
     );
     if (picked != null && mounted) {
-      setState(() => _firstDueAt = picked);
+      setState(() {
+        _firstDueAt = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          _firstDueAt.hour,
+          _firstDueAt.minute,
+          _firstDueAt.second,
+          _firstDueAt.millisecond,
+          _firstDueAt.microsecond,
+        );
+      });
     }
   }
 
