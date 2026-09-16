@@ -123,10 +123,14 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    // 键盘弹出时 MediaQuery.viewInsets 变化会触发本 widget 重建，
+    // 因此可直接据此判断是否显示底部保存按钮。
+    final double keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
+    final bool keyboardVisible = keyboardHeight > 0;
 
     return AnimatedPadding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
+        bottom: keyboardHeight,
       ),
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
@@ -165,29 +169,31 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.spaceLg,
-                  AppDimens.spaceMd,
-                  AppDimens.spaceLg,
-                  AppDimens.spaceLg,
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(context).pop(_result),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              // 键盘弹出时隐藏保存按钮，让面板更紧凑；点击外部收起键盘后自动重现。
+              if (!keyboardVisible)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppDimens.spaceLg,
+                    AppDimens.spaceMd,
+                    AppDimens.spaceLg,
+                    AppDimens.spaceLg,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(_result),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                        ),
                       ),
+                      child: const Text('保存'),
                     ),
-                    child: const Text('保存'),
                   ),
                 ),
-              ),
             ],
           ),
         ),
