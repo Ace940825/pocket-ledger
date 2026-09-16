@@ -393,10 +393,11 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
       builder: (BuildContext context, BoxConstraints constraints) {
         const int columns = 5;
         const double spacing = 10;
-        const double aspectRatio = 1.5;
+        const double aspectRatio = 3.0;
         final double cellWidth =
             (constraints.maxWidth - (columns - 1) * spacing) / columns;
         final double cellHeight = cellWidth / aspectRatio;
+        final double fontSize = cellHeight * 0.8;
 
         final List<Widget> children = <Widget>[];
         for (int day = 1; day <= 31; day++) {
@@ -406,6 +407,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
             onTap: () => setState(() => _monthDay = day),
             width: cellWidth,
             height: cellHeight,
+            fontSize: fontSize,
           ));
         }
         children.add(_optionChip(
@@ -414,6 +416,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           onTap: () => setState(() => _monthDay = -1),
           width: cellWidth,
           height: cellHeight,
+          fontSize: fontSize,
         ));
         return Wrap(
           spacing: spacing,
@@ -465,6 +468,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
     required VoidCallback onTap,
     double? width,
     double? height,
+    double? fontSize,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -481,7 +485,10 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           style: TextStyle(
             color: selected ? Colors.white : AppColors.textPrimary,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: fontSize,
+            height: 1.0,
           ),
+          overflow: TextOverflow.visible,
         ),
       ),
     );
