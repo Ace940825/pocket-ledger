@@ -400,7 +400,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
   Widget _buildMonthDayGrid(ThemeData theme) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        const int columns = 5;
+        const int columns = 6;
         const double spacing = 10;
         const double aspectRatio = 3.0;
         final double cellWidth =
