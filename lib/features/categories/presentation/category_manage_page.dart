@@ -34,9 +34,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
   @override
   Widget build(BuildContext context) {
     final AsyncValue<List<Category>> categories = ref.watch(
-      _type == CategoryType.income
-          ? incomeCategoriesProvider
-          : expenseCategoriesProvider,
+      allCategoriesProvider,
     );
 
     return Scaffold(
@@ -135,9 +133,12 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
   }
 
   Widget _buildList(List<Category> list) {
+    final List<Category> typed =
+        list.where((Category c) => c.type == _type).toList();
+
     final List<Category> visible = _showArchived
-        ? list
-        : list.where((Category c) => !c.isArchived).toList();
+        ? typed
+        : typed.where((Category c) => !c.isArchived).toList();
 
     final Map<String?, List<Category>> grouped = <String?, List<Category>>{};
     for (final Category c in visible) {
