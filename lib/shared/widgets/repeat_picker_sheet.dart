@@ -290,7 +290,14 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
             decoration: const InputDecoration(
               isDense: true,
               contentPadding: EdgeInsets.zero,
+              filled: true,
+              fillColor: Colors.transparent,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
               counterText: '',
             ),
             style: theme.textTheme.titleMedium?.copyWith(
