@@ -78,13 +78,62 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
   Future<int> unarchive(String id, int updatedAt) {
     return (update(categories)
           ..where(($CategoriesTable tbl) => tbl.id.equals(id)))
-        .write(
+      .write(
       CategoriesCompanion(
         isArchived: const Value<bool>(false),
         dirty: const Value<bool>(true),
         updatedAt: Value<int>(updatedAt),
       ),
     );
+  }
+
+  /// 更新单个分类的排序值（分类排序用）。
+  Future<int> setSortOrder(String id, int sortOrder, int updatedAt) {
+    return (update(categories)
+          ..where(($CategoriesTable tbl) => tbl.id.equals(id)))
+        .write(
+      CategoriesCompanion(
+        sortOrder: Value<int>(sortOrder),
+        dirty: const Value<bool>(true),
+        updatedAt: Value<int>(updatedAt),
+      ),
+    );
+  }
+
+  /// 将某父分类下的直接子分类整体改挂到另一个父分类（保持两级结构）。
+  Future<int> reparentChildren(
+    String oldParentId,
+    String newParentId,
+    int updatedAt,
+  ) {
+    return (update(categories)
+          ..where(($CategoriesTable tbl) => tbl.parentId.equals(oldParentId)))
+        .write(
+      CategoriesCompanion(
+        parentId: Value<String?>(newParentId),
+        dirty: const Value<bool>(true),
+        updatedAt: Value<int>(updatedAt),
+      ),
+    );
+  }
+
+  /// 取某父分类下子分类的最大 sortOrder，用于追加排序。
+  Future<int> maxChildSortOrder(String parentId) {
+    final Expression<int> maxExpr = categories.sortOrder.max();
+    return (selectOnly(categories)
+          ..where(categories.parentId.equals(parentId)))
+        .map((TypedResult row) => row.read(maxExpr))
+        .getSingle()
+        .then((int? v) => v ?? 0);
+  }
+
+  /// 列出某父分类的直接子分类 ID（改挂时同步同步队列用）。
+  Future<List<String>> childIds(String parentId) {
+    return (selectOnly(categories)
+          ..addColumns(<Expression<Object>>[categories.id])
+          ..where(categories.parentId.equals(parentId)))
+        .map((TypedResult row) => row.read(categories.id)!)
+        .get();
   }
 
   /// 批量写入默认分类，仅在首次初始化时调用。

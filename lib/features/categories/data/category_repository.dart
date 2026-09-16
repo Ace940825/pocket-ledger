@@ -144,6 +144,67 @@ class CategoryRepository {
     });
   }
 
+  /// 批量重排一级分类顺序。传入按目标顺序排列的 ID 列表。
+  Future<void> reorderParents(List<String> orderedIds) async {
+    if (orderedIds.isEmpty) return;
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      for (int i = 0; i < orderedIds.length; i++) {
+        await _db.categoriesDao.setSortOrder(orderedIds[i], i, now);
+        await _enqueue(orderedIds[i], SyncOpType.update, now,
+            <String, Object?>{'sortOrder': i});
+      }
+    });
+  }
+
+  /// 将一级分类改为另一父分类的子分类。
+  ///
+  /// 该分类原有的直接子分类会一并改挂到新父分类下，从而保持「两级」结构不被破坏。
+  Future<void> changeToSubcategory(String id, String newParentId) async {
+    final Category? cat = await _db.categoriesDao.getById(id);
+    if (cat == null) {
+      throw const NotFoundFailure('分类不存在');
+    }
+    if (cat.parentId != null) {
+      // 仅一级分类可改挂，子分类无需此操作。
+      return;
+    }
+
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final List<String> childIds =
+        await _db.categoriesDao.childIds(cat.id);
+    final int maxSo = await _db.categoriesDao.maxChildSortOrder(newParentId);
+
+    await _db.transaction<void>(() async {
+      if (childIds.isNotEmpty) {
+        await _db.categoriesDao.reparentChildren(cat.id, newParentId, now);
+      }
+      await _db.categoriesDao.updateCategory(
+        CategoriesCompanion(
+          id: Value<String>(cat.id),
+          bookId: Value<String>(cat.bookId),
+          name: Value<String>(cat.name),
+          type: Value<CategoryType>(cat.type),
+          parentId: Value<String?>(newParentId),
+          colorValue: Value<int?>(cat.colorValue),
+          iconKey: Value<String?>(cat.iconKey),
+          sortOrder: Value<int>(maxSo + 1),
+          updatedAt: Value<int>(now),
+          dirty: const Value<bool>(true),
+        ),
+      );
+      await _enqueue(cat.id, SyncOpType.update, now, <String, Object?>{
+        'parentId': newParentId,
+        'sortOrder': maxSo + 1,
+      });
+      for (final String childId in childIds) {
+        await _enqueue(childId, SyncOpType.update, now, <String, Object?>{
+          'parentId': newParentId,
+        });
+      }
+    });
+  }
+
   Future<void> _enqueue(
     String recordId,
     SyncOpType opType,

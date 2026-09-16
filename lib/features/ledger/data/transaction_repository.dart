@@ -282,6 +282,30 @@ class TransactionRepository {
     });
   }
 
+  /// 账单迁移：把使用 [fromId] 分类的全部流水改挂到 [toId] 分类。
+  ///
+  /// 仅修改 categoryId，不影响金额与账户余额，因此无需调整余额 delta。
+  /// 返回被迁移的流水笔数。
+  Future<int> reassignCategory(String fromId, String toId) async {
+    final List<String> ids =
+        await _db.transactionsDao.findIdsByCategory(fromId);
+    if (ids.isEmpty) return 0;
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      await _db.transactionsDao.reassignCategory(fromId, toId, now);
+      for (final String id in ids) {
+        await _enqueue(
+          tableName: 'transactions',
+          recordId: id,
+          opType: SyncOpType.update,
+          updatedAt: now,
+          payload: <String, Object?>{'categoryId': toId},
+        );
+      }
+    });
+    return ids.length;
+  }
+
   /// 软删除。物理删除无法同步，必须标记后随同步推送。
   Future<void> remove(String id) async {
     final Transaction? txn = await _db.transactionsDao.getById(id);

@@ -312,6 +312,33 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     return update(transactions).replace(companion);
   }
 
+  /// 列出使用某分类的全部未删除流水 ID（账单迁移前统计用）。
+  Future<List<String>> findIdsByCategory(String categoryId) {
+    return (selectOnly(transactions)
+          ..addColumns(<Expression<Object>>[transactions.id])
+          ..where(transactions.categoryId.equals(categoryId) &
+              transactions.deleted.equals(false)))
+        .map((TypedResult row) => row.read(transactions.id)!)
+        .get();
+  }
+
+  /// 批量把某分类下的流水改挂到目标分类（账单迁移用）。
+  Future<int> reassignCategory(
+    String fromId,
+    String toId,
+    int updatedAt,
+  ) {
+    return (update(transactions)
+          ..where(($TransactionsTable tbl) => tbl.categoryId.equals(fromId)))
+        .write(
+      TransactionsCompanion(
+        categoryId: Value<String?>(toId),
+        dirty: const Value<bool>(true),
+        updatedAt: Value<int>(updatedAt),
+      ),
+    );
+  }
+
   /// 软删除：物理删除无法同步到云端，必须标记后随同步推送。
   Future<int> softDelete(String id, int updatedAt) {
     return (update(transactions)

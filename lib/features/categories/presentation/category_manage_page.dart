@@ -9,6 +9,7 @@ import '../../../../domain/enums.dart';
 import '../../../../providers/app_providers.dart';
 import '../../../../shared/widgets/category_icons.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../ledger/providers/ledger_providers.dart';
 import '../data/category_repository.dart';
 import '../providers/categories_providers.dart';
 
@@ -664,12 +665,23 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
               title: const Text('编辑分类'),
               onTap: () => Navigator.of(sheet).pop('edit'),
             ),
-            if (isParent)
+            if (isParent) ...<Widget>[
               ListTile(
-                leading: const Icon(Icons.add_circle_outline),
-                title: const Text('添加子分类'),
-                onTap: () => Navigator.of(sheet).pop('addChild'),
+                leading: const Icon(Icons.sort_outlined),
+                title: const Text('分类排序'),
+                onTap: () => Navigator.of(sheet).pop('sort'),
               ),
+              ListTile(
+                leading: const Icon(Icons.subdirectory_arrow_right_outlined),
+                title: const Text('改为子分类'),
+                onTap: () => Navigator.of(sheet).pop('toSub'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.swap_horiz_outlined),
+                title: const Text('账单迁移'),
+                onTap: () => Navigator.of(sheet).pop('migrate'),
+              ),
+            ],
             ListTile(
               leading: Icon(
                 category.isArchived
@@ -704,8 +716,12 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
     if (action == null) return;
     if (action == 'edit') {
       onEdit();
-    } else if (action == 'addChild' && onAddChild != null) {
-      onAddChild();
+    } else if (action == 'sort') {
+      await _showSortSheet(context, ref, category);
+    } else if (action == 'toSub') {
+      await _showChangeParentSheet(context, ref, category);
+    } else if (action == 'migrate') {
+      await _showMigrateSheet(context, ref, category);
     } else if (action == 'archive') {
       try {
         await ref.read(categoryRepositoryProvider).archive(category.id);
@@ -976,6 +992,384 @@ class _ColorChip extends StatelessWidget {
             : null,
       ),
     );
+  }
+}
+
+/// 分类排序：拖拽重排一级分类顺序。
+Future<void> _showSortSheet(
+  BuildContext context,
+  WidgetRef ref,
+  Category category,
+) async {
+  final AsyncValue<List<Category>> prov = ref.read(
+    category.type == CategoryType.income
+        ? incomeCategoriesProvider
+        : expenseCategoriesProvider,
+  );
+  final List<Category>? all = prov.value;
+  if (all == null) {
+    _toast(context, '数据加载中，请稍后再试');
+    return;
+  }
+
+  final List<Category> items = all
+      .where((Category c) => c.parentId == null)
+      .toList()
+    ..sort((Category a, Category b) => a.sortOrder.compareTo(b.sortOrder));
+  if (items.length < 2) {
+    _toast(context, '分类不足两个，无需排序');
+    return;
+  }
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+    ),
+    builder: (BuildContext sheet) => SafeArea(
+      child: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSheetState) {
+          return SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.7,
+            child: Column(
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.all(AppDimens.spaceMd),
+                  child: Row(
+                    children: <Widget>[
+                      const SizedBox(width: 48),
+                      const Expanded(
+                        child: Text(
+                          '分类排序',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ReorderableListView(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppDimens.spaceSm,
+                    ),
+                    buildDefaultDragHandles: true,
+                    onReorder: (int oldIndex, int newIndex) async {
+                      setSheetState(() {
+                        if (newIndex > oldIndex) newIndex -= 1;
+                        final Category moved = items.removeAt(oldIndex);
+                        items.insert(newIndex, moved);
+                      });
+                      final List<String> ids =
+                          items.map((Category c) => c.id).toList();
+                      await ref
+                          .read(categoryRepositoryProvider)
+                          .reorderParents(ids);
+                    },
+                    children: <Widget>[
+                      for (final Category c in items)
+                        _SortTile(key: ValueKey<String>(c.id), category: c),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppDimens.spaceMd),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class _SortTile extends StatelessWidget {
+  const _SortTile({required super.key, required this.category});
+
+  final Category category;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color = category.colorValue != null
+        ? Color(category.colorValue!)
+        : AppColors.primary;
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        ),
+        child: Icon(categoryIconData(category.iconKey), color: color, size: 22),
+      ),
+      title: Text(category.name),
+      trailing: const Icon(Icons.drag_handle, color: AppColors.textTertiary),
+    );
+  }
+}
+
+/// 改为子分类：选择新的父分类后整体挂靠。
+Future<void> _showChangeParentSheet(
+  BuildContext context,
+  WidgetRef ref,
+  Category category,
+) async {
+  final AsyncValue<List<Category>> prov = ref.read(
+    category.type == CategoryType.income
+        ? incomeCategoriesProvider
+        : expenseCategoriesProvider,
+  );
+  final List<Category>? all = prov.value;
+  if (all == null) {
+    _toast(context, '数据加载中，请稍后再试');
+    return;
+  }
+
+  final List<Category> candidates = all
+      .where((Category c) => c.parentId == null && c.id != category.id)
+      .toList()
+    ..sort((Category a, Category b) => a.sortOrder.compareTo(b.sortOrder));
+  if (candidates.isEmpty) {
+    _toast(context, '没有其他一级分类可挂靠');
+    return;
+  }
+
+  final Category? target = await showModalBottomSheet<Category>(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+    ),
+    builder: (BuildContext sheet) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            child: Row(
+              children: <Widget>[
+                IconButton(
+                  onPressed: () => Navigator.of(sheet).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+                const Expanded(
+                  child: Text(
+                    '改为子分类',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: candidates.length,
+              itemBuilder: (BuildContext ctx, int i) {
+                final Category t = candidates[i];
+                final Color color = t.colorValue != null
+                    ? Color(t.colorValue!)
+                    : AppColors.primary;
+                return ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                    ),
+                    child:
+                        Icon(categoryIconData(t.iconKey), color: color, size: 22),
+                  ),
+                  title: Text(t.name),
+                  onTap: () => Navigator.of(ctx).pop(t),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppDimens.spaceMd),
+        ],
+      ),
+    ),
+  );
+
+  if (target == null) return;
+
+  final bool? confirmed = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialog) => AlertDialog(
+      title: const Text('改为子分类'),
+      content: Text(
+        '「${category.name}」将作为「${target.name}」的子分类，'
+        '其原有子分类也会一并移入。',
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(false),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialog).pop(true),
+          child: const Text('确定'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+
+  try {
+    await ref
+        .read(categoryRepositoryProvider)
+        .changeToSubcategory(category.id, target.id);
+    if (context.mounted) _toast(context, '已改为「${target.name}」的子分类');
+  } on AppFailure catch (e) {
+    if (context.mounted) _toast(context, e.message);
+  }
+}
+
+/// 账单迁移：把该分类下的全部流水改挂到目标分类。
+Future<void> _showMigrateSheet(
+  BuildContext context,
+  WidgetRef ref,
+  Category category,
+) async {
+  final AsyncValue<List<Category>> prov = ref.read(
+    category.type == CategoryType.income
+        ? incomeCategoriesProvider
+        : expenseCategoriesProvider,
+  );
+  final List<Category>? all = prov.value;
+  if (all == null) {
+    _toast(context, '数据加载中，请稍后再试');
+    return;
+  }
+
+  final List<Category> targets = all
+      .where((Category c) => c.id != category.id)
+      .toList()
+    ..sort((Category a, Category b) {
+      if ((a.parentId == null) != (b.parentId == null)) {
+        return a.parentId == null ? -1 : 1;
+      }
+      return a.sortOrder.compareTo(b.sortOrder);
+    });
+
+  final Category? target = await showModalBottomSheet<Category>(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+    ),
+    builder: (BuildContext sheet) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            child: Row(
+              children: <Widget>[
+                IconButton(
+                  onPressed: () => Navigator.of(sheet).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+                const Expanded(
+                  child: Text(
+                    '账单迁移',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: targets.length,
+              itemBuilder: (BuildContext ctx, int i) {
+                final Category t = targets[i];
+                final Color color = t.colorValue != null
+                    ? Color(t.colorValue!)
+                    : AppColors.primary;
+                final String suffix = t.parentId == null ? '' : '（子分类）';
+                return ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                    ),
+                    child:
+                        Icon(categoryIconData(t.iconKey), color: color, size: 22),
+                  ),
+                  title: Text('${t.name}$suffix'),
+                  onTap: () => Navigator.of(ctx).pop(t),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppDimens.spaceMd),
+        ],
+      ),
+    ),
+  );
+
+  if (target == null) return;
+
+  final bool? confirmed = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialog) => AlertDialog(
+      title: const Text('账单迁移'),
+      content: Text(
+        '「${category.name}」下的全部账单将迁移到「${target.name}」。',
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(false),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialog).pop(true),
+          child: const Text('确定'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+
+  try {
+    final int count = await ref
+        .read(transactionRepositoryProvider)
+        .reassignCategory(category.id, target.id);
+    if (context.mounted) {
+      _toast(context, count > 0 ? '已迁移 $count 笔账单' : '该分类下没有账单');
+    }
+  } on AppFailure catch (e) {
+    if (context.mounted) _toast(context, e.message);
   }
 }
 
