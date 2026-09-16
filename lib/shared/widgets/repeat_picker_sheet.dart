@@ -140,9 +140,12 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
             Flexible(
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimens.spaceLg,
-                    vertical: AppDimens.spaceMd,
+                  padding: EdgeInsets.only(
+                    left: AppDimens.spaceLg,
+                    right: AppDimens.spaceLg,
+                    top: AppDimens.spaceMd,
+                    bottom:
+                        AppDimens.spaceMd + MediaQuery.viewInsetsOf(context).bottom,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
