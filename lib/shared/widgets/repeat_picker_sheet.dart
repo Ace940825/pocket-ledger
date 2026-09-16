@@ -124,67 +124,72 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return SafeArea(
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppDimens.radiusLg),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            _buildHeader(theme),
-            const Divider(height: 1),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: AppDimens.spaceLg,
-                    right: AppDimens.spaceLg,
-                    top: AppDimens.spaceMd,
-                    bottom:
-                        AppDimens.spaceMd + MediaQuery.viewInsetsOf(context).bottom,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      _buildUnitTabs(theme),
-                      const SizedBox(height: AppDimens.spaceLg),
-                      _buildIntervalStepper(theme),
-                      const SizedBox(height: AppDimens.spaceLg),
-                      _buildExtraOptions(theme),
-                    ],
-                  ),
-                ),
-              ),
+    return AnimatedPadding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      child: SafeArea(
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(AppDimens.radiusLg),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceLg,
-                AppDimens.spaceMd,
-                AppDimens.spaceLg,
-                AppDimens.spaceLg,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.of(context).pop(_result),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppDimens.radiusMd),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _buildHeader(theme),
+              const Divider(height: 1),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      left: AppDimens.spaceLg,
+                      right: AppDimens.spaceLg,
+                      top: AppDimens.spaceMd,
+                      bottom: AppDimens.spaceMd,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        _buildUnitTabs(theme),
+                        const SizedBox(height: AppDimens.spaceLg),
+                        _buildIntervalStepper(theme),
+                        const SizedBox(height: AppDimens.spaceLg),
+                        _buildExtraOptions(theme),
+                      ],
                     ),
                   ),
-                  child: const Text('保存'),
                 ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimens.spaceLg,
+                  AppDimens.spaceMd,
+                  AppDimens.spaceLg,
+                  AppDimens.spaceLg,
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(_result),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                      ),
+                    ),
+                    child: const Text('保存'),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -202,8 +207,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           Text(
             '执行方式',
             style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+              fontWeight: FontWeight.w600,
+            ),
           ),
           Positioned(
             left: 0,
@@ -235,20 +240,17 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: selected
-                      ? AppColors.textPrimary
-                      : AppColors.surfaceLight,
-                  borderRadius:
-                      BorderRadius.circular(AppDimens.radiusMd),
+                  color:
+                      selected ? AppColors.textPrimary : AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   _unitLabels[unit.index],
                   style: theme.textTheme.bodyMedium?.copyWith(
-                        color: selected ? Colors.white : AppColors.textPrimary,
-                        fontWeight:
-                            selected ? FontWeight.w600 : FontWeight.normal,
-                      ),
+                    color: selected ? Colors.white : AppColors.textPrimary,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                  ),
                 ),
               ),
             ),
@@ -265,8 +267,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         Text(
           '每',
           style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(width: AppDimens.spaceMd),
         _stepperButton(
@@ -304,9 +306,10 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
               counterText: '',
             ),
             style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+              fontWeight: FontWeight.w600,
+            ),
             onSubmitted: (_) => _commitIntervalText(),
+            onTapOutside: (_) => _intervalFocusNode.unfocus(),
           ),
         ),
         _stepperButton(
@@ -317,8 +320,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         Text(
           _unitText,
           style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -494,4 +497,3 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
     );
   }
 }
-
