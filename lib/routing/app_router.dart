@@ -9,6 +9,7 @@ import '../features/accounts/presentation/add_account_page.dart';
 import '../features/budget/presentation/budget_page.dart';
 import '../features/categories/presentation/add_subcategory_page.dart';
 import '../features/categories/presentation/category_manage_page.dart';
+import '../features/categories/presentation/edit_subcategory_page.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/installment/presentation/installment_detail_page.dart';
 import '../features/installment/presentation/installment_page.dart';
@@ -41,6 +42,7 @@ abstract final class Routes {
   static const String more = '/more';
   static const String categories = '/categories';
   static const String addSubcategory = '/categories/add-subcategory';
+  static const String editSubcategory = '/categories/edit-subcategory';
   static const String transfer = '/transfer';
   static const String lend = '/lend';
   static const String reimbursement = '/reimbursement';
@@ -142,6 +144,14 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         builder: (_, GoRouterState state) => AddSubcategoryPage(
           parent: state.extra! as Category,
         ),
+      ),
+      GoRoute(
+        path: Routes.editSubcategory,
+        builder: (_, GoRouterState state) {
+          final (Category child, Category parent) =
+              state.extra! as (Category, Category);
+          return EditSubcategoryPage(child: child, parent: parent);
+        },
       ),
       GoRoute(
         path: Routes.transfer,

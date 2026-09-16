@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
@@ -12,6 +13,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../data/category_repository.dart';
 import '../providers/categories_providers.dart';
+import '../../../routing/app_router.dart';
 
 /// 分类管理页：按小青账模板重构。
 ///
@@ -179,8 +181,12 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
             type: parent.type,
             parentId: parent.id,
           ),
-          onChildEdit: (Category child) =>
-              _showEditor(context, ref, category: child),
+          onChildEdit: (Category child) {
+            context.push(
+              Routes.editSubcategory,
+              extra: (child, parent),
+            );
+          },
           onChildDelete: (Category child) =>
               _confirmDelete(context, ref, child),
         );
