@@ -92,15 +92,10 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
               ),
             ),
           ),
-          GestureDetector(
-            onTap: () => _showMoreSheet(context),
-            child: const Padding(
-              padding: EdgeInsets.all(AppDimens.spaceMd),
-              child: Text(
-                '更多',
-                style: TextStyle(fontSize: 15),
-              ),
-            ),
+          IconButton(
+            onPressed: () => _showSortSheet(context, ref, _type),
+            icon: const Icon(Icons.sort_outlined),
+            tooltip: '分类排序',
           ),
         ],
       ),
@@ -385,70 +380,6 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
     }
   }
 
-  Future<void> _showMoreSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusLg),
-        ),
-      ),
-      builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.spaceSm,
-              ),
-              child: Row(
-                children: <Widget>[
-                  IconButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      '更多',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.sort_outlined),
-              title: const Text('分类排序'),
-              subtitle: const Text('为主分类排序'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _toast(context, '排序功能后续开放');
-              },
-            ),
-            const Divider(height: 1, indent: 56),
-            ListTile(
-              leading: const Icon(Icons.help_outline),
-              title: const Text('常见问题'),
-              subtitle: const Text('查看疑惑解答'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _toast(context, '常见问题后续开放');
-              },
-            ),
-            const SizedBox(height: AppDimens.spaceMd),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _TypeTab extends StatelessWidget {
@@ -757,7 +688,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
     if (action == 'edit') {
       onEdit();
     } else if (action == 'sort') {
-      await _showSortSheet(context, ref, category);
+      await _showSortSheet(context, ref, category.type);
     } else if (action == 'childSort') {
       await _showChildSortSheet(
         context,
@@ -1048,10 +979,10 @@ class _ColorChip extends StatelessWidget {
 Future<void> _showSortSheet(
   BuildContext context,
   WidgetRef ref,
-  Category category,
+  CategoryType type,
 ) async {
   final AsyncValue<List<Category>> prov = ref.read(
-    category.type == CategoryType.income
+    type == CategoryType.income
         ? incomeCategoriesProvider
         : expenseCategoriesProvider,
   );
