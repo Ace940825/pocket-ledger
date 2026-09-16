@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
@@ -40,6 +41,9 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
   int? _monthDay;
   int? _month;
 
+  late final TextEditingController _intervalController;
+  late final FocusNode _intervalFocusNode;
+
   final List<String> _unitLabels = const <String>['每天', '每周', '每月', '每年'];
 
   @override
@@ -52,6 +56,17 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
     _weekDay = rule.weekDay;
     _monthDay = rule.monthDay;
     _month = rule.month;
+    _intervalController = TextEditingController(text: '$_interval');
+    _intervalFocusNode = FocusNode();
+    _intervalFocusNode.addListener(_onIntervalFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _intervalFocusNode.removeListener(_onIntervalFocusChange);
+    _intervalFocusNode.dispose();
+    _intervalController.dispose();
+    super.dispose();
   }
 
   String get _unitText {
@@ -74,6 +89,36 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         monthDay: _unit == RepeatUnit.month ? _monthDay : null,
         month: _unit == RepeatUnit.year ? _month : null,
       );
+
+  void _onIntervalFocusChange() {
+    if (!_intervalFocusNode.hasFocus) {
+      _commitIntervalText();
+    }
+  }
+
+  void _commitIntervalText() {
+    final int? parsed = int.tryParse(_intervalController.text.trim());
+    if (parsed != null) {
+      final int clamped = parsed.clamp(1, 120);
+      if (clamped != _interval) {
+        setState(() => _interval = clamped);
+      }
+      if (_intervalController.text != '$clamped') {
+        _intervalController.text = '$clamped';
+      }
+    } else {
+      _intervalController.text = '$_interval';
+    }
+  }
+
+  void _changeInterval(int delta) {
+    FocusScope.of(context).unfocus();
+    _commitIntervalText();
+    setState(() {
+      _interval = (_interval + delta).clamp(1, 120);
+      _intervalController.text = '$_interval';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -223,34 +268,40 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         const SizedBox(width: AppDimens.spaceMd),
         _stepperButton(
           icon: Icons.remove,
-          onTap: _interval <= 1
-              ? null
-              : () => setState(() => _interval--),
+          onTap: _interval <= 1 ? null : () => _changeInterval(-1),
         ),
-        GestureDetector(
-          onTap: _editInterval,
-          child: Container(
-            width: 56,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              border: Border.symmetric(
-                horizontal: BorderSide(color: AppColors.divider),
-              ),
+        Container(
+          width: 56,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            border: Border.symmetric(
+              horizontal: BorderSide(color: AppColors.divider),
             ),
-            child: Text(
-              '$_interval',
-              style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+          ),
+          child: TextField(
+            controller: _intervalController,
+            focusNode: _intervalFocusNode,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            inputFormatters: <TextInputFormatter>[
+              FilteringTextInputFormatter.digitsOnly,
+            ],
+            decoration: const InputDecoration(
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+              border: InputBorder.none,
+              counterText: '',
             ),
+            style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+            onSubmitted: (_) => _commitIntervalText(),
           ),
         ),
         _stepperButton(
           icon: Icons.add,
-          onTap: _interval >= 120
-              ? null
-              : () => setState(() => _interval++),
+          onTap: _interval >= 120 ? null : () => _changeInterval(1),
         ),
         const SizedBox(width: AppDimens.spaceMd),
         Text(
@@ -261,18 +312,6 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         ),
       ],
     );
-  }
-
-  Future<void> _editInterval() async {
-    final int? value = await showDialog<int>(
-      context: context,
-      builder: (BuildContext ctx) => _IntervalInputDialog(
-        initialValue: _interval,
-      ),
-    );
-    if (value != null && mounted) {
-      setState(() => _interval = value);
-    }
   }
 
   Widget _stepperButton({
@@ -423,73 +462,3 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
   }
 }
 
-/// 间隔数字输入弹窗。
-///
-/// 用独立 [StatefulWidget] 管理 [TextEditingController]，确保 controller 在
-/// dialog 自己的 [dispose] 中释放；关闭前主动 unfocus，避免软键盘收起和弹窗
-/// 卸载竞争触发 `_dependents.isEmpty` 断言。
-class _IntervalInputDialog extends StatefulWidget {
-  const _IntervalInputDialog({required this.initialValue});
-
-  final int initialValue;
-
-  @override
-  State<_IntervalInputDialog> createState() => _IntervalInputDialogState();
-}
-
-class _IntervalInputDialogState extends State<_IntervalInputDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: '${widget.initialValue}');
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _pop({int? value}) {
-    // 先释放焦点、收起键盘，再 pop，避免键盘高度变化与弹窗卸载竞争。
-    FocusScope.of(context).unfocus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        Navigator.of(context).pop(value);
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('设置间隔'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(
-          hintText: '请输入 1-120 之间的数字',
-          border: OutlineInputBorder(),
-        ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => _pop(),
-          child: const Text('取消'),
-        ),
-        TextButton(
-          onPressed: () {
-            final int? parsed = int.tryParse(_controller.text.trim());
-            if (parsed != null && parsed >= 1 && parsed <= 120) {
-              _pop(value: parsed);
-            }
-          },
-          child: const Text('确定'),
-        ),
-      ],
-    );
-  }
-}
