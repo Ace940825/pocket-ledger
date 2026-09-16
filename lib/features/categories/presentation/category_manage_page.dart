@@ -549,24 +549,48 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
         ),
         if (_expanded)
           Padding(
-            padding: const EdgeInsets.only(left: 32),
+            padding: const EdgeInsets.fromLTRB(32, 8, 16, 16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                ...visibleChildren.map(
-                  (Category child) => _CategoryRow(
-                    category: child,
-                    leading: const SizedBox(width: 32),
-                    isChild: true,
-                    onTap: () => widget.onChildEdit(child),
-                    onMore: () => _showCategoryMenu(
-                      context,
-                      child,
-                      onEdit: () => widget.onChildEdit(child),
-                      onDelete: () => widget.onChildDelete(child),
+                Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: AppColors.textTertiary,
                     ),
-                  ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        '子分类更改或删除请点击对应子分类图标哦~',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textTertiary,
+                              fontSize: 12,
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
-                _AddChildRow(onTap: widget.onAddChild),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 16,
+                  children: <Widget>[
+                    ...visibleChildren.map(
+                      (Category child) => _SubcategoryChip(
+                        category: child,
+                        onTap: () => _showCategoryMenu(
+                          context,
+                          child,
+                          onEdit: () => widget.onChildEdit(child),
+                          onDelete: () => widget.onChildDelete(child),
+                        ),
+                      ),
+                    ),
+                    _SubcategoryChip.add(onTap: widget.onAddChild),
+                  ],
+                ),
               ],
             ),
           ),
@@ -616,14 +640,12 @@ class _CategoryRow extends StatelessWidget {
     required this.leading,
     required this.onTap,
     required this.onMore,
-    this.isChild = false,
   });
 
   final Category category;
   final Widget leading;
   final VoidCallback onTap;
   final VoidCallback onMore;
-  final bool isChild;
 
   @override
   Widget build(BuildContext context) {
@@ -656,8 +678,7 @@ class _CategoryRow extends StatelessWidget {
               child: Text(
                 category.name,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight:
-                          isChild ? FontWeight.normal : FontWeight.w500,
+                      fontWeight: FontWeight.w500,
                     ),
               ),
             ),
@@ -694,38 +715,58 @@ class _CategoryRow extends StatelessWidget {
   }
 }
 
-class _AddChildRow extends StatelessWidget {
-  const _AddChildRow({required this.onTap});
+class _SubcategoryChip extends StatelessWidget {
+  const _SubcategoryChip({
+    required this.category,
+    required this.onTap,
+  }) : isAdd = false;
 
+  const _SubcategoryChip.add({required this.onTap})
+      : category = null,
+        isAdd = true;
+
+  final Category? category;
   final VoidCallback onTap;
+  final bool isAdd;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: AppDimens.listTileHeight,
-        child: Row(
+    final Color color = category?.colorValue != null
+        ? Color(category!.colorValue!)
+        : AppColors.primary;
+
+    return SizedBox(
+      width: 64,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const SizedBox(width: 32),
             Container(
-              width: 40,
-              height: 40,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
               child: Icon(
-                Icons.add_circle_outline,
-                color: AppColors.primary,
-                size: 22,
+                isAdd
+                    ? Icons.add_circle_outline
+                    : categoryIconData(category!.iconKey),
+                color: isAdd ? AppColors.primary : color,
+                size: 24,
               ),
             ),
-            const SizedBox(width: AppDimens.spaceMd),
+            const SizedBox(height: 6),
             Text(
-              '添加子分类',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.textSecondary,
+              isAdd ? '添加子分类' : category!.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: isAdd ? AppColors.textSecondary : null,
+                    fontSize: 12,
                   ),
             ),
           ],
