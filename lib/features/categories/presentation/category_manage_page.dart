@@ -8,9 +8,8 @@ import '../../../../core/errors/failures.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
 import '../../../../shared/widgets/category_icons.dart';
-import '../../ledger/providers/ledger_providers.dart';
-import '../providers/categories_providers.dart';
 import '../../../routing/app_router.dart';
+import '../providers/categories_providers.dart';
 
 /// 分类管理页：按小青账模板重构。
 ///
@@ -22,8 +21,7 @@ class CategoryManagePage extends ConsumerStatefulWidget {
   const CategoryManagePage({super.key});
 
   @override
-  ConsumerState<CategoryManagePage> createState() =>
-      _CategoryManagePageState();
+  ConsumerState<CategoryManagePage> createState() => _CategoryManagePageState();
 }
 
 class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
@@ -239,7 +237,6 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
       if (context.mounted) _toast(context, e.message);
     }
   }
-
 }
 
 class _TypeTab extends StatelessWidget {
@@ -258,8 +255,7 @@ class _TypeTab extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final Color color =
         selected ? theme.colorScheme.onSurface : AppColors.textTertiary;
-    final FontWeight weight =
-        selected ? FontWeight.w600 : FontWeight.normal;
+    final FontWeight weight = selected ? FontWeight.w600 : FontWeight.normal;
 
     return GestureDetector(
       onTap: onTap,
@@ -278,9 +274,9 @@ class _TypeTab extends StatelessWidget {
         child: Text(
           label,
           style: theme.textTheme.titleMedium?.copyWith(
-                color: color,
-                fontWeight: weight,
-              ),
+            color: color,
+            fontWeight: weight,
+          ),
         ),
       ),
     );
@@ -321,9 +317,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
   Widget build(BuildContext context) {
     final List<Category> visibleChildren = widget.showArchived
         ? widget.children
-        : widget.children
-            .where((Category c) => !c.isArchived)
-            .toList();
+        : widget.children.where((Category c) => !c.isArchived).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,26 +344,6 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Icon(
-                      Icons.info_outline,
-                      size: 14,
-                      color: AppColors.textTertiary,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        '子分类更改或删除请点击对应子分类图标哦~',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textTertiary,
-                              fontSize: 12,
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
                 Wrap(
                   spacing: 12,
                   runSpacing: 16,
@@ -433,8 +407,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
                       height: 40,
                       decoration: BoxDecoration(
                         color: AppColors.surfaceLight,
-                        borderRadius:
-                            BorderRadius.circular(AppDimens.radiusMd),
+                        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                       ),
                       child: Icon(
                         categoryIconData(category.iconKey),
@@ -446,9 +419,10 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
                     Expanded(
                       child: Text(
                         category.name,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                       ),
                     ),
                     IconButton(
@@ -512,9 +486,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
                       : (isParent ? '封存分类' : '封存子分类'),
                 ),
                 subtitle: Text(
-                  category.isArchived
-                      ? '将「$name」解封并恢复显示'
-                      : '将「$name」封存，简化分类列表',
+                  category.isArchived ? '将「$name」解封并恢复显示' : '将「$name」封存，简化分类列表',
                 ),
                 onTap: () => Navigator.of(sheet).pop(
                   category.isArchived ? 'unarchive' : 'archive',
@@ -531,9 +503,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
                   style: const TextStyle(color: AppColors.expense),
                 ),
                 subtitle: Text(
-                  isParent
-                      ? '迁移账单后删除，或直接删除分类'
-                      : '迁移账单后删除，或直接删除子分类',
+                  isParent ? '迁移账单后删除，或直接删除分类' : '迁移账单后删除，或直接删除子分类',
                 ),
                 onTap: () => Navigator.of(sheet).pop('delete'),
               ),
@@ -545,6 +515,8 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
     );
 
     if (action == null) return;
+    // 底部菜单是 await 出来的，此后的操作都要用 context。
+    if (!context.mounted) return;
     if (action == 'edit') {
       onEdit();
     } else if (action == 'sort') {
@@ -769,6 +741,7 @@ Future<void> _showSortSheet(
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     shape: RoundedRectangleBorder(
       borderRadius:
           BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
@@ -809,9 +782,8 @@ Future<void> _showSortSheet(
                       vertical: AppDimens.spaceSm,
                     ),
                     buildDefaultDragHandles: true,
-                    onReorder: (int oldIndex, int newIndex) async {
+                    onReorderItem: (int oldIndex, int newIndex) async {
                       setSheetState(() {
-                        if (newIndex > oldIndex) newIndex -= 1;
                         final Category moved = items.removeAt(oldIndex);
                         items.insert(newIndex, moved);
                       });
@@ -888,6 +860,7 @@ Future<void> _showChangeParentSheet(
   final Category? target = await showModalBottomSheet<Category>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     shape: RoundedRectangleBorder(
       borderRadius:
           BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
@@ -936,8 +909,8 @@ Future<void> _showChangeParentSheet(
                       color: AppColors.surfaceLight,
                       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     ),
-                    child:
-                        Icon(categoryIconData(t.iconKey), color: color, size: 22),
+                    child: Icon(categoryIconData(t.iconKey),
+                        color: color, size: 22),
                   ),
                   title: Text(t.name),
                   onTap: () => Navigator.of(ctx).pop(t),
@@ -952,6 +925,8 @@ Future<void> _showChangeParentSheet(
   );
 
   if (target == null) return;
+  // 选择弹窗是 await 出来的，下面还要用 context 弹确认框。
+  if (!context.mounted) return;
 
   final bool? confirmed = await showDialog<bool>(
     context: context,
@@ -985,128 +960,14 @@ Future<void> _showChangeParentSheet(
   }
 }
 
-/// 账单迁移：把该分类下的全部流水改挂到目标分类。
+/// 账单迁移：跳转到独立的账单迁移页。
 Future<void> _showMigrateSheet(
   BuildContext context,
   WidgetRef ref,
   Category category,
 ) async {
-  final AsyncValue<List<Category>> prov = ref.read(allCategoriesProvider);
-  final List<Category>? all = prov.value;
-  if (all == null) {
-    _toast(context, '数据加载中，请稍后再试');
-    return;
-  }
-
-  final List<Category> targets = all
-      .where((Category c) => c.id != category.id)
-      .toList()
-    ..sort((Category a, Category b) {
-      if ((a.parentId == null) != (b.parentId == null)) {
-        return a.parentId == null ? -1 : 1;
-      }
-      return a.sortOrder.compareTo(b.sortOrder);
-    });
-
-  final Category? target = await showModalBottomSheet<Category>(
-    context: context,
-    isScrollControlled: true,
-    shape: RoundedRectangleBorder(
-      borderRadius:
-          BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
-    ),
-    builder: (BuildContext sheet) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceMd),
-            child: Row(
-              children: <Widget>[
-                IconButton(
-                  onPressed: () => Navigator.of(sheet).pop(),
-                  icon: const Icon(Icons.close),
-                ),
-                const Expanded(
-                  child: Text(
-                    '账单迁移',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 48),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: targets.length,
-              itemBuilder: (BuildContext ctx, int i) {
-                final Category t = targets[i];
-                final Color color = t.colorValue != null
-                    ? Color(t.colorValue!)
-                    : AppColors.primary;
-                final String suffix = t.parentId == null ? '' : '（子分类）';
-                return ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                    ),
-                    child:
-                        Icon(categoryIconData(t.iconKey), color: color, size: 22),
-                  ),
-                  title: Text('${t.name}$suffix'),
-                  onTap: () => Navigator.of(ctx).pop(t),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: AppDimens.spaceMd),
-        ],
-      ),
-    ),
-  );
-
-  if (target == null) return;
-
-  final bool? confirmed = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext dialog) => AlertDialog(
-      title: const Text('账单迁移'),
-      content: Text(
-        '「${category.name}」下的全部账单将迁移到「${target.name}」。',
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(dialog).pop(false),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialog).pop(true),
-          child: const Text('确定'),
-        ),
-      ],
-    ),
-  );
-  if (confirmed != true) return;
-
-  try {
-    final int count = await ref
-        .read(transactionRepositoryProvider)
-        .reassignCategory(category.id, target.id);
-    if (context.mounted) {
-      _toast(context, count > 0 ? '已迁移 $count 笔账单' : '该分类下没有账单');
-    }
-  } on AppFailure catch (e) {
-    if (context.mounted) _toast(context, e.message);
+  if (context.mounted) {
+    await context.push(Routes.migrateCategory, extra: category);
   }
 }
 
@@ -1160,6 +1021,7 @@ Future<void> _showChildSortSheet(
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     shape: RoundedRectangleBorder(
       borderRadius:
           BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
@@ -1200,9 +1062,8 @@ Future<void> _showChildSortSheet(
                       vertical: AppDimens.spaceSm,
                     ),
                     buildDefaultDragHandles: true,
-                    onReorder: (int oldIndex, int newIndex) async {
+                    onReorderItem: (int oldIndex, int newIndex) async {
                       setSheetState(() {
-                        if (newIndex > oldIndex) newIndex -= 1;
                         final Category moved = items.removeAt(oldIndex);
                         items.insert(newIndex, moved);
                       });
@@ -1229,6 +1090,5 @@ Future<void> _showChildSortSheet(
 }
 
 void _toast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(message)));
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }

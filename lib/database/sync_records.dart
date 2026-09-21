@@ -23,64 +23,63 @@ extension SyncRecordsAccess on AppDatabase {
   Future<Map<String, Object?>?> syncRowAsJson(String table, String id) async {
     switch (table) {
       case SyncTables.books:
-        final Book? row =
-            await (select(books)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final Book? row = await (select(books)..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.transactions:
-        final Transaction? row =
-            await (select(transactions)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final Transaction? row = await (select(transactions)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.accounts:
-        final Account? row =
-            await (select(accounts)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final Account? row = await (select(accounts)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.categories:
-        final Category? row =
-            await (select(categories)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final Category? row = await (select(categories)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.lendRecords:
-        final LendRecord? row =
-            await (select(lendRecords)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final LendRecord? row = await (select(lendRecords)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.reimbursements:
-        final Reimbursement? row =
-            await (select(reimbursements)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final Reimbursement? row = await (select(reimbursements)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.savingsGoals:
-        final SavingsGoal? row =
-            await (select(savingsGoals)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final SavingsGoal? row = await (select(savingsGoals)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.installmentPlans:
-        final InstallmentPlan? row =
-            await (select(installmentPlans)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final InstallmentPlan? row = await (select(installmentPlans)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.installmentPeriods:
-        final InstallmentPeriod? row =
-            await (select(installmentPeriods)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final InstallmentPeriod? row = await (select(installmentPeriods)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.budgets:
-        final Budget? row =
-            await (select(budgets)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final Budget? row = await (select(budgets)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.investmentHoldings:
-        final InvestmentHolding? row =
-            await (select(investmentHoldings)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final InvestmentHolding? row = await (select(investmentHoldings)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       case SyncTables.inventoryItems:
-        final InventoryItem? row =
-            await (select(inventoryItems)..where((t) => t.id.equals(id)))
-                .getSingleOrNull();
+        final InventoryItem? row = await (select(inventoryItems)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
         return row?.toJson();
       default:
         return null;

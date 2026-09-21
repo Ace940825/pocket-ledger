@@ -9,6 +9,7 @@ import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/date_field.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../data/lend_repository.dart';
 import '../providers/lend_providers.dart';
 
@@ -58,7 +59,8 @@ class _LendPageState extends ConsumerState<LendPage> {
                     if (r.dueAt != null)
                       Text(
                         '到期 ${DateFormat('MM-dd').format(
-                          DateTime.fromMillisecondsSinceEpoch(r.dueAt!, isUtc: true),
+                          DateTime.fromMillisecondsSinceEpoch(r.dueAt!,
+                              isUtc: true),
                         )}',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
@@ -152,7 +154,7 @@ class _LendPageState extends ConsumerState<LendPage> {
                 ),
                 const SizedBox(height: AppDimens.spaceMd),
                 DropdownButtonFormField<LendDirection>(
-                  value: direction,
+                  initialValue: direction,
                   decoration: const InputDecoration(labelText: '方向'),
                   items: <DropdownMenuItem<LendDirection>>[
                     for (final LendDirection d in LendDirection.values)
@@ -167,7 +169,7 @@ class _LendPageState extends ConsumerState<LendPage> {
                 ),
                 const SizedBox(height: AppDimens.spaceMd),
                 DropdownButtonFormField<LendStatus>(
-                  value: status,
+                  initialValue: status,
                   decoration: const InputDecoration(labelText: '状态'),
                   items: <DropdownMenuItem<LendStatus>>[
                     for (final LendStatus s in LendStatus.values)
@@ -181,14 +183,9 @@ class _LendPageState extends ConsumerState<LendPage> {
                   },
                 ),
                 const SizedBox(height: AppDimens.spaceMd),
-                TextField(
+                AmountField(
                   controller: amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: '金额',
-                    prefixText: '¥ ',
-                  ),
+                  label: '金额',
                 ),
                 const SizedBox(height: AppDimens.spaceMd),
                 DateField(

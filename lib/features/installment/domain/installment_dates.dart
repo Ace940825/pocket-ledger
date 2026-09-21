@@ -11,8 +11,7 @@ List<DateTime> computeInstallmentDueDates({
 }) {
   if (totalPeriods <= 0) return <DateTime>[];
 
-  final InstallmentRepeatRule effective =
-      rule ?? InstallmentRepeatRule.monthly;
+  final InstallmentRepeatRule effective = rule ?? InstallmentRepeatRule.monthly;
 
   switch (effective.unit) {
     case RepeatUnit.day:

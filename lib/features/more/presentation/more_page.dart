@@ -8,12 +8,13 @@ import '../../../routing/app_router.dart';
 class MorePage extends StatelessWidget {
   const MorePage({super.key});
 
-  static const List<({
-    String title,
-    String description,
-    IconData icon,
-    String route,
-  })> _modules = <({
+  static const List<
+      ({
+        String title,
+        String description,
+        IconData icon,
+        String route,
+      })> _modules = <({
     String title,
     String description,
     IconData icon,

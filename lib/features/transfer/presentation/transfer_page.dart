@@ -6,8 +6,10 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../providers/app_providers.dart';
+import '../../../../shared/widgets/form_fields.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/date_picker_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 
@@ -63,15 +65,9 @@ class _TransferPageState extends ConsumerState<TransferPage> {
               onChanged: (String? v) => setState(() => _toAccountId = v),
             ),
             const SizedBox(height: AppDimens.spaceLg),
-            TextFormField(
+            AmountField(
               controller: _amountController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              style: Theme.of(context).textTheme.headlineSmall,
-              decoration: const InputDecoration(
-                labelText: '金额',
-                prefixText: '¥ ',
-              ),
+              label: '金额',
               validator: (String? value) {
                 final double? parsed = double.tryParse(value ?? '');
                 if (parsed == null || parsed <= 0) return '请输入大于 0 的金额';
@@ -109,22 +105,15 @@ class _TransferPageState extends ConsumerState<TransferPage> {
   }
 
   Future<void> _pickDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
+    final DateTime? picked = await DateTimePickerSheet.show(
+      context,
       initialDate: _occurredAt,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
+      showTime: true,
     );
     if (picked != null) {
-      setState(() {
-        _occurredAt = DateTime(
-          picked.year,
-          picked.month,
-          picked.day,
-          _occurredAt.hour,
-          _occurredAt.minute,
-        );
-      });
+      setState(() => _occurredAt = picked);
     }
   }
 
@@ -199,7 +188,7 @@ class _AccountPicker extends StatelessWidget {
           );
         }
         return DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           decoration: InputDecoration(labelText: label),
           items: options
               .map(

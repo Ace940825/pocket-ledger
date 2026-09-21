@@ -31,8 +31,8 @@ class ReimbursementPage extends ConsumerWidget {
 
     // 账户 ID -> 名称，用于列表项展示「报销账户 / 收款账户」。
     final Map<String, String> accountNames = <String, String>{
-      for (final Account a in ref.watch(accountsProvider).valueOrNull ??
-          <Account>[])
+      for (final Account a
+          in ref.watch(accountsProvider).valueOrNull ?? <Account>[])
         a.id: a.name,
     };
 
@@ -115,6 +115,8 @@ class ReimbursementPage extends ConsumerWidget {
         await repo.advanceStatus(record.id, action.status!);
         return;
       }
+      // 上面可能已经 await 过（advanceStatus），弹确认框前再确认一次挂载状态。
+      if (!context.mounted) return;
       final bool ok = await confirmDelete(
         context,
         title: '删除「${record.title}」？',
@@ -189,7 +191,7 @@ class ReimbursementPage extends ConsumerWidget {
                 ),
                 const FormGap(),
                 DropdownButtonFormField<String>(
-                  value: accountId,
+                  initialValue: accountId,
                   decoration: const InputDecoration(labelText: '报销账户'),
                   hint: const Text('选择原始支出账户（可选）'),
                   items: <DropdownMenuItem<String>>[
@@ -203,7 +205,7 @@ class ReimbursementPage extends ConsumerWidget {
                 ),
                 const FormGap(),
                 DropdownButtonFormField<String>(
-                  value: toAccountId,
+                  initialValue: toAccountId,
                   decoration: const InputDecoration(labelText: '收款账户'),
                   hint: const Text('选择收到报销款的账户（可选）'),
                   items: <DropdownMenuItem<String>>[

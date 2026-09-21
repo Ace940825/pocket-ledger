@@ -88,8 +88,9 @@ class CategoryRepository {
           bookId: Value<String>(bookId),
           name: Value<String>(name.trim()),
           type: Value<CategoryType>(type),
-          parentId:
-              parentId == null ? const Value.absent() : Value<String?>(parentId),
+          parentId: parentId == null
+              ? const Value.absent()
+              : Value<String?>(parentId),
           colorValue: Value<int?>(colorValue),
           iconKey: Value<String?>(iconKey),
           updatedAt: Value<int>(now),
@@ -232,8 +233,7 @@ class CategoryRepository {
     }
 
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final List<String> childIds =
-        await _db.categoriesDao.childIds(cat.id);
+    final List<String> childIds = await _db.categoriesDao.childIds(cat.id);
     final int maxSo = await _db.categoriesDao.maxChildSortOrder(newParentId);
 
     await _db.transaction<void>(() async {

@@ -194,7 +194,8 @@ class _MonthlyTab extends ConsumerWidget {
             return Column(
               children: <Widget>[
                 for (final ModuleTotal m in list)
-                  _ModuleTile(total: m, share: sum == 0 ? 0 : m.totalMinor / sum),
+                  _ModuleTile(
+                      total: m, share: sum == 0 ? 0 : m.totalMinor / sum),
               ],
             );
           },

@@ -71,8 +71,7 @@ final FutureProvider<String> deviceIdProvider =
 final FutureProvider<String> databaseKeyProvider =
     FutureProvider<String>((Ref ref) async {
   final FlutterSecureStorage storage = ref.watch(secureStorageProvider);
-  final String? existing =
-      await storage.read(key: Env.databaseKeyStorageKey);
+  final String? existing = await storage.read(key: Env.databaseKeyStorageKey);
   if (existing != null && existing.isNotEmpty) return existing;
 
   final String key = const Uuid().v4();
@@ -158,5 +157,6 @@ final StateProvider<String> currentBookIdProvider =
 
 /// 当前账本实体（异步读取，用于「记一笔」面板的账本只读展示）。
 final FutureProvider<Book?> currentBookProvider = FutureProvider<Book?>(
-  (Ref ref) => ref.watch(booksDaoProvider).getById(ref.watch(currentBookIdProvider)),
+  (Ref ref) =>
+      ref.watch(booksDaoProvider).getById(ref.watch(currentBookIdProvider)),
 );

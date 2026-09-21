@@ -205,9 +205,8 @@ extension InventoryMath on InventoryItem {
   int get depreciationMinor => purchasePriceMinor - currentValueMinor;
 
   /// 剩余价值占购入价的比例，购入价为 0 时视作 100%
-  double get valueRatio => purchasePriceMinor == 0
-      ? 1.0
-      : currentValueMinor / purchasePriceMinor;
+  double get valueRatio =>
+      purchasePriceMinor == 0 ? 1.0 : currentValueMinor / purchasePriceMinor;
 
   /// 保修是否已过期
   bool isWarrantyExpired(DateTime now) =>

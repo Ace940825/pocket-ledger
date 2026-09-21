@@ -1,33 +1,87 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
 
 /// 金额输入框。
 ///
 /// 统一约定：输入以「元」为单位的小数，提交时由调用方用
 /// `Money.fromDecimal()` 转成「分」整数落库，避免各页面各写一套解析。
+///
+/// 视觉标准：浅色圆角背景，左侧一条品牌色竖线装饰，内部占位符显示标签。
 class AmountField extends StatelessWidget {
   const AmountField({
     super.key,
     required this.controller,
     this.label = '金额',
     this.helperText,
+    this.validator,
   });
 
   final TextEditingController controller;
   final String label;
   final String? helperText;
+  final String? Function(String?)? validator;
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixText: '¥ ',
-        helperText: helperText,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              const SizedBox(width: AppDimens.spaceMd),
+              Container(
+                width: 3,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
+              ),
+              const SizedBox(width: AppDimens.spaceMd),
+              Expanded(
+                child: TextFormField(
+                  controller: controller,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textAlignVertical: TextAlignVertical.center,
+                  validator: validator,
+                  decoration: InputDecoration(
+                    hintText: label,
+                    hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                    border: InputBorder.none,
+                    filled: false,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (helperText != null)
+          Padding(
+            padding: const EdgeInsets.only(
+              top: AppDimens.spaceXs,
+              left: AppDimens.spaceMd,
+            ),
+            child: Text(
+              helperText!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -84,7 +138,7 @@ class EnumDropdown<T extends Enum> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(labelText: label),
       items: <DropdownMenuItem<T>>[
         for (final T v in values)

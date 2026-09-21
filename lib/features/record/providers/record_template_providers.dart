@@ -10,8 +10,8 @@ final Provider<RecordTemplateRepository> recordTemplateRepositoryProvider =
 );
 
 /// 当前账本下的记一笔模板列表（按创建时间倒序）。
-final AutoDisposeStreamProvider<List<RecordTemplate>>
-    recordTemplatesProvider = StreamProvider.autoDispose<List<RecordTemplate>>(
+final AutoDisposeStreamProvider<List<RecordTemplate>> recordTemplatesProvider =
+    StreamProvider.autoDispose<List<RecordTemplate>>(
   (Ref ref) {
     final String bookId = ref.watch(currentBookIdProvider);
     return ref.watch(recordTemplateRepositoryProvider).watchAll(bookId);

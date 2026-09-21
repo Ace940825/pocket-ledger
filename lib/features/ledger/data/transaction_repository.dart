@@ -190,9 +190,8 @@ class TransactionRepository {
     final int? oldFromAmountMinor = original.type == TxnType.transfer
         ? original.amountMinor + original.feeMinor - original.discountMinor
         : null;
-    final int? newFromAmountMinor = newType == TxnType.transfer
-        ? newAmount + newFee - newDiscount
-        : null;
+    final int? newFromAmountMinor =
+        newType == TxnType.transfer ? newAmount + newFee - newDiscount : null;
     if (newFromAmountMinor != null && newFromAmountMinor <= 0) {
       throw const ValidationFailure('扣款金额必须大于 0');
     }

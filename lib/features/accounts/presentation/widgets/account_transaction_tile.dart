@@ -189,7 +189,7 @@ class _CircleIcon extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: tint.withOpacity(isDark ? 0.18 : 0.12),
+        color: tint.withValues(alpha: isDark ? 0.18 : 0.12),
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,

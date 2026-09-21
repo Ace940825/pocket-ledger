@@ -13,6 +13,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/fade_slide_in.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../budget/providers/budget_providers.dart';
+import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../record/presentation/record_sheet.dart';
@@ -76,9 +77,8 @@ class HomePage extends ConsumerWidget {
                       .map(
                         (Transaction txn) => TransactionTile(
                           transaction: txn,
-                          onTap: () => context.push(
-                            '/ledger/edit/${txn.id}',
-                          ),
+                          onTap: () =>
+                              TransactionDetailSheet.show(context, txn),
                         ),
                       )
                       .toList(growable: false),
@@ -200,7 +200,7 @@ class _AssetsCard extends StatelessWidget {
           Text(
             '净资产',
             style: theme.textTheme.bodyMedium
-                ?.copyWith(color: Colors.white.withOpacity(0.85)),
+                ?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
           ),
           const SizedBox(height: 2),
           AnimatedMoneyText(
@@ -216,7 +216,7 @@ class _AssetsCard extends StatelessWidget {
                 child: _MiniStat(
                   label: '总资产',
                   valueMinor: totalAssets,
-                  labelColor: Colors.white.withOpacity(0.85),
+                  labelColor: Colors.white.withValues(alpha: 0.85),
                   valueColor: Colors.white,
                 ),
               ),
@@ -225,7 +225,7 @@ class _AssetsCard extends StatelessWidget {
                 child: _MiniStat(
                   label: '总负债',
                   valueMinor: totalLiabilities,
-                  labelColor: Colors.white.withOpacity(0.85),
+                  labelColor: Colors.white.withValues(alpha: 0.85),
                   valueColor: Colors.white,
                 ),
               ),
@@ -271,7 +271,7 @@ class _BudgetCard extends StatelessWidget {
                 Text(
                   '剩余预算',
                   style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: Colors.white.withOpacity(0.85)),
+                      ?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
                 ),
                 const SizedBox(height: 2),
                 AnimatedMoneyText(
@@ -288,7 +288,7 @@ class _BudgetCard extends StatelessWidget {
                       child: _MiniStat(
                         label: '总预算',
                         valueMinor: summary.total,
-                        labelColor: Colors.white.withOpacity(0.85),
+                        labelColor: Colors.white.withValues(alpha: 0.85),
                         valueColor: Colors.white,
                       ),
                     ),
@@ -297,7 +297,7 @@ class _BudgetCard extends StatelessWidget {
                       child: _MiniStat(
                         label: '已用',
                         valueMinor: summary.spent,
-                        labelColor: Colors.white.withOpacity(0.85),
+                        labelColor: Colors.white.withValues(alpha: 0.85),
                         valueColor: Colors.white,
                       ),
                     ),

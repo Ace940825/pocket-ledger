@@ -56,6 +56,8 @@ class _AddAccountPageState extends State<AddAccountPage>
       return;
     }
 
+    // 上面的分支里 push 过页面，这里再确认一次挂载状态。
+    if (!mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => AccountFormPage(accountType: type),

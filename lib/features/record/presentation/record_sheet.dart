@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -17,25 +18,32 @@ import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../../features/accounts/data/account_icon.dart';
+import '../../../features/accounts/data/bank_data.dart';
+import '../../../features/accounts/providers/accounts_providers.dart';
+import '../../../features/installment/presentation/add_installment_page.dart';
+import '../../../features/ledger/providers/ledger_providers.dart';
+import '../../../features/lend/providers/lend_providers.dart';
+import '../../../features/reimbursement/providers/reimbursement_providers.dart';
+import '../../../features/savings/providers/savings_providers.dart';
 import '../../../features/settings/providers/sync_settings_providers.dart';
 import '../../../providers/app_providers.dart';
+import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/attachment_viewer.dart';
 import '../../../shared/widgets/calculator_sheet.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/date_field.dart';
+import '../../../shared/widgets/date_picker_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/money_text.dart';
 import '../../../sync/sync_adapter.dart';
-import '../../accounts/providers/accounts_providers.dart';
-import '../../ledger/providers/ledger_providers.dart';
-import '../../lend/providers/lend_providers.dart';
-import '../../../routing/app_router.dart';
-import '../../reimbursement/providers/reimbursement_providers.dart';
-import '../../savings/providers/savings_providers.dart';
 import '../providers/record_template_providers.dart';
 import '../record_tab.dart';
 import '../widgets/amount_keypad.dart';
+import 'account_picker_sheet.dart';
 import 'bill_selection_page.dart';
+import 'recording_settings_sheet.dart';
 
 /// 退款模式：全额退回 / AA 付款分摊。
 enum RefundMode { full, aa }
@@ -50,10 +58,8 @@ enum _LendActionType {
   debtReduction;
 
   String label(LendDirection dir) => switch (this) {
-        _LendActionType.borrow =>
-          dir == LendDirection.borrowIn ? '借入' : '借出',
-        _LendActionType.repay =>
-          dir == LendDirection.borrowIn ? '还债' : '收债',
+        _LendActionType.borrow => dir == LendDirection.borrowIn ? '借入' : '借出',
+        _LendActionType.repay => dir == LendDirection.borrowIn ? '还债' : '收债',
         _LendActionType.debtReduction =>
           dir == LendDirection.borrowIn ? '债务削减' : '坏账损失',
       };
@@ -66,11 +72,15 @@ enum _LendActionType {
       };
 }
 
-/// 统一「记一笔」底部面板：顶部 7 个 Tab（支出/收入/转账/借还/报销/退款/存钱），
+/// 统一「记一笔」独立页面：顶部 8 个 Tab（支出/收入/转账/借还/报销/退款/存钱/分期），
 /// 中间是对应表单，底部是自定义数字键盘。
 ///
+/// 通过 [Routes.record] 以全屏独立路由打开（而非底部面板），Tab 状态由
+/// [RecordSheet] 内部维护；分期 Tab 内嵌 [AddInstallmentPage]（showAppBar:false），
+/// 分期本身也可经 [Routes.installmentAdd] 独立打开。
+///
 /// 设计要点：
-/// - 7 种类型映射到既有 [SourceModule] 或独立表（借还=LendRecords /
+/// - 8 种类型映射到既有 [SourceModule] 或独立表（借还=LendRecords /
 ///   报销=Reimbursements / 存钱=SavingsGoals），不新增任何 intEnum 下标，
 ///   避免触发 tables.dart 注释警告的迁移灾难。
 /// - 仅「退款」用到新追加的 [SourceModule.refund]（append-only 安全）。
@@ -79,12 +89,9 @@ Future<void> openRecordSheet(
   BuildContext context, {
   RecordTab initialTab = RecordTab.expense,
 }) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    useRootNavigator: true,
-    builder: (BuildContext ctx) => RecordSheet(initialTab: initialTab),
+  await context.push<void>(
+    Routes.record,
+    extra: initialTab,
   );
 }
 
@@ -97,8 +104,18 @@ class RecordSheet extends ConsumerStatefulWidget {
   ConsumerState<RecordSheet> createState() => _RecordSheetState();
 }
 
-class _RecordSheetState extends ConsumerState<RecordSheet> {
+class _RecordSheetState extends ConsumerState<RecordSheet>
+    with TickerProviderStateMixin {
   RecordTab _tab = RecordTab.expense;
+  late TabController _tabController;
+
+  /// 与 [TabBar] 联动的页面控制器；使用 [PageView.builder] 替代 [TabBarView]，
+  /// 只构建当前页和相邻页，避免首帧同时创建 8 套完整表单导致的超长帧。
+  late PageController _pageController;
+
+  /// 点击 Tab 触发 [PageController] 程序化滚动时为 true，
+  /// 此时页面滚动监听器不回写 [TabController]，避免双向驱动冲突。
+  bool _pageAnimating = false;
 
   // 金额（自定义键盘维护的原始字符串，单位：元）
   String _amount = '';
@@ -140,6 +157,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   // 退款
   RefundMode _refundMode = RefundMode.full;
   bool _refundAmountAuto = true;
+
   /// 选中的原账单（支持多选合并为一条退款）。
   final List<Transaction> _refundOriginals = <Transaction>[];
   final TextEditingController _refundAmountController = TextEditingController();
@@ -178,9 +196,44 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   void initState() {
     super.initState();
     _tab = widget.initialTab;
+    _tabController = TabController(
+      initialIndex: widget.initialTab.index,
+      length: RecordTab.values.length,
+      vsync: this,
+    );
+    _tabController.addListener(_onTabChanged);
+    _pageController = PageController(initialPage: widget.initialTab.index);
+    _pageController.addListener(_onPageScrolled);
     _noteFocusNode.addListener(_onNoteFocusChanged);
     _feeInputFocusNode.addListener(_onFeeInputFocusChanged);
     _lendFeeFocusNode.addListener(_onLendFeeFocusChanged);
+  }
+
+  /// [TabController] 的 index 变化（点击 Tab 或页面拖拽越过中点）时更新表单逻辑状态。
+  /// 这里只做轻量状态更新并 [setState]：重活（8 套表单）已被 [PageView.builder]
+  /// + [AutomaticKeepAlive] 缓存，单次重建开销很小，无需延迟到动画结束。
+  void _onTabChanged() {
+    final int index = _tabController.index;
+    if (index == _tab.index) return;
+    _tab = RecordTab.values[index];
+    _categoryId = null;
+    _attachmentPaths.clear();
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (mounted) setState(() {});
+  }
+
+  /// 页面滚动时让原生 [TabBar] 指示器跟随手指。
+  /// 仅在用户拖拽（非点击触发的程序化滚动）时回写 [TabController]，
+  /// 避免与点击逻辑互相打架。
+  /// 注意：[TabController.animateTo] 本版本接收 int（目标 tab 下标），
+  /// 故以最近整数 tab 驱动，指示器在越过中点时平滑滑向目标 tab。
+  void _onPageScrolled() {
+    if (_pageAnimating) return;
+    final double page = _pageController.page ?? _tabController.index.toDouble();
+    final int nearest = page.round();
+    if (nearest != _tabController.index) {
+      _tabController.animateTo(nearest);
+    }
   }
 
   void _onNoteFocusChanged() {
@@ -212,6 +265,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   @override
   void dispose() {
+    _pageController.removeListener(_onPageScrolled);
+    _pageController.dispose();
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
     _noteFocusNode.removeListener(_onNoteFocusChanged);
     _noteFocusNode.dispose();
     _feeInputFocusNode.removeListener(_onFeeInputFocusChanged);
@@ -236,17 +293,28 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   /// 退款页实际退款金额（分）。
   ///
-  /// - 自动：以选中账单金额之和作为退款金额（多选时合并为一条）。
+  /// - 全额退款 + 自动：以选中账单金额之和作为退款金额（多选时合并为一条）。
+  /// - AA 付款 + 自动：按人均退款，默认 2 人 AA，即原账单总额的一半。
   /// - 自定义：读取输入框。
   int get _refundAmountMinor {
     if (_refundOriginals.isNotEmpty && _refundAmountAuto) {
-      return _refundOriginals.fold<int>(
+      final int total = _refundOriginals.fold<int>(
         0,
         (int sum, Transaction t) => sum + t.amountMinor,
       );
+      if (_refundMode == RefundMode.aa) {
+        return Money.fromMinor(total).ratio(0.5).minor;
+      }
+      return total;
     }
     return Money.tryParse(_refundAmountController.text).minor;
   }
+
+  /// 选中账单的原始金额合计（分），用于备注与显示。
+  int get _refundOriginalTotalMinor => _refundOriginals.fold<int>(
+        0,
+        (int sum, Transaction t) => sum + t.amountMinor,
+      );
 
   /// 当前应保存的字符串金额：若存在 pending 运算符，先计算再返回。
   ///
@@ -383,22 +451,21 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               _refundMode == RefundMode.full ? '全额退款' : 'AA 付款';
           String refundNote = _noteController.text.trim();
 
-          final int originalTotalMinor = _refundOriginals.fold<int>(
-            0,
-            (int sum, Transaction t) => sum + t.amountMinor,
-          );
+          final int originalTotalMinor = _refundOriginalTotalMinor;
           final String originalAmounts = _refundOriginals
               .map((Transaction t) => Money.fromMinor(t.amountMinor).format())
               .join(' + ');
+          final String refundAmountText =
+              Money.fromMinor(minor).format(showSymbol: false);
           final String detail = '[$modeText] 原账单合计：'
               '${Money.fromMinor(originalTotalMinor).format()}'
-              '（$originalAmounts）';
+              '（$originalAmounts）'
+              '${_refundMode == RefundMode.aa ? '，人均退款：$refundAmountText' : ''}';
           refundNote = refundNote.isEmpty ? detail : '$refundNote\n$detail';
 
           // 单选时保留 relatedId 语义；多选时通过 note 记录关联关系。
-          final String? relatedId = _refundOriginals.length == 1
-              ? _refundOriginals.first.id
-              : null;
+          final String? relatedId =
+              _refundOriginals.length == 1 ? _refundOriginals.first.id : null;
 
           savedId = await ref.read(transactionRepositoryProvider).add(
                 bookId: bookId,
@@ -416,7 +483,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           if (_lendAction == _LendActionType.debtReduction) {
             if (counterparty.isEmpty) {
               _toast(
-                '请填写${_lendDir == LendDirection.borrowIn ? '借入账户' : '借出账户'}',
+                '请填写$_lendCounterpartyHint',
               );
               return;
             }
@@ -430,27 +497,38 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 );
           } else if (_lendAction == _LendActionType.repay) {
             // 还债 / 收债：冲销该对方名下未结清债务，并把现金收支落到指定资金账户。
-            if (counterparty.isEmpty) {
-              _toast('请填写对方账户');
-              return;
-            }
             if (_repayAccountId == null) {
               _toast(
-                _lendDir == LendDirection.borrowIn
-                    ? '请选择还款账户'
-                    : '请选择收款账户',
+                _lendDir == LendDirection.borrowIn ? '请选择还款账户' : '请选择收款账户',
               );
               return;
             }
-            await ref.read(lendRepositoryProvider).repay(
-                  bookId: bookId,
-                  direction: _lendDir,
-                  counterparty: counterparty,
-                  amountMinor: minor,
-                  occurredAt: occurredAt,
-                  note: _noteController.text.trim(),
-                  accountId: _repayAccountId,
-                );
+            if (counterparty.isEmpty) {
+              // 「不选择具体账户」：不冲销任何债务，只记一条资金流水，
+              // 账户空置（借入方向=支出、借出方向=收入）。
+              final bool borrowIn = _lendDir == LendDirection.borrowIn;
+              final String verb = borrowIn ? '还债' : '收债';
+              final String userNote = _noteController.text.trim();
+              await ref.read(transactionRepositoryProvider).add(
+                    bookId: bookId,
+                    type: borrowIn ? TxnType.expense : TxnType.income,
+                    amountMinor: minor,
+                    accountId: _repayAccountId!,
+                    occurredAt: occurredAt,
+                    note: userNote.isEmpty ? verb : '$verb\n$userNote',
+                    sourceModule: SourceModule.lend,
+                  );
+            } else {
+              await ref.read(lendRepositoryProvider).repay(
+                    bookId: bookId,
+                    direction: _lendDir,
+                    counterparty: counterparty,
+                    amountMinor: minor,
+                    occurredAt: occurredAt,
+                    note: _noteController.text.trim(),
+                    accountId: _repayAccountId,
+                  );
+            }
           } else {
             // 借入 / 借出：新建一笔未结清债务。
             if (counterparty.isEmpty && _accountId == null) {
@@ -520,7 +598,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       // 附件：写库成功后异步上传到云端，让其他设备也能查看原图。
       // 不阻塞保存返回——上传失败会保留本机路径，本地仍可见，下次联网重试。
       if (savedId != null && _attachmentPaths.isNotEmpty && mounted) {
-        _uploadAttachments(savedId);
+        unawaited(_uploadAttachments(savedId));
       }
 
       if (!mounted) return;
@@ -663,7 +741,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           );
         }
         return DropdownButtonFormField<String>(
-          value: safe,
+          initialValue: safe,
           decoration: InputDecoration(labelText: label),
           items: shown
               .map(
@@ -701,7 +779,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           );
         }
         return DropdownButtonFormField<String>(
-          value: safe,
+          initialValue: safe,
           decoration: const InputDecoration(labelText: '分类'),
           items: list
               .map(
@@ -722,27 +800,21 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   Widget _dateField({String label = '日期'}) => DateField(
         label: label,
         value: _occurredAt,
+        showTime: true,
         onChanged: (DateTime? v) =>
             setState(() => _occurredAt = v ?? DateTime.now()),
       );
 
   Future<void> _pickDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
+    final DateTime? picked = await DateTimePickerSheet.show(
+      context,
       initialDate: _occurredAt,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
+      showTime: true,
     );
     if (picked != null && mounted) {
-      setState(() {
-        _occurredAt = DateTime(
-          picked.year,
-          picked.month,
-          picked.day,
-          _occurredAt.hour,
-          _occurredAt.minute,
-        );
-      });
+      setState(() => _occurredAt = picked);
     }
   }
 
@@ -768,7 +840,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         final String? safe =
             list.any((SavingsGoal g) => g.id == _goalId) ? _goalId : null;
         return DropdownButtonFormField<String>(
-          value: safe,
+          initialValue: safe,
           decoration: const InputDecoration(labelText: '储蓄目标'),
           items: list
               .map(
@@ -887,45 +959,42 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   /// 适用于 支出 / 收入 / 转账 / 借还。
   Widget _buildNewLayoutBody() {
     final double viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
-    final bool systemKeyboardOpen =
-        viewInsetsBottom > 0 &&
+    final bool systemKeyboardOpen = viewInsetsBottom > 0 &&
         (_noteFocusNode.hasFocus || _feeInputFocusNode.hasFocus);
-    return Expanded(
-      child: Column(
-        children: <Widget>[
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppDimens.spaceLg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  _buildNewLayoutScrollArea(),
-                ],
-              ),
-            ),
-          ),
-          // 功能键行、金额栏、备注栏三段垂直间距统一为 spaceSm。
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceLg,
-            ),
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppDimens.spaceLg),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                _buildFunctionBar(),
-                const SizedBox(height: AppDimens.spaceSm),
-                _buildInlineAmount(),
-                const SizedBox(height: AppDimens.spaceSm),
-                _buildDateNoteRow(),
+                _buildNewLayoutScrollArea(),
               ],
             ),
           ),
-          const SizedBox(height: AppDimens.spaceSm),
-          // 系统键盘（备注输入）弹出或键盘折叠时，不渲染键盘栏。
-          if (!systemKeyboardOpen) _buildCollapsibleKeypad(),
-        ],
-      ),
+        ),
+        // 功能键行、金额栏、备注栏三段垂直间距统一为 spaceSm。
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimens.spaceLg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _buildFunctionBar(),
+              const SizedBox(height: AppDimens.spaceSm),
+              _buildInlineAmount(),
+              const SizedBox(height: AppDimens.spaceSm),
+              _buildDateNoteRow(),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppDimens.spaceSm),
+        // 系统键盘（备注输入）弹出或键盘折叠时，不渲染键盘栏。
+        if (!systemKeyboardOpen) _buildCollapsibleKeypad(),
+      ],
     );
   }
 
@@ -1001,14 +1070,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                       Flexible(
                         child: Text(
                           selected?.name ?? placeholder,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color: selected != null
-                                    ? AppColors.textPrimary
-                                    : AppColors.textTertiary,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: selected != null
+                                        ? AppColors.textPrimary
+                                        : AppColors.textTertiary,
+                                  ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.left,
@@ -1020,8 +1087,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               ),
             ),
             const SizedBox(width: AppDimens.spaceSm),
-            // 右侧：标签卡片。
+            // 右侧：标签卡片。固定宽度与费用行右侧计算器列一致，使主卡片右边缘对齐。
             Container(
+              width: 96,
               height: 48,
               padding: const EdgeInsets.symmetric(
                 horizontal: AppDimens.spaceMd,
@@ -1098,41 +1166,25 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   /// 转账页手续费 / 优惠 / 计算器行。
   ///
   /// 整体为与账户栏一致的圆角卡片：左侧绿色 ¥ 图标 + 输入框；中间是「手续费 / 优惠」
-  /// 切换开关（选中项为绿色药丸，未选项为灰色文字）；右侧为「计算器」文字按钮。
+  /// 切换开关（选中项为绿色药丸，未选项为灰色文字）；右侧为「计算器」卡片按钮。
+  /// 布局：白色输入框（含绿色边框）宽 274px、左侧贴卡片左缘；右侧「计算器」卡片宽 96px、
+  /// 右边缘贴卡片右缘，与上方「入款账户」标签卡片左右对齐；中间由 Row 的 spaceBetween 均分剩余空间。
   Widget _buildTransferFeeRow() {
     final bool isFee = _feeInputType == _FeeInputType.fee;
     final String? currentValue = isFee ? _feeAmount : _discountAmount;
     return Container(
       height: 48,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceMd,
-      ),
+      padding: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-            ),
-            child: Text(
-              '¥',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    height: 1.0,
-                  ),
-            ),
-          ),
-          const SizedBox(width: AppDimens.spaceSm),
-          Expanded(
+          SizedBox(
+            width: 274,
             child: TextField(
               controller: _feeInputController,
               focusNode: _feeInputFocusNode,
@@ -1146,9 +1198,55 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     .textTheme
                     .bodyMedium
                     ?.copyWith(color: AppColors.textTertiary),
-                border: InputBorder.none,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 12, right: 8),
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+                    ),
+                    child: Text(
+                      '¥',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 44,
+                  minHeight: 24,
+                ),
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(right: AppDimens.spaceSm),
+                  child: _buildFeeTypeToggle(),
+                ),
+                suffixIconConstraints: const BoxConstraints(
+                  minWidth: 68,
+                  minHeight: 28,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.spaceMd,
+                  vertical: AppDimens.spaceXs / 2,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.primary),
+                ),
               ),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: currentValue != null && currentValue.isNotEmpty
@@ -1169,10 +1267,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
             ),
           ),
-          const SizedBox(width: AppDimens.spaceSm),
-          _buildFeeTypeToggle(),
-          const SizedBox(width: AppDimens.spaceSm),
-          _buildTransferCalculatorButton(),
+          SizedBox(
+            width: 96,
+            child: _buildTransferCalculatorButton(enabled: isFee),
+          ),
         ],
       ),
     );
@@ -1226,17 +1324,23 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   /// 转账计算器按钮（文字按钮）。
-  Widget _buildTransferCalculatorButton() {
+  Widget _buildTransferCalculatorButton({required bool enabled}) {
     return InkWell(
-      onTap: _openCalculator,
-      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+      onTap: enabled ? _openTransferFeeCalculator : null,
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       child: Container(
-        height: 28,
+        width: 96,
+        height: 48,
         alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          border: Border.all(color: AppColors.divider),
+        ),
         child: Text(
           '计算器',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textPrimary,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: enabled ? AppColors.textPrimary : AppColors.textTertiary,
               ),
         ),
       ),
@@ -1255,8 +1359,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
         _discountAmount = current.isEmpty ? null : current;
       }
       _feeInputType = type;
-      _feeInputController.text =
-          type == _FeeInputType.fee ? (_feeAmount ?? '') : (_discountAmount ?? '');
+      _feeInputController.text = type == _FeeInputType.fee
+          ? (_feeAmount ?? '')
+          : (_discountAmount ?? '');
     });
   }
 
@@ -1366,9 +1471,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     const Color activeColor = AppColors.primary;
     return InkWell(
       onTap: () => setState(() {
-            _lendAction = action;
-            _repayAccountId = null;
-          }),
+        _lendAction = action;
+        _repayAccountId = null;
+      }),
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       child: SizedBox(
         width: 72,
@@ -1405,26 +1510,36 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   /// 借还页账户选择卡片（借入/借出账户、资产账户）。
+  /// [allowedCategories] 非空时只展示对应大类的账户；借入/借出账户通常限定为
+  /// 应付 / 应收，资产账户则保持全部账户或另行传入资金类。
   Widget _buildLendAccountCard({
     required String label,
     required String? value,
     required ValueChanged<String?> onChanged,
     required String placeholder,
     bool autoFillCounterparty = true,
+    List<AccountCategory>? allowedCategories,
   }) {
     final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
     return accounts.when(
       data: (List<Account> list) {
+        final List<Account> shown = allowedCategories == null
+            ? list
+            : list
+                .where(
+                  (Account a) => allowedCategories.contains(a.type.category),
+                )
+                .toList(growable: false);
         final String? safe =
-            list.any((Account a) => a.id == value) ? value : null;
+            shown.any((Account a) => a.id == value) ? value : null;
         final Account? selected =
-            safe == null ? null : list.firstWhere((Account a) => a.id == safe);
+            safe == null ? null : shown.firstWhere((Account a) => a.id == safe);
         return InkWell(
-          onTap: list.isEmpty
+          onTap: shown.isEmpty
               ? null
               : () => _showTransferAccountPicker(
                     label: label,
-                    accounts: list,
+                    accounts: shown,
                     selectedId: safe,
                     onChanged: (String? v) {
                       onChanged(v);
@@ -1433,9 +1548,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                           label != '资产账户' &&
                           _counterpartyController.text.trim().isEmpty &&
                           v != null) {
-                        final Account? acc = list
-                            .cast<Account?>()
-                            .firstWhere(
+                        final Account? acc = shown.cast<Account?>().firstWhere(
                               (Account? a) => a?.id == v,
                               orElse: () => null,
                             );
@@ -1448,6 +1561,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           child: Container(
             height: 48,
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimens.spaceMd,
             ),
@@ -1515,87 +1629,161 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
     );
   }
 
-  /// 债务削减 / 坏账损失页的对方虚拟账户输入框。
+  /// 借还页「对方账户」输入框的提示词：
+  /// - 还债 / 债务削减 / 借入（借入方向）→ 借入账户
+  /// - 收债 / 坏账损失 / 借出（借出方向）→ 借出账户
+  String get _lendCounterpartyHint =>
+      _lendDir == LendDirection.borrowIn ? '借入账户' : '借出账户';
+
+  /// 债务削减 / 坏账损失 / 借还页对方的账户选择器。
+  /// 点击后从当前方向对应的应收/应付真实账户中选择，不再显示资金、投资等账户；
+  /// 也支持手动输入新账户。
   Widget _buildLendCounterpartyField() {
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceMd,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          const Icon(
-            Icons.receipt_long_outlined,
-            size: 20,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(width: AppDimens.spaceSm),
-          Expanded(
-            child: TextField(
-              controller: _counterpartyController,
-              textAlignVertical: TextAlignVertical.center,
-              decoration: InputDecoration(
-                hintText: _lendDir == LendDirection.borrowIn
-                    ? '借入账户'
-                    : '借出账户',
-                hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-              maxLines: 1,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+    final ThemeData theme = Theme.of(context);
+    final String current = _counterpartyController.text.trim();
+    final bool hasValue = current.isNotEmpty;
+
+    return InkWell(
+      onTap: _showLendCounterpartyPicker,
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      child: Container(
+        height: 48,
+        width: double.infinity,
+        padding: const EdgeInsets.only(left: AppDimens.spaceMd),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        ),
+        child: Row(
+          children: <Widget>[
+            const Icon(
+              Icons.receipt_long_outlined,
+              size: 20,
+              color: AppColors.textSecondary,
             ),
-          ),
-        ],
+            const SizedBox(width: AppDimens.spaceSm),
+            Expanded(
+              child: Text(
+                hasValue ? current : _lendCounterpartyHint,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color:
+                      hasValue ? AppColors.textPrimary : AppColors.textTertiary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: AppDimens.spaceMd),
+              child: Icon(
+                Icons.keyboard_arrow_down,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  /// 弹出底部选择器，列出当前方向下的应收/应付真实账户，不再显示资金、投资等账户。
+  /// 使用 A 模板账户选择弹窗（网格卡片 + 列表切换 + 确认）。
+  Future<void> _showLendCounterpartyPicker() async {
+    final String? result = await showModalBottomSheet<String?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => Consumer(
+        builder: (_, WidgetRef sheetRef, __) {
+          final AsyncValue<List<Account>> accountsValue = sheetRef.watch(
+            lendAccountsProvider(_lendDir),
+          );
+          return accountsValue.when(
+            data: (List<Account> items) => AccountPickerSheet(
+              accounts: items,
+              selectedName: _counterpartyController.text.trim(),
+              title: '选择${_lendDir == LendDirection.lendOut ? '应收' : '应付'}账户',
+              noneTitle: '不选择具体账户',
+              noneSubtitle: '仅计入收支账单，不计入资产',
+              onReload: () => sheetRef.invalidate(
+                lendAccountsProvider(_lendDir),
+              ),
+              // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面；
+              // 页面返回后弹窗仍原位（回到「选择账户」这个入口界面）。
+              onAdd: () {
+                if (mounted) context.push(Routes.accountAdd);
+              },
+              onManage: () {
+                if (mounted) context.push(Routes.accountManage);
+              },
+              // 点「不选择具体账户」时 onConfirm 收到 null，用空字符串区分
+              // 「明确选择不选择」（''）与「下滑关闭」（null）。
+              onConfirm: (String? name) => Navigator.of(ctx).pop(name ?? ''),
+            ),
+            loading: () => Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: const SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 220,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ),
+            error: (Object e, _) => Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 220,
+                  child: Center(child: Text('加载失败：$e')),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    if (result.isEmpty) {
+      // 用户选择「不选择具体账户」：保留手动输入能力。
+      setState(() => _counterpartyController.clear());
+      return;
+    }
+
+    setState(() => _counterpartyController.text = result);
+  }
+
   /// 借还页利息 / 优惠 / 计算器行。
+
+  /// 借还页利息 / 优惠 / 计算器行。
+  /// 布局与转账页手续费行保持一致：白色输入框宽 274px、左侧贴卡片左缘；右侧「计算器」
+  /// 卡片宽 96px、右边缘贴卡片右缘；中间由 Row 的 spaceBetween 均分剩余空间。
   Widget _buildLendFeeRow() {
     final bool isFee = _lendFeeInputType == _FeeInputType.fee;
     final String? currentValue = isFee ? _lendFeeAmount : _lendDiscountAmount;
     return Container(
       height: 48,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceMd,
-      ),
+      padding: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-            ),
-            child: Text(
-              '¥',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    height: 1.0,
-                  ),
-            ),
-          ),
-          const SizedBox(width: AppDimens.spaceSm),
-          Expanded(
+          SizedBox(
+            width: 274,
             child: TextField(
               controller: _lendFeeController,
               focusNode: _lendFeeFocusNode,
@@ -1609,9 +1797,55 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     .textTheme
                     .bodyMedium
                     ?.copyWith(color: AppColors.textTertiary),
-                border: InputBorder.none,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 12, right: 8),
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+                    ),
+                    child: Text(
+                      '¥',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 44,
+                  minHeight: 24,
+                ),
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(right: AppDimens.spaceSm),
+                  child: _buildLendFeeTypeToggle(),
+                ),
+                suffixIconConstraints: const BoxConstraints(
+                  minWidth: 68,
+                  minHeight: 28,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.spaceMd,
+                  vertical: AppDimens.spaceXs / 2,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.primary),
+                ),
               ),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: currentValue != null && currentValue.isNotEmpty
@@ -1632,10 +1866,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
             ),
           ),
-          const SizedBox(width: AppDimens.spaceSm),
-          _buildLendFeeTypeToggle(),
-          const SizedBox(width: AppDimens.spaceSm),
-          _buildLendCalculatorButton(),
+          SizedBox(
+            width: 96,
+            child: _buildLendCalculatorButton(enabled: isFee),
+          ),
         ],
       ),
     );
@@ -1689,35 +1923,84 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   /// 借还计算器按钮（文字按钮）。
-  Widget _buildLendCalculatorButton() {
+  Widget _buildLendCalculatorButton({required bool enabled}) {
     return InkWell(
-      onTap: _openCalculator,
-      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+      onTap: enabled ? _openLendFeeCalculator : null,
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       child: Container(
-        height: 28,
+        width: 96,
+        height: 48,
         alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          border: Border.all(color: AppColors.divider),
+        ),
         child: Text(
           '计算器',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textPrimary,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: enabled ? AppColors.textPrimary : AppColors.textTertiary,
               ),
         ),
       ),
     );
   }
 
-  /// 打开快捷计算器（四则运算 / AA 分摊），把结果写回金额输入框。
-  Future<void> _openCalculator() async {
-    final double? result = await showModalBottomSheet<double>(
+  /// 打开手续费计算弹窗（转账页），回填手续费 / 优惠。
+  Future<void> _openTransferFeeCalculator() async {
+    final FeeCalculatorResult? result =
+        await showModalBottomSheet<FeeCalculatorResult>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => CalculatorSheet(initial: _amount.isEmpty ? null : _amount),
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(AppDimens.radiusLg),
+          topRight: Radius.circular(AppDimens.radiusLg),
+        ),
+      ),
+      builder: (_) => FeeCalculatorSheet(
+        fee: _feeAmount,
+        discount: _discountAmount,
+      ),
     );
     if (result == null || !mounted) return;
     setState(() {
-      _amount = result.toStringAsFixed(2);
-      _pendingAmount = '';
-      _pendingOperator = null;
+      _feeAmount = result.fee;
+      _discountAmount = result.discount;
+      _feeInputController.text = _feeInputType == _FeeInputType.fee
+          ? (_feeAmount ?? '')
+          : (_discountAmount ?? '');
+    });
+  }
+
+  /// 打开手续费计算弹窗（借还页），回填利息 / 优惠。
+  Future<void> _openLendFeeCalculator() async {
+    final FeeCalculatorResult? result =
+        await showModalBottomSheet<FeeCalculatorResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(AppDimens.radiusLg),
+          topRight: Radius.circular(AppDimens.radiusLg),
+        ),
+      ),
+      builder: (_) => FeeCalculatorSheet(
+        fee: _lendFeeAmount,
+        discount: _lendDiscountAmount,
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _lendFeeAmount = result.fee;
+      _lendDiscountAmount = result.discount;
+      _lendFeeController.text = _lendFeeInputType == _FeeInputType.fee
+          ? (_lendFeeAmount ?? '')
+          : (_lendDiscountAmount ?? '');
     });
   }
 
@@ -1741,8 +2024,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   /// 借还页利息说明文案。
   Widget _buildLendFeeHint() {
-    final String dirLabel =
-        _lendDir == LendDirection.borrowIn ? '借入' : '借出';
+    final String dirLabel = _lendDir == LendDirection.borrowIn ? '借入' : '借出';
     final String oppositeLabel =
         _lendDir == LendDirection.borrowIn ? '还债' : '收债';
     return Container(
@@ -1798,8 +2080,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
             ],
           ),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (Object e, StackTrace? s) =>
-              Center(child: Text('分类加载失败：$e')),
+          error: (Object e, StackTrace? s) => Center(child: Text('分类加载失败：$e')),
         );
       case RecordTab.transfer:
         return Column(
@@ -1882,8 +2163,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               _buildLendHintLine(
                 isRepay
                     ? (_lendDir == LendDirection.borrowIn
-                        ? '输入欠款对象，将冲销其名下未结清借入债务（按发生时间从早到晚抵扣）'
-                        : '输入借款对象，将冲销其名下未结清借出债务（按发生时间从早到晚抵扣）')
+                        ? '输入欠款对象，将冲销其名下未结清借入债务（按发生时间从早到晚抵扣）；不选择具体账户时仅记资金流水'
+                        : '输入借款对象，将冲销其名下未结清借出债务（按发生时间从早到晚抵扣）；不选择具体账户时仅记资金流水')
                     : (_lendDir == LendDirection.borrowIn
                         ? '虚拟账户：如找小明借钱，小明就是此账户'
                         : '虚拟账户：如借给小明，小明就是此账户'),
@@ -1891,9 +2172,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               if (isRepay) ...<Widget>[
                 const SizedBox(height: AppDimens.spaceMd),
                 _buildLendAccountCard(
-                  label: _lendDir == LendDirection.borrowIn
-                      ? '还款账户'
-                      : '收款账户',
+                  label: _lendDir == LendDirection.borrowIn ? '还款账户' : '收款账户',
                   value: _repayAccountId,
                   placeholder: _lendDir == LendDirection.borrowIn
                       ? '选择还款账户（现金从此扣出）'
@@ -1910,14 +2189,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               ],
             ] else ...<Widget>[
               _buildLendAccountCard(
-                label: _lendDir == LendDirection.borrowIn
-                    ? '借入账户'
-                    : '借出账户',
+                label: _lendDir == LendDirection.borrowIn ? '借入账户' : '借出账户',
                 value: _accountId,
-                placeholder: _lendDir == LendDirection.borrowIn
-                    ? '借入账户'
-                    : '借出账户',
+                placeholder:
+                    _lendDir == LendDirection.borrowIn ? '借入账户' : '借出账户',
                 onChanged: (String? v) => setState(() => _accountId = v),
+                allowedCategories: <AccountCategory>[
+                  _lendDir == LendDirection.borrowIn
+                      ? AccountCategory.payable
+                      : AccountCategory.receivable,
+                ],
               ),
               const SizedBox(height: AppDimens.spaceSm),
               _buildLendHintLine(
@@ -1945,44 +2226,42 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       case RecordTab.refund:
       case RecordTab.savings:
       case RecordTab.installment:
-        // 分期使用独立页面，不在 sheet 内渲染。
+        // 存钱 / 分期已分别走独立布局或内嵌页面，不在 legacy body 渲染。
         return const SizedBox.shrink();
     }
   }
 
   /// 原 ListView + 底部键盘布局，供存钱复用。
   Widget _buildLegacyBody() {
-    return Expanded(
-      child: Column(
-        children: <Widget>[
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(AppDimens.spaceLg),
-              children: <Widget>[
-                _amountDisplay(),
-                const SizedBox(height: AppDimens.spaceLg),
-                ..._formFields(),
-              ],
-            ),
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(AppDimens.spaceLg),
+            children: <Widget>[
+              _amountDisplay(),
+              const SizedBox(height: AppDimens.spaceLg),
+              ..._formFields(),
+            ],
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppDimens.spaceLg,
-              AppDimens.spaceSm,
-              AppDimens.spaceLg,
-              AppDimens.spaceLg,
-            ),
-            child: AmountKeypad(
-              value: _amount,
-              enabled: !_saving,
-              onChanged: (String v) => setState(() => _amount = v),
-              onSave: () => _save(),
-              onSaveAndMore: () => _save(andMore: true),
-            ),
+        ),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppDimens.spaceLg,
+            AppDimens.spaceSm,
+            AppDimens.spaceLg,
+            AppDimens.spaceLg,
           ),
-        ],
-      ),
+          child: AmountKeypad(
+            value: _amount,
+            enabled: !_saving,
+            onChanged: (String v) => setState(() => _amount = v),
+            onSave: () => _save(),
+            onSaveAndMore: () => _save(andMore: true),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1991,21 +2270,19 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   /// 报销使用自带「报销收入」输入框（系统数字键盘），不使用自定义数字键盘，
   /// 因此底部不渲染键盘栏，只放一个「保存」按钮。
   Widget _buildReimbursementBody() {
-    return Expanded(
-      child: Column(
-        children: <Widget>[
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppDimens.spaceLg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: _buildReimbursementForm(),
-              ),
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppDimens.spaceLg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildReimbursementForm(),
             ),
           ),
-          _buildSaveFooter(),
-        ],
-      ),
+        ),
+        _buildSaveFooter(),
+      ],
     );
   }
 
@@ -2065,24 +2342,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-            ),
-            child: Text(
-              '¥',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    height: 1.0,
-                  ),
-            ),
-          ),
-          const SizedBox(width: AppDimens.spaceSm),
           Expanded(
             child: TextField(
               controller: _rbAmountController,
@@ -2096,9 +2355,47 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                     .textTheme
                     .bodyMedium
                     ?.copyWith(color: AppColors.textTertiary),
-                border: InputBorder.none,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 12, right: 8),
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+                    ),
+                    child: Text(
+                      '¥',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 44,
+                  minHeight: 24,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.spaceMd,
+                  vertical: AppDimens.spaceXs / 2,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.primary),
+                ),
               ),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: text.isNotEmpty
@@ -2181,21 +2478,19 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   /// 退款页独立布局（小青账模板）。
   Widget _buildRefundBody() {
-    return Expanded(
-      child: Column(
-        children: <Widget>[
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppDimens.spaceLg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: _buildRefundForm(),
-              ),
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppDimens.spaceLg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildRefundForm(),
             ),
           ),
-          _buildSaveFooter(),
-        ],
-      ),
+        ),
+        _buildSaveFooter(),
+      ],
     );
   }
 
@@ -2410,49 +2705,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
 
   Widget _buildRefundAmountDisplay() {
     final int m = _refundAmountMinor;
+    final int originalTotal = _refundOriginalTotalMinor;
+    final bool isAa = _refundMode == RefundMode.aa && originalTotal > 0;
     return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-            ),
-            child: Text(
-              '¥',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    height: 1.0,
-                  ),
-            ),
-          ),
-          const SizedBox(width: AppDimens.spaceSm),
-          Text(
-            m <= 0 ? '0.00' : Money.fromMinor(m).format(showSymbol: false),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRefundAmountInput() {
-    final String text = _refundAmountController.text.trim();
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      constraints: const BoxConstraints(minHeight: 48),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -2460,9 +2717,58 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
+          const SizedBox(width: AppDimens.spaceMd),
           Container(
-            width: 28,
-            height: 28,
+            width: 3,
+            height: 20,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(1.5),
+            ),
+          ),
+          const SizedBox(width: AppDimens.spaceMd),
+          Text(
+            m <= 0 ? '0.00' : Money.fromMinor(m).format(showSymbol: false),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+          ),
+          if (isAa) ...<Widget>[
+            const Spacer(),
+            Text(
+              '人均（2人AA）',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(width: AppDimens.spaceMd),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefundAmountInput() {
+    final OutlineInputBorder border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      borderSide: const BorderSide(color: AppColors.divider),
+    );
+    return TextField(
+      controller: _refundAmountController,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.done,
+      textAlignVertical: TextAlignVertical.center,
+      decoration: InputDecoration(
+        hintText: '请输入退款金额',
+        hintStyle: Theme.of(context)
+            .textTheme
+            .bodyMedium
+            ?.copyWith(color: AppColors.textTertiary),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: 12, right: 8),
+          child: Container(
+            width: 24,
+            height: 24,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.12),
@@ -2477,81 +2783,75 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                   ),
             ),
           ),
-          const SizedBox(width: AppDimens.spaceSm),
-          Expanded(
-            child: TextField(
-              controller: _refundAmountController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              textInputAction: TextInputAction.done,
-              textAlignVertical: TextAlignVertical.center,
-              decoration: InputDecoration(
-                hintText: '请输入退款金额',
-                hintStyle: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppColors.textTertiary),
-                border: InputBorder.none,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-              ),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: text.isNotEmpty
-                        ? AppColors.textPrimary
-                        : AppColors.textTertiary,
-                  ),
-              maxLines: 1,
-              onChanged: (_) => setState(() {}),
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-            ),
-          ),
-        ],
+        ),
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 44, minHeight: 24),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppDimens.spaceMd,
+          vertical: AppDimens.spaceXs / 2,
+        ),
+        border: border,
+        enabledBorder: border,
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          borderSide: const BorderSide(color: AppColors.primary),
+        ),
       ),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppColors.textPrimary,
+          ),
+      maxLines: 1,
+      onChanged: (_) => setState(() {}),
+      onTapOutside: (_) => FocusScope.of(context).unfocus(),
     );
   }
 
   /// 退款备注输入框（带左侧信息图标）。
+  ///
+  /// 绿色圆角边框 + 白色填充，占满整行宽度。
   Widget _buildRefundNoteField() {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceMd,
-        vertical: AppDimens.spaceSm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.only(top: 10),
-            child: Icon(
-              Icons.info_outline,
-              size: 18,
-              color: AppColors.textTertiary,
-            ),
+    final OutlineInputBorder border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      borderSide: const BorderSide(color: AppColors.divider),
+    );
+    return TextField(
+      controller: _noteController,
+      decoration: InputDecoration(
+        hintText: '备注',
+        hintStyle: Theme.of(context)
+            .textTheme
+            .bodyMedium
+            ?.copyWith(color: AppColors.textTertiary),
+        prefixIcon: const Padding(
+          padding: EdgeInsets.only(left: 12, right: 8),
+          child: Icon(
+            Icons.info_outline,
+            size: 18,
+            color: AppColors.textTertiary,
           ),
-          const SizedBox(width: AppDimens.spaceSm),
-          Expanded(
-            child: TextField(
-              controller: _noteController,
-              decoration: InputDecoration(
-                hintText: '备注',
-                hintStyle: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppColors.textTertiary),
-                border: InputBorder.none,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-              ),
-              maxLines: 2,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-            ),
-          ),
-        ],
+        ),
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 38, minHeight: 18),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppDimens.spaceMd,
+          vertical: AppDimens.spaceSm,
+        ),
+        border: border,
+        enabledBorder: border,
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          borderSide: const BorderSide(color: AppColors.primary),
+        ),
       ),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppColors.textPrimary,
+          ),
+      maxLines: 2,
+      onTapOutside: (_) => FocusScope.of(context).unfocus(),
     );
   }
 
@@ -2652,7 +2952,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
           onTap: _onDiscount,
         ),
       _FunctionItem(
-        label: _attachmentPaths.isEmpty ? '图片' : '图片 ${_attachmentPaths.length}',
+        label:
+            _attachmentPaths.isEmpty ? '图片' : '图片 ${_attachmentPaths.length}',
         icon: Icons.image_outlined,
         onTap: _onAddImage,
         active: _attachmentPaths.isNotEmpty,
@@ -2700,14 +3001,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   Widget _buildFunctionChip(_FunctionItem item) {
     final ThemeData theme = Theme.of(context);
     final bool active = item.active ?? false;
-    final Color color = active ? theme.colorScheme.primary : AppColors.textSecondary;
+    final Color color =
+        active ? theme.colorScheme.primary : AppColors.textSecondary;
     return InkWell(
       onTap: item.onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? theme.colorScheme.primaryContainer : AppColors.surfaceLight,
+          color: active
+              ? theme.colorScheme.primaryContainer
+              : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.divider),
         ),
@@ -2727,36 +3031,57 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   Future<void> _onDiscount() async {
-    final String? value = await showDialog<String>(
+    if (mounted && _keyboardExpanded) {
+      setState(() => _keyboardExpanded = false);
+    }
+    final String? value = await showModalBottomSheet<String>(
       context: context,
-      builder: (BuildContext ctx) => _PromptDialog(
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+      ),
+      builder: (BuildContext ctx) => _PromptSheet(
         title: '优惠金额',
         hint: '请输入优惠金额（元）',
         initial: _discountAmount ?? '',
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
       ),
     );
     if (value == null || !mounted) return;
-    setState(() => _discountAmount = value.trim().isEmpty ? null : value.trim());
+    setState(
+        () => _discountAmount = value.trim().isEmpty ? null : value.trim());
   }
 
   Future<void> _onSelectAccount() async {
-    final AsyncValue<List<Account>> accountsValue = ref.watch(accountsProvider);
-    final List<Account>? list = accountsValue.valueOrNull;
-    if (list == null || list.isEmpty) {
-      _toast('还没有账户，请先到「账户」页添加');
-      return;
-    }
     final String? selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      useRootNavigator: true,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+      ),
       builder: (BuildContext ctx) => _AccountSelectorSheet(
-        accounts: list,
         selectedId: _accountId,
       ),
     );
-    if (selected != null && mounted) {
-      setState(() => _accountId = selected);
+    if (selected == null || !mounted) return;
+    if (selected.isEmpty) {
+      setState(() => _accountId = null);
+      return;
     }
+    if (selected == '#manage') {
+      if (mounted) unawaited(context.push(Routes.accountManage));
+      return;
+    }
+    if (selected == '#add') {
+      if (mounted) unawaited(context.push(Routes.accountAdd));
+      return;
+    }
+    setState(() => _accountId = selected);
   }
 
   Future<void> _onAddImage() async {
@@ -2892,9 +3217,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   }
 
   Future<void> _onAddTag() async {
-    final String? value = await showDialog<String>(
+    if (mounted && _keyboardExpanded) {
+      setState(() => _keyboardExpanded = false);
+    }
+    final String? value = await showModalBottomSheet<String>(
       context: context,
-      builder: (BuildContext ctx) => const _PromptDialog(
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+      ),
+      builder: (BuildContext ctx) => const _PromptSheet(
         title: '添加标签',
         hint: '输入标签名称，多个用空格分隔',
       ),
@@ -3065,7 +3399,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  DateFormat('M月d日').format(_occurredAt),
+                  DateFormat('M月d日 HH:mm').format(_occurredAt),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -3078,7 +3412,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
               focusNode: _noteFocusNode,
               decoration: const InputDecoration(
                 hintText: '请输入备注信息（最多150字）',
+                fillColor: Colors.transparent,
+                filled: true,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
                 counterText: '',
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
@@ -3136,76 +3477,171 @@ class _RecordSheetState extends ConsumerState<RecordSheet> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final double statusBarPadding = MediaQuery.paddingOf(context).top;
-    final double viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Container(
-      height: MediaQuery.sizeOf(context).height * 0.92,
-      padding: EdgeInsets.only(bottom: viewInsetsBottom),
-      child: Column(
-        children: <Widget>[
-          // 顶部：标题 + 关闭，预留状态栏高度避免贴顶。
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppDimens.spaceLg,
-              AppDimens.spaceMd + statusBarPadding,
-              AppDimens.spaceSm,
-              AppDimens.spaceSm,
-            ),
-            child: Row(
-              children: <Widget>[
-                Text('记一笔', style: theme.textTheme.titleLarge),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => context.pop(),
+    final ColorScheme scheme = theme.colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        // 顶栏布局：左返回箭头 + 中间原生 TabBar（横向滑动、指示器随手指连续滑动）
+        // + 右设置键。尺寸规格：左右留白 19 / 图标 24×24 / 箭头→首 Tab 间距 40 /
+        // 末 Tab→设置键间距 40 / 相邻 Tab 间距 12。
+        // 使用原生 TabBar 替代自制滚动行：其内置 IndicatorPainter 直接跟随
+        // TabController.animation 每帧重绘，拖拽时高亮随手指平滑滑动，无跳变延迟。
+        automaticallyImplyLeading: false,
+        leadingWidth: 0,
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 19),
+          child: Row(
+            children: <Widget>[
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new),
+                iconSize: 24,
+                onPressed: () => context.pop(),
+                tooltip: '返回',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 24,
+                  height: 24,
                 ),
-              ],
-            ),
-          ),
-          // 7 个 Tab（横向滚动，避免窄屏溢出）
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
-            child: SegmentedButton<RecordTab>(
-              segments: <ButtonSegment<RecordTab>>[
-                for (final RecordTab t in RecordTab.values)
-                  ButtonSegment<RecordTab>(
-                    value: t,
-                    label: Text(t.label),
-                    icon: Icon(t.icon),
+              ),
+              // 返回键→首 Tab 间距 40：TabBar 首 Tab 左侧 labelPadding 为 12，
+              // 故此处留白 28 抵消，使箭头到首个 pill 仍为 40。
+              const SizedBox(width: 28),
+              Expanded(
+                child: Theme(
+                  // 覆盖默认 TabBar 点击水波纹，避免与 pill 选中态视觉冲突。
+                  data: theme.copyWith(
+                    splashFactory: NoSplash.splashFactory,
+                    highlightColor: Colors.transparent,
                   ),
-              ],
-              selected: <RecordTab>{_tab},
-              onSelectionChanged: (Set<RecordTab> next) {
-                final RecordTab tab = next.first;
-                if (tab == RecordTab.installment) {
-                  // 分期使用小青账独立页面，关闭底部面板后跳转。
-                  Navigator.of(context).pop();
-                  context.push(Routes.installmentAdd);
-                  return;
-                }
-                setState(() {
-                  _tab = tab;
-                  _categoryId = null;
-                  _attachmentPaths.clear();
-                });
-              },
-            ),
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    // 点击 Tab：让 PageView 平滑滚动到目标页，bar 指示器由
+                    // TabController 原生动画驱动；_pageAnimating 防止回写冲突。
+                    onTap: (int index) {
+                      _pageAnimating = true;
+                      _pageController
+                          .animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeInOut,
+                      )
+                          .then((_) {
+                        _pageAnimating = false;
+                      });
+                    },
+                    tabAlignment: TabAlignment.start,
+                    padding: EdgeInsets.zero,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    dividerHeight: 0,
+                    indicator: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.label,
+                    labelColor: scheme.onPrimaryContainer,
+                    unselectedLabelColor: AppColors.textSecondary,
+                    labelStyle: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    unselectedLabelStyle: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    tabs: RecordTab.values
+                        .map(
+                          (RecordTab t) => Tab(
+                            height: 40,
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 6),
+                              child: Text(t.label),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 40),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                iconSize: 24,
+                onPressed: () => RecordingSettingsSheet.show(context),
+                tooltip: '记账页面设置',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 24,
+                  height: 24,
+                ),
+              ),
+            ],
           ),
-          const Divider(height: 1),
-          // 主体：报销 / 退款用独立布局；支出 / 收入 / 转账 / 借还 使用小青账统一布局；
-          // 其余（存钱）保持原表单。
-          if (_tab == RecordTab.reimbursement)
-            _buildReimbursementBody()
-          else if (_tab == RecordTab.refund)
-            _buildRefundBody()
-          else if (_tab.usesNewLayout)
-            _buildNewLayoutBody()
-          else
-            _buildLegacyBody(),
-        ],
+        ),
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        // 拖拽结束后兜底同步表单状态（边界已在 _onTabChanged 处理）。
+        onPageChanged: (int index) {
+          if (index != _tab.index) {
+            _tab = RecordTab.values[index];
+            _categoryId = null;
+            _attachmentPaths.clear();
+            FocusManager.instance.primaryFocus?.unfocus();
+            if (mounted) setState(() {});
+          }
+        },
+        itemCount: RecordTab.values.length,
+        // 懒构建：只创建当前页与相邻页，避免首帧一次性构建 8 套完整表单。
+        itemBuilder: (BuildContext context, int index) {
+          final RecordTab tab = RecordTab.values[index];
+          if (tab == RecordTab.installment) {
+            return const AddInstallmentPage(showAppBar: false);
+          } else if (tab == RecordTab.reimbursement) {
+            return _KeepAlivePage(
+              key: ValueKey<RecordTab>(tab),
+              builder: (_) => _buildReimbursementBody(),
+            );
+          } else if (tab == RecordTab.refund) {
+            return _KeepAlivePage(
+              key: ValueKey<RecordTab>(tab),
+              builder: (_) => _buildRefundBody(),
+            );
+          } else if (tab.usesNewLayout) {
+            return _KeepAlivePage(
+              key: ValueKey<RecordTab>(tab),
+              builder: (_) => _buildNewLayoutBody(),
+            );
+          } else {
+            return _KeepAlivePage(
+              key: ValueKey<RecordTab>(tab),
+              builder: (_) => _buildLegacyBody(),
+            );
+          }
+        },
       ),
     );
+  }
+}
+
+/// 让 [PageView] 的子页面在切走后保持存活，避免每次切换都重建整个表单。
+class _KeepAlivePage extends StatefulWidget {
+  final WidgetBuilder builder;
+
+  const _KeepAlivePage({super.key, required this.builder});
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.builder(context);
   }
 }
 
@@ -3232,7 +3668,7 @@ class _CategoryItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       child: Container(
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           border: selected
               ? Border.all(color: color, width: 2)
@@ -3245,7 +3681,7 @@ class _CategoryItem extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 CircleAvatar(
-                  backgroundColor: color.withOpacity(0.2),
+                  backgroundColor: color.withValues(alpha: 0.2),
                   child: Icon(icon, color: color, size: 24),
                 ),
                 const SizedBox(height: 4),
@@ -3286,7 +3722,8 @@ class _ViewToggle extends StatelessWidget {
     }) {
       final bool selected = listView == value;
       return Material(
-        color: selected ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+        color:
+            selected ? scheme.primaryContainer : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -3354,10 +3791,9 @@ class _SubcategorySheet extends StatefulWidget {
 class _SubcategorySheetState extends State<_SubcategorySheet> {
   bool _listView = false;
 
-  Color get _parentColor =>
-      widget.parent.colorValue != null
-          ? Color(widget.parent.colorValue!)
-          : AppColors.primary;
+  Color get _parentColor => widget.parent.colorValue != null
+      ? Color(widget.parent.colorValue!)
+      : AppColors.primary;
 
   @override
   Widget build(BuildContext context) {
@@ -3379,99 +3815,101 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: AppDimens.spaceMd),
-                decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(2),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: AppDimens.spaceMd),
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            Row(
-              children: <Widget>[
-                InkWell(
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                  onTap: () => Navigator.of(context).pop(widget.parent.id),
-                  child: CircleAvatar(
-                    backgroundColor: color.withOpacity(0.15),
-                  child: Icon(
-                    categoryIconData(widget.parent.iconKey),
-                    color: color,
-                  ),
-                  ),
-                ),
-                const SizedBox(width: AppDimens.spaceSm),
-                Expanded(
-                  child: InkWell(
+              Row(
+                children: <Widget>[
+                  InkWell(
                     borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     onTap: () => Navigator.of(context).pop(widget.parent.id),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          widget.parent.name,
-                          style: theme.textTheme.titleMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          '点击此处直接选择「${widget.parent.name}」',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppColors.textTertiary,
+                    child: CircleAvatar(
+                      backgroundColor: color.withValues(alpha: 0.15),
+                      child: Icon(
+                        categoryIconData(widget.parent.iconKey),
+                        color: color,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppDimens.spaceSm),
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                      onTap: () => Navigator.of(context).pop(widget.parent.id),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            widget.parent.name,
+                            style: theme.textTheme.titleMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
+                          Text(
+                            '点击此处直接选择「${widget.parent.name}」',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppDimens.spaceSm),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () => Navigator.of(context).pop('__add__'),
+                    child: const Text('添加'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppDimens.spaceMd),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  _ViewToggle(
+                    listView: _listView,
+                    onChanged: (bool value) =>
+                        setState(() => _listView = value),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppDimens.spaceMd),
+              if (widget.children.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
+                  child: Text(
+                    '暂无子分类，可选择上方「${widget.parent.name}」，或点右上角「添加」新建',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
                     ),
                   ),
                 ),
-                const SizedBox(width: AppDimens.spaceSm),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: () => Navigator.of(context).pop('__add__'),
-                  child: const Text('添加'),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.35,
                 ),
-              ],
-            ),
-            const SizedBox(height: AppDimens.spaceMd),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                _ViewToggle(
-                  listView: _listView,
-                  onChanged: (bool value) => setState(() => _listView = value),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppDimens.spaceMd),
-            if (widget.children.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
-                child: Text(
-                  '暂无子分类，可选择上方「${widget.parent.name}」，或点右上角「添加」新建',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
+                child: _listView
+                    ? _buildList(theme, color)
+                    : _buildGrid(theme, color),
               ),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.35,
-              ),
-              child: _listView
-                  ? _buildList(theme, color)
-                  : _buildGrid(theme, color),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildGrid(ThemeData theme, Color color) {
@@ -3502,7 +3940,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
         final Category child = widget.children[index];
         return ListTile(
           leading: CircleAvatar(
-            backgroundColor: color.withOpacity(0.15),
+            backgroundColor: color.withValues(alpha: 0.15),
             child: Icon(categoryIconData(child.iconKey), color: color),
           ),
           title: Text(child.name),
@@ -3516,9 +3954,218 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
   }
 }
 
-/// 账户选择底部面板。
-class _AccountSelectorSheet extends StatelessWidget {
+/// 账户选择底部面板（小青账风格）。
+///
+/// 顶部操作栏：关闭、最近、列表/网格切换、添加账户。
+/// 主体：账户卡片网格（默认）或列表。
+/// 底部：不选择具体账户、重新加载数据、资产管理。
+class _AccountSelectorSheet extends ConsumerStatefulWidget {
   const _AccountSelectorSheet({
+    this.selectedId,
+  });
+
+  final String? selectedId;
+
+  @override
+  ConsumerState<_AccountSelectorSheet> createState() =>
+      _AccountSelectorSheetState();
+}
+
+class _AccountSelectorSheetState extends ConsumerState<_AccountSelectorSheet> {
+  bool _listView = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final AsyncValue<List<Account>> accountsValue = ref.watch(accountsProvider);
+    // 必须完整显示 2x2 网格 + 顶部操作栏 + 底部按钮，iPhone 小屏也留足余量。
+    final double sheetHeight = MediaQuery.of(context).size.height * 0.50;
+
+    return SizedBox(
+      height: sheetHeight,
+      child: SafeArea(
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppDimens.spaceSm,
+                0,
+                AppDimens.spaceMd,
+                0,
+              ),
+              child: Row(
+                children: <Widget>[
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.history),
+                    tooltip: '最近使用',
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('最近使用账户功能开发中')),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: AppDimens.spaceXs),
+                  _AccountSheetActionChip(
+                    icon: _listView ? Icons.grid_view : Icons.list,
+                    label: _listView ? '网格' : '列表',
+                    onTap: () => setState(() => _listView = !_listView),
+                  ),
+                  const SizedBox(width: AppDimens.spaceXs),
+                  _AccountSheetActionChip(
+                    icon: Icons.add,
+                    label: '添加',
+                    filled: true,
+                    onTap: () => Navigator.of(context).pop('#add'),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: accountsValue.when(
+                data: (List<Account> list) {
+                  if (list.isEmpty) {
+                    return const Center(child: Text('还没有账户'));
+                  }
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: _listView
+                        ? _AccountListView(
+                            key: const ValueKey<String>('list'),
+                            accounts: list,
+                            selectedId: widget.selectedId,
+                          )
+                        : _AccountGridView(
+                            key: const ValueKey<String>('grid'),
+                            accounts: list,
+                            selectedId: widget.selectedId,
+                          ),
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (Object e, _) => Center(child: Text('加载失败：$e')),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              leading: const Icon(Icons.account_balance_wallet_outlined),
+              title: const Text('不选择具体账户'),
+              subtitle: const Text('仅计入收支账单，不计入资产'),
+              onTap: () => Navigator.of(context).pop(''),
+            ),
+            Padding(
+              padding: EdgeInsets.zero,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  TextButton(
+                    onPressed: () => ref.invalidate(accountsProvider),
+                    child: const Text('重新加载数据'),
+                  ),
+                  const SizedBox(width: AppDimens.spaceLg),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop('#manage'),
+                    child: const Text('资产管理'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountSheetActionChip extends StatelessWidget {
+  const _AccountSheetActionChip({
+    this.icon,
+    required this.label,
+    this.filled = false,
+    required this.onTap,
+  });
+
+  final IconData? icon;
+  final String label;
+  final bool filled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final Color bgColor =
+        filled ? AppColors.textPrimary : AppColors.surfaceLight;
+    final Color fgColor = filled ? Colors.white : AppColors.textSecondary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (icon != null) Icon(icon, size: 16, color: fgColor),
+            if (icon != null) const SizedBox(width: 4),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(color: fgColor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountGridView extends StatelessWidget {
+  const _AccountGridView({
+    super.key,
+    required this.accounts,
+    this.selectedId,
+  });
+
+  final List<Account> accounts;
+  final String? selectedId;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.spaceSm,
+        vertical: 0,
+      ),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: AppDimens.spaceSm,
+        crossAxisSpacing: AppDimens.spaceSm,
+        childAspectRatio: 2.2,
+      ),
+      itemCount: accounts.length,
+      itemBuilder: (BuildContext context, int index) {
+        final Account account = accounts[index];
+        return _AccountCard(
+          account: account,
+          selected: account.id == selectedId,
+          onTap: () => Navigator.of(context).pop(account.id),
+        );
+      },
+    );
+  }
+}
+
+class _AccountListView extends StatelessWidget {
+  const _AccountListView({
+    super.key,
     required this.accounts,
     this.selectedId,
   });
@@ -3529,56 +4176,276 @@ class _AccountSelectorSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceLg),
-            child: Text('选择账户', style: theme.textTheme.titleMedium),
-          ),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: accounts.length,
-              itemBuilder: (BuildContext context, int index) {
-                final Account a = accounts[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    child: Text(a.name.isNotEmpty ? a.name[0] : '?'),
-                  ),
-                  title: Text(a.name),
-                  trailing: a.id == selectedId
-                      ? Icon(Icons.check, color: theme.colorScheme.primary)
-                      : null,
-                  onTap: () => Navigator.of(context).pop(a.id),
-                );
-              },
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceSm),
+      itemCount: accounts.length,
+      itemBuilder: (BuildContext context, int index) {
+        final Account account = accounts[index];
+        final Color color = _accountColor(account);
+        final Money money = Money.fromMinor(account.balanceMinor);
+        return ListTile(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            ),
+            child: Icon(
+              accountIcon(account.type),
+              color: Colors.white,
+              size: 22,
             ),
           ),
-        ],
+          title: Text(account.name),
+          subtitle: Text(account.type.label),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              MoneyText(
+                money,
+                style: theme.textTheme.bodyMedium,
+              ),
+              if (account.id == selectedId)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppDimens.spaceSm),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
+                ),
+            ],
+          ),
+          onTap: () => Navigator.of(context).pop(account.id),
+        );
+      },
+    );
+  }
+}
+
+class _AccountCard extends StatelessWidget {
+  const _AccountCard({
+    required this.account,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Account account;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final Color color = _accountColor(account);
+    final Money balance = Money.fromMinor(account.balanceMinor);
+    final bool isCredit = account.type == AccountType.creditCard;
+    final int? creditLimit = account.creditLimitMinor;
+    final Money? available = (isCredit && creditLimit != null)
+        ? Money.fromMinor(creditLimit + account.balanceMinor)
+        : null;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          border: selected
+              ? Border.all(color: theme.colorScheme.primary, width: 2)
+              : null,
+        ),
+        child: Stack(
+          children: <Widget>[
+            // 背景水印图标（小青账风格）。
+            Positioned(
+              right: -6,
+              bottom: -6,
+              child: Opacity(
+                opacity: 0.06,
+                child: Icon(
+                  accountIcon(account.type),
+                  color: color,
+                  size: 44,
+                ),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // 上方：账户名称左对齐。
+                Text(
+                  account.name,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    height: 1.0,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // 中间：上行左侧可用余额；下行右侧账户资金。
+                if (available != null) _AvailableChip(available: available),
+                Row(
+                  children: <Widget>[
+                    const Spacer(),
+                    MoneyText(
+                      balance,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        height: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+                // 下方：左对齐账户类别 + 还款日。
+                Row(
+                  children: <Widget>[
+                    _AccountTypeChip(account: account, color: color),
+                    if (account.dueDay != null) ...<Widget>[
+                      const SizedBox(width: 4),
+                      _DueDayChip(day: account.dueDay!),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+            if (selected)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Icon(
+                  Icons.check_circle,
+                  color: theme.colorScheme.primary,
+                  size: 16,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
+class _AvailableChip extends StatelessWidget {
+  const _AvailableChip({required this.available});
+
+  final Money available;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
+      decoration: BoxDecoration(
+        color: AppColors.divider.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '可用:${available.format()}',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: AppColors.textSecondary,
+          fontSize: 12,
+          height: 1.1,
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountTypeChip extends StatelessWidget {
+  const _AccountTypeChip({
+    required this.account,
+    required this.color,
+  });
+
+  final Account account;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 0.5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        account.type.label,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: color,
+          fontSize: 12,
+          height: 1.1,
+        ),
+      ),
+    );
+  }
+}
+
+class _DueDayChip extends StatelessWidget {
+  const _DueDayChip({required this.day});
+
+  final int day;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 0.5),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.divider, width: 0.5),
+      ),
+      child: Text(
+        '${day}号',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: AppColors.textSecondary,
+          fontSize: 12,
+          height: 1.1,
+        ),
+      ),
+    );
+  }
+}
+
+Color _accountColor(Account account) {
+  if (account.colorValue != null) return Color(account.colorValue!);
+  if (account.type == AccountType.bankCard ||
+      account.type == AccountType.creditCard) {
+    for (final Bank bank in kBuiltinBanks) {
+      if (account.name.contains(bank.name)) return bank.color;
+    }
+  }
+  return AppColors.primary;
+}
+
 /// 通用单行输入对话框。
-class _PromptDialog extends StatefulWidget {
-  const _PromptDialog({
+/// 通用底部弹出输入框：用于「优惠金额」「添加标签」等需要单行文本录入的功能键。
+class _PromptSheet extends StatefulWidget {
+  const _PromptSheet({
     required this.title,
     this.hint,
     this.initial,
+    this.keyboardType,
   });
 
   final String title;
   final String? hint;
   final String? initial;
+  final TextInputType? keyboardType;
 
   @override
-  State<_PromptDialog> createState() => _PromptDialogState();
+  State<_PromptSheet> createState() => _PromptSheetState();
 }
 
-class _PromptDialogState extends State<_PromptDialog> {
+class _PromptSheetState extends State<_PromptSheet> {
   late final TextEditingController _controller =
       TextEditingController(text: widget.initial);
 
@@ -3590,23 +4457,62 @@ class _PromptDialogState extends State<_PromptDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: TextField(
-        controller: _controller,
-        decoration: InputDecoration(hintText: widget.hint),
-        autofocus: true,
+    final ThemeData theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: const Text('确定'),
-        ),
-      ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.spaceLg,
+              AppDimens.spaceLg,
+              AppDimens.spaceMd,
+              AppDimens.spaceSm,
+            ),
+            child: Row(
+              children: <Widget>[
+                Text(widget.title, style: theme.textTheme.titleMedium),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(AppDimens.spaceLg),
+            child: TextField(
+              controller: _controller,
+              decoration: InputDecoration(hintText: widget.hint),
+              keyboardType: widget.keyboardType,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (String v) => Navigator.of(context).pop(v.trim()),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.spaceLg,
+              0,
+              AppDimens.spaceLg,
+              AppDimens.spaceLg,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_controller.text.trim()),
+                child: const Text('确定'),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -3665,9 +4571,9 @@ class _TemplateSheetState extends ConsumerState<_TemplateSheet> {
     return accounts.maybeWhen(
       data: (List<Account> list) {
         final Account? a = list.cast<Account?>().firstWhere(
-          (Account? x) => x?.id == id,
-          orElse: () => null,
-        );
+              (Account? x) => x?.id == id,
+              orElse: () => null,
+            );
         return a?.name ?? '';
       },
       orElse: () => '',
@@ -3741,9 +4647,9 @@ class _TemplateSheetState extends ConsumerState<_TemplateSheet> {
       categoryName = cats.maybeWhen(
         data: (List<Category> list) {
           final Category? c = list.cast<Category?>().firstWhere(
-            (Category? x) => x?.id == widget.draft.categoryId,
-            orElse: () => null,
-          );
+                (Category? x) => x?.id == widget.draft.categoryId,
+                orElse: () => null,
+              );
           return c?.name;
         },
         orElse: () => null,
@@ -3758,8 +4664,7 @@ class _TemplateSheetState extends ConsumerState<_TemplateSheet> {
     final String draftSummary = <String>[
       tab.label,
       if (accountName.isNotEmpty) '账户 $accountName',
-      if (categoryName != null && categoryName.isNotEmpty)
-        '分类 $categoryName',
+      if (categoryName != null && categoryName.isNotEmpty) '分类 $categoryName',
       if (widget.draft.note != null && widget.draft.note!.isNotEmpty)
         widget.draft.note!,
       if (switches.isNotEmpty) switches.join('/'),
@@ -3812,8 +4717,7 @@ class _TemplateSheetState extends ConsumerState<_TemplateSheet> {
                     padding: const EdgeInsets.all(AppDimens.spaceMd),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceLight,
-                      borderRadius:
-                          BorderRadius.circular(AppDimens.radiusMd),
+                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     ),
                     child: Text(
                       '将保存：$draftSummary',
@@ -3872,7 +4776,8 @@ class _TemplateSheetState extends ConsumerState<_TemplateSheet> {
                                           color: AppColors.textTertiary,
                                         ),
                                         onPressed: () => ref
-                                            .read(recordTemplateRepositoryProvider)
+                                            .read(
+                                                recordTemplateRepositoryProvider)
                                             .remove(t.id),
                                       ),
                                     ],
@@ -4082,7 +4987,8 @@ class _KeyAction extends StatelessWidget {
                 Icon(
                   icon,
                   size: label == '.' ? 8 : 20,
-                  color: active ? theme.colorScheme.primary : theme.disabledColor,
+                  color:
+                      active ? theme.colorScheme.primary : theme.disabledColor,
                 ),
               if (showLabel && label != '.')
                 Text(

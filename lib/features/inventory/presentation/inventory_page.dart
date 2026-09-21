@@ -130,7 +130,8 @@ class _ItemTile extends ConsumerWidget {
     }
 
     return ListTile(
-      leading: CircleAvatar(child: Text(item.name.isEmpty ? '?' : item.name[0])),
+      leading:
+          CircleAvatar(child: Text(item.name.isEmpty ? '?' : item.name[0])),
       title: Text(item.name),
       subtitle: Row(
         children: <Widget>[

@@ -11,6 +11,7 @@ import '../features/budget/presentation/budget_page.dart';
 import '../features/categories/presentation/add_category_page.dart';
 import '../features/categories/presentation/add_subcategory_page.dart';
 import '../features/categories/presentation/category_manage_page.dart';
+import '../features/categories/presentation/category_migrate_page.dart';
 import '../features/categories/presentation/edit_category_page.dart';
 import '../features/categories/presentation/edit_subcategory_page.dart';
 import '../features/home/presentation/home_page.dart';
@@ -23,6 +24,8 @@ import '../features/ledger/presentation/edit_transaction_page.dart';
 import '../features/ledger/presentation/ledger_page.dart';
 import '../features/lend/presentation/lend_page.dart';
 import '../features/more/presentation/more_page.dart';
+import '../features/record/presentation/record_sheet.dart';
+import '../features/record/record_tab.dart';
 import '../features/reimbursement/presentation/reimbursement_page.dart';
 import '../features/report/presentation/report_page.dart';
 import '../features/savings/presentation/savings_page.dart';
@@ -35,6 +38,7 @@ abstract final class Routes {
   static const String home = '/home';
   static const String ledger = '/ledger';
   static const String accounts = '/accounts';
+  static const String accountManage = '/accounts/manage';
   static const String accountAdd = '/accounts/add';
   static const String accountLedger = '/accounts/:id/transactions';
   static const String budget = '/budget';
@@ -49,6 +53,7 @@ abstract final class Routes {
   static const String editCategory = '/categories/edit';
   static const String addSubcategory = '/categories/add-subcategory';
   static const String editSubcategory = '/categories/edit-subcategory';
+  static const String migrateCategory = '/categories/migrate';
   static const String transfer = '/transfer';
   static const String lend = '/lend';
   static const String reimbursement = '/reimbursement';
@@ -60,6 +65,7 @@ abstract final class Routes {
   static const String inventory = '/inventory';
 
   static const String settings = '/settings';
+  static const String record = '/record';
 }
 
 final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
@@ -138,6 +144,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         builder: (_, __) => const AddAccountPage(),
       ),
       GoRoute(
+        path: Routes.accountManage,
+        builder: (_, __) => const AccountsPage(),
+      ),
+      GoRoute(
         path: Routes.accountLedger,
         builder: (_, GoRouterState state) =>
             AccountLedgerPage(accountId: state.pathParameters['id'] ?? ''),
@@ -171,6 +181,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               state.extra! as (Category, Category);
           return EditSubcategoryPage(child: child, parent: parent);
         },
+      ),
+      GoRoute(
+        path: Routes.migrateCategory,
+        builder: (_, GoRouterState state) => CategoryMigratePage(
+          source: state.extra! as Category,
+        ),
       ),
       GoRoute(
         path: Routes.transfer,
@@ -212,6 +228,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: Routes.settings,
         builder: (_, __) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: Routes.record,
+        builder: (_, GoRouterState state) {
+          final RecordTab initialTab = state.extra is RecordTab
+              ? state.extra! as RecordTab
+              : RecordTab.expense;
+          return RecordSheet(initialTab: initialTab);
+        },
       ),
     ],
     errorBuilder: (BuildContext context, GoRouterState state) => Scaffold(

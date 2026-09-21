@@ -148,9 +148,8 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
   Widget _buildMonthDropdown() {
     final List<DateTime> months = _generateRecentMonths(12);
     final DateTime? current = _filterMonth;
-    final String label = current == null
-        ? '全部月份'
-        : DateFormat('yyyy年M月').format(current);
+    final String label =
+        current == null ? '全部月份' : DateFormat('yyyy年M月').format(current);
 
     return InkWell(
       onTap: () async {
@@ -356,15 +355,15 @@ class _BillTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     DateFormat('M月d日 HH:mm').format(occurred),
                     style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -374,9 +373,9 @@ class _BillTile extends StatelessWidget {
               Money.fromMinor(-transaction.amountMinor),
               signed: true,
               style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.expense,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: AppColors.expense,
+              ),
             ),
             const SizedBox(width: AppDimens.spaceMd),
             _SelectionCircle(selected: selected),
@@ -425,7 +424,7 @@ class _CircleIcon extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: tint.withOpacity(isDark ? 0.18 : 0.12),
+        color: tint.withValues(alpha: isDark ? 0.18 : 0.12),
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,

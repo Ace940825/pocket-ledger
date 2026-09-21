@@ -80,8 +80,8 @@ class InstallmentRepository {
 
     final int base = totalMinor ~/ totalPeriods;
     final int remainder = totalMinor - base * totalPeriods;
-    final List<int> feeByPeriod = feeByPeriodMinor ??
-        List<int>.filled(totalPeriods, 0, growable: false);
+    final List<int> feeByPeriod =
+        feeByPeriodMinor ?? List<int>.filled(totalPeriods, 0, growable: false);
     final int totalFee = feeByPeriod.fold<int>(0, (int sum, int v) => sum + v);
     final int feePerPeriodMinor =
         totalPeriods == 0 ? 0 : totalFee ~/ totalPeriods;
@@ -170,10 +170,10 @@ class InstallmentRepository {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
 
     await _db.transaction<void>(() async {
-      final InstallmentPeriod? period = await (_db
-                .select(_db.installmentPeriods)
-            ..where((InstallmentPeriods t) => t.id.equals(periodId)))
-          .getSingleOrNull();
+      final InstallmentPeriod? period =
+          await (_db.select(_db.installmentPeriods)
+                ..where((InstallmentPeriods t) => t.id.equals(periodId)))
+              .getSingleOrNull();
       if (period == null) throw const NotFoundFailure('分期明细不存在');
 
       await (_db.update(_db.installmentPeriods)
@@ -203,13 +203,13 @@ class InstallmentRepository {
   /// 不用「+1 / -1」增量更新，因为撤销、批量改期、同步合并都可能让计数漂移；
   /// 直接按明细重算是唯一可靠的口径。
   Future<void> _refreshPlanProgress(String planId, int now) async {
-    final List<InstallmentPeriod> periods = await (_db
-              .select(_db.installmentPeriods)
-          ..where(
-            (InstallmentPeriods t) =>
-                t.planId.equals(planId) & t.deleted.equals(false),
-          ))
-        .get();
+    final List<InstallmentPeriod> periods =
+        await (_db.select(_db.installmentPeriods)
+              ..where(
+                (InstallmentPeriods t) =>
+                    t.planId.equals(planId) & t.deleted.equals(false),
+              ))
+            .get();
 
     final int paidCount =
         periods.where((InstallmentPeriod p) => p.paidAt != null).length;

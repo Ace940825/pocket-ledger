@@ -97,7 +97,8 @@ class InstallmentPage extends ConsumerWidget {
               children: <Widget>[
                 TextField(
                   controller: titleController,
-                  decoration: const InputDecoration(labelText: '名称（如 iPhone 分期）'),
+                  decoration:
+                      const InputDecoration(labelText: '名称（如 iPhone 分期）'),
                   autofocus: true,
                 ),
                 const FormGap(),

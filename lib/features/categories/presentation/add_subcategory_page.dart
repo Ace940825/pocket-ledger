@@ -19,8 +19,7 @@ class AddSubcategoryPage extends ConsumerStatefulWidget {
   final Category parent;
 
   @override
-  ConsumerState<AddSubcategoryPage> createState() =>
-      _AddSubcategoryPageState();
+  ConsumerState<AddSubcategoryPage> createState() => _AddSubcategoryPageState();
 }
 
 class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
@@ -67,66 +66,68 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceLg,
-                AppDimens.spaceLg,
-                AppDimens.spaceLg,
-                0,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimens.spaceLg,
+                  AppDimens.spaceLg,
+                  AppDimens.spaceLg,
+                  0,
+                ),
+                child: _buildParentCard(theme, parentColor),
               ),
-              child: _buildParentCard(theme, parentColor),
-            ),
-            const SizedBox(height: AppDimens.spaceLg),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
-              child: _buildNameField(theme),
-            ),
-            const SizedBox(height: AppDimens.spaceLg),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
-              child: _buildHint(theme),
-            ),
-            const SizedBox(height: AppDimens.spaceLg),
-            Expanded(
-              child: SingleChildScrollView(
+              const SizedBox(height: AppDimens.spaceLg),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                child: _buildNameField(theme),
+              ),
+              const SizedBox(height: AppDimens.spaceLg),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                child: _buildHint(theme),
+              ),
+              const SizedBox(height: AppDimens.spaceLg),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppDimens.spaceLg,
+                    0,
+                    AppDimens.spaceLg,
+                    AppDimens.spaceLg,
+                  ),
+                  child: _buildIconPicker(theme, parentColor),
+                ),
+              ),
+              Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppDimens.spaceLg,
                   0,
                   AppDimens.spaceLg,
                   AppDimens.spaceLg,
                 ),
-                child: _buildIconPicker(theme, parentColor),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceLg,
-                0,
-                AppDimens.spaceLg,
-                AppDimens.spaceLg,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('保存'),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('保存'),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildParentCard(ThemeData theme, Color color) {
@@ -147,8 +148,9 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           ),
           const Spacer(),
           CircleAvatar(
-            backgroundColor: color.withOpacity(0.15),
-            child: Icon(categoryIconData(_selectedParent.iconKey), color: color),
+            backgroundColor: color.withValues(alpha: 0.15),
+            child:
+                Icon(categoryIconData(_selectedParent.iconKey), color: color),
           ),
           const SizedBox(width: AppDimens.spaceSm),
           Text(
@@ -220,7 +222,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           child: Container(
             decoration: BoxDecoration(
               color: selected
-                  ? color.withOpacity(0.15)
+                  ? color.withValues(alpha: 0.15)
                   : AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               border: Border.all(

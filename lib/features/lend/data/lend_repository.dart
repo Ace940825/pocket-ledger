@@ -17,7 +17,8 @@ class LendRepository {
   Stream<List<LendRecord>> watch(String bookId) {
     return (_db.select(_db.lendRecords)
           ..where(
-            (LendRecords t) => t.bookId.equals(bookId) & t.deleted.equals(false),
+            (LendRecords t) =>
+                t.bookId.equals(bookId) & t.deleted.equals(false),
           )
           ..orderBy([(LendRecords t) => OrderingTerm.desc(t.occurredAt)]))
         .watch();
@@ -259,8 +260,7 @@ class LendRepository {
     required int occurredAt,
     String? note,
   }) {
-    final String dirLabel =
-        direction == LendDirection.borrowIn ? '借入' : '借出';
+    final String dirLabel = direction == LendDirection.borrowIn ? '借入' : '借出';
     return _db.transaction<void>(() async {
       await _offsetDebts(
         bookId: bookId,

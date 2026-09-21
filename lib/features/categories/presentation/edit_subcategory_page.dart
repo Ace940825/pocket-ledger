@@ -84,12 +84,14 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
               ),
               const SizedBox(height: AppDimens.spaceLg),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
                 child: _buildNameField(theme),
               ),
               const SizedBox(height: AppDimens.spaceLg),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
                 child: _buildHint(theme),
               ),
               const SizedBox(height: AppDimens.spaceLg),
@@ -153,8 +155,9 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
           ),
           const Spacer(),
           CircleAvatar(
-            backgroundColor: color.withOpacity(0.15),
-            child: Icon(categoryIconData(_selectedParent.iconKey), color: color),
+            backgroundColor: color.withValues(alpha: 0.15),
+            child:
+                Icon(categoryIconData(_selectedParent.iconKey), color: color),
           ),
           const SizedBox(width: AppDimens.spaceSm),
           Text(
@@ -226,7 +229,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
           child: Container(
             decoration: BoxDecoration(
               color: selected
-                  ? color.withOpacity(0.15)
+                  ? color.withValues(alpha: 0.15)
                   : AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               border: Border.all(

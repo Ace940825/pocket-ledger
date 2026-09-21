@@ -76,12 +76,14 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
               ),
               const SizedBox(height: AppDimens.spaceLg),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
                 child: _buildHint(theme),
               ),
               const SizedBox(height: AppDimens.spaceLg),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
                 child: _buildColorPicker(theme),
               ),
               const SizedBox(height: AppDimens.spaceLg),
@@ -158,8 +160,8 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
             child: Text(
               '分类名称需手动输入，选择图标后不会自动填充名称。',
               style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+                color: AppColors.textTertiary,
+              ),
             ),
           ),
         ],
@@ -174,8 +176,8 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
         Text(
           '分类颜色',
           style: theme.textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+            color: AppColors.textSecondary,
+          ),
         ),
         const SizedBox(height: AppDimens.spaceSm),
         Wrap(
@@ -207,8 +209,8 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
         Text(
           '分类图标',
           style: theme.textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+            color: AppColors.textSecondary,
+          ),
         ),
         const SizedBox(height: AppDimens.spaceSm),
         GridView.builder(
@@ -230,7 +232,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
               child: Container(
                 decoration: BoxDecoration(
                   color: selected
-                      ? color.withOpacity(0.15)
+                      ? color.withValues(alpha: 0.15)
                       : AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                   border: Border.all(

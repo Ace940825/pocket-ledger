@@ -25,8 +25,8 @@ import '../providers/accounts_providers.dart';
 /// **资金类 / 负债类 / 投资类 / 应收类 / 应付类**。
 ///
 /// - 资金、投资、负债类卡片列出该类的真实账户；
-/// - 应收类卡片展示「待收回报销 + 借出」往来入口；
-/// - 应付类卡片展示「借入」往来入口；
+/// - 应收类卡片展示「待收回报销」入口，并在借出下方展开每个对方账户（如小米）的应收余额；
+/// - 应付类卡片展示「借入」入口，并在下方展开每个对方账户（如小明）的应付余额；
 /// - 点击分组头部折叠/展开，长按头部拖动排序；
 /// - 账户行支持左滑「隐藏 / 编辑 / 删除」，点击进资产详情页。
 /// - 新增账户走独立页面 `/accounts/add`。
@@ -245,13 +245,19 @@ class _Body extends ConsumerWidget {
     final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
     final AsyncValue<int> netAssets = ref.watch(netAssetsProvider);
     final List<String> order = ref.watch(accountGroupOrderProvider);
-    final Map<String, bool> collapsed = ref.watch(accountGroupCollapsedProvider);
+    final Map<String, bool> collapsed =
+        ref.watch(accountGroupCollapsedProvider);
     final int reimbursementMinor =
         ref.watch(reimbursementPendingProvider).valueOrNull ?? 0;
-    final int lendOutMinor =
-        ref.watch(lendOutOngoingProvider).valueOrNull ?? 0;
+    final int lendOutMinor = ref.watch(lendOutOngoingProvider).valueOrNull ?? 0;
     final int borrowInMinor =
         ref.watch(borrowInOngoingProvider).valueOrNull ?? 0;
+    final Map<String, int> lendOutBalances =
+        ref.watch(lendCounterpartyBalancesProvider(LendDirection.lendOut)).valueOrNull ??
+            const <String, int>{};
+    final Map<String, int> borrowInBalances =
+        ref.watch(lendCounterpartyBalancesProvider(LendDirection.borrowIn)).valueOrNull ??
+            const <String, int>{};
 
     return accounts.when(
       data: (List<Account> list) {
@@ -270,12 +276,24 @@ class _Body extends ConsumerWidget {
               (Account a) => a.type.category == AccountCategory.debt,
             )
             .toList();
+        final List<Account> receivables = list
+            .where(
+              (Account a) => a.type.category == AccountCategory.receivable,
+            )
+            .toList();
+        final List<Account> payables = list
+            .where(
+              (Account a) => a.type.category == AccountCategory.payable,
+            )
+            .toList();
 
         final List<_GroupConfig> visible = _visibleGroups(
           order,
           capitals: capitals,
           investments: investments,
           debts: debts,
+          receivables: receivables,
+          payables: payables,
           reimbursementMinor: reimbursementMinor,
           lendOutMinor: lendOutMinor,
           borrowInMinor: borrowInMinor,
@@ -305,13 +323,17 @@ class _Body extends ConsumerWidget {
                     capitals: capitals,
                     investments: investments,
                     debts: debts,
+                    receivables: receivables,
+                    payables: payables,
                     reimbursementMinor: reimbursementMinor,
                     lendOutMinor: lendOutMinor,
                     borrowInMinor: borrowInMinor,
+                    lendOutBalances: lendOutBalances,
+                    borrowInBalances: borrowInBalances,
                   ),
                 );
               },
-              onReorder: (int oldIndex, int newIndex) {
+              onReorderItem: (int oldIndex, int newIndex) {
                 final List<String> visibleTitles =
                     visible.map((_GroupConfig g) => g.title).toList();
                 ref
@@ -335,9 +357,13 @@ class _Body extends ConsumerWidget {
     required List<Account> capitals,
     required List<Account> investments,
     required List<Account> debts,
+    required List<Account> receivables,
+    required List<Account> payables,
     required int reimbursementMinor,
     required int lendOutMinor,
     required int borrowInMinor,
+    required Map<String, int> lendOutBalances,
+    required Map<String, int> borrowInBalances,
   }) {
     return switch (title) {
       '资金类' => _AccountBody(
@@ -368,10 +394,24 @@ class _Body extends ConsumerWidget {
           onDeleteAccount: onDeleteAccount,
         ),
       '应收类' => _ReceivableBody(
+          accounts: receivables,
           reimbursementMinor: reimbursementMinor,
           lendOutMinor: lendOutMinor,
+          lendOutBalances: lendOutBalances,
+          onOpenDetail: onOpenDetail,
+          onEditAccount: onEditAccount,
+          onArchiveAccount: onArchiveAccount,
+          onDeleteAccount: onDeleteAccount,
         ),
-      '应付类' => _PayableBody(borrowInMinor: borrowInMinor),
+      '应付类' => _PayableBody(
+          accounts: payables,
+          borrowInMinor: borrowInMinor,
+          borrowInBalances: borrowInBalances,
+          onOpenDetail: onOpenDetail,
+          onEditAccount: onEditAccount,
+          onArchiveAccount: onArchiveAccount,
+          onDeleteAccount: onDeleteAccount,
+        ),
       _ => const SizedBox.shrink(),
     };
   }
@@ -381,6 +421,8 @@ class _Body extends ConsumerWidget {
     required List<Account> capitals,
     required List<Account> investments,
     required List<Account> debts,
+    required List<Account> receivables,
+    required List<Account> payables,
     required int reimbursementMinor,
     required int lendOutMinor,
     required int borrowInMinor,
@@ -392,6 +434,8 @@ class _Body extends ConsumerWidget {
         capitals: capitals,
         investments: investments,
         debts: debts,
+        receivables: receivables,
+        payables: payables,
         reimbursementMinor: reimbursementMinor,
         lendOutMinor: lendOutMinor,
         borrowInMinor: borrowInMinor,
@@ -423,6 +467,8 @@ class _GroupConfig {
     required List<Account> capitals,
     required List<Account> investments,
     required List<Account> debts,
+    required List<Account> receivables,
+    required List<Account> payables,
     required int reimbursementMinor,
     required int lendOutMinor,
     required int borrowInMinor,
@@ -445,21 +491,31 @@ class _GroupConfig {
           ),
         '应收类' => _GroupConfig(
             title: '应收类',
-            totalMinor: reimbursementMinor + lendOutMinor,
-            isVisible: reimbursementMinor != 0 || lendOutMinor != 0,
+            totalMinor: receivables.fold(
+                  0,
+                  (int s, Account a) => s + a.balanceMinor,
+                ) +
+                reimbursementMinor +
+                lendOutMinor,
+            isVisible: receivables.isNotEmpty ||
+                reimbursementMinor != 0 ||
+                lendOutMinor != 0,
             isDebt: false,
           ),
         '负债类' => _GroupConfig(
             title: '负债类',
-            totalMinor:
-                debts.fold(0, (int s, Account a) => s + a.balanceMinor),
+            totalMinor: debts.fold(0, (int s, Account a) => s + a.balanceMinor),
             isVisible: true,
             isDebt: true,
           ),
         '应付类' => _GroupConfig(
             title: '应付类',
-            totalMinor: borrowInMinor,
-            isVisible: borrowInMinor != 0,
+            totalMinor: payables.fold(
+                  0,
+                  (int s, Account a) => s + a.balanceMinor,
+                ) +
+                borrowInMinor,
+            isVisible: payables.isNotEmpty || borrowInMinor != 0,
             isDebt: true,
           ),
         _ => null,
@@ -490,7 +546,8 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final Color amountColor = isDebt ? AppColors.expense : AppColors.textPrimary;
+    final Color amountColor =
+        isDebt ? AppColors.expense : AppColors.textPrimary;
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -721,26 +778,52 @@ class _SideTag extends StatelessWidget {
   }
 }
 
-/// 应收类展开内容。
+/// 应收类展开内容：先列出真实应收账户，再展示往来汇总。
 class _ReceivableBody extends StatelessWidget {
   const _ReceivableBody({
+    required this.accounts,
     required this.reimbursementMinor,
     required this.lendOutMinor,
+    required this.lendOutBalances,
+    required this.onOpenDetail,
+    required this.onEditAccount,
+    required this.onArchiveAccount,
+    required this.onDeleteAccount,
   });
 
+  final List<Account> accounts;
   final int reimbursementMinor;
   final int lendOutMinor;
+  final Map<String, int> lendOutBalances;
+  final void Function(Account) onOpenDetail;
+  final void Function(Account) onEditAccount;
+  final void Function(Account) onArchiveAccount;
+  final void Function(Account) onDeleteAccount;
 
   @override
   Widget build(BuildContext context) {
-    if (reimbursementMinor == 0 && lendOutMinor == 0) {
+    if (accounts.isEmpty && reimbursementMinor == 0 && lendOutMinor == 0) {
       return const Padding(
         padding: EdgeInsets.only(bottom: AppDimens.spaceMd),
         child: EmptyState(message: '没有待收回的款项'),
       );
     }
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        if (accounts.isNotEmpty)
+          _AccountBody(
+            accounts: accounts,
+            isDebt: false,
+            emptyHint: '还没有应收账户，点右上角新增',
+            onOpenDetail: onOpenDetail,
+            onEditAccount: onEditAccount,
+            onArchiveAccount: onArchiveAccount,
+            onDeleteAccount: onDeleteAccount,
+          ),
+        if (accounts.isNotEmpty &&
+            (reimbursementMinor != 0 || lendOutMinor != 0))
+          const Divider(height: 1),
         if (reimbursementMinor != 0)
           _SummaryRow(
             icon: Icons.receipt_long_outlined,
@@ -749,37 +832,147 @@ class _ReceivableBody extends StatelessWidget {
             onTap: () => context.push(Routes.reimbursement),
           ),
         if (lendOutMinor != 0)
-          _SummaryRow(
-            icon: Icons.handshake_outlined,
+          _CounterpartyBalanceBody(
             title: '借出',
-            amountMinor: lendOutMinor,
-            onTap: () => context.push(Routes.lend),
+            icon: Icons.handshake_outlined,
+            totalMinor: lendOutMinor,
+            balances: lendOutBalances,
+            amountColor: AppColors.income,
+            onTotalTap: () => context.push(Routes.lend),
           ),
       ],
     );
   }
 }
 
-/// 应付类展开内容。
+/// 应付类展开内容：先列出真实应付账户，再展示往来汇总。
 class _PayableBody extends StatelessWidget {
-  const _PayableBody({required this.borrowInMinor});
+  const _PayableBody({
+    required this.accounts,
+    required this.borrowInMinor,
+    required this.borrowInBalances,
+    required this.onOpenDetail,
+    required this.onEditAccount,
+    required this.onArchiveAccount,
+    required this.onDeleteAccount,
+  });
 
+  final List<Account> accounts;
   final int borrowInMinor;
+  final Map<String, int> borrowInBalances;
+  final void Function(Account) onOpenDetail;
+  final void Function(Account) onEditAccount;
+  final void Function(Account) onArchiveAccount;
+  final void Function(Account) onDeleteAccount;
 
   @override
   Widget build(BuildContext context) {
-    if (borrowInMinor == 0) {
+    if (accounts.isEmpty && borrowInMinor == 0) {
       return const Padding(
         padding: EdgeInsets.only(bottom: AppDimens.spaceMd),
         child: EmptyState(message: '没有待归还的款项'),
       );
     }
-    return _SummaryRow(
-      icon: Icons.handshake_outlined,
-      title: '借入',
-      amountMinor: borrowInMinor,
-      amountColor: AppColors.expense,
-      onTap: () => context.push(Routes.lend),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (accounts.isNotEmpty)
+          _AccountBody(
+            accounts: accounts,
+            isDebt: true,
+            emptyHint: '还没有应付账户，点右上角新增',
+            onOpenDetail: onOpenDetail,
+            onEditAccount: onEditAccount,
+            onArchiveAccount: onArchiveAccount,
+            onDeleteAccount: onDeleteAccount,
+          ),
+        if (accounts.isNotEmpty && borrowInMinor != 0)
+          const Divider(height: 1),
+        if (borrowInMinor != 0)
+          _CounterpartyBalanceBody(
+            title: '借入',
+            icon: Icons.handshake_outlined,
+            totalMinor: borrowInMinor,
+            balances: borrowInBalances,
+            amountColor: AppColors.expense,
+            onTotalTap: () => context.push(Routes.lend),
+          ),
+      ],
+    );
+  }
+}
+
+/// 应收 / 应付对方账户明细：先显示汇总行，再列出每个 counterparty 的余额。
+class _CounterpartyBalanceBody extends StatelessWidget {
+  const _CounterpartyBalanceBody({
+    required this.title,
+    required this.icon,
+    required this.totalMinor,
+    required this.balances,
+    required this.amountColor,
+    required this.onTotalTap,
+  });
+
+  final String title;
+  final IconData icon;
+  final int totalMinor;
+  final Map<String, int> balances;
+  final Color amountColor;
+  final VoidCallback onTotalTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        _SummaryRow(
+          icon: icon,
+          title: title,
+          amountMinor: totalMinor,
+          amountColor: amountColor,
+          onTap: onTotalTap,
+        ),
+        ...balances.entries.map(
+          (MapEntry<String, int> e) => _CounterpartyRow(
+            name: e.key,
+            amountMinor: e.value,
+            amountColor: amountColor,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 单个对方账户余额行。
+class _CounterpartyRow extends StatelessWidget {
+  const _CounterpartyRow({
+    required this.name,
+    required this.amountMinor,
+    required this.amountColor,
+  });
+
+  final String name;
+  final int amountMinor;
+  final Color amountColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 56),
+      child: ListTile(
+        dense: true,
+        title: Text(
+          name,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        trailing: MoneyText(
+          Money.fromMinor(amountMinor),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: amountColor,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ),
     );
   }
 }
@@ -849,7 +1042,7 @@ class _NetAssetsHeader extends StatelessWidget {
           Text(
             '净资产',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
             ),
           ),
           const SizedBox(height: AppDimens.spaceXs),

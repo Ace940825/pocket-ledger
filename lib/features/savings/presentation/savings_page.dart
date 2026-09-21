@@ -18,16 +18,14 @@ class SavingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<List<SavingsGoal>> goals =
-        ref.watch(savingsListProvider);
+    final AsyncValue<List<SavingsGoal>> goals = ref.watch(savingsListProvider);
 
     return ModuleListScaffold<SavingsGoal>(
       title: '储蓄',
       items: goals,
       emptyHint: '还没有储蓄目标，点右下角新增',
       onCreate: () => _showEditor(context, ref),
-      itemBuilder: (BuildContext context, SavingsGoal g) =>
-          _GoalTile(goal: g),
+      itemBuilder: (BuildContext context, SavingsGoal g) => _GoalTile(goal: g),
     );
   }
 
@@ -115,8 +113,7 @@ class SavingsPage extends ConsumerWidget {
     if (saved != true || !context.mounted) return;
 
     final double? target = double.tryParse(targetController.text.trim());
-    final double current =
-        double.tryParse(currentController.text.trim()) ?? 0;
+    final double current = double.tryParse(currentController.text.trim()) ?? 0;
     if (target == null || target <= 0) {
       showToast(context, '目标金额必须大于 0');
       return;
@@ -210,11 +207,11 @@ class _GoalTile extends ConsumerWidget {
                   ' / ${Money.fromMinor(goal.targetMinor).format()}'
                   '${goal.deadlineAt == null ? '' : '  ·  截止 '
                       '${DateFormat('yyyy-MM-dd').format(
-                        DateTime.fromMillisecondsSinceEpoch(
-                          goal.deadlineAt!,
-                          isUtc: true,
-                        ).toLocal(),
-                      )}'}',
+                      DateTime.fromMillisecondsSinceEpoch(
+                        goal.deadlineAt!,
+                        isUtc: true,
+                      ).toLocal(),
+                    )}'}',
                   style: theme.textTheme.bodySmall,
                 ),
               ),

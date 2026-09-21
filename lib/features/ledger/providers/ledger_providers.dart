@@ -43,6 +43,18 @@ final AutoDisposeStreamProviderFamily<Transaction?, String>
   (Ref ref, String id) => ref.watch(transactionsDaoProvider).watchById(id),
 );
 
+/// 指定原账单关联的全部退款流水。
+final AutoDisposeStreamProviderFamily<List<Transaction>, String>
+    refundsByRelatedIdProvider =
+    StreamProvider.autoDispose.family<List<Transaction>, String>(
+  (Ref ref, String relatedId) {
+    final String bookId = ref.watch(currentBookIdProvider);
+    return ref
+        .watch(transactionsDaoProvider)
+        .watchRefundsByRelatedId(relatedId, bookId: bookId);
+  },
+);
+
 /// 当前查看的月份（本地时区）
 final StateProvider<DateTime> selectedMonthProvider =
     StateProvider<DateTime>((Ref ref) {

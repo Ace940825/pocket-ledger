@@ -81,7 +81,7 @@ Future<void> showBudgetEditor(
               if (scope == BudgetScope.category) ...<Widget>[
                 const FormGap(),
                 DropdownButtonFormField<String>(
-                  value: categoryId,
+                  initialValue: categoryId,
                   decoration: const InputDecoration(labelText: '分类'),
                   items: <DropdownMenuItem<String>>[
                     for (final Category c in expenseCategories)

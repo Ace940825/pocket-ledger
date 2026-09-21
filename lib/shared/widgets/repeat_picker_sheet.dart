@@ -142,6 +142,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
       child: SafeArea(
+        bottom: false,
         child: Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -168,9 +169,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                       children: <Widget>[
                         _buildUnitTabs(theme),
                         const SizedBox(height: AppDimens.spaceLg),
-                        _buildIntervalStepper(theme),
-                        const SizedBox(height: AppDimens.spaceLg),
-                        _buildExtraOptions(theme),
+                        _buildCenteredContent(theme),
                       ],
                     ),
                   ),
@@ -183,7 +182,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                     AppDimens.spaceLg,
                     AppDimens.spaceMd,
                     AppDimens.spaceLg,
-                    AppDimens.spaceLg,
+                    0,
                   ),
                   child: SizedBox(
                     width: double.infinity,
@@ -194,7 +193,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                          borderRadius:
+                              BorderRadius.circular(AppDimens.radiusMd),
                         ),
                       ),
                       child: const Text('保存'),
@@ -218,7 +218,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         alignment: Alignment.center,
         children: <Widget>[
           Text(
-            '执行方式',
+            '重复周期',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -368,17 +368,57 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
     );
   }
 
-  Widget _buildExtraOptions(ThemeData theme) {
+  /// 把「间隔步进器 + 额外选项」作为整体在固定高度区域内垂直居中，
+  /// 保证每天/每周/每年 Tab 切换时视觉中心一致，且面板总高度以「每月」为准不变。
+  Widget _buildCenteredContent(ThemeData theme) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double optionsWidth = constraints.maxWidth;
+        final double optionsHeight = _calcMonthGridHeight(optionsWidth);
+        const double stepperHeight = 40;
+        final double contentHeight =
+            optionsHeight + stepperHeight + AppDimens.spaceLg;
+
+        return SizedBox(
+          height: contentHeight,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                _buildIntervalStepper(theme),
+                const SizedBox(height: AppDimens.spaceLg),
+                _buildExtraOptionsContent(theme, optionsWidth),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildExtraOptionsContent(ThemeData theme, double width) {
     switch (_unit) {
       case RepeatUnit.day:
         return const SizedBox.shrink();
       case RepeatUnit.week:
         return _buildWeekDayGrid(theme);
       case RepeatUnit.month:
-        return _buildMonthDayGrid(theme);
+        return _buildMonthDayGrid(theme, width);
       case RepeatUnit.year:
-        return _buildMonthGrid(theme);
+        return _buildMonthGrid(theme, width);
     }
+  }
+
+  /// 计算「每月」选项网格的高度，让所有 tab 的选项区域高度一致。
+  double _calcMonthGridHeight(double maxWidth) {
+    const int columns = 6;
+    const double spacing = 10;
+    const double aspectRatio = 3.0;
+    final double cellWidth = (maxWidth - (columns - 1) * spacing) / columns;
+    final double cellHeight = cellWidth / aspectRatio;
+    const int itemCount = 32; // 1-31 日 + 月末
+    final int rows = (itemCount + columns - 1) ~/ columns;
+    return rows * cellHeight + (rows - 1) * spacing;
   }
 
   Widget _buildWeekDayGrid(ThemeData theme) {
@@ -407,59 +447,54 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
     );
   }
 
-  Widget _buildMonthDayGrid(ThemeData theme) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        const int columns = 6;
-        const double spacing = 10;
-        const double aspectRatio = 3.0;
-        final double cellWidth =
-            (constraints.maxWidth - (columns - 1) * spacing) / columns;
-        final double cellHeight = cellWidth / aspectRatio;
-        final double fontSize = cellHeight * 0.8;
+  Widget _buildMonthDayGrid(ThemeData theme, double maxWidth) {
+    const int columns = 6;
+    const double spacing = 10;
+    const double aspectRatio = 3.0;
+    final double cellWidth = (maxWidth - (columns - 1) * spacing) / columns;
+    final double cellHeight = cellWidth / aspectRatio;
+    final double fontSize = cellHeight * 0.8;
 
-        final List<Widget> children = <Widget>[];
-        for (int day = 1; day <= 31; day++) {
-          children.add(_optionChip(
-            label: '$day',
-            selected: _monthDays.contains(day),
-            onTap: () => setState(() {
-              if (_monthDays.contains(day)) {
-                _monthDays.remove(day);
-              } else {
-                _monthDays.add(day);
-              }
-            }),
-            width: cellWidth,
-            height: cellHeight,
-            fontSize: fontSize,
-          ));
+    final List<Widget> children = <Widget>[];
+    for (int day = 1; day <= 31; day++) {
+      children.add(_optionChip(
+        label: '$day',
+        selected: _monthDays.contains(day),
+        onTap: () => setState(() {
+          if (_monthDays.contains(day)) {
+            _monthDays.remove(day);
+          } else {
+            _monthDays.add(day);
+          }
+        }),
+        width: cellWidth,
+        height: cellHeight,
+        fontSize: fontSize,
+      ));
+    }
+    children.add(_optionChip(
+      label: '月末',
+      selected: _monthDays.contains(-1),
+      onTap: () => setState(() {
+        if (_monthDays.contains(-1)) {
+          _monthDays.remove(-1);
+        } else {
+          _monthDays.add(-1);
         }
-        children.add(_optionChip(
-          label: '月末',
-          selected: _monthDays.contains(-1),
-          onTap: () => setState(() {
-            if (_monthDays.contains(-1)) {
-              _monthDays.remove(-1);
-            } else {
-              _monthDays.add(-1);
-            }
-          }),
-          width: cellWidth,
-          height: cellHeight,
-          fontSize: fontSize,
-        ));
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          alignment: WrapAlignment.center,
-          children: children,
-        );
-      },
+      }),
+      width: cellWidth,
+      height: cellHeight,
+      fontSize: fontSize,
+    ));
+    return Wrap(
+      spacing: spacing,
+      runSpacing: spacing,
+      alignment: WrapAlignment.center,
+      children: children,
     );
   }
 
-  Widget _buildMonthGrid(ThemeData theme) {
+  Widget _buildMonthGrid(ThemeData theme, double maxWidth) {
     final List<String> labels = <String>[
       '1月',
       '2月',
@@ -474,13 +509,20 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
       '11月',
       '12月',
     ];
+    const int columns = 4;
+    const double spacing = 10;
+    const double aspectRatio = 2.8;
+    final double cellWidth = (maxWidth - (columns - 1) * spacing) / columns;
+    final double cellHeight = cellWidth / aspectRatio;
+    final double fontSize = cellHeight * 0.7;
+
     return GridView.count(
-      crossAxisCount: 3,
+      crossAxisCount: columns,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 2.8,
+      mainAxisSpacing: spacing,
+      crossAxisSpacing: spacing,
+      childAspectRatio: aspectRatio,
       children: List<Widget>.generate(12, (int index) {
         final int value = index + 1;
         return _optionChip(
@@ -488,6 +530,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           selected: _month == value,
           onTap: () => setState(() => _month = value),
           width: double.infinity,
+          height: cellHeight,
+          fontSize: fontSize,
         );
       }),
     );

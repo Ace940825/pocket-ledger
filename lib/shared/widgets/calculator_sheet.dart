@@ -17,8 +17,14 @@ double? evaluateExpression(String input) {
   for (int i = 0; i < expr.length; i++) {
     final String ch = expr[i];
     if (ch == ' ' || ch == '\t') continue;
-    if (ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == 'x' ||
-        ch == 'X' || ch == '×' || ch == '÷') {
+    if (ch == '+' ||
+        ch == '-' ||
+        ch == '*' ||
+        ch == '/' ||
+        ch == 'x' ||
+        ch == 'X' ||
+        ch == '×' ||
+        ch == '÷') {
       if (buf.isNotEmpty) {
         tokens.add(buf.toString());
         buf.clear();
@@ -73,8 +79,7 @@ double? evaluateExpression(String input) {
         values.add(n);
       } else {
         // 运算符：先压栈或先消更高的同/高优先级。
-        while (ops.isNotEmpty &&
-            precedence[ops.last]! >= precedence[t]!) {
+        while (ops.isNotEmpty && precedence[ops.last]! >= precedence[t]!) {
           apply(ops.removeLast());
         }
         ops.add(t);
@@ -98,9 +103,16 @@ double aaSplit(double total, int people) {
   return total / people;
 }
 
-/// 记一笔页内的快捷计算器：四则运算 + 多人 AA 分摊。
+String _formatCurrency(double v) {
+  final String s = v.toStringAsFixed(2);
+  return s.contains('.')
+      ? s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')
+      : s;
+}
+
+/// 快捷计算器：四则运算 + 多人 AA 分摊。
 ///
-/// 点「填入」把结果（元）通过 [Navigator.pop] 返回给调用方，
+/// 点击底部按钮把结果（元）通过 [Navigator.pop] 返回给调用方，
 /// 由调用方写回金额输入框。金额换算（汇率）不在本组件范围。
 class CalculatorSheet extends StatefulWidget {
   const CalculatorSheet({super.key, this.initial});
@@ -149,25 +161,18 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
         if (_expr.isNotEmpty) _expr = _expr.substring(0, _expr.length - 1);
       } else if (v == '=') {
         final double? r = evaluateExpression(_expr);
-        if (r != null) _expr = _format(r);
+        if (r != null) _expr = _formatCurrency(r);
       } else {
         _expr += v;
       }
     });
   }
 
-  String _format(double v) {
-    // 保留两位小数并去掉多余的尾随零（如 12.00 → 12，3.50 → 3.5）。
-    final String s = v.toStringAsFixed(2);
-    return s.contains('.')
-        ? s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')
-        : s;
-  }
-
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final double? result = _computed;
+    final String displayExpr = _expr.isEmpty ? '0' : _expr;
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + AppDimens.spaceMd,
@@ -184,26 +189,42 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
               const Spacer(),
               TextButton(
                 onPressed: () => setState(() => _aaMode = !_aaMode),
-                child: Text(_aaMode ? '四则运算' : 'AA 分摊'),
+                child: Text(
+                  _aaMode ? '四则运算' : 'AA 分摊',
+                  style: TextStyle(color: AppColors.primary),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.spaceMd),
           if (_aaMode)
             _buildAa(context, result)
           else
-            _buildExpr(context, result),
-          const SizedBox(height: AppDimens.spaceSm),
+            _buildExpr(context, displayExpr, result),
+          const SizedBox(height: AppDimens.spaceMd),
           if (!_aaMode) _buildPad(context),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.spaceMd),
           SizedBox(
             width: double.infinity,
+            height: 48,
             child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: result == null ? AppColors.divider : AppColors.primary,
+                foregroundColor: result == null ? AppColors.textTertiary : Colors.white,
+                disabledBackgroundColor: AppColors.divider,
+                disabledForegroundColor: AppColors.textTertiary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                ),
+              ),
               onPressed: result == null
                   ? null
                   : () => Navigator.of(context).pop(result),
               child: Text(
-                result == null ? '无效计算' : '填入 ¥${_format(result)}',
+                result == null ? '无效计算' : '填入 ¥${_formatCurrency(result)}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
               ),
             ),
           ),
@@ -212,11 +233,14 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
     );
   }
 
-  Widget _buildExpr(BuildContext context, double? result) {
+  Widget _buildExpr(BuildContext context, String displayExpr, double? result) {
     final ThemeData theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.spaceMd,
+        vertical: AppDimens.spaceMd,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -224,12 +248,19 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[
-          Text(_expr.isEmpty ? '0' : _expr,
-              style: theme.textTheme.bodyLarge),
           Text(
-            result == null ? '' : '= ${_format(result)}',
-            style: theme.textTheme.headlineSmall
-                ?.copyWith(color: AppColors.primary),
+            displayExpr,
+            style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          const SizedBox(height: AppDimens.spaceXs),
+          Text(
+            result == null ? '' : '= ${_formatCurrency(result)}',
+            style: theme.textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ],
       ),
@@ -238,22 +269,62 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
 
   Widget _buildAa(BuildContext context, double? result) {
     final ThemeData theme = Theme.of(context);
+    final OutlineInputBorder border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      borderSide: BorderSide.none,
+    );
     return Column(
       children: <Widget>[
         TextField(
           controller: _aaTotal,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: '总金额'),
+          textAlignVertical: TextAlignVertical.center,
+          decoration: InputDecoration(
+            hintText: '总金额',
+            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+            filled: true,
+            fillColor: theme.colorScheme.surfaceContainerHighest,
+            border: border,
+            enabledBorder: border,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppDimens.spaceMd,
+              vertical: AppDimens.spaceMd,
+            ),
+          ),
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.spaceMd),
         TextField(
           controller: _aaPeople,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: '人数'),
+          textAlignVertical: TextAlignVertical.center,
+          decoration: InputDecoration(
+            hintText: '人数',
+            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+            filled: true,
+            fillColor: theme.colorScheme.surfaceContainerHighest,
+            border: border,
+            enabledBorder: border,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppDimens.spaceMd,
+              vertical: AppDimens.spaceMd,
+            ),
+          ),
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.spaceMd),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(AppDimens.spaceMd),
@@ -262,9 +333,11 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
             borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           ),
           child: Text(
-            result == null ? '人均 ¥0.00' : '人均 ¥${_format(result)}',
-            style: theme.textTheme.headlineSmall
-                ?.copyWith(color: AppColors.primary),
+            result == null ? '人均 ¥0.00' : '人均 ¥${_formatCurrency(result)}',
+            style: theme.textTheme.headlineSmall?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
             textAlign: TextAlign.end,
           ),
         ),
@@ -283,29 +356,302 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
     return GridView.count(
       crossAxisCount: 4,
       shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: AppDimens.spaceXs,
       crossAxisSpacing: AppDimens.spaceXs,
       childAspectRatio: 1.6,
       children: <Widget>[
         for (final String k in keys)
-          InkWell(
-            onTap: () => _tap(k),
-            borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: (k == '=' || k == 'AC' || k == '⌫')
-                    ? AppColors.primary.withOpacity(0.12)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-              ),
-              child: Text(
-                k,
-                style: const TextStyle(fontSize: 20),
-              ),
-            ),
-          ),
+          _buildKey(context, k),
+        const SizedBox.shrink(),
+        const SizedBox.shrink(),
       ],
     );
+  }
+
+  Widget _buildKey(BuildContext context, String k) {
+    final bool highlight = k == '=' || k == 'AC' || k == '⌫';
+    return InkWell(
+      onTap: () => _tap(k),
+      borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: highlight
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+        ),
+        child: Text(
+          k,
+          style: TextStyle(
+            fontSize: 24,
+            color: highlight ? AppColors.primary : AppColors.textPrimary,
+            fontWeight: FontWeight.w500,
+            height: 1.0,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 手续费计算器弹窗返回结果。
+class FeeCalculatorResult {
+  const FeeCalculatorResult({this.fee, this.discount});
+
+  /// 手续费（元字符串）。
+  final String? fee;
+
+  /// 优惠（元字符串）。
+  final String? discount;
+}
+
+/// 手续费计算弹窗（小清账风格）。
+///
+/// 输入「手续费」与「优惠」，实时计算「剩余手续费 = 手续费 - 优惠」。
+/// 点击「保存」返回 [FeeCalculatorResult]，由调用方回填到对应字段。
+class FeeCalculatorSheet extends StatefulWidget {
+  const FeeCalculatorSheet({
+    super.key,
+    this.fee,
+    this.discount,
+  });
+
+  final String? fee;
+  final String? discount;
+
+  @override
+  State<FeeCalculatorSheet> createState() => _FeeCalculatorSheetState();
+}
+
+class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
+  late final TextEditingController _feeController;
+  late final TextEditingController _discountController;
+
+  @override
+  void initState() {
+    super.initState();
+    _feeController = TextEditingController(text: widget.fee ?? '');
+    _discountController = TextEditingController(text: widget.discount ?? '');
+  }
+
+  @override
+  void dispose() {
+    _feeController.dispose();
+    _discountController.dispose();
+    super.dispose();
+  }
+
+  double? get _feeValue {
+    final String t = _feeController.text.trim();
+    if (t.isEmpty) return null;
+    return double.tryParse(t);
+  }
+
+  double? get _discountValue {
+    final String t = _discountController.text.trim();
+    if (t.isEmpty) return 0;
+    return double.tryParse(t);
+  }
+
+  bool get _isValid {
+    final double? fee = _feeValue;
+    final double? discount = _discountValue;
+    if (fee == null || discount == null) return false;
+    return fee >= discount;
+  }
+
+  String get _remainingText {
+    final double? fee = _feeValue;
+    final double? discount = _discountValue;
+    if (fee == null || discount == null) return '';
+    final double remaining = fee - discount;
+    return _formatCurrency(remaining < 0 ? 0 : remaining);
+  }
+
+  void _save() {
+    if (!_isValid) return;
+    final String fee = _feeController.text.trim();
+    final String discount = _discountController.text.trim();
+    Navigator.of(context).pop(FeeCalculatorResult(
+      fee: fee.isEmpty ? null : fee,
+      discount: discount.isEmpty ? null : discount,
+    ));
+  }
+
+  InputDecoration _fieldDecoration(BuildContext context, String hint) {
+    final ThemeData theme = Theme.of(context);
+    final OutlineInputBorder border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      borderSide: BorderSide.none,
+    );
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: theme.textTheme.bodyMedium?.copyWith(
+            color: AppColors.textTertiary,
+          ),
+      filled: true,
+      fillColor: theme.colorScheme.surfaceContainerHighest,
+      border: border,
+      enabledBorder: border,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        borderSide: const BorderSide(color: AppColors.primary),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.spaceMd,
+        vertical: AppDimens.spaceMd,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: AppDimens.spaceLg,
+          right: AppDimens.spaceLg,
+          top: AppDimens.spaceMd,
+          bottom: MediaQuery.of(context).viewInsets.bottom + AppDimens.spaceMd,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // 标题栏
+                  Row(
+                    children: <Widget>[
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      ),
+                      const Expanded(
+                        child: Text(
+                          '手续费计算',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 32),
+                    ],
+                  ),
+                  const SizedBox(height: AppDimens.spaceMd),
+                  // 说明
+                  Container(
+                    padding: const EdgeInsets.all(AppDimens.spaceMd),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: AppColors.textTertiary,
+                        ),
+                        const SizedBox(width: AppDimens.spaceSm),
+                        Expanded(
+                          child: Text(
+                            '如手续费和优惠都存在的情况，手续费-优惠=真正的手续费',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppDimens.spaceMd),
+                  // 手续费
+                  TextField(
+                    controller: _feeController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.next,
+                    textAlignVertical: TextAlignVertical.center,
+                    decoration: _fieldDecoration(context, '手续费'),
+                    onChanged: (_) => setState(() {}),
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                  ),
+                  const SizedBox(height: AppDimens.spaceMd),
+                  // 优惠
+                  TextField(
+                    controller: _discountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.next,
+                    textAlignVertical: TextAlignVertical.center,
+                    decoration: _fieldDecoration(context, '优惠'),
+                    onChanged: (_) => setState(() {}),
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                  ),
+                  const SizedBox(height: AppDimens.spaceMd),
+                  // 剩余手续费
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppDimens.spaceMd,
+                      vertical: AppDimens.spaceMd,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Text(
+                          '剩余手续费',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          _remainingText.isEmpty ? '0.00' : _remainingText,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  // 保存按钮
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _isValid ? AppColors.primary : AppColors.divider,
+                        foregroundColor: _isValid ? Colors.white : AppColors.textTertiary,
+                        disabledBackgroundColor: AppColors.divider,
+                        disabledForegroundColor: AppColors.textTertiary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                        ),
+                      ),
+                      onPressed: _isValid ? _save : null,
+                      child: const Text(
+                        '保存',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
   }
 }

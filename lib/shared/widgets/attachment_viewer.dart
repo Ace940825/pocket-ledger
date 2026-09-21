@@ -138,7 +138,8 @@ Future<void> openImageViewer(
         width: double.maxFinite,
         height: 360,
         child: PageView.builder(
-          controller: PageController(initialPage: index.clamp(0, urls.length - 1)),
+          controller:
+              PageController(initialPage: index.clamp(0, urls.length - 1)),
           itemCount: urls.length,
           itemBuilder: (BuildContext context, int i) {
             final String url = urls[i];

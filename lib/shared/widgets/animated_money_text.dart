@@ -81,14 +81,16 @@ class _AnimatedMoneyTextState extends State<AnimatedMoneyText>
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle base =
-        widget.style ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+    final TextStyle base = widget.style ??
+        Theme.of(context).textTheme.bodyMedium ??
+        const TextStyle();
     final Color resolved = widget.color ?? _resolveColor();
 
     return AnimatedBuilder(
       animation: _animation,
       builder: (BuildContext context, Widget? child) {
-        final Money animated = Money.fromMinor(_animation.value, currency: widget.money.currency);
+        final Money animated =
+            Money.fromMinor(_animation.value, currency: widget.money.currency);
         return Text(
           widget.signed ? animated.formatSigned() : animated.format(),
           style: base.copyWith(

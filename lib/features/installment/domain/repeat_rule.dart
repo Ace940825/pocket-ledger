@@ -78,16 +78,14 @@ class InstallmentRepeatRule {
   static InstallmentRepeatRule? fromJsonString(String? raw) {
     if (raw == null || raw.isEmpty) return null;
     try {
-      final Map<String, Object?> json =
-          jsonDecode(raw) as Map<String, Object?>;
+      final Map<String, Object?> json = jsonDecode(raw) as Map<String, Object?>;
       final String unitName = (json['unit'] as String?) ?? 'month';
       final RepeatUnit unit = RepeatUnit.values.byName(unitName);
       final int interval = (json['interval'] as int?)?.clamp(1, 120) ?? 1;
 
-      final List<int>? parsedMonthDays =
-          (json['monthDays'] as List<dynamic>?)
-              ?.map((dynamic d) => (d as num).toInt())
-              .toList();
+      final List<int>? parsedMonthDays = (json['monthDays'] as List<dynamic>?)
+          ?.map((dynamic d) => (d as num).toInt())
+          .toList();
 
       return InstallmentRepeatRule(
         unit: unit,
@@ -128,30 +126,25 @@ class InstallmentRepeatRule {
         return interval == 1 ? '每天' : '每 $interval 天';
       case RepeatUnit.week:
         final String dayLabel = _weekDayLabel(weekDay);
-        final String prefix =
-            interval == 1 ? '每周' : '每 $interval 周';
+        final String prefix = interval == 1 ? '每周' : '每 $interval 周';
         return '$prefix $dayLabel'.trim();
       case RepeatUnit.month:
         final List<int>? days = _effectiveMonthDays;
-        final String prefix =
-            interval == 1 ? '每月' : '每 $interval 月';
+        final String prefix = interval == 1 ? '每月' : '每 $interval 月';
         if (days == null || days.isEmpty) {
           final String dayLabel = '${fallbackDay ?? 1} 日';
           return '$prefix $dayLabel'.trim();
         }
         if (days.length == 1) {
-          final String dayLabel =
-              days.first == -1 ? '月末' : '${days.first} 日';
+          final String dayLabel = days.first == -1 ? '月末' : '${days.first} 日';
           return '$prefix $dayLabel'.trim();
         }
-        final String daysLabel = days
-            .map((int d) => d == -1 ? '月末' : '${d}日')
-            .join('、');
+        final String daysLabel =
+            days.map((int d) => d == -1 ? '月末' : '${d}日').join('、');
         return '$prefix $daysLabel'.trim();
       case RepeatUnit.year:
         final String monthLabel = month == null ? '' : '$month 月';
-        final String prefix =
-            interval == 1 ? '每年' : '每 $interval 年';
+        final String prefix = interval == 1 ? '每年' : '每 $interval 年';
         return '$prefix $monthLabel'.trim();
     }
   }

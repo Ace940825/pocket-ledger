@@ -146,7 +146,6 @@ String _feeSuffix(List<int> fees) {
   if (last > 0 && fees.take(fees.length - 1).every((int e) => e == 0)) {
     return ' · 尾期含手续费 ${Money.fromMinor(last).format()}';
   }
-  final int total =
-      fees.fold<int>(0, (int sum, int v) => sum + v);
+  final int total = fees.fold<int>(0, (int sum, int v) => sum + v);
   return ' · 利息合计 ${Money.fromMinor(total).format()}';
 }

@@ -9,6 +9,7 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../database/app_database.dart';
 import '../../../routing/app_router.dart';
 import '../providers/ledger_providers.dart';
+import 'transaction_detail_sheet.dart';
 import 'widgets/transaction_tile.dart';
 
 /// 流水列表页。按日期分组，支持侧滑删除。
@@ -66,7 +67,7 @@ class LedgerPage extends ConsumerWidget {
                     ),
                     child: TransactionTile(
                       transaction: txn,
-                      onTap: () => context.push('/ledger/edit/${txn.id}'),
+                      onTap: () => TransactionDetailSheet.show(context, txn),
                     ),
                   ),
                 ],
@@ -98,9 +99,7 @@ class LedgerPage extends ConsumerWidget {
     Transaction txn,
   ) async {
     try {
-      await ref
-          .read(transactionRepositoryProvider)
-          .remove(txn.id);
+      await ref.read(transactionRepositoryProvider).remove(txn.id);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context)

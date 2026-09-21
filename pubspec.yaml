@@ -48,6 +48,9 @@ dependencies:
   flutter_secure_storage: ^10.3.1
   local_auth: ^2.3.0
 
+  # 本地轻量键值存储（记账页面设置、视图模式记忆等统一持久化）
+  shared_preferences: ^2.5.0
+
   # 文件与分享
   csv: ^6.0.0
 

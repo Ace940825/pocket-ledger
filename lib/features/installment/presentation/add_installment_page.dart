@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -21,11 +22,16 @@ import '../providers/installment_providers.dart';
 ///
 /// 通过 [GoRouterState.extra] 可传入默认账本 ID（当前未使用，取 [currentBookIdProvider]）。
 class AddInstallmentPage extends ConsumerStatefulWidget {
-  const AddInstallmentPage({super.key});
+  const AddInstallmentPage({super.key, this.showAppBar = true});
+
+  /// 是否显示独立 AppBar 和 SafeArea。
+  ///
+  /// - `true`：作为独立页面使用，包含 `Scaffold(AppBar+SafeArea)`。
+  /// - `false`：作为内嵌组件使用，直接返回 body，避免与外层页面的 AppBar / 安全区叠加。
+  final bool showAppBar;
 
   @override
-  ConsumerState<AddInstallmentPage> createState() =>
-      _AddInstallmentPageState();
+  ConsumerState<AddInstallmentPage> createState() => _AddInstallmentPageState();
 }
 
 class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
@@ -45,10 +51,11 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   String _roundingLabel = '四舍五入';
   String _remainderLabel = '首期';
   String _precisionLabel = '小数点后2位';
-  String _principalTimingLabel = '分期时记入';
+  String _principalTimingLabel = '分期时计入';
+
   /// 利息扣除方式：按期均摊、首期全部扣除、尾期全部扣除。
   String _interestDeductLabel = '按期均摊';
-  String _interestTimingLabel = '分期时记入';
+  String _interestTimingLabel = '分期时计入';
 
   String? _accountId;
   String? _categoryId;
@@ -109,192 +116,190 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            const Text('添加分期'),
-            Text(
-              '购买商品时进行分期',
-              style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                    fontSize: 12,
+    final Widget body = GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Column(
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _buildSection(
+                    '分期信息',
+                    <Widget>[
+                      _buildTextField(_nameController, '名称'),
+                      _buildStepperRow(
+                        label: '分期期数',
+                        value: _periods,
+                        min: 1,
+                        max: 120,
+                        onChanged: (int value) =>
+                            setState(() => _periods = value),
+                      ),
+                      _buildDateRow(
+                        label: '开始时间',
+                        value: _firstDueAt,
+                        onTap: _pickFirstDue,
+                      ),
+                      _buildSelectorRow(
+                        label: '重复周期',
+                        value: _repeatRule.displayLabel(
+                          fallbackDay: _firstDueAt.day,
+                        ),
+                        icon: Icons.repeat_outlined,
+                        onTap: _pickRepeatRule,
+                      ),
+                      _buildSelectorRow(
+                        label: '余数计算方式',
+                        value: _roundingLabel,
+                        icon: Icons.calculate_outlined,
+                        onTap: () => _showOptionSheet(
+                          title: '余数计算方式',
+                          options: const <String>['四舍五入', '向上取整', '向下取整'],
+                          selected: _roundingLabel,
+                          onSelected: (String v) =>
+                              setState(() => _roundingLabel = v),
+                        ),
+                      ),
+                      _buildSelectorRow(
+                        label: '差额归期',
+                        value: _remainderLabel,
+                        icon: Icons.swap_horiz_outlined,
+                        onTap: () => _showOptionSheet(
+                          title: '差额归期',
+                          options: const <String>['首期', '末期'],
+                          selected: _remainderLabel,
+                          onSelected: (String v) =>
+                              setState(() => _remainderLabel = v),
+                        ),
+                      ),
+                      _buildSelectorRow(
+                        label: '计算精度',
+                        value: _precisionLabel,
+                        icon: Icons.pin_outlined,
+                        onTap: () => _showOptionSheet(
+                          title: '计算精度',
+                          options: const <String>['小数点后2位', '小数点后1位', '整数'],
+                          selected: _precisionLabel,
+                          onSelected: (String v) =>
+                              setState(() => _precisionLabel = v),
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  _buildSection(
+                    '本金',
+                    <Widget>[
+                      _buildMoneyField(
+                        _principalController,
+                        '分期本金',
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      _buildSelectorRow(
+                        label: '本金计入方式',
+                        value: _principalTimingLabel,
+                        icon: Icons.account_balance_wallet_outlined,
+                        onTap: () => _showOptionSheet(
+                          title: '本金计入方式',
+                          options: const <String>['分期时计入', '分期时全部计入'],
+                          selected: _principalTimingLabel,
+                          onSelected: (String v) =>
+                              setState(() => _principalTimingLabel = v),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  _buildSection(
+                    '利息',
+                    <Widget>[
+                      _buildMoneyField(
+                        _interestController,
+                        '利息总额',
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      _buildSelectorRow(
+                        label: '利息扣除方式',
+                        value: _interestDeductLabel,
+                        icon: Icons.percent_outlined,
+                        onTap: () => _showOptionSheet(
+                          title: '利息扣除方式',
+                          options: const <String>[
+                            '按期均摊',
+                            '首期全部扣除',
+                            '尾期全部扣除',
+                          ],
+                          selected: _interestDeductLabel,
+                          onSelected: (String v) =>
+                              setState(() => _interestDeductLabel = v),
+                        ),
+                      ),
+                      _buildSelectorRow(
+                        label: '利息计入方式',
+                        value: _interestTimingLabel,
+                        icon: Icons.savings_outlined,
+                        onTap: () => _showOptionSheet(
+                          title: '利息计入方式',
+                          options: const <String>['分期时计入', '分期时全部计入'],
+                          selected: _interestTimingLabel,
+                          onSelected: (String v) =>
+                              setState(() => _interestTimingLabel = v),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppDimens.spaceLg),
+                  _buildSection(
+                    '账单信息',
+                    <Widget>[
+                      _buildAccountRow(),
+                      _buildBookRow(),
+                      _buildCategoryRow(),
+                    ],
+                  ),
+                  const SizedBox(height: AppDimens.spaceLg),
+                ],
+              ),
+            ),
+          ),
+          _buildFooter(),
+        ],
+      ),
+    );
+
+    if (widget.showAppBar) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              const Text('添加分期'),
+              Text(
+                '购买商品时进行分期',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          centerTitle: true,
+          actions: <Widget>[
+            TextButton(
+              onPressed: _saving ? null : _preview,
+              child: const Text('预览'),
             ),
           ],
         ),
-        centerTitle: true,
-        actions: <Widget>[
-          TextButton(
-            onPressed: _saving ? null : _preview,
-            child: const Text('预览'),
-          ),
-        ],
-      ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: SafeArea(
-          child: Column(
-            children: <Widget>[
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppDimens.spaceLg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      _buildSection(
-                        '分期信息',
-                        <Widget>[
-                          _buildTextField(_nameController, '名称'),
-                          _buildStepperRow(
-                            label: '分期期数',
-                            value: _periods,
-                            onDecrease: _periods <= 1
-                                ? null
-                                : () => setState(() => _periods--),
-                            onIncrease: _periods >= 120
-                                ? null
-                                : () => setState(() => _periods++),
-                          ),
-                          _buildDateRow(
-                            label: '开始时间',
-                            value: _firstDueAt,
-                            onTap: _pickFirstDue,
-                          ),
-                          _buildSelectorRow(
-                            label: '重复周期',
-                            value: _repeatRule.displayLabel(
-                              fallbackDay: _firstDueAt.day,
-                            ),
-                            subtitle: '默认按月重复，入账日与开始时间一致',
-                            icon: Icons.repeat_outlined,
-                            onTap: _pickRepeatRule,
-                          ),
-                          _buildSelectorRow(
-                            label: '余数计算方式',
-                            value: _roundingLabel,
-                            icon: Icons.calculate_outlined,
-                            onTap: () => _showOptionSheet(
-                              title: '余数计算方式',
-                              options: const <String>['四舍五入', '向上取整', '向下取整'],
-                              selected: _roundingLabel,
-                              onSelected: (String v) =>
-                                  setState(() => _roundingLabel = v),
-                            ),
-                          ),
-                          _buildSelectorRow(
-                            label: '差额归期',
-                            value: _remainderLabel,
-                            icon: Icons.swap_horiz_outlined,
-                            onTap: () => _showOptionSheet(
-                              title: '差额归期',
-                              options: const <String>['首期', '末期'],
-                              selected: _remainderLabel,
-                              onSelected: (String v) =>
-                                  setState(() => _remainderLabel = v),
-                            ),
-                          ),
-                          _buildSelectorRow(
-                            label: '计算精度',
-                            value: _precisionLabel,
-                            icon: Icons.pin_outlined,
-                            onTap: () => _showOptionSheet(
-                              title: '计算精度',
-                              options: const <String>['小数点后2位', '小数点后1位', '整数'],
-                              selected: _precisionLabel,
-                              onSelected: (String v) =>
-                                  setState(() => _precisionLabel = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppDimens.spaceLg),
-                      _buildSection(
-                        '本金',
-                        <Widget>[
-                          _buildMoneyField(
-                            _principalController,
-                            '分期本金',
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          _buildSelectorRow(
-                            label: '本金计入方式',
-                            value: _principalTimingLabel,
-                            subtitle: '控制本金何时从扣款账户扣除，默认每期入账时扣',
-                            icon: Icons.account_balance_wallet_outlined,
-                            onTap: () => _showOptionSheet(
-                              title: '本金计入方式',
-                              options: const <String>['分期时记入', '每期入账时扣'],
-                              selected: _principalTimingLabel,
-                              onSelected: (String v) => setState(
-                                  () => _principalTimingLabel = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppDimens.spaceLg),
-                      _buildSection(
-                        '利息',
-                        <Widget>[
-                          _buildMoneyField(
-                            _interestController,
-                            '利息总额',
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          _buildSelectorRow(
-                            label: '利息扣除方式',
-                            value: _interestDeductLabel,
-                            icon: Icons.percent_outlined,
-                            onTap: () => _showOptionSheet(
-                              title: '利息扣除方式',
-                              options: const <String>[
-                                '按期均摊',
-                                '首期全部扣除',
-                                '尾期全部扣除',
-                              ],
-                              selected: _interestDeductLabel,
-                              onSelected: (String v) => setState(
-                                  () => _interestDeductLabel = v),
-                            ),
-                          ),
-                          _buildSelectorRow(
-                            label: '利息计入方式',
-                            value: _interestTimingLabel,
-                            subtitle: '控制利息何时从扣款账户扣除，默认每期入账时扣',
-                            icon: Icons.savings_outlined,
-                            onTap: () => _showOptionSheet(
-                              title: '利息计入方式',
-                              options: const <String>['分期时记入', '每期入账时扣'],
-                              selected: _interestTimingLabel,
-                              onSelected: (String v) => setState(
-                                  () => _interestTimingLabel = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppDimens.spaceLg),
-                      _buildSection(
-                        '账单信息',
-                        <Widget>[
-                          _buildAccountRow(),
-                          _buildBookRow(),
-                          _buildCategoryRow(),
-                        ],
-                      ),
-                      const SizedBox(height: AppDimens.spaceLg),
-                    ],
-                  ),
-                ),
-              ),
-              _buildFooter(),
-            ],
-          ),
-        ),
-      ),
-    );
+        body: SafeArea(child: body),
+      );
+    }
+    return body;
   }
 
   Widget _buildSection(String title, List<Widget> children) {
@@ -348,18 +353,70 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     return result;
   }
 
+  /// 统一输入框装饰：所有状态边框、圆角、填充色及内外边距保持一致，
+  /// 并通过占位 [prefixIcon] 强制内容区高度与带 ¥ 符号的金额输入框对齐。
+  ///
+  /// [alignWithMoneyField] 为 true 时，若未提供真实 prefixIcon，会自动塞入一个
+  /// 与 ¥ 符号同宽（44px）的透明占位，使普通输入框的文本起始位置与金额输入框对齐。
+  InputDecoration _buildFieldDecoration({
+    required String hintText,
+    Widget? prefixIcon,
+    bool alignWithMoneyField = false,
+  }) {
+    final OutlineInputBorder border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      borderSide: const BorderSide(color: AppColors.divider),
+    );
+    // 当没有真实 prefixIcon 时，塞入一个透明占位，
+    // 让普通输入框的内容区高度与带 ¥ 的输入框（prefixIcon 24×24）完全一致。
+    // 若 [alignWithMoneyField] 为 true，占位宽度与真实 ¥ prefixIcon（44px）相同，
+    // 使名称等普通输入框的文本与金额输入框水平对齐，同时自然留出左留白。
+    final bool hasRealPrefix = prefixIcon != null;
+    final bool useWidePlaceholder = !hasRealPrefix && alignWithMoneyField;
+    final Widget effectivePrefixIcon = hasRealPrefix
+        ? prefixIcon
+        : SizedBox(width: useWidePlaceholder ? 24 : 0, height: 24);
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: Theme.of(context)
+          .textTheme
+          .bodyMedium
+          ?.copyWith(color: AppColors.textTertiary),
+      prefixIcon: effectivePrefixIcon,
+      prefixIconConstraints: BoxConstraints(
+        minWidth: hasRealPrefix || useWidePlaceholder ? 44 : 0,
+        minHeight: 24,
+      ),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.spaceMd,
+        vertical: AppDimens.spaceXs / 2,
+      ),
+      border: border,
+      enabledBorder: border,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        borderSide: const BorderSide(color: AppColors.primary),
+      ),
+      disabledBorder: border,
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        borderSide: const BorderSide(color: AppColors.danger),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        borderSide: const BorderSide(color: AppColors.danger),
+      ),
+    );
+  }
+
   Widget _buildTextField(TextEditingController controller, String hint) {
     return TextField(
       controller: controller,
-      decoration: InputDecoration(
+      decoration: _buildFieldDecoration(
         hintText: hint,
-        hintStyle: Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.copyWith(color: AppColors.textTertiary),
-        border: InputBorder.none,
-        filled: false,
-        contentPadding: EdgeInsets.zero,
+        alignWithMoneyField: true,
       ),
       textInputAction: TextInputAction.next,
       onTapOutside: (_) => FocusScope.of(context).unfocus(),
@@ -371,78 +428,53 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     String hint, {
     ValueChanged<String>? onChanged,
   }) {
-    return Row(
-      children: <Widget>[
-        Container(
-          width: 28,
-          height: 28,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-          ),
-          child: Text(
-            '¥',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ),
-        const SizedBox(width: AppDimens.spaceSm),
-        Expanded(
-          child: TextField(
-            controller: controller,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.textTertiary),
-              border: InputBorder.none,
-              filled: false,
-              contentPadding: EdgeInsets.zero,
+    return TextField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.next,
+      decoration: _buildFieldDecoration(
+        hintText: hint,
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: 12, right: 8),
+          child: Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
             ),
-            onChanged: onChanged,
-            onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            child: Text(
+              '¥',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
           ),
         ),
-      ],
+      ),
+      onChanged: onChanged,
+      onTapOutside: (_) => FocusScope.of(context).unfocus(),
     );
   }
 
   Widget _buildStepperRow({
     required String label,
     required int value,
-    required VoidCallback? onDecrease,
-    required VoidCallback? onIncrease,
+    required int min,
+    required int max,
+    required ValueChanged<int> onChanged,
   }) {
     return Row(
       children: <Widget>[
         Text(label, style: Theme.of(context).textTheme.bodyMedium),
         const Spacer(),
-        IconButton(
-          icon: const Icon(Icons.remove_circle_outline),
-          onPressed: onDecrease,
-          color: AppColors.textSecondary,
-        ),
-        SizedBox(
-          width: 40,
-          child: Text(
-            '$value',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.add_circle_outline),
-          onPressed: onIncrease,
-          color: AppColors.textSecondary,
+        _InlineNumberStepper(
+          value: value,
+          min: min,
+          max: max,
+          onChanged: onChanged,
         ),
       ],
     );
@@ -466,15 +498,10 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           Text(label, style: Theme.of(context).textTheme.bodyMedium),
           const Spacer(),
           Text(
-            DateFormat('yyyy年M月d日 HH:mm').format(value),
+            DateFormat('yyyy年M月d日').format(value),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
-          ),
-          Icon(
-            Icons.chevron_right,
-            size: 18,
-            color: AppColors.textTertiary,
           ),
         ],
       ),
@@ -524,17 +551,35 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   color: AppColors.textSecondary,
                 ),
           ),
-          Icon(
-            Icons.chevron_right,
-            size: 18,
-            color: AppColors.textTertiary,
-          ),
         ],
       ),
     );
   }
 
+  /// 带边框圆角的选择框，与输入框共用 [_buildFieldDecoration]，
+  /// 通过 [InputDecorator] 保证边框、圆角、填充及高度完全一致。
+  Widget _buildOutlinedSelector({
+    required Widget child,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        child: InputDecorator(
+          decoration: _buildFieldDecoration(hintText: ''),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 24),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickFirstDue() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final DateTime? picked = await DatePickerSheet.show(
       context,
       initialDate: _firstDueAt,
@@ -542,6 +587,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       lastDate: DateTime(2100),
       currentTimeLabel: '当前时间',
     );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (picked != null && mounted) {
       setState(() {
         _firstDueAt = DateTime(
@@ -565,10 +611,12 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   }
 
   Future<void> _pickRepeatRule() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final InstallmentRepeatRule? picked = await RepeatPickerSheet.show(
       context,
       initialRule: _repeatRule,
     );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (picked != null && mounted) {
       setState(() => _repeatRule = picked);
     }
@@ -580,6 +628,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     required String selected,
     required ValueChanged<String> onSelected,
   }) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final String? result = await showModalBottomSheet<String>(
       context: context,
       shape: RoundedRectangleBorder(
@@ -620,6 +669,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         ),
       ),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (result != null && mounted) {
       onSelected(result);
     }
@@ -631,10 +681,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       data: (List<Account> list) {
         final Account? selected =
             list.where((Account a) => a.id == _accountId).firstOrNull;
-        return InkWell(
-          onTap: list.isEmpty
-              ? null
-              : () => _showAccountPicker(list),
+        return _buildOutlinedSelector(
+          onTap: list.isEmpty ? null : () => _showAccountPicker(list),
           child: Row(
             children: <Widget>[
               Icon(
@@ -653,11 +701,6 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       ),
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: AppColors.textTertiary,
-              ),
             ],
           ),
         );
@@ -668,6 +711,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   }
 
   Future<void> _showAccountPicker(List<Account> accounts) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final String? result = await showModalBottomSheet<String>(
       context: context,
       shape: RoundedRectangleBorder(
@@ -708,6 +752,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         ),
       ),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (result != null && mounted) {
       setState(() => _accountId = result);
     }
@@ -746,11 +791,6 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: AppColors.textTertiary,
-            ),
           ],
         ),
       ),
@@ -766,7 +806,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       data: (List<Category> list) {
         final Category? selected =
             list.where((Category c) => c.id == _categoryId).firstOrNull;
-        return InkWell(
+        return _buildOutlinedSelector(
           onTap: list.isEmpty ? null : () => _showCategoryPicker(list),
           child: Row(
             children: <Widget>[
@@ -786,11 +826,6 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       ),
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: AppColors.textTertiary,
-              ),
             ],
           ),
         );
@@ -801,6 +836,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   }
 
   Future<void> _showCategoryPicker(List<Category> categories) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final List<Category> parents = categories
         .where((Category c) => c.parentId == null)
         .toList(growable: false);
@@ -847,6 +883,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         ),
       ),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (result != null && mounted) {
       setState(() => _categoryId = result);
     }
@@ -983,9 +1020,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       (_remainderLabel == '末期' && index == _periods - 1
                           ? remainder
                           : 0);
-                  final int periodFee = feeByPeriod.length > index
-                      ? feeByPeriod[index]
-                      : 0;
+                  final int periodFee =
+                      feeByPeriod.length > index ? feeByPeriod[index] : 0;
                   final int total = amount + periodFee;
                   return ListTile(
                     dense: true,
@@ -1008,5 +1044,164 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   void _toast(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+/// 内联可编辑数字步进器。
+///
+/// 中间数字为可编辑文本框，支持数字键盘直接输入；失去焦点或提交时自动
+/// 校验并限制在 [min]、[max] 范围。两侧 +/- 按钮仍可按步调整。
+class _InlineNumberStepper extends StatefulWidget {
+  const _InlineNumberStepper({
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onChanged,
+  });
+
+  final int value;
+  final int min;
+  final int max;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_InlineNumberStepper> createState() => _InlineNumberStepperState();
+}
+
+class _InlineNumberStepperState extends State<_InlineNumberStepper> {
+  late final TextEditingController _controller;
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: '${widget.value}');
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(covariant _InlineNumberStepper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value && !_focusNode.hasFocus) {
+      _controller.text = '${widget.value}';
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus) {
+      _commit();
+    }
+  }
+
+  void _commit() {
+    final int? parsed = int.tryParse(_controller.text);
+    if (parsed == null) {
+      _controller.text = '${widget.value}';
+      return;
+    }
+    final int clamped = parsed.clamp(widget.min, widget.max);
+    _controller.text = '$clamped';
+    if (clamped != widget.value) {
+      widget.onChanged(clamped);
+    }
+  }
+
+  int _parseCurrent() {
+    return int.tryParse(_controller.text)?.clamp(widget.min, widget.max) ??
+        widget.value;
+  }
+
+  void _decrease() {
+    final int current = _parseCurrent();
+    final int next = (current - 1).clamp(widget.min, widget.max);
+    _controller.text = '$next';
+    if (next != widget.value) {
+      widget.onChanged(next);
+    }
+  }
+
+  void _increase() {
+    final int current = _parseCurrent();
+    final int next = (current + 1).clamp(widget.min, widget.max);
+    _controller.text = '$next';
+    if (next != widget.value) {
+      widget.onChanged(next);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        IconButton(
+          icon: const Icon(Icons.remove_circle_outline),
+          onPressed: widget.value <= widget.min ? null : _decrease,
+          color: AppColors.textSecondary,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+        ),
+        SizedBox(
+          width: 48,
+          height: 30,
+          child: Center(
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              textAlign: TextAlign.center,
+              textAlignVertical: TextAlignVertical.center,
+              keyboardType: TextInputType.number,
+              maxLines: 1,
+              inputFormatters: <TextInputFormatter>[
+                FilteringTextInputFormatter.digitsOnly,
+              ],
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.0,
+                    color: AppColors.textPrimary,
+                  ),
+              strutStyle: const StrutStyle(
+                height: 1.0,
+                leading: 0,
+                forceStrutHeight: true,
+              ),
+              decoration: const InputDecoration(
+                isCollapsed: true,
+                contentPadding: EdgeInsets.zero,
+                filled: true,
+                fillColor: Colors.transparent,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+              ),
+              onSubmitted: (_) => _commit(),
+              onTap: () => _controller.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: _controller.text.length,
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.add_circle_outline),
+          onPressed: widget.value >= widget.max ? null : _increase,
+          color: AppColors.textSecondary,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+        ),
+      ],
+    );
   }
 }

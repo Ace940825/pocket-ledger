@@ -81,8 +81,7 @@ final AutoDisposeProvider<NetWorth> netWorthProvider =
       ref.watch(investmentListProvider).valueOrNull ??
           const <InvestmentHolding>[];
   final List<InventoryItem> items =
-      ref.watch(inventoryListProvider).valueOrNull ??
-          const <InventoryItem>[];
+      ref.watch(inventoryListProvider).valueOrNull ?? const <InventoryItem>[];
   final List<LendRecord> lends =
       ref.watch(lendListProvider).valueOrNull ?? const <LendRecord>[];
 

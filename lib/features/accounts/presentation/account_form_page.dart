@@ -64,8 +64,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
   /// 无账户名称输入（默认用类型标签），含信用额度、当前欠款、剩余额度、
   /// 账单日、还款日。
   bool get _isDebtNonCredit =>
-      widget.accountType.isDebt &&
-      widget.accountType != AccountType.creditCard;
+      widget.accountType.isDebt && widget.accountType != AccountType.creditCard;
 
   /// 是否需要显示信用额度 / 当前欠款 / 剩余额度 / 账单还款日。
   bool get _isDebtTemplate => _isDebtNonCredit || _isCreditCard;
@@ -211,8 +210,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
         );
     } else if (_isReceivableLend || _isPayableBorrow) {
       final String nameLabel = _isReceivableLend ? '借款给谁' : '向谁借';
-      final String amountLabel =
-          _isReceivableLend ? '借出金额' : '借入金额';
+      final String amountLabel = _isReceivableLend ? '借出金额' : '借入金额';
       fields
         ..add(
           _TextField(
@@ -226,8 +224,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             controller: _balanceController,
             label: amountLabel,
             prefixText: '¥ ',
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             suffix: const Icon(
               Icons.calculate_outlined,
               size: 18,
@@ -257,8 +254,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             controller: _balanceController,
             label: _isDebt ? '当前欠款' : '账户余额',
             prefixText: '¥ ',
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             suffix: const Icon(
               Icons.calculate_outlined,
               size: 18,
@@ -396,8 +392,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               bankName: _bankName,
               label: _isCreditCard ? '发卡银行' : '开户银行',
               onTap: () async {
-                final String pageTitle =
-                    _isCreditCard ? '信用卡' : '借记卡';
+                final String pageTitle = _isCreditCard ? '信用卡' : '借记卡';
                 final String? bank = await Navigator.of(context).push<String>(
                   MaterialPageRoute<String>(
                     builder: (_) => BankSelectPage(title: pageTitle),
@@ -927,7 +922,7 @@ class _SwitchTile extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
           ),
         ],
       ),

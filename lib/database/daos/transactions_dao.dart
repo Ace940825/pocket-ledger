@@ -150,6 +150,27 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         .watchSingleOrNull();
   }
 
+  /// 实时监听关联到指定原账单的全部退款流水。
+  ///
+  /// 退款收入通过 [relatedId] 指向原支出账单，[sourceModule] 为 [SourceModule.refund]。
+  Stream<List<Transaction>> watchRefundsByRelatedId(
+    String relatedId, {
+    required String bookId,
+  }) {
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.deleted.equals(false) &
+                tbl.sourceModule.equals(SourceModule.refund.index) &
+                tbl.relatedId.equals(relatedId),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch();
+  }
+
   Future<Transaction?> getById(String id) {
     return (select(transactions)
           ..where(($TransactionsTable tbl) => tbl.id.equals(id)))

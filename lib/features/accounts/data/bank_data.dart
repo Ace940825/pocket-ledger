@@ -38,7 +38,10 @@ final List<Bank> kBuiltinBanks = <Bank>[
   const Bank(name: '广发银行', initial: 'G', color: Color(0xFFE5484D)),
   // J
   const Bank(name: '交通银行', initial: 'J', color: Color(0xFF003B8F)),
-  const Bank(name: '平安银行', initial: 'J', color: Color(0xFFF75C4F)), // 原深发展，拼音 P 更准确但放 J 近似
+  const Bank(
+      name: '平安银行',
+      initial: 'J',
+      color: Color(0xFFF75C4F)), // 原深发展，拼音 P 更准确但放 J 近似
   // M
   const Bank(name: '民生银行', initial: 'M', color: Color(0xFF0F9D70)),
   // N

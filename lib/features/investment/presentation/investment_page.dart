@@ -29,8 +29,7 @@ class InvestmentPage extends ConsumerWidget {
       items: holdings,
       emptyHint: '还没有持仓，点右下角新增',
       header: holdings.maybeWhen(
-        data: (List<InvestmentHolding> _) =>
-            const _PortfolioSummaryCard(),
+        data: (List<InvestmentHolding> _) => const _PortfolioSummaryCard(),
         orElse: () => null,
       ),
       onCreate: () => showHoldingEditor(context, ref),
@@ -88,8 +87,7 @@ class _PortfolioSummaryCard extends ConsumerWidget {
                 Expanded(
                   child: _Metric(
                     label: '收益率',
-                    value:
-                        '${(summary.profitRatio * 100).toStringAsFixed(2)}%',
+                    value: '${(summary.profitRatio * 100).toStringAsFixed(2)}%',
                     color: profitColor,
                   ),
                 ),
@@ -150,11 +148,11 @@ class _HoldingTile extends ConsumerWidget {
         '${Money.fromMinor(holding.currentPriceMinor).format()}'
         '${holding.priceUpdatedAt == null ? '' : '  ·  '
             '${DateFormat('MM-dd HH:mm').format(
-              DateTime.fromMillisecondsSinceEpoch(
-                holding.priceUpdatedAt!,
-                isUtc: true,
-              ).toLocal(),
-            )}'}',
+            DateTime.fromMillisecondsSinceEpoch(
+              holding.priceUpdatedAt!,
+              isUtc: true,
+            ).toLocal(),
+          )}'}',
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -178,9 +176,8 @@ class _HoldingTile extends ConsumerWidget {
 
   Future<void> _showPriceEditor(BuildContext context, WidgetRef ref) async {
     final TextEditingController controller = TextEditingController(
-      text: Money.fromMinor(holding.currentPriceMinor)
-          .decimal
-          .toStringAsFixed(4),
+      text:
+          Money.fromMinor(holding.currentPriceMinor).decimal.toStringAsFixed(4),
     );
     final bool? ok = await showDialog<bool>(
       context: context,
@@ -236,9 +233,7 @@ Future<void> showHoldingEditor(
   final TextEditingController nameController =
       TextEditingController(text: holding?.name ?? '');
   final TextEditingController quantityController = TextEditingController(
-    text: holding != null
-        ? holding.quantity.toStringAsFixed(4)
-        : '',
+    text: holding != null ? holding.quantity.toStringAsFixed(4) : '',
   );
   final TextEditingController costController = TextEditingController(
     text: holding != null

@@ -132,8 +132,7 @@ Future<void> _repairDefaultCategoryIcons(AppDatabase db) async {
       if (cat.iconKey != null && cat.iconKey!.isNotEmpty) continue;
       final _DefaultCategory? def = _defaultCategoryLookup[cat.name];
       if (def == null) continue;
-      await (db.update(db.categories)
-            ..where((tbl) => tbl.id.equals(cat.id)))
+      await (db.update(db.categories)..where((tbl) => tbl.id.equals(cat.id)))
           .write(
         CategoriesCompanion(
           iconKey: Value<String?>(def.iconKey),

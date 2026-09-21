@@ -127,7 +127,8 @@ enum AccountType {
         AccountType.futures ||
         AccountType.spot =>
           AccountCategory.investment,
-        AccountType.reimbursement || AccountType.lend =>
+        AccountType.reimbursement ||
+        AccountType.lend =>
           AccountCategory.receivable,
         AccountType.creditCard ||
         AccountType.huabei ||

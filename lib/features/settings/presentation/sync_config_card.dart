@@ -101,7 +101,6 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                     ],
                   ),
                   const SizedBox(height: AppDimens.spaceSm),
-
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('启用云同步'),
@@ -116,7 +115,6 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                     value: settings.enabled,
                     onChanged: _setEnabled,
                   ),
-
                   TextFormField(
                     controller: _urlController,
                     enabled: settings.enabled,
@@ -136,7 +134,6 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                     },
                   ),
                   const SizedBox(height: AppDimens.spaceMd),
-
                   TextFormField(
                     controller: _tokenController,
                     enabled: settings.enabled,
@@ -158,7 +155,6 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                         (v ?? '').trim().isEmpty ? '请填写令牌' : null,
                   ),
                   const SizedBox(height: AppDimens.spaceMd),
-
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(

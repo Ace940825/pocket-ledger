@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'app.dart';
 import 'core/bootstrap.dart';
 import 'core/config/env.dart';
 import 'database/app_database.dart';
+import 'features/record/providers/recording_settings_provider.dart';
 import 'providers/app_providers.dart';
 
 Future<void> main() async {
@@ -26,6 +28,9 @@ Future<void> main() async {
 
   // 3. 首次启动写入默认账本、账户与分类
   await bootstrapData(database);
+
+  // 4. 预加载 SharedPreferences（记账页面设置统一持久化，弹窗重开/重启不丢）
+  appPrefs = await SharedPreferences.getInstance();
 
   runApp(
     ProviderScope(

@@ -451,7 +451,7 @@ class _AccountCardHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppDimens.radiusLg),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.28 : 0.045),
+              color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.045),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
@@ -468,8 +468,8 @@ class _AccountCardHeader extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(
-                        isDark ? 0.18 : 0.12,
+                      color: AppColors.primary.withValues(
+                        alpha: isDark ? 0.18 : 0.12,
                       ),
                       shape: BoxShape.circle,
                     ),

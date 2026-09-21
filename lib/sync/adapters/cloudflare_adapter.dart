@@ -107,9 +107,7 @@ class CloudflareAdapter implements SyncAdapter {
           '/api/sync/push',
           data: <String, Object?>{
             'device': deviceId,
-            'ops': ops
-                .map((SyncOp op) => op.toJson())
-                .toList(growable: false),
+            'ops': ops.map((SyncOp op) => op.toJson()).toList(growable: false),
           },
         );
 
