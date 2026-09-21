@@ -72,7 +72,8 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(vertical: 13 * s),
                 child: Row(
                   children: <Widget>[
-                    _CloseBtn(size: 30 * s, onTap: () => Navigator.pop(context)),
+                    _CloseBtn(
+                        size: 30 * s, onTap: () => Navigator.pop(context)),
                     Expanded(
                       child: Center(
                         child: Text(
@@ -131,8 +132,9 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                       subtitle: '没有选择资产会弹出提示',
                       trailing: Switch(
                         value: settings.promptWhenNoAsset,
-                        activeColor: ForestGreen.cta,
-                        activeTrackColor: ForestGreen.cta.withValues(alpha: .55),
+                        activeThumbColor: ForestGreen.cta,
+                        activeTrackColor:
+                            ForestGreen.cta.withValues(alpha: .55),
                         onChanged: (_) => notifier.togglePromptWhenNoAsset(),
                       ),
                     ),
@@ -146,8 +148,9 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                           '如银行卡剩余1元记账2元将无法记录',
                       trailing: Switch(
                         value: settings.balanceInsufficientCheck,
-                        activeColor: ForestGreen.cta,
-                        activeTrackColor: ForestGreen.cta.withValues(alpha: .55),
+                        activeThumbColor: ForestGreen.cta,
+                        activeTrackColor:
+                            ForestGreen.cta.withValues(alpha: .55),
                         onChanged: (_) =>
                             notifier.toggleBalanceInsufficientCheck(),
                       ),
@@ -174,8 +177,8 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
     );
   }
 
-  Widget _hairline(double s) =>
-      Divider(height: 1, thickness: 1, color: const Color(0x1A2E5B39), indent: 14 * s);
+  Widget _hairline(double s) => Divider(
+      height: 1, thickness: 1, color: const Color(0x1A2E5B39), indent: 14 * s);
 
   /// 二级弹窗：完整版账户选择列表（无齿轮键），点卡片直接确认返回。
   Future<void> _pickDefaultAccount(BuildContext context, WidgetRef ref) async {
@@ -189,7 +192,8 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
               sheetRef.watch(accountsProvider);
           return accountsValue.when(
             data: (List<Account> items) => AccountPickerSheet(
-              accounts: items,
+              // 默认资产账户是真实资产账户，排除应收 / 应付对方虚拟账户
+              accounts: fundAccountsOnly(items),
               showSettings: false, // 二级弹窗不显示齿轮键
               onReload: () => sheetRef.invalidate(accountsProvider),
               // 不关闭当前「选择账户」弹窗，把目标页压在上面；
@@ -202,7 +206,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
               },
               // 点「不选择具体账户」时 onConfirm 收到 null，用空字符串区分
               // 「明确选择不选择」（''）与「下滑关闭」（null）。
-              onConfirm: (String? name) => Navigator.of(ctx).pop(name ?? ''),
+              onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.name ?? ''),
             ),
             loading: () => Container(
               decoration: const BoxDecoration(
@@ -265,7 +269,8 @@ class _CloseBtn extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         alignment: Alignment.center,
-        child: const Icon(Icons.close, size: 16, color: ForestNeutral.textPrimary),
+        child:
+            const Icon(Icons.close, size: 16, color: ForestNeutral.textPrimary),
       ),
     );
   }

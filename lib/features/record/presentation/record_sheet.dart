@@ -1029,13 +1029,35 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     required ValueChanged<String?> onChanged,
     String? excludeId,
     String placeholder = '请选择',
+    /// 限定可选项大类；非空时仅展示这些大类（如借还借入/借出账户限定为
+    /// 应付 / 应收），为空则展示资金类账户（排除应收 / 应付对方虚拟账户）。
+    List<AccountCategory>? allowedCategories,
+    /// 限定可选项具体类型；非空时只展示这些类型（优先级高于 [allowedCategories]），
+    /// 用于「报销账户」这类只需应收类中的某一个分支（如仅报销、不含借出）。
+    List<AccountType>? allowedTypes,
   }) {
     final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
     return accounts.when(
       data: (List<Account> list) {
-        final List<Account> shown = (excludeId != null && list.length > 1)
-            ? list.where((Account a) => a.id != excludeId).toList()
-            : list;
+        // 资金类（默认）排除应收 / 应付；allowedTypes 按具体类型过滤，
+        // allowedCategories 按大类过滤，二选一（allowedTypes 优先）。
+        List<Account> shown;
+        if (allowedTypes != null) {
+          shown = list
+              .where((Account a) => allowedTypes.contains(a.type))
+              .toList(growable: false);
+        } else if (allowedCategories == null) {
+          shown = fundAccountsOnly(list);
+        } else {
+          shown = list
+              .where(
+                (Account a) => allowedCategories.contains(a.type.category),
+              )
+              .toList(growable: false);
+        }
+        if (excludeId != null && shown.length > 1) {
+          shown = shown.where((Account a) => a.id != excludeId).toList();
+        }
         final String? safe =
             shown.any((Account a) => a.id == value) ? value : null;
         final Account? selected =
@@ -1049,6 +1071,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     ? null
                     : () => _showTransferAccountPicker(
                           label: label,
+                          // 可选项已由 shown 处理：资金类（默认）或限定大类（报销账户=应收 / 应付）
                           accounts: shown,
                           selectedId: safe,
                           onChanged: onChanged,
@@ -1117,6 +1140,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
+  /// 弹出 A 模板账户选择弹窗（转账 / 借还 / 报销 / 退款各 tab 通用）。
+  ///
+  /// 与支出/收入功能键的账户选择同源：网格卡片 + 列表切换 + 添加 / 资产管理
+  /// （添加、资产管理页压在弹窗上，返回后弹窗原位）。这些场景账户必选，
+  /// 不显示「不选择具体账户」行。
   Future<void> _showTransferAccountPicker({
     required String label,
     required List<Account> accounts,
@@ -1125,42 +1153,27 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   }) async {
     final String? result = await showModalBottomSheet<String>(
       context: context,
-      builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(AppDimens.spaceMd),
-              child: Text(
-                '选择$label',
-                style: Theme.of(ctx).textTheme.titleSmall,
-              ),
-            ),
-            const Divider(height: 1),
-            ListView.separated(
-              shrinkWrap: true,
-              itemCount: accounts.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (BuildContext ctx, int index) {
-                final Account account = accounts[index];
-                final bool selected = account.id == selectedId;
-                return ListTile(
-                  title: Text(account.name),
-                  trailing: selected
-                      ? Icon(
-                          Icons.check,
-                          color: Theme.of(ctx).colorScheme.primary,
-                        )
-                      : null,
-                  onTap: () => Navigator.of(ctx).pop(account.id),
-                );
-              },
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => AccountPickerSheet(
+        accounts: accounts,
+        selectedId: selectedId,
+        title: '选择$label',
+        showNoneRow: false, // 转账 / 借还 / 报销 / 退款：账户必选
+        onReload: () => ref.invalidate(accountsProvider),
+        // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面；
+        // 页面返回后弹窗仍原位（回到「选择账户」这个入口界面）。
+        onAdd: () {
+          if (mounted) context.push(Routes.accountAdd);
+        },
+        onManage: () {
+          if (mounted) context.push(Routes.accountManage);
+        },
+        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
       ),
     );
-    if (result != null) onChanged(result);
+    if (result == null || result.isEmpty || !mounted) return;
+    onChanged(result);
   }
 
   /// 转账页手续费 / 优惠 / 计算器行。
@@ -1523,8 +1536,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
     return accounts.when(
       data: (List<Account> list) {
+        // allowedCategories 非空（借入/借出账户）：只展示 payable / receivable；
+        // 其余（资产账户、还款/收款账户）是资金类，排除应收应付对方虚拟账户。
         final List<Account> shown = allowedCategories == null
-            ? list
+            ? fundAccountsOnly(list)
             : list
                 .where(
                   (Account a) => allowedCategories.contains(a.type.category),
@@ -1719,7 +1734,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               },
               // 点「不选择具体账户」时 onConfirm 收到 null，用空字符串区分
               // 「明确选择不选择」（''）与「下滑关闭」（null）。
-              onConfirm: (String? name) => Navigator.of(ctx).pop(name ?? ''),
+              onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.name ?? ''),
             ),
             loading: () => Container(
               decoration: const BoxDecoration(
@@ -2292,6 +2307,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         label: '报销账户',
         value: _rbAccountId,
         placeholder: '请选择报销账户',
+        // 报销账户仅展示「报销」类型（应收类中的这一个分支，不含借出）
+        allowedTypes: const <AccountType>[AccountType.reimbursement],
         onChanged: (String? v) => setState(() => _rbAccountId = v),
       ),
       const SizedBox(height: AppDimens.spaceMd),
@@ -3042,43 +3059,79 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
       ),
-      builder: (BuildContext ctx) => _PromptSheet(
-        title: '优惠金额',
-        hint: '请输入优惠金额（元）',
-        initial: _discountAmount ?? '',
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      ),
+      builder: (BuildContext ctx) => DiscountSheet(initial: _discountAmount),
     );
     if (value == null || !mounted) return;
     setState(
         () => _discountAmount = value.trim().isEmpty ? null : value.trim());
   }
 
+  /// 支出 / 收入功能键「账户」：A 模板账户选择弹窗。
+  /// 可不选（「不选择具体账户」清空账户）；标题随当前 tab 变化。
   Future<void> _onSelectAccount() async {
+    final bool isExpense = _tab == RecordTab.expense;
     final String? selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       useRootNavigator: true,
-      shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
-      ),
-      builder: (BuildContext ctx) => _AccountSelectorSheet(
-        selectedId: _accountId,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => Consumer(
+        builder: (_, WidgetRef sheetRef, __) {
+          final AsyncValue<List<Account>> accountsValue =
+              sheetRef.watch(accountsProvider);
+          return accountsValue.when(
+            data: (List<Account> items) => AccountPickerSheet(
+              accounts: fundAccountsOnly(items),
+              selectedId: _accountId,
+              title: isExpense ? '选择支出账户' : '选择收入账户',
+              noneTitle: '不选择具体账户',
+              noneSubtitle: '仅计入收支账单，不计入资产',
+              onReload: () => sheetRef.invalidate(accountsProvider),
+              // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面；
+              // 页面返回后弹窗仍原位（回到「选择账户」这个入口界面）。
+              onAdd: () {
+                if (mounted) context.push(Routes.accountAdd);
+              },
+              onManage: () {
+                if (mounted) context.push(Routes.accountManage);
+              },
+              onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
+            ),
+            loading: () => Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: const SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 220,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ),
+            error: (Object e, _) => Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 220,
+                  child: Center(child: Text('加载失败：$e')),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
     if (selected == null || !mounted) return;
     if (selected.isEmpty) {
+      // 「不选择具体账户」：清空已选账户。
       setState(() => _accountId = null);
-      return;
-    }
-    if (selected == '#manage') {
-      if (mounted) unawaited(context.push(Routes.accountManage));
-      return;
-    }
-    if (selected == '#add') {
-      if (mounted) unawaited(context.push(Routes.accountAdd));
       return;
     }
     setState(() => _accountId = selected);
@@ -3954,479 +4007,436 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
   }
 }
 
-/// 账户选择底部面板（小青账风格）。
+/// 通用单行输入对话框。
+/// 优惠功能键弹窗：复刻「森林手账·鼠尾草绿」优惠金额模板。
 ///
-/// 顶部操作栏：关闭、最近、列表/网格切换、添加账户。
-/// 主体：账户卡片网格（默认）或列表。
-/// 底部：不选择具体账户、重新加载数据、资产管理。
-class _AccountSelectorSheet extends ConsumerStatefulWidget {
-  const _AccountSelectorSheet({
-    this.selectedId,
-  });
+/// 三种金额始终联动：优惠后金额 = 优惠前金额(原价) − 优惠金额。
+/// - 分段「输入优惠金额」：直接录入优惠（点「优惠前算法」可切到录入优惠后/实付）。
+/// - 分段「输入原价和实付」：录入原价与实付，反推优惠。
+/// 键盘复用项目内 [_RecordKeypad]（4×4：数字 + 删除/−/+ + 再记/0/•/保存）。
+/// 确认后回传的仍是「优惠金额」字符串（与旧 [_PromptSheet] 行为一致，最小化数据改动）。
+class DiscountSheet extends StatefulWidget {
+  const DiscountSheet({this.initial});
 
-  final String? selectedId;
+  /// 已填写的优惠金额（元字符串），用于回显。
+  final String? initial;
 
   @override
-  ConsumerState<_AccountSelectorSheet> createState() =>
-      _AccountSelectorSheetState();
+  State<DiscountSheet> createState() => _DiscountSheetState();
 }
 
-class _AccountSelectorSheetState extends ConsumerState<_AccountSelectorSheet> {
-  bool _listView = false;
+class _DiscountSheetState extends State<DiscountSheet> {
+  /// 优惠前金额(原价)
+  String _base = '';
+
+  /// 优惠金额
+  String _amt = '';
+
+  /// 优惠后金额(实付)
+  String _paid = '';
+
+  /// 分段模式：discount（仅优惠）/ original（原价+实付）
+  String _mode = 'discount';
+
+  /// 优惠模式下键盘写入目标：discount=优惠，paid=优惠后(实付)
+  String _algo = 'discount';
+
+  /// 原价+实付模式下键盘焦点：amt / base / paid
+  String _focus = 'amt';
+
+  /// 最近一次录入的字段，用于重算时反推另一项
+  String _lastEdited = 'amt';
 
   @override
-  Widget build(BuildContext context) {
-    final AsyncValue<List<Account>> accountsValue = ref.watch(accountsProvider);
-    // 必须完整显示 2x2 网格 + 顶部操作栏 + 底部按钮，iPhone 小屏也留足余量。
-    final double sheetHeight = MediaQuery.of(context).size.height * 0.50;
-
-    return SizedBox(
-      height: sheetHeight,
-      child: SafeArea(
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceSm,
-                0,
-                AppDimens.spaceMd,
-                0,
-              ),
-              child: Row(
-                children: <Widget>[
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.history),
-                    tooltip: '最近使用',
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('最近使用账户功能开发中')),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: AppDimens.spaceXs),
-                  _AccountSheetActionChip(
-                    icon: _listView ? Icons.grid_view : Icons.list,
-                    label: _listView ? '网格' : '列表',
-                    onTap: () => setState(() => _listView = !_listView),
-                  ),
-                  const SizedBox(width: AppDimens.spaceXs),
-                  _AccountSheetActionChip(
-                    icon: Icons.add,
-                    label: '添加',
-                    filled: true,
-                    onTap: () => Navigator.of(context).pop('#add'),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: accountsValue.when(
-                data: (List<Account> list) {
-                  if (list.isEmpty) {
-                    return const Center(child: Text('还没有账户'));
-                  }
-                  return AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: _listView
-                        ? _AccountListView(
-                            key: const ValueKey<String>('list'),
-                            accounts: list,
-                            selectedId: widget.selectedId,
-                          )
-                        : _AccountGridView(
-                            key: const ValueKey<String>('grid'),
-                            accounts: list,
-                            selectedId: widget.selectedId,
-                          ),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (Object e, _) => Center(child: Text('加载失败：$e')),
-              ),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              dense: true,
-              visualDensity: VisualDensity.compact,
-              leading: const Icon(Icons.account_balance_wallet_outlined),
-              title: const Text('不选择具体账户'),
-              subtitle: const Text('仅计入收支账单，不计入资产'),
-              onTap: () => Navigator.of(context).pop(''),
-            ),
-            Padding(
-              padding: EdgeInsets.zero,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  TextButton(
-                    onPressed: () => ref.invalidate(accountsProvider),
-                    child: const Text('重新加载数据'),
-                  ),
-                  const SizedBox(width: AppDimens.spaceLg),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop('#manage'),
-                    child: const Text('资产管理'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  void initState() {
+    super.initState();
+    _amt = widget.initial?.trim() ?? '';
   }
-}
 
-class _AccountSheetActionChip extends StatelessWidget {
-  const _AccountSheetActionChip({
-    this.icon,
-    required this.label,
-    this.filled = false,
-    required this.onTap,
-  });
+  double _toDouble(String v) {
+    if (v.isEmpty) return 0;
+    return double.tryParse(v) ?? 0;
+  }
 
-  final IconData? icon;
-  final String label;
-  final bool filled;
-  final VoidCallback onTap;
+  String _fmt(double v) {
+    final double d = (v * 100).round() / 100;
+    return d.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final Color bgColor =
-        filled ? AppColors.textPrimary : AppColors.surfaceLight;
-    final Color fgColor = filled ? Colors.white : AppColors.textSecondary;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
+  String _display(String v) => v.isEmpty ? '0.00' : v;
+
+  /// 当前键盘写入的字段 key
+  String _focusKey() {
+    if (_mode == 'original') return _focus;
+    return _algo == 'paid' ? 'paid' : 'amt';
+  }
+
+  void _recalc() {
+    final double base = _toDouble(_base);
+    final double amt = _toDouble(_amt);
+    final double paid = _toDouble(_paid);
+    if (_lastEdited == 'paid') {
+      double p = paid;
+      if (p > base) p = base;
+      _paid = _fmt(p);
+      _amt = _fmt(base - p);
+    } else if (_lastEdited == 'base') {
+      final double p = base - amt;
+      _paid = _fmt(p < 0 ? 0 : p);
+    } else {
+      final double p = base - amt;
+      _paid = _fmt(p < 0 ? 0 : p);
+    }
+  }
+
+  void _onKey(String v) {
+    final String key = _focusKey();
+    if (key == 'base') {
+      _base = v;
+      _lastEdited = 'base';
+    } else if (key == 'paid') {
+      _paid = v;
+      _lastEdited = 'paid';
+    } else {
+      _amt = v;
+      _lastEdited = 'amt';
+    }
+    _recalc();
+    setState(() {});
+  }
+
+  void _confirm() => Navigator.of(context).pop(_amt);
+
+  Future<void> _openAlgo() async {
+    final String? choice = await showModalBottomSheet<String>(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+      ),
+      builder: (BuildContext ctx) => SafeArea(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            if (icon != null) Icon(icon, size: 16, color: fgColor),
-            if (icon != null) const SizedBox(width: 4),
-            Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(color: fgColor),
+            const SizedBox(height: 8),
+            ListTile(
+              title: const Text('优惠前'),
+              subtitle: const Text('键盘输入为优惠前金额'),
+              trailing: _algo == 'discount'
+                  ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
+                  : null,
+              onTap: () => Navigator.of(ctx).pop('discount'),
             ),
+            ListTile(
+              title: const Text('优惠后'),
+              subtitle: const Text('键盘输入为优惠后金额'),
+              trailing: _algo == 'paid'
+                  ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
+                  : null,
+              onTap: () => Navigator.of(ctx).pop('paid'),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
+    if (choice == null || !mounted) return;
+    setState(() => _algo = choice);
   }
-}
 
-class _AccountGridView extends StatelessWidget {
-  const _AccountGridView({
-    super.key,
-    required this.accounts,
-    this.selectedId,
-  });
-
-  final List<Account> accounts;
-  final String? selectedId;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceSm,
-        vertical: 0,
-      ),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: AppDimens.spaceSm,
-        crossAxisSpacing: AppDimens.spaceSm,
-        childAspectRatio: 2.2,
-      ),
-      itemCount: accounts.length,
-      itemBuilder: (BuildContext context, int index) {
-        final Account account = accounts[index];
-        return _AccountCard(
-          account: account,
-          selected: account.id == selectedId,
-          onTap: () => Navigator.of(context).pop(account.id),
-        );
-      },
-    );
-  }
-}
-
-class _AccountListView extends StatelessWidget {
-  const _AccountListView({
-    super.key,
-    required this.accounts,
-    this.selectedId,
-  });
-
-  final List<Account> accounts;
-  final String? selectedId;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceSm),
-      itemCount: accounts.length,
-      itemBuilder: (BuildContext context, int index) {
-        final Account account = accounts[index];
-        final Color color = _accountColor(account);
-        final Money money = Money.fromMinor(account.balanceMinor);
-        return ListTile(
-          leading: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+  Widget _infoHint(ThemeData theme) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(Icons.info_outline,
+                size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                '支出可使用此功能：如信用卡笔笔返现，实际扣款 = 消费金额 − 优惠金额。',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
             ),
-            child: Icon(
-              accountIcon(account.type),
-              color: Colors.white,
-              size: 22,
+          ],
+        ),
+      );
+
+  Widget _segPill(ThemeData theme, String mode, String label) {
+    final bool on = _mode == mode;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _mode = mode),
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: on ? theme.colorScheme.primary : AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: on ? Colors.white : AppColors.textSecondary),
             ),
           ),
-          title: Text(account.name),
-          subtitle: Text(account.type.label),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+        ),
+      ),
+    );
+  }
+
+  Widget _amountPill(
+    ThemeData theme, {
+    required String label,
+    required String value,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? theme.colorScheme.primary
+                : AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Row(
             children: <Widget>[
-              MoneyText(
-                money,
-                style: theme.textTheme.bodyMedium,
-              ),
-              if (account.id == selectedId)
-                Padding(
-                  padding: const EdgeInsets.only(left: AppDimens.spaceSm),
-                  child: Icon(
-                    Icons.check_circle,
-                    color: theme.colorScheme.primary,
-                    size: 20,
-                  ),
+              Icon(Icons.local_offer_outlined,
+                  size: 14,
+                  color: selected ? Colors.white : AppColors.textSecondary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(label,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: selected
+                                ? Colors.white
+                                : AppColors.textSecondary)),
+                    const SizedBox(height: 2),
+                    Text('¥${_display(value)}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            color: selected ? Colors.white : theme.textTheme.bodyMedium?.color)),
+                  ],
                 ),
+              ),
+              if (selected)
+                const Icon(Icons.check, size: 16, color: Colors.white),
             ],
           ),
-          onTap: () => Navigator.of(context).pop(account.id),
-        );
-      },
+        ),
+      ),
     );
   }
-}
-
-class _AccountCard extends StatelessWidget {
-  const _AccountCard({
-    required this.account,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Account account;
-  final bool selected;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final Color color = _accountColor(account);
-    final Money balance = Money.fromMinor(account.balanceMinor);
-    final bool isCredit = account.type == AccountType.creditCard;
-    final int? creditLimit = account.creditLimitMinor;
-    final Money? available = (isCredit && creditLimit != null)
-        ? Money.fromMinor(creditLimit + account.balanceMinor)
-        : null;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          border: selected
-              ? Border.all(color: theme.colorScheme.primary, width: 2)
-              : null,
-        ),
-        child: Stack(
-          children: <Widget>[
-            // 背景水印图标（小青账风格）。
-            Positioned(
-              right: -6,
-              bottom: -6,
-              child: Opacity(
-                opacity: 0.06,
-                child: Icon(
-                  accountIcon(account.type),
-                  color: color,
-                  size: 44,
-                ),
+    final String focused = _focusKey();
+    final String keypadValue =
+        focused == 'base' ? _base : focused == 'paid' ? _paid : _amt;
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 8),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.spaceLg,
+              AppDimens.spaceMd,
+              AppDimens.spaceMd,
+              AppDimens.spaceSm,
+            ),
+            child: Row(
               children: <Widget>[
-                // 上方：账户名称左对齐。
-                Text(
-                  account.name,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    height: 1.0,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                // 中间：上行左侧可用余额；下行右侧账户资金。
-                if (available != null) _AvailableChip(available: available),
-                Row(
-                  children: <Widget>[
-                    const Spacer(),
-                    MoneyText(
-                      balance,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        height: 1.0,
-                      ),
-                    ),
-                  ],
-                ),
-                // 下方：左对齐账户类别 + 还款日。
-                Row(
-                  children: <Widget>[
-                    _AccountTypeChip(account: account, color: color),
-                    if (account.dueDay != null) ...<Widget>[
-                      const SizedBox(width: 4),
-                      _DueDayChip(day: account.dueDay!),
-                    ],
-                  ],
+                Text('优惠金额', style: theme.textTheme.titleMedium),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
-            if (selected)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Icon(
-                  Icons.check_circle,
-                  color: theme.colorScheme.primary,
-                  size: 16,
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(AppDimens.spaceLg),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('优惠前金额',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary)),
+                      const SizedBox(height: 4),
+                      Text('¥${_display(_base)}',
+                          style: theme.textTheme.headlineMedium),
+                    ],
+                  ),
                 ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      Text('优惠后金额',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary)),
+                      const SizedBox(height: 4),
+                      Text('¥${_display(_paid)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.primary)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+            child: _infoHint(theme),
+          ),
+          const SizedBox(height: AppDimens.spaceMd),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+            child: Row(
+              children: <Widget>[
+                _segPill(theme, 'discount', '输入优惠金额'),
+                const SizedBox(width: AppDimens.spaceSm),
+                _segPill(theme, 'original', '输入原价和实付'),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppDimens.spaceSm),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+            child: _mode == 'discount'
+                ? Row(
+                    children: <Widget>[
+                      _amountPill(
+                        theme,
+                        label: '优惠',
+                        value: _amt,
+                        selected: _algo == 'discount',
+                        onTap: () => setState(() => _algo = 'discount'),
+                      ),
+                      const SizedBox(width: AppDimens.spaceSm),
+                      Expanded(
+                        child: InkWell(
+                          onTap: _openAlgo,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.divider),
+                            ),
+                            child: Center(
+                              child: Text(
+                                _algo == 'paid' ? 'Ⓢ 优惠后算法' : 'Ⓢ 优惠前算法',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.primary),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: <Widget>[
+                      _amountPill(
+                        theme,
+                        label: '优惠',
+                        value: _amt,
+                        selected: _focus == 'amt',
+                        onTap: () => setState(() => _focus = 'amt'),
+                      ),
+                      const SizedBox(width: AppDimens.spaceSm),
+                      _amountPill(
+                        theme,
+                        label: '原价',
+                        value: _base,
+                        selected: _focus == 'base',
+                        onTap: () => setState(() => _focus = 'base'),
+                      ),
+                      const SizedBox(width: AppDimens.spaceSm),
+                      _amountPill(
+                        theme,
+                        label: '实付价格',
+                        value: _paid,
+                        selected: _focus == 'paid',
+                        onTap: () => setState(() => _focus = 'paid'),
+                      ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: AppDimens.spaceMd),
+          _RecordKeypad(
+            value: keypadValue,
+            onChanged: _onKey,
+            onSave: _confirm,
+            onSaveAndMore: null,
+            onOperator: null,
+            onBackspace: null,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.spaceLg,
+              AppDimens.spaceSm,
+              AppDimens.spaceLg,
+              AppDimens.spaceLg,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _confirm,
+                child: const Text('确定'),
               ),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _AvailableChip extends StatelessWidget {
-  const _AvailableChip({required this.available});
-
-  final Money available;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
-      decoration: BoxDecoration(
-        color: AppColors.divider.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        '可用:${available.format()}',
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: AppColors.textSecondary,
-          fontSize: 12,
-          height: 1.1,
-        ),
-      ),
-    );
-  }
-}
-
-class _AccountTypeChip extends StatelessWidget {
-  const _AccountTypeChip({
-    required this.account,
-    required this.color,
-  });
-
-  final Account account;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 0.5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        account.type.label,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: color,
-          fontSize: 12,
-          height: 1.1,
-        ),
-      ),
-    );
-  }
-}
-
-class _DueDayChip extends StatelessWidget {
-  const _DueDayChip({required this.day});
-
-  final int day;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 0.5),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.divider, width: 0.5),
-      ),
-      child: Text(
-        '${day}号',
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: AppColors.textSecondary,
-          fontSize: 12,
-          height: 1.1,
-        ),
-      ),
-    );
-  }
-}
-
-Color _accountColor(Account account) {
-  if (account.colorValue != null) return Color(account.colorValue!);
-  if (account.type == AccountType.bankCard ||
-      account.type == AccountType.creditCard) {
-    for (final Bank bank in kBuiltinBanks) {
-      if (account.name.contains(bank.name)) return bank.color;
-    }
-  }
-  return AppColors.primary;
-}
-
-/// 通用单行输入对话框。
 /// 通用底部弹出输入框：用于「优惠金额」「添加标签」等需要单行文本录入的功能键。
 class _PromptSheet extends StatefulWidget {
   const _PromptSheet({

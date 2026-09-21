@@ -16,6 +16,14 @@ import 'default_asset_settings_sheet.dart';
 
 // ───────────────────── 模板专属微调色（token 未覆盖的精确值，保持与设计一致） ─────────────────────
 
+/// 资金类账户列表：排除「应收 / 应付」对方虚拟账户。
+/// 借还 tab 的借入/借出账户选择器单独按 payable/receivable 展示，不受影响。
+List<Account> fundAccountsOnly(List<Account> list) => list
+    .where((Account a) =>
+        a.type.category != AccountCategory.payable &&
+        a.type.category != AccountCategory.receivable)
+    .toList();
+
 class _SheetA {
   // 卡片描边 rgba(44,51,41,.07)
   static const Color cardBorder = Color(0x122C3329);
@@ -38,23 +46,34 @@ class _SheetA {
 
 class AccountPickerSheet extends ConsumerStatefulWidget {
   final List<Account> accounts;
+
+  /// 选中态可二选一传入：资金账户按 [selectedId] 记忆（各 tab 通用），
+  /// 对方账户（应付/应收）按名称输入框记忆，传 [selectedName]。
   final String? selectedName;
+  final String? selectedId;
   final String title;
   final String noneTitle;
   final String? noneSubtitle;
   final VoidCallback? onManage;
   final VoidCallback? onAdd;
   final VoidCallback? onReload;
-  final ValueChanged<String?> onConfirm;
+
+  /// 确认回调：带回完整账户对象；「不选择具体账户」回 null。
+  final ValueChanged<Account?> onConfirm;
 
   /// 标题栏是否显示齿轮键（打开「默认选择资产设置」）。
   /// 作为二级弹窗（如从默认选择资产设置里再选账户）时传 false。
   final bool showSettings;
 
+  /// 是否显示「不选择具体账户」行。转账 / 借还 / 报销 / 退款等
+  /// 账户必选的场景传 false 隐藏。
+  final bool showNoneRow;
+
   const AccountPickerSheet({
     super.key,
     required this.accounts,
     this.selectedName,
+    this.selectedId,
     this.title = '选择账户',
     this.noneTitle = '不选择具体账户',
     this.noneSubtitle,
@@ -62,6 +81,7 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
     this.onAdd,
     this.onReload,
     this.showSettings = true,
+    this.showNoneRow = true,
     required this.onConfirm,
   });
 
@@ -85,12 +105,32 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
   @override
   void initState() {
     super.initState();
-    _selected = widget.selectedName;
+    // 优先按 id 定位选中态（各 tab 资金账户按 id 记忆），
+    // 其次按名称（应付/应收对方账户按名称记忆）。
+    String? initial = widget.selectedName;
+    if (widget.selectedId != null) {
+      for (final Account a in widget.accounts) {
+        if (a.id == widget.selectedId) {
+          initial = a.name;
+          break;
+        }
+      }
+    }
+    _selected = initial;
+  }
+
+  /// 把内部选中的名称解析回账户对象；空 / 找不到时回 null（= 不选择）。
+  Account? _accountOf(String? name) {
+    if (name == null || name.isEmpty) return null;
+    for (final Account a in widget.accounts) {
+      if (a.name == name) return a;
+    }
+    return null;
   }
 
   void _pick(String? name) {
     final String? value = name?.isEmpty == true ? null : name;
-    widget.onConfirm(value);
+    widget.onConfirm(_accountOf(value));
   }
 
   @override
@@ -123,7 +163,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
               ),
               _buildHeader(),
               _buildBody(),
-              _buildNoneRow(),
+              if (widget.showNoneRow) _buildNoneRow(),
               _buildOps(),
               const SizedBox(height: 14),
             ],
@@ -197,9 +237,9 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
     }
 
     // 主体区域高度与网格模式统一：最多显示 2 行卡（94*2+6=194），不足 4 卡时按行数自适应
+    // （卡内文字已加 height:1.2 收紧行距，信用卡四行内容约 72px，94 卡高内不溢出）
     final int rows = (items.length + 1) ~/ 2;
-    final double bodyHeight =
-        rows >= 2 ? 94 * 2 + 6 : 94.0 * rows;
+    final double bodyHeight = rows >= 2 ? 94 * 2 + 6 : 94.0 * rows;
 
     if (_listView) {
       return Padding(
@@ -236,7 +276,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
       padding: const EdgeInsets.fromLTRB(14, 3, 14, 6),
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
-          // 统一卡高 94（定稿值）：按实际可用宽度反推 aspectRatio，多机型保持等高
+          // 统一卡高 94（定稿值）：信用卡内容靠 height:1.2 行距收紧适配，避免溢出
           const double gap = 6; // 网格间距
           const double cardHeight = 94;
           final double cardWidth = (constraints.maxWidth - gap) / 2;
@@ -249,8 +289,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
               crossAxisSpacing: gap,
               childAspectRatio: cardWidth / cardHeight,
               padding: EdgeInsets.zero,
-              children:
-                  items.map((Account account) {
+              children: items.map((Account account) {
                 final bool selected = _selected == account.name;
                 return _AccountTile(
                   account: account,
@@ -549,6 +588,7 @@ class _CardInner extends StatelessWidget {
         money.format(),
         style: TextStyle(
           fontSize: 14,
+          height: 1.2, // 模板行距节奏：收紧后信用卡四行内容稳定落在 94 卡高内
           fontWeight: FontWeight.w800,
           color: amountColor,
           fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
@@ -570,6 +610,7 @@ class _CardInner extends StatelessWidget {
             _typeLabel(account.type),
             style: TextStyle(
               fontSize: 10.5,
+              height: 1.2,
               fontWeight: FontWeight.w600,
               color: selected ? ForestSage.ink : ForestGreen.deep,
             ),
@@ -582,6 +623,7 @@ class _CardInner extends StatelessWidget {
             '还款 ${account.dueDay}号',
             style: const TextStyle(
               fontSize: 10.5,
+              height: 1.2,
               color: _SheetA.dueText,
               fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
             ),
@@ -597,6 +639,7 @@ class _CardInner extends StatelessWidget {
           account.name,
           style: TextStyle(
             fontSize: 13.5,
+            height: 1.2,
             fontWeight: FontWeight.w700,
             color: titleColor,
           ),
@@ -635,6 +678,7 @@ class _CardInner extends StatelessWidget {
         '可用 ${available.format()}',
         style: const TextStyle(
           fontSize: 10,
+          height: 1.2,
           fontWeight: FontWeight.w600,
           color: Color(0xFF8A7B5C),
           fontFeatures: <FontFeature>[FontFeature.tabularFigures()],

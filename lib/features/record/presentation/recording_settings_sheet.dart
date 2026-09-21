@@ -294,8 +294,9 @@ class _GeneralTab extends ConsumerWidget {
           label: '记录未来账单',
           sub: '允许记录未来日期的账单',
           value: settings.recordFutureBill,
-          onChanged: (_) =>
-              ref.read(recordingSettingsProvider.notifier).toggleRecordFutureBill(),
+          onChanged: (_) => ref
+              .read(recordingSettingsProvider.notifier)
+              .toggleRecordFutureBill(),
         ),
         _SettingsSwitchTile(
           label: '图片裁剪',
@@ -402,8 +403,9 @@ class _DefaultTab extends ConsumerWidget {
           label: '分类资产记忆',
           sub: '选分类自动带出上次使用的资产',
           value: settings.categoryAssetMemory,
-          onChanged: (_) =>
-              ref.read(recordingSettingsProvider.notifier).toggleCategoryAssetMemory(),
+          onChanged: (_) => ref
+              .read(recordingSettingsProvider.notifier)
+              .toggleCategoryAssetMemory(),
         ),
         _SettingsTile(
           label: '常用资产',
@@ -447,8 +449,7 @@ class _CategoryTab extends ConsumerWidget {
           sub: '${settings.categoryRows} 行',
           onTap: () => _SimpleSettingsSheet.show(context, '分类显示行数'),
         ),
-        if (version == 'opt')
-          _buildOptNote('分类设置已较精简，结构保持不变。'),
+        if (version == 'opt') _buildOptNote('分类设置已较精简，结构保持不变。'),
       ],
     );
   }
@@ -598,7 +599,7 @@ class _SettingsSwitchTile extends StatelessWidget {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeColor: AppColors.success,
+              activeThumbColor: AppColors.success,
             ),
           ],
         ),
@@ -921,7 +922,8 @@ class _KeyboardThemeSheet extends ConsumerWidget {
         children: <Widget>[
           const SizedBox(
             width: 22,
-            child: Text('◎', style: TextStyle(fontSize: 16, color: AppColors.textTertiary)),
+            child: Text('◎',
+                style: TextStyle(fontSize: 16, color: AppColors.textTertiary)),
           ),
           const Text(
             '键盘高度比例',
@@ -1094,7 +1096,8 @@ class _PillRow extends StatelessWidget {
                       option,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.normal,
                         color: selected ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
@@ -1157,11 +1160,31 @@ class _KeyboardPreview extends ConsumerWidget {
 
   Widget _buildFuncButtons(RecordingSettings settings) {
     final List<_FuncBtn> buttons = <_FuncBtn>[
-      const _FuncBtn(label: '账户', icon: Icons.account_balance_outlined, color: Color(0xFFFFD666), textColor: Color(0xFFB8860B)),
-      const _FuncBtn(label: '图片', icon: Icons.image_outlined, color: Color(0xFF7ED321), textColor: Colors.white),
-      const _FuncBtn(label: '标签', icon: Icons.label_outlined, color: Color(0xFF50E3C2), textColor: Colors.white),
-      const _FuncBtn(label: '不计入', icon: Icons.block, color: Color(0xFFB8B8B8), textColor: Colors.white),
-      const _FuncBtn(label: '模板', icon: Icons.edit_note, color: Color(0xFF9013FE), textColor: Colors.white),
+      const _FuncBtn(
+          label: '账户',
+          icon: Icons.account_balance_outlined,
+          color: Color(0xFFFFD666),
+          textColor: Color(0xFFB8860B)),
+      const _FuncBtn(
+          label: '图片',
+          icon: Icons.image_outlined,
+          color: Color(0xFF7ED321),
+          textColor: Colors.white),
+      const _FuncBtn(
+          label: '标签',
+          icon: Icons.label_outlined,
+          color: Color(0xFF50E3C2),
+          textColor: Colors.white),
+      const _FuncBtn(
+          label: '不计入',
+          icon: Icons.block,
+          color: Color(0xFFB8B8B8),
+          textColor: Colors.white),
+      const _FuncBtn(
+          label: '模板',
+          icon: Icons.edit_note,
+          color: Color(0xFF9013FE),
+          textColor: Colors.white),
     ];
 
     final bool iconBg = settings.iconBackground == '开启';
