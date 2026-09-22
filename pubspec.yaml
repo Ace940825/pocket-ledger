@@ -56,6 +56,8 @@ dependencies:
 
   # 图片附件：从相册/相机选取票据与物品照片
   image_picker: ^1.1.2
+  # 直接 import 其 API（启用 Android Photo Picker 硬性锁定多选上限）
+  image_picker_android: ^0.8.13
 
 dev_dependencies:
   flutter_test:

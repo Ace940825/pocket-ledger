@@ -302,3 +302,20 @@ enum SyncOpType {
   update,
   delete;
 }
+
+/// 标签作用域。
+///
+/// ⚠️ Drift 以 `intEnum()` 存储下标，**只能在末尾追加新值**，不可在中间插入
+/// 或重排。本次新增类型追加在末尾，旧数据仍可正确解析。
+enum TagScope {
+  /// 通用：全部账本都可用。
+  general,
+
+  /// 账本独立：仅在当前账本内显示。
+  ledger;
+
+  String get label => switch (this) {
+        TagScope.general => '通用',
+        TagScope.ledger => '账本独立',
+      };
+}

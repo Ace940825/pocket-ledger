@@ -178,13 +178,18 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// 区间内的收支合计（分）。[type] 决定统计收入还是支出。
+  ///
+  /// 支出按**实付口径**（`amount_minor - discount_minor`）聚合：
+  /// amount 存优惠前原价，优惠部分不计入支出
+  /// （对齐小青账：¥85 消费优惠 ¥45，支出统计 ¥40；收入侧 discount 恒 0，不受影响）。
   Stream<int> watchTotalInRange({
     required String bookId,
     required int startAt,
     required int endAt,
     required TxnType type,
   }) {
-    final Expression<int> total = transactions.amountMinor.sum();
+    final Expression<int> total =
+        (transactions.amountMinor - transactions.discountMinor).sum();
     return (selectOnly(transactions)
           ..addColumns(<Expression<Object>>[total])
           ..where(
@@ -206,7 +211,9 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     required int endAt,
     required TxnType type,
   }) {
-    final Expression<int> total = transactions.amountMinor.sum();
+    // 实付口径：支出扣优惠（收入 discount 恒 0，不受影响）
+    final Expression<int> total =
+        (transactions.amountMinor - transactions.discountMinor).sum();
     return (selectOnly(transactions)
           ..addColumns(<Expression<Object>>[transactions.categoryId, total])
           ..where(
@@ -249,9 +256,10 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
       'SUM(CASE WHEN type = ${TxnType.income.index} '
       'THEN amount_minor ELSE 0 END)',
     );
+    // 实付口径：支出扣优惠（amount 存原价，优惠部分不计入支出）
     final Expression<int> expenseSum = CustomExpression<int>(
       'SUM(CASE WHEN type = ${TxnType.expense.index} '
-      'THEN amount_minor ELSE 0 END)',
+      'THEN amount_minor - discount_minor ELSE 0 END)',
     );
 
     return (selectOnly(t)
@@ -282,7 +290,9 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     required TxnType type,
   }) {
     final $TransactionsTable t = transactions;
-    final Expression<int> total = t.amountMinor.sum();
+    // 实付口径：支出扣优惠（收入 discount 恒 0，不受影响）
+    final Expression<int> total =
+        (t.amountMinor - t.discountMinor).sum();
 
     return (selectOnly(t)
           ..addColumns(<Expression<Object>>[t.sourceModule, total])

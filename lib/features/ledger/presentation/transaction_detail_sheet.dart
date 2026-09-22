@@ -81,16 +81,24 @@ class TransactionDetailSheet extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppDimens.spaceLg),
 
-                // 账单：金额、时间、账本
+                // 账单：金额、优惠、时间、账本
                 _buildGroup(
                   title: '账单',
                   child: Column(
                     children: <Widget>[
-                      _buildInfoRow(
-                        '金额',
-                        money.format(),
-                        valueColor: _amountColor,
-                      ),
+                      _buildAmountRow(money),
+                      if (transaction.type == TxnType.expense &&
+                          transaction.discountMinor > 0) ...<Widget>[
+                        const Divider(
+                          height: 1,
+                          indent: AppDimens.spaceMd,
+                          color: AppColors.divider,
+                        ),
+                        _buildInfoRow(
+                          '优惠',
+                          Money.fromMinor(transaction.discountMinor).format(),
+                        ),
+                      ],
                       const Divider(
                         height: 1,
                         indent: AppDimens.spaceMd,
@@ -153,6 +161,71 @@ class TransactionDetailSheet extends ConsumerWidget {
       TxnType.expense => AppColors.expense,
       TxnType.transfer => AppColors.transfer,
     };
+  }
+
+  /// 金额行：支出带优惠时显示「划线原价 + 红色实付」（对齐小青账
+  /// ¥85.00 划线 + 40.00 红字），其余显示单一金额。
+  Widget _buildAmountRow(Money money) {
+    final bool discounted = transaction.type == TxnType.expense &&
+        transaction.discountMinor > 0;
+    final Widget value = discounted
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              Text(
+                money.format(),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textTertiary,
+                  decoration: TextDecoration.lineThrough,
+                  decorationColor: AppColors.textTertiary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                Money.fromMinor(
+                  transaction.amountMinor - transaction.discountMinor,
+                ).format(),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: _amountColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          )
+        : Text(
+            money.format(),
+            style: TextStyle(
+              fontSize: 15,
+              color: _amountColor,
+              fontWeight: FontWeight.w500,
+            ),
+          );
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.spaceMd,
+        vertical: AppDimens.spaceMd,
+      ),
+      child: Row(
+        children: <Widget>[
+          const Expanded(
+            flex: 3,
+            child: Text(
+              '金额',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(flex: 7, child: value),
+        ],
+      ),
+    );
   }
 
   Widget _buildHeader(BuildContext context, WidgetRef ref) {

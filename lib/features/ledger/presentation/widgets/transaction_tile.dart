@@ -155,7 +155,13 @@ class TransactionTile extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     )
-                  : MoneyText(Money.fromMinor(signedMinor), signed: true),
+                  : (transaction.type == TxnType.expense &&
+                          transaction.discountMinor > 0)
+                      ? _DiscountedAmount(
+                          originalMinor: transaction.amountMinor,
+                          discountMinor: transaction.discountMinor,
+                        )
+                      : MoneyText(Money.fromMinor(signedMinor), signed: true),
             ],
           ),
         ),
@@ -191,6 +197,62 @@ class TransactionTile extends ConsumerWidget {
         TxnType.expense => Icons.north_east,
         TxnType.transfer => Icons.swap_horiz,
       };
+}
+
+/// 优惠支出金额（对齐小青账）：第一行「划线原价 + 红色实付」，
+/// 第二行「优惠45.00」红色小字。实付 = 原价 − 优惠。
+class _DiscountedAmount extends StatelessWidget {
+  const _DiscountedAmount({
+    required this.originalMinor,
+    required this.discountMinor,
+  });
+
+  final int originalMinor;
+  final int discountMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    final int actualMinor = originalMinor - discountMinor;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: <Widget>[
+            Text(
+              '-${Money.fromMinor(originalMinor).format()}',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textTertiary,
+                decoration: TextDecoration.lineThrough,
+                decorationColor: AppColors.textTertiary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              Money.fromMinor(actualMinor).format(),
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.expense,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 1),
+        Text(
+          '优惠${Money.fromMinor(discountMinor).format()}',
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.expense,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// 日期分组标题

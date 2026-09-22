@@ -94,6 +94,7 @@ class TransactionRepository {
         amountMinor,
         now,
         fromAmountMinor: fromAmountMinor,
+        discountMinor: discountMinor ?? 0,
       );
       final Map<String, Object?> payload = <String, Object?>{
         'bookId': bookId,
@@ -205,6 +206,7 @@ class TransactionRepository {
         original.amountMinor,
         now,
         fromAmountMinor: oldFromAmountMinor,
+        discountMinor: original.discountMinor,
       );
 
       // 2. 写入新值。
@@ -250,6 +252,7 @@ class TransactionRepository {
         newAmount,
         now,
         fromAmountMinor: newFromAmountMinor,
+        discountMinor: newDiscount,
       );
 
       await _enqueue(
@@ -325,6 +328,7 @@ class TransactionRepository {
         txn.amountMinor,
         now,
         fromAmountMinor: fromAmountMinor,
+        discountMinor: txn.discountMinor,
       );
       await _db.transactionsDao.softDelete(id, now);
       await _enqueue(
@@ -414,6 +418,10 @@ class TransactionRepository {
   }
 
   /// 应用余额变动。转账只调整两个账户，不改变净资产。
+  ///
+  /// 支出按**实付金额**（`amountMinor - discountMinor`）扣减余额：
+  /// `amountMinor` 存的是优惠前原价，优惠部分并不实际支出
+  /// （对齐小青账：¥85 消费优惠 ¥45，实际只扣 ¥40）。
   Future<void> _applyBalanceDelta(
     TxnType type,
     String accountId,
@@ -421,12 +429,15 @@ class TransactionRepository {
     int amountMinor,
     int now, {
     int? fromAmountMinor,
+    int discountMinor = 0,
   }) async {
     switch (type) {
       case TxnType.income:
         await _db.accountsDao.adjustBalance(accountId, amountMinor, now);
       case TxnType.expense:
-        await _db.accountsDao.adjustBalance(accountId, -amountMinor, now);
+        final int actual = amountMinor - discountMinor;
+        await _db.accountsDao.adjustBalance(
+            accountId, actual > 0 ? -actual : 0, now);
       case TxnType.transfer:
         final int debit = fromAmountMinor ?? amountMinor;
         await _db.accountsDao.adjustBalance(accountId, -debit, now);
@@ -444,12 +455,15 @@ class TransactionRepository {
     int amountMinor,
     int now, {
     int? fromAmountMinor,
+    int discountMinor = 0,
   }) async {
     switch (type) {
       case TxnType.income:
         await _db.accountsDao.adjustBalance(accountId, -amountMinor, now);
       case TxnType.expense:
-        await _db.accountsDao.adjustBalance(accountId, amountMinor, now);
+        final int actual = amountMinor - discountMinor;
+        await _db.accountsDao.adjustBalance(
+            accountId, actual > 0 ? actual : 0, now);
       case TxnType.transfer:
         final int debit = fromAmountMinor ?? amountMinor;
         await _db.accountsDao.adjustBalance(accountId, debit, now);

@@ -428,3 +428,40 @@ class RecordTemplates extends Table {
   @override
   Set<Column> get primaryKey => <Column>{id};
 }
+
+/// 标签分组（标签类别）。
+///
+/// 标签按「分组 → 标签」两级组织，与小青账的「标签」逻辑一致。
+/// 作用域决定可见范围：
+/// - 通用（[TagScope.general]）：全部账本可用，[bookId] 固定空串；
+/// - 账本独立（[TagScope.ledger]）：仅当前账本显示，[bookId] 存实际账本 ID。
+///
+/// 刻意不进 [SyncTables.all] 与 [RecordCodec.decode]：标签是纯本地偏好，
+/// 跨设备同步意义不大，也避免触动同步编解码白名单（同 [RecordTemplates]）。
+class TagCategories extends Table with SyncColumns {
+  TextColumn get id => text()();
+  TextColumn get bookId => text()();
+  IntColumn get scope => intEnum<TagScope>()();
+  TextColumn get name => text()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => <Column>{id};
+}
+
+/// 标签。
+///
+/// 挂在某个分组（[categoryId]）下，[scope] 与所属分组一致。
+/// 记一笔时流水只存标签**名称**（见 [Transactions.tags] 的 JSON 字符串数组），
+/// 因此 [name] 是唯一对外标识，分组仅用于管理归类。
+class Tags extends Table with SyncColumns {
+  TextColumn get id => text()();
+  TextColumn get bookId => text()();
+  IntColumn get scope => intEnum<TagScope>()();
+  TextColumn get categoryId => text()();
+  TextColumn get name => text()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => <Column>{id};
+}

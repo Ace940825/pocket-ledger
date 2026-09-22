@@ -83,7 +83,8 @@ MonthStats computeMonthStats(
   for (final Transaction t in transactions) {
     switch (t.type) {
       case TxnType.expense:
-        ordinaryExpense += t.amountMinor;
+        // 实付口径：amount 存优惠前原价，优惠部分不计入支出
+        ordinaryExpense += t.amountMinor - t.discountMinor;
       case TxnType.income:
         if (t.sourceModule == SourceModule.refund) {
           refund += t.amountMinor;

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,6 +15,15 @@ import 'providers/app_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 0. 启用 Android 系统 Photo Picker：多选图片的 limit（最多 9 张）才会被
+  //    系统相册硬性锁定（选满后其余变灰不可选）。默认的 ACTION_GET_CONTENT
+  //    模式会完全忽略 limit，导致可选超 9 张。iOS 端 PHPicker 不受影响，
+  //    selectionLimit 一直生效。须在任何 image_picker 调用前设置。
+  final ImagePickerPlatform pickerImpl = ImagePickerPlatform.instance;
+  if (pickerImpl is ImagePickerAndroid) {
+    pickerImpl.useAndroidPhotoPicker = true;
+  }
 
   // 1. 获取或生成数据库密钥。密钥存 iOS Keychain / Android Keystore，
   //    绝不硬编码在代码中，也不随备份文件外泄。

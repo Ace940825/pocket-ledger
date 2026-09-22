@@ -10572,12 +10572,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RecordTemplatesTable recordTemplates =
       $RecordTemplatesTable(this);
   late final $PendingOpsTable pendingOps = $PendingOpsTable(this);
+  late final $TagCategoriesTable tagCategories = $TagCategoriesTable(this);
+  late final $TagsTable tags = $TagsTable(this);
   late final BooksDao booksDao = BooksDao(this as AppDatabase);
   late final AccountsDao accountsDao = AccountsDao(this as AppDatabase);
   late final CategoriesDao categoriesDao = CategoriesDao(this as AppDatabase);
   late final TransactionsDao transactionsDao =
       TransactionsDao(this as AppDatabase);
   late final PendingOpsDao pendingOpsDao = PendingOpsDao(this as AppDatabase);
+  late final TagsDao tagsDao = TagsDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10596,7 +10599,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         investmentHoldings,
         inventoryItems,
         recordTemplates,
-        pendingOps
+        pendingOps,
+        tagCategories,
+        tags
       ];
 }
 
@@ -15292,4 +15297,991 @@ class $AppDatabaseManager {
       $$RecordTemplatesTableTableManager(_db, _db.recordTemplates);
   $$PendingOpsTableTableManager get pendingOps =>
       $$PendingOpsTableTableManager(_db, _db.pendingOps);
+}
+
+class $TagCategoriesTable extends TagCategories
+    with TableInfo<$TagCategoriesTable, TagCategory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TagCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _deletedMeta =
+      const VerificationMeta('deleted');
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+      'deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _dirtyMeta = const VerificationMeta('dirty');
+  @override
+  late final GeneratedColumn<bool> dirty = GeneratedColumn<bool>(
+      'dirty', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("dirty" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _syncedAtMeta =
+      const VerificationMeta('syncedAt');
+  @override
+  late final GeneratedColumn<int> syncedAt = GeneratedColumn<int>(
+      'synced_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+      'book_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  @override
+  late final GeneratedColumnWithTypeConverter<TagScope, int> scope =
+      GeneratedColumn<int>('scope', aliasedName, false,
+              type: DriftSqlType.int, requiredDuringInsert: true)
+          .withConverter<TagScope>($TagCategoriesTable.$converterscope);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns => [
+        updatedAt,
+        deleted,
+        dirty,
+        syncedAt,
+        id,
+        bookId,
+        scope,
+        name,
+        sortOrder
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tag_categories';
+  @override
+  VerificationContext validateIntegrity(Insertable<TagCategory> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(_deletedMeta,
+          deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta));
+    }
+    if (data.containsKey('dirty')) {
+      context.handle(
+          _dirtyMeta, dirty.isAcceptableOrUnknown(data['dirty']!, _dirtyMeta));
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(_syncedAtMeta,
+          syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta));
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('book_id')) {
+      context.handle(_bookIdMeta,
+          bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta));
+    } else if (isInserting) {
+      context.missing(_bookIdMeta);
+    }
+    if (data.containsKey('scope')) {
+      context.handle(_scopeMeta,
+          scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta));
+    } else if (isInserting) {
+      context.missing(_scopeMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TagCategory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TagCategory(
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      deleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}deleted'])!,
+      dirty: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}dirty'])!,
+      syncedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}synced_at']),
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      bookId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}book_id'])!,
+      scope: $TagCategoriesTable.$converterscope.fromSql(attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}scope'])!),
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+    );
+  }
+
+  @override
+  $TagCategoriesTable createAlias(String alias) {
+    return $TagCategoriesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<TagScope, int, int> $converterscope =
+      const EnumIndexConverter<TagScope>(TagScope.values);
+}
+
+class TagCategory extends DataClass implements Insertable<TagCategory> {
+  final int updatedAt;
+  final bool deleted;
+  final bool dirty;
+  final int? syncedAt;
+  final String id;
+  final String bookId;
+  final TagScope scope;
+  final String name;
+  final int sortOrder;
+  const TagCategory(
+      {required this.updatedAt,
+      required this.deleted,
+      required this.dirty,
+      this.syncedAt,
+      required this.id,
+      required this.bookId,
+      required this.scope,
+      required this.name,
+      required this.sortOrder});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['updated_at'] = Variable<int>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    map['dirty'] = Variable<bool>(dirty);
+    if (!nullToAbsent || syncedAt != null) {
+      map['synced_at'] = Variable<int>(syncedAt);
+    }
+    map['id'] = Variable<String>(id);
+    map['book_id'] = Variable<String>(bookId);
+    {
+      map['scope'] =
+          Variable<int>($TagCategoriesTable.$converterscope.toSql(scope));
+    }
+    map['name'] = Variable<String>(name);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  TagCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return TagCategoriesCompanion(
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      dirty: Value(dirty),
+      syncedAt: syncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncedAt),
+      id: Value(id),
+      bookId: Value(bookId),
+      scope: Value(scope),
+      name: Value(name),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory TagCategory.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TagCategory(
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      dirty: serializer.fromJson<bool>(json['dirty']),
+      syncedAt: serializer.fromJson<int?>(json['syncedAt']),
+      id: serializer.fromJson<String>(json['id']),
+      bookId: serializer.fromJson<String>(json['bookId']),
+      scope: $TagCategoriesTable.$converterscope
+          .fromJson(serializer.fromJson<int>(json['scope'])),
+      name: serializer.fromJson<String>(json['name']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'dirty': serializer.toJson<bool>(dirty),
+      'syncedAt': serializer.toJson<int?>(syncedAt),
+      'id': serializer.toJson<String>(id),
+      'bookId': serializer.toJson<String>(bookId),
+      'scope':
+          serializer.toJson<int>($TagCategoriesTable.$converterscope.toJson(scope)),
+      'name': serializer.toJson<String>(name),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  TagCategory copyWith(
+          {int? updatedAt,
+          bool? deleted,
+          bool? dirty,
+          Value<int?> syncedAt = const Value.absent(),
+          String? id,
+          String? bookId,
+          TagScope? scope,
+          String? name,
+          int? sortOrder}) =>
+      TagCategory(
+        updatedAt: updatedAt ?? this.updatedAt,
+        deleted: deleted ?? this.deleted,
+        dirty: dirty ?? this.dirty,
+        syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
+        id: id ?? this.id,
+        bookId: bookId ?? this.bookId,
+        scope: scope ?? this.scope,
+        name: name ?? this.name,
+        sortOrder: sortOrder ?? this.sortOrder,
+      );
+  TagCategory copyWithCompanion(TagCategoriesCompanion data) {
+    return TagCategory(
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      dirty: data.dirty.present ? data.dirty.value : this.dirty,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+      id: data.id.present ? data.id.value : this.id,
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      scope: data.scope.present ? data.scope.value : this.scope,
+      name: data.name.present ? data.name.value : this.name,
+      sortOrder:
+          data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TagCategory(')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('dirty: $dirty, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('scope: $scope, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      updatedAt, deleted, dirty, syncedAt, id, bookId, scope, name, sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TagCategory &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.dirty == this.dirty &&
+          other.syncedAt == this.syncedAt &&
+          other.id == this.id &&
+          other.bookId == this.bookId &&
+          other.scope == this.scope &&
+          other.name == this.name &&
+          other.sortOrder == this.sortOrder);
+}
+
+class TagCategoriesCompanion extends UpdateCompanion<TagCategory> {
+  final Value<int> updatedAt;
+  final Value<bool> deleted;
+  final Value<bool> dirty;
+  final Value<int?> syncedAt;
+  final Value<String> id;
+  final Value<String> bookId;
+  final Value<TagScope> scope;
+  final Value<String> name;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const TagCategoriesCompanion({
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.id = const Value.absent(),
+    this.bookId = const Value.absent(),
+    this.scope = const Value.absent(),
+    this.name = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TagCategoriesCompanion.insert({
+    required int updatedAt,
+    this.deleted = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    required String id,
+    required String bookId,
+    required TagScope scope,
+    required String name,
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : updatedAt = Value(updatedAt),
+        id = Value(id),
+        bookId = Value(bookId),
+        scope = Value(scope),
+        name = Value(name);
+  static Insertable<TagCategory> custom({
+    Expression<int>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<bool>? dirty,
+    Expression<int>? syncedAt,
+    Expression<String>? id,
+    Expression<String>? bookId,
+    Expression<int>? scope,
+    Expression<String>? name,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (dirty != null) 'dirty': dirty,
+      if (syncedAt != null) 'synced_at': syncedAt,
+      if (id != null) 'id': id,
+      if (bookId != null) 'book_id': bookId,
+      if (scope != null) 'scope': scope,
+      if (name != null) 'name': name,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TagCategoriesCompanion copyWith(
+      {Value<int>? updatedAt,
+      Value<bool>? deleted,
+      Value<bool>? dirty,
+      Value<int?>? syncedAt,
+      Value<String>? id,
+      Value<String>? bookId,
+      Value<TagScope>? scope,
+      Value<String>? name,
+      Value<int>? sortOrder,
+      Value<int>? rowid}) {
+    return TagCategoriesCompanion(
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      dirty: dirty ?? this.dirty,
+      syncedAt: syncedAt ?? this.syncedAt,
+      id: id ?? this.id,
+      bookId: bookId ?? this.bookId,
+      scope: scope ?? this.scope,
+      name: name ?? this.name,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (dirty.present) {
+      map['dirty'] = Variable<bool>(dirty.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<int>(syncedAt.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (scope.present) {
+      map['scope'] =
+          Variable<int>($TagCategoriesTable.$converterscope.toSql(scope.value));
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TagCategoriesCompanion(')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('dirty: $dirty, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('scope: $scope, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TagsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _deletedMeta =
+      const VerificationMeta('deleted');
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+      'deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _dirtyMeta = const VerificationMeta('dirty');
+  @override
+  late final GeneratedColumn<bool> dirty = GeneratedColumn<bool>(
+      'dirty', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("dirty" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _syncedAtMeta =
+      const VerificationMeta('syncedAt');
+  @override
+  late final GeneratedColumn<int> syncedAt = GeneratedColumn<int>(
+      'synced_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+      'book_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  @override
+  late final GeneratedColumnWithTypeConverter<TagScope, int> scope =
+      GeneratedColumn<int>('scope', aliasedName, false,
+              type: DriftSqlType.int, requiredDuringInsert: true)
+          .withConverter<TagScope>($TagsTable.$converterscope);
+  static const VerificationMeta _categoryIdMeta =
+      const VerificationMeta('categoryId');
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+      'category_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns => [
+        updatedAt,
+        deleted,
+        dirty,
+        syncedAt,
+        id,
+        bookId,
+        scope,
+        categoryId,
+        name,
+        sortOrder
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tags';
+  @override
+  VerificationContext validateIntegrity(Insertable<Tag> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(_deletedMeta,
+          deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta));
+    }
+    if (data.containsKey('dirty')) {
+      context.handle(
+          _dirtyMeta, dirty.isAcceptableOrUnknown(data['dirty']!, _dirtyMeta));
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(_syncedAtMeta,
+          syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta));
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('book_id')) {
+      context.handle(_bookIdMeta,
+          bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta));
+    } else if (isInserting) {
+      context.missing(_bookIdMeta);
+    }
+    if (data.containsKey('scope')) {
+      context.handle(_scopeMeta,
+          scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta));
+    } else if (isInserting) {
+      context.missing(_scopeMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(_categoryIdMeta,
+          categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta));
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Tag map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Tag(
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      deleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}deleted'])!,
+      dirty: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}dirty'])!,
+      syncedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}synced_at']),
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      bookId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}book_id'])!,
+      scope: $TagsTable.$converterscope.fromSql(attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}scope'])!),
+      categoryId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+    );
+  }
+
+  @override
+  $TagsTable createAlias(String alias) {
+    return $TagsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<TagScope, int, int> $converterscope =
+      const EnumIndexConverter<TagScope>(TagScope.values);
+}
+
+class Tag extends DataClass implements Insertable<Tag> {
+  final int updatedAt;
+  final bool deleted;
+  final bool dirty;
+  final int? syncedAt;
+  final String id;
+  final String bookId;
+  final TagScope scope;
+  final String categoryId;
+  final String name;
+  final int sortOrder;
+  const Tag(
+      {required this.updatedAt,
+      required this.deleted,
+      required this.dirty,
+      this.syncedAt,
+      required this.id,
+      required this.bookId,
+      required this.scope,
+      required this.categoryId,
+      required this.name,
+      required this.sortOrder});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['updated_at'] = Variable<int>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    map['dirty'] = Variable<bool>(dirty);
+    if (!nullToAbsent || syncedAt != null) {
+      map['synced_at'] = Variable<int>(syncedAt);
+    }
+    map['id'] = Variable<String>(id);
+    map['book_id'] = Variable<String>(bookId);
+    {
+      map['scope'] = Variable<int>($TagsTable.$converterscope.toSql(scope));
+    }
+    map['category_id'] = Variable<String>(categoryId);
+    map['name'] = Variable<String>(name);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  TagsCompanion toCompanion(bool nullToAbsent) {
+    return TagsCompanion(
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+      dirty: Value(dirty),
+      syncedAt: syncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncedAt),
+      id: Value(id),
+      bookId: Value(bookId),
+      scope: Value(scope),
+      categoryId: Value(categoryId),
+      name: Value(name),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory Tag.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Tag(
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      dirty: serializer.fromJson<bool>(json['dirty']),
+      syncedAt: serializer.fromJson<int?>(json['syncedAt']),
+      id: serializer.fromJson<String>(json['id']),
+      bookId: serializer.fromJson<String>(json['bookId']),
+      scope: $TagsTable.$converterscope
+          .fromJson(serializer.fromJson<int>(json['scope'])),
+      categoryId: serializer.fromJson<String>(json['categoryId']),
+      name: serializer.fromJson<String>(json['name']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'dirty': serializer.toJson<bool>(dirty),
+      'syncedAt': serializer.toJson<int?>(syncedAt),
+      'id': serializer.toJson<String>(id),
+      'bookId': serializer.toJson<String>(bookId),
+      'scope':
+          serializer.toJson<int>($TagsTable.$converterscope.toJson(scope)),
+      'categoryId': serializer.toJson<String>(categoryId),
+      'name': serializer.toJson<String>(name),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  Tag copyWith(
+          {int? updatedAt,
+          bool? deleted,
+          bool? dirty,
+          Value<int?> syncedAt = const Value.absent(),
+          String? id,
+          String? bookId,
+          TagScope? scope,
+          String? categoryId,
+          String? name,
+          int? sortOrder}) =>
+      Tag(
+        updatedAt: updatedAt ?? this.updatedAt,
+        deleted: deleted ?? this.deleted,
+        dirty: dirty ?? this.dirty,
+        syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
+        id: id ?? this.id,
+        bookId: bookId ?? this.bookId,
+        scope: scope ?? this.scope,
+        categoryId: categoryId ?? this.categoryId,
+        name: name ?? this.name,
+        sortOrder: sortOrder ?? this.sortOrder,
+      );
+  Tag copyWithCompanion(TagsCompanion data) {
+    return Tag(
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      dirty: data.dirty.present ? data.dirty.value : this.dirty,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+      id: data.id.present ? data.id.value : this.id,
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      scope: data.scope.present ? data.scope.value : this.scope,
+      categoryId:
+          data.categoryId.present ? data.categoryId.value : this.categoryId,
+      name: data.name.present ? data.name.value : this.name,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Tag(')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('dirty: $dirty, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('scope: $scope, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(updatedAt, deleted, dirty, syncedAt, id,
+      bookId, scope, categoryId, name, sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Tag &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted &&
+          other.dirty == this.dirty &&
+          other.syncedAt == this.syncedAt &&
+          other.id == this.id &&
+          other.bookId == this.bookId &&
+          other.scope == this.scope &&
+          other.categoryId == this.categoryId &&
+          other.name == this.name &&
+          other.sortOrder == this.sortOrder);
+}
+
+class TagsCompanion extends UpdateCompanion<Tag> {
+  final Value<int> updatedAt;
+  final Value<bool> deleted;
+  final Value<bool> dirty;
+  final Value<int?> syncedAt;
+  final Value<String> id;
+  final Value<String> bookId;
+  final Value<TagScope> scope;
+  final Value<String> categoryId;
+  final Value<String> name;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const TagsCompanion({
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.id = const Value.absent(),
+    this.bookId = const Value.absent(),
+    this.scope = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TagsCompanion.insert({
+    required int updatedAt,
+    this.deleted = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    required String id,
+    required String bookId,
+    required TagScope scope,
+    required String categoryId,
+    required String name,
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : updatedAt = Value(updatedAt),
+        id = Value(id),
+        bookId = Value(bookId),
+        scope = Value(scope),
+        categoryId = Value(categoryId),
+        name = Value(name);
+  static Insertable<Tag> custom({
+    Expression<int>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<bool>? dirty,
+    Expression<int>? syncedAt,
+    Expression<String>? id,
+    Expression<String>? bookId,
+    Expression<int>? scope,
+    Expression<String>? categoryId,
+    Expression<String>? name,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (dirty != null) 'dirty': dirty,
+      if (syncedAt != null) 'synced_at': syncedAt,
+      if (id != null) 'id': id,
+      if (bookId != null) 'book_id': bookId,
+      if (scope != null) 'scope': scope,
+      if (categoryId != null) 'category_id': categoryId,
+      if (name != null) 'name': name,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TagsCompanion copyWith(
+      {Value<int>? updatedAt,
+      Value<bool>? deleted,
+      Value<bool>? dirty,
+      Value<int?>? syncedAt,
+      Value<String>? id,
+      Value<String>? bookId,
+      Value<TagScope>? scope,
+      Value<String>? categoryId,
+      Value<String>? name,
+      Value<int>? sortOrder,
+      Value<int>? rowid}) {
+    return TagsCompanion(
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      dirty: dirty ?? this.dirty,
+      syncedAt: syncedAt ?? this.syncedAt,
+      id: id ?? this.id,
+      bookId: bookId ?? this.bookId,
+      scope: scope ?? this.scope,
+      categoryId: categoryId ?? this.categoryId,
+      name: name ?? this.name,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (dirty.present) {
+      map['dirty'] = Variable<bool>(dirty.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<int>(syncedAt.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (scope.present) {
+      map['scope'] = Variable<int>($TagsTable.$converterscope.toSql(scope.value));
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TagsCompanion(')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('dirty: $dirty, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('scope: $scope, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
 }

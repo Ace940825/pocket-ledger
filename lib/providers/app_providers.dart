@@ -9,6 +9,7 @@ import '../database/daos/accounts_dao.dart';
 import '../database/daos/books_dao.dart';
 import '../database/daos/categories_dao.dart';
 import '../database/daos/pending_ops_dao.dart';
+import '../database/daos/tags_dao.dart';
 import '../database/daos/transactions_dao.dart';
 import '../features/settings/data/sync_settings.dart';
 import '../features/settings/providers/sync_settings_providers.dart';
@@ -51,6 +52,10 @@ final Provider<BooksDao> booksDaoProvider = Provider<BooksDao>(
 
 final Provider<PendingOpsDao> pendingOpsDaoProvider = Provider<PendingOpsDao>(
   (Ref ref) => ref.watch(appDatabaseProvider).pendingOpsDao,
+);
+
+final Provider<TagsDao> tagsDaoProvider = Provider<TagsDao>(
+  (Ref ref) => ref.watch(appDatabaseProvider).tagsDao,
 );
 
 /// 设备唯一标识，首次生成后持久化，用于同步时区分来源设备。

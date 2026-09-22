@@ -1,0 +1,898 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/theme/forest_design_tokens.dart';
+import '../../../database/app_database.dart';
+import '../../../features/accounts/providers/accounts_providers.dart';
+import '../../../providers/app_providers.dart';
+import '../../../features/tags/presentation/tag_empty_illustration.dart';
+import '../providers/record_template_providers.dart';
+import '../record_tab.dart';
+import 'record_template_sheet.dart' show RecordTemplateDraft;
+
+/// 「账单模板」独立管理页（方案 C1 · 晕染延续）：
+/// 晕染带（✕ 钮 + 头卡/帮助 + 虚线说明卡）→ 搜索 + 类型筛选 → 奶油卡列表（可删除）
+/// → 底部渐变「添加」长钮。
+class RecordTemplatePage extends ConsumerStatefulWidget {
+  const RecordTemplatePage({super.key, required this.draft});
+
+  /// 从记一笔面板带入的当前填写，用于「添加」保存。
+  final RecordTemplateDraft draft;
+
+  @override
+  ConsumerState<RecordTemplatePage> createState() => _RecordTemplatePageState();
+}
+
+class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
+  final TextEditingController _searchCtl = TextEditingController();
+  String _query = '';
+  int _typeFilter = 0; // 0 = 全部
+  bool _noteExpanded = true;
+
+  /// 「条件」筛选（设计稿 C1）：0 分类 / 1 备注 / 2 金额 / 3 优惠后金额。
+  /// 模板暂无金额字段，2/3 仅作范围占位；未勾选时默认搜「名称 + 备注」。
+  final Set<int> _condFilter = <int>{};
+
+  static const List<String> _typeLabels = <String>[
+    '全部',
+    '普通收支',
+    '转账',
+    '借款',
+    '报销',
+    '退款',
+  ];
+
+  static const List<String> _condLabels = <String>[
+    '分类',
+    '备注',
+    '金额',
+    '优惠后金额',
+  ];
+
+  @override
+  void dispose() {
+    _searchCtl.dispose();
+    super.dispose();
+  }
+
+  bool _matchType(RecordTab t) => switch (_typeFilter) {
+        1 => t == RecordTab.expense ||
+            t == RecordTab.income ||
+            t == RecordTab.savings ||
+            t == RecordTab.installment,
+        2 => t == RecordTab.transfer,
+        3 => t == RecordTab.lend,
+        4 => t == RecordTab.reimbursement,
+        5 => t == RecordTab.refund,
+        _ => true,
+      };
+
+  Future<void> _saveDraft() async {
+    final String? name = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) {
+        final TextEditingController ctl = TextEditingController();
+        return AlertDialog(
+          backgroundColor: ForestSurface.card,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Text(
+            '模板名称',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: ForestNeutral.textPrimary,
+            ),
+          ),
+          content: TextField(
+            controller: ctl,
+            autofocus: true,
+            cursorColor: ForestGreen.deep,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: ForestBg.sunken,
+              hintText: '如「滴滴通勤」「午饭」',
+              hintStyle: const TextStyle(
+                fontSize: 14,
+                color: ForestNeutral.textTertiary,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isCollapsed: false,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text(
+                '取消',
+                style: TextStyle(color: ForestNeutral.textSecondary),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(ctl.text.trim()),
+              child: const Text(
+                '保存',
+                style: TextStyle(
+                  color: ForestGreen.deep,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    if (name == null || name.isEmpty) return;
+    final RecordTemplateDraft d = widget.draft;
+    await ref.read(recordTemplateRepositoryProvider).add(
+          bookId: ref.read(currentBookIdProvider),
+          name: name,
+          tabIndex: d.tabIndex,
+          accountId: d.accountId,
+          categoryId: d.categoryId,
+          note: d.note,
+          tags: d.tags,
+          excludeFromStats: d.excludeFromStats,
+          excludeFromBudget: d.excludeFromBudget,
+          isReimbursable: d.isReimbursable,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已保存模板「$name」')),
+    );
+  }
+
+  void _showHelp() {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        backgroundColor: ForestSurface.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          '关于模板',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: ForestNeutral.textPrimary,
+          ),
+        ),
+        content: const Text(
+          '模板用于经常购买或常记的账单，如每天买水 2 元，可将固定支出保存为模板，套用时自动填充账户、分类、备注、标签与开关，快速完成记账（金额需手动输入）。',
+          style: TextStyle(
+            fontSize: 13.5,
+            height: 1.7,
+            color: ForestNeutral.textSecondary,
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(
+              '知道了',
+              style: TextStyle(
+                color: ForestGreen.deep,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 胶囊筛选 chip（奶油卡 + 发丝线 / 渐变选中 · 设计稿 6px 14px · 圆角 999）。
+  Widget _pill({
+    required String label,
+    required bool on,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: on ? ForestGradients.sageMid : null,
+          color: on ? null : ForestSurface.card,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: on ? Colors.transparent : ForestNeutral.hairline,
+          ),
+          boxShadow: on
+              ? const <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x473F8A60),
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+            color: on ? Colors.white : ForestNeutral.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AsyncValue<List<RecordTemplate>> templates =
+        ref.watch(recordTemplatesProvider);
+    final List<RecordTemplate> list = templates.value ?? <RecordTemplate>[];
+
+    // 分类名映射（用于「条件：分类」搜索）。
+    final Map<String, String> catNames = <String, String>{};
+    for (final AsyncValue<List<Category>> av in <AsyncValue<List<Category>>>[
+      ref.watch(expenseCategoriesProvider),
+      ref.watch(incomeCategoriesProvider),
+    ]) {
+      av.maybeWhen(
+        data: (List<Category> l) {
+          for (final Category c in l) {
+            catNames[c.id] = c.name;
+          }
+        },
+        orElse: () {},
+      );
+    }
+
+    bool matchQuery(RecordTemplate t) {
+      final String q = _query.trim().toLowerCase();
+      if (q.isEmpty) return true;
+      final bool hasCond = _condFilter.isNotEmpty;
+      if (t.name.toLowerCase().contains(q)) return true;
+      if ((!hasCond || _condFilter.contains(1)) &&
+          (t.note ?? '').toLowerCase().contains(q)) {
+        return true;
+      }
+      if (_condFilter.contains(0) && t.categoryId != null) {
+        final String? cn = catNames[t.categoryId];
+        if (cn != null && cn.toLowerCase().contains(q)) return true;
+      }
+      return false; // 金额/优惠后金额：模板无金额字段，暂不参与匹配
+    }
+
+    final List<RecordTemplate> filtered = list
+        .where((RecordTemplate t) =>
+            _matchType(RecordTab.values[t.tabIndex]) && matchQuery(t))
+        .toList();
+
+    return Scaffold(
+      backgroundColor: ForestBg.paper,
+      // 点击空白处收起键盘
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              // 顶部淡绿晕染带（C1）：✕ 钮 + 头卡 + 虚线说明卡。
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 2, 20, 14),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[Color(0xFFE9F1E2), ForestBg.paper],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    // 导航行：✕ 圆钮（半透明白 + 发丝线）
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: InkWell(
+                        onTap: () => Navigator.of(context).pop(),
+                        borderRadius: BorderRadius.circular(99),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: ForestNeutral.hairline),
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 18,
+                            color: ForestNeutral.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // 头卡：徽章 + 标题/副标题 + 帮助钮
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ForestSurface.card,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: ForestNeutral.hairline),
+                        boxShadow: const <BoxShadow>[
+                          BoxShadow(
+                            color: Color(0x0D2C3329),
+                            blurRadius: 14,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: ForestBg.sunken,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.bookmark_outline,
+                              size: 22,
+                              color: ForestGreen.deep,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  '账单模板',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: ForestNeutral.textPrimary,
+                                  ),
+                                ),
+                                SizedBox(height: 3),
+                                Text(
+                                  '常用账单保存为一键模板',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: ForestNeutral.textTertiary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: _showHelp,
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ForestBg.sunken,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                '帮助',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: ForestGreen.deep,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // 虚线说明卡（可折叠，1px 沙色虚线 · 设计稿 --sand #EDE4D2）
+                    CustomPaint(
+                      painter: const _NoteDashedBorderPainter(),
+                      child: InkWell(
+                        onTap: () =>
+                            setState(() => _noteExpanded = !_noteExpanded),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 26, 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              const Padding(
+                                padding: EdgeInsets.only(top: 2),
+                                child: Icon(
+                                  Icons.info_outline,
+                                  size: 15,
+                                  color: Color(0xFF5F9A6E),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '模板用于经常购买或常记的账单，可将固定支出保存为模板快速记账。列表按「模板时间」排序~',
+                                  maxLines: _noteExpanded ? null : 1,
+                                  overflow: _noteExpanded
+                                      ? null
+                                      : TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    height: 1.8,
+                                    color: ForestNeutral.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                _noteExpanded
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                                size: 16,
+                                color: ForestNeutral.textTertiary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 搜索框（沙底圆角 14，与晕染带间距 12 · 设计稿 search margin-top）
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: ForestBg.sunken,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(Icons.search,
+                          size: 16, color: Color(0xFF9AA091)),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchCtl,
+                          onChanged: (String v) => setState(() => _query = v),
+                          style: const TextStyle(fontSize: 13.5),
+                          decoration: const InputDecoration(
+                            filled: false,
+                            hintText: '支持分类备注金额搜索',
+                            hintStyle: TextStyle(
+                              fontSize: 13.5,
+                              color: Color(0xFF9AA091),
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            isCollapsed: true,
+                          ),
+                        ),
+                      ),
+                      if (_query.isNotEmpty)
+                        InkWell(
+                          onTap: () {
+                            _searchCtl.clear();
+                            setState(() => _query = '');
+                          },
+                          child: const Icon(
+                            Icons.close,
+                            size: 15,
+                            color: Color(0xFF9AA091),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              // 「条件」筛选行（设计稿 C1：条件：分类/备注/金额/优惠后金额）
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: <Widget>[
+                    const Text(
+                      '条件：',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: ForestNeutral.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: <Widget>[
+                            for (int i = 0;
+                                i < _condLabels.length;
+                                i++) ...<Widget>[
+                              _pill(
+                                label: _condLabels[i],
+                                on: _condFilter.contains(i),
+                                onTap: () => setState(() {
+                                  if (_condFilter.contains(i)) {
+                                    _condFilter.remove(i);
+                                  } else {
+                                    _condFilter.add(i);
+                                  }
+                                }),
+                              ),
+                              if (i != _condLabels.length - 1)
+                                const SizedBox(width: 8),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              // 类型筛选 chips（全部=渐变选中）
+              SizedBox(
+                height: 32,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: _typeLabels.length,
+                  separatorBuilder: (BuildContext ctx, int i) =>
+                      const SizedBox(width: 8),
+                  itemBuilder: (BuildContext ctx, int i) {
+                    final bool on = i == _typeFilter;
+                    return _pill(
+                      label: _typeLabels[i],
+                      on: on,
+                      onTap: () => setState(() => _typeFilter = i),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 2),
+              // 模板列表（奶油卡，可删除）
+              Expanded(
+                child: filtered.isEmpty
+                    ? Center(
+                        // 键盘弹出压缩可视区时改为滚动，避免 BOTTOM OVERFLOWED。
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              TagEmptyIllustration(width: 120),
+                              const SizedBox(height: 12),
+                              Text(
+                                list.isEmpty
+                                    ? '没有发现模板哦，试着去添加一个~'
+                                    : '未找到符合条件的模板',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: ForestNeutral.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                        itemCount: filtered.length,
+                        separatorBuilder: (BuildContext ctx, int i) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (BuildContext ctx, int i) {
+                          final RecordTemplate t = filtered[i];
+                          return RecordTemplateCard(
+                            template: t,
+                            radius: 18,
+                            iconEdge: 42,
+                            iconRadius: 14,
+                            onDelete: () => _remove(t),
+                          );
+                        },
+                      ),
+              ),
+              // 底部渐变「添加」长钮
+              Container(
+                decoration: const BoxDecoration(
+                  border:
+                      Border(top: BorderSide(color: ForestNeutral.hairline)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: InkWell(
+                        onTap: _saveDraft,
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient: ForestGradients.sageMid,
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: const <BoxShadow>[
+                              BoxShadow(
+                                color: Color(0x523F8A60),
+                                blurRadius: 16,
+                                offset: Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            '添加',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _remove(RecordTemplate t) async {
+    await ref.read(recordTemplateRepositoryProvider).remove(t.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已删除模板「${t.name}」')),
+    );
+  }
+}
+
+/// 说明卡虚线边框（1px 沙色 · 设计稿 --sand #EDE4D2，原生 BorderStyle 无 dashed）。
+class _NoteDashedBorderPainter extends CustomPainter {
+  const _NoteDashedBorderPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final RRect rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(14),
+    );
+    final Path path = Path()..addRRect(rrect);
+    final Paint paint = Paint()
+      ..color = const Color(0xFFEDE4D2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    const double dash = 6;
+    const double gap = 4;
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final double len =
+            dash < (metric.length - distance) ? dash : metric.length - distance;
+        canvas.drawPath(metric.extractPath(distance, distance + len), paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// 模板卡（弹窗与管理页共用）：
+/// 未选 = 奶油卡 + 发丝线；选中 = 鼠尾草渐变卡 + 白字（方案 C 选中卡）。
+class RecordTemplateCard extends ConsumerWidget {
+  const RecordTemplateCard({
+    super.key,
+    required this.template,
+    this.selected = false,
+    this.radius = 16,
+    this.iconEdge = 40,
+    this.iconRadius = 13,
+    this.onTap,
+    this.onDelete,
+  });
+
+  final RecordTemplate template;
+  final bool selected;
+
+  /// 卡片圆角：弹窗 16 / 独立页 18（对齐设计稿）。
+  final double radius;
+
+  /// 图标块边长/圆角：弹窗（方案 C）40/13 · 独立页（C1）42/14。
+  final double iconEdge;
+  final double iconRadius;
+  final VoidCallback? onTap;
+  final VoidCallback? onDelete;
+
+  IconData get _icon => switch (RecordTab.values[template.tabIndex]) {
+        RecordTab.expense => Icons.shopping_bag_outlined,
+        RecordTab.income => Icons.savings_outlined,
+        RecordTab.transfer => Icons.swap_horiz,
+        RecordTab.lend => Icons.handshake_outlined,
+        RecordTab.reimbursement => Icons.receipt_long_outlined,
+        RecordTab.refund => Icons.assignment_return_outlined,
+        RecordTab.savings => Icons.account_balance_outlined,
+        RecordTab.installment => Icons.event_repeat_outlined,
+      };
+
+  Color get _tabColor => switch (RecordTab.values[template.tabIndex]) {
+        RecordTab.expense => ForestSemantic.expense,
+        RecordTab.income => ForestSemantic.income,
+        _ => ForestNeutral.textSecondary,
+      };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final RecordTab tab = RecordTab.values[template.tabIndex];
+
+    // 副标题：分类 · 类型 · 备注/开关（弹窗卡片与管理页共用口径）。
+    String? categoryName;
+    if (template.categoryId != null &&
+        (tab == RecordTab.expense || tab == RecordTab.income)) {
+      final AsyncValue<List<Category>> cats = ref.watch(
+        tab == RecordTab.income
+            ? incomeCategoriesProvider
+            : expenseCategoriesProvider,
+      );
+      categoryName = cats.maybeWhen(
+        data: (List<Category> l) {
+          final Category? c = l.cast<Category?>().firstWhere(
+                (Category? x) => x?.id == template.categoryId,
+                orElse: () => null,
+              );
+          return c?.name;
+        },
+        orElse: () => null,
+      );
+    }
+    final List<String> sw = <String>[
+      if (template.excludeFromStats) '不计收支',
+      if (template.excludeFromBudget) '不计预算',
+      if (template.isReimbursable) '可报销',
+    ];
+    final String subtitle = <String>[
+      if (categoryName != null && categoryName.isNotEmpty) categoryName,
+      tab.label,
+      if (template.note != null && template.note!.isNotEmpty) template.note!,
+      if (sw.isNotEmpty) sw.join('/'),
+    ].join(' · ');
+
+    final Color titleColor =
+        selected ? Colors.white : ForestNeutral.textPrimary;
+    final Color subColor = selected
+        ? Colors.white.withValues(alpha: 0.85)
+        : ForestNeutral.textSecondary;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(radius),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+        decoration: BoxDecoration(
+          gradient: selected ? ForestGradients.sageMid : null,
+          color: selected ? null : ForestSurface.card,
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(
+            color: selected ? Colors.transparent : ForestNeutral.hairline,
+          ),
+          boxShadow: selected
+              ? const <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x4D3F8A60),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: <Widget>[
+            // 图标块（沙底圆角方 / 选中时半透明白）
+            Container(
+              width: iconEdge,
+              height: iconEdge,
+              decoration: BoxDecoration(
+                color: selected
+                    ? Colors.white.withValues(alpha: 0.22)
+                    : ForestBg.sunken,
+                borderRadius: BorderRadius.circular(iconRadius),
+              ),
+              child: Icon(
+                _icon,
+                size: 19,
+                color: selected ? Colors.white : ForestGreen.deep,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    template.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: titleColor,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.5, color: subColor),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            // 右侧：类型标签（数据模型无金额，用类型色标签代替）
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Text(
+                  tab.label,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: selected ? Colors.white : _tabColor,
+                  ),
+                ),
+                if (sw.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(
+                      sw.join('/'),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: selected
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : ForestNeutral.textTertiary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (onDelete != null)
+              IconButton(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline),
+                iconSize: 20,
+                color: selected ? Colors.white70 : ForestNeutral.textTertiary,
+                padding: const EdgeInsets.only(left: 6),
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

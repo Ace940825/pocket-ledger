@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -38,12 +39,15 @@ import '../../../shared/widgets/date_picker_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../../../sync/sync_adapter.dart';
-import '../providers/record_template_providers.dart';
+import '../providers/recording_settings_provider.dart';
 import '../record_tab.dart';
 import '../widgets/amount_keypad.dart';
 import 'account_picker_sheet.dart';
 import 'bill_selection_page.dart';
+import '../../../core/theme/forest_design_tokens.dart';
+import '../../tags/presentation/tag_sheet.dart';
 import 'recording_settings_sheet.dart';
+import 'record_template_sheet.dart';
 
 /// 退款模式：全额退回 / AA 付款分摊。
 enum RefundMode { full, aa }
@@ -2964,9 +2968,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         ),
       if (isExpense)
         _FunctionItem(
-          label: '优惠',
+          // 已设优惠时对齐小青账：chip 显示「优惠50.00」并高亮
+          label: _discountAmount == null || _discountAmount!.isEmpty
+              ? '优惠'
+              : '优惠${Money.tryParse(_discountAmount!).decimal.toStringAsFixed(2)}',
           icon: Icons.local_offer_outlined,
           onTap: _onDiscount,
+          active: _discountAmount != null && _discountAmount!.isNotEmpty,
         ),
       _FunctionItem(
         label:
@@ -2979,6 +2987,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         label: _tags.isEmpty ? '标签' : '标签 ${_tags.length}',
         icon: Icons.label_outlined,
         onTap: _onAddTag,
+      ),
+      _FunctionItem(
+        // 账本占位：展示当前账本名；多账本切换功能待接入（点击暂不响应）。
+        label: ref.watch(currentBookProvider).value?.name ?? '账本',
+        icon: Icons.menu_book_outlined,
+        onTap: () {},
       ),
       if (showAccountStats)
         _FunctionItem(
@@ -3055,11 +3069,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      backgroundColor: ForestBg.paper,
       shape: RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
       ),
-      builder: (BuildContext ctx) => DiscountSheet(initial: _discountAmount),
+      // 优惠前金额 = 上一页（记一笔）当前金额，弹窗内只录入优惠 / 实付。
+      builder: (BuildContext ctx) => DiscountSheet(
+        initial: _discountAmount,
+        base: _displayAmount,
+      ),
     );
     if (value == null || !mounted) return;
     setState(
@@ -3137,38 +3156,71 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     setState(() => _accountId = selected);
   }
 
+  /// 图片功能键弹窗：复刻「森林手账·鼠尾草绿」账单图片模板（对齐小青账）。
+  /// 暖纸皮肤（与设计交付模板 bill-photo-sheet-forest.html FINAL 同源）：
+  ///   · 纸底 ForestBg.paper ｜ 奶油卡 ForestSurface.card ｜ 沙底关闭钮 ForestBg.sunken
+  ///   · 选中按钮 = 鼠尾草绿渐变 ForestGradients.sageMid + 深绿墨字 ForestSage.ink
+  /// 半屏贴底（高度 = 屏幕 50%），照片/拍照可切换选中；照片支持多选（最多 9 张）。
+  ///
+  /// 选完图片后**循环回到本弹窗**（已选图片显示在虚线卡内，可继续追加或删除），
+  /// 仅点 ✕（或下滑关闭）才回到记账页。
   Future<void> _onAddImage() async {
-    final ImageSource? source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('拍照'),
-              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('从相册选择'),
-              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
-            ),
-          ],
+    while (mounted) {
+      final ImageSource? source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (BuildContext ctx) => ImageSourceSheet(
+          attachments: List<String>.of(_attachmentPaths),
+          onRemove: (String path) =>
+              setState(() => _attachmentPaths.remove(path)),
+          onReorder: (int from, int to) => setState(() {
+            final String item = _attachmentPaths.removeAt(from);
+            _attachmentPaths.insert(to, item);
+          }),
         ),
-      ),
-    );
-    if (source == null || !mounted) return;
+      );
+      if (source == null || !mounted) return; // ✕ 关闭：回到记账页
 
-    final XFile? picked = await ImagePicker().pickImage(
-      source: source,
-      imageQuality: 80,
-    );
-    if (picked == null || !mounted) return;
-
-    final String? stored = await _copyPickedImageToStorage(picked);
-    if (stored != null && mounted) {
-      setState(() => _attachmentPaths.add(stored));
+      if (source == ImageSource.gallery) {
+        // 相册多选：总上限 9 张，剩余配额 = 9 - 已选数。
+        final int remain = 9 - _attachmentPaths.length;
+        if (remain <= 0) {
+          _toast('最多选择9张图片');
+          continue; // 回到弹窗，让用户先删除
+        }
+        final List<XFile> picked = await ImagePicker()
+            .pickMultiImage(imageQuality: 80, limit: remain);
+        // 取消选择也回到弹窗（保持入口一致）。
+        if (picked.isEmpty || !mounted) continue;
+        // image_picker 的 limit 在 iOS 上不强制（仅 Android Photo Picker 支持），
+        // 返回后本地再裁一次，超出配额的丢弃并提示。
+        final List<XFile> accepted =
+            picked.length > remain ? picked.sublist(0, remain) : picked;
+        if (accepted.length < picked.length) {
+          _toast('最多选择9张图片，已保留前 ${accepted.length} 张');
+        }
+        for (final XFile f in accepted) {
+          final String? stored = await _copyPickedImageToStorage(f);
+          if (stored != null && mounted) _attachmentPaths.add(stored);
+        }
+        if (mounted) setState(() {});
+      } else {
+        if (_attachmentPaths.length >= 9) {
+          _toast('最多选择9张图片');
+          continue; // 回到弹窗，让用户先删除
+        }
+        final XFile? picked = await ImagePicker().pickImage(
+          source: source,
+          imageQuality: 80,
+        );
+        if (picked == null || !mounted) continue;
+        final String? stored = await _copyPickedImageToStorage(picked);
+        if (stored != null && mounted) {
+          setState(() => _attachmentPaths.add(stored));
+        }
+      }
+      // 不 return：循环回到弹窗，展示已选图片，用户点 ✕ 才退出。
     }
   }
 
@@ -3201,7 +3253,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     }
   }
 
-  /// 图片附件预览网格：缩略图 + 删除 + 点击查看大图。
+  /// 图片附件预览：横排滑动（单行，左对齐依次排开，超出屏宽左右滑动），
+  /// 缩略图 + 删除 + 点击查看大图；长按缩略图可拖拽调整顺序。
+  ///
+  /// 拖拽用 LongPressDraggable + DragTarget 自绘（与账单图片弹窗 3×3 网格同款），
+  /// 不用横向 ReorderableListView——后者对横向列表项的约束/代理布局易溢出报红。
   Widget _buildAttachmentSection() {
     if (_attachmentPaths.isEmpty) return const SizedBox.shrink();
     return Column(
@@ -3210,15 +3266,106 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         const SizedBox(height: AppDimens.spaceMd),
         _buildSectionTitle('图片附件'),
         const SizedBox(height: AppDimens.spaceSm),
-        Wrap(
-          spacing: AppDimens.spaceSm,
-          runSpacing: AppDimens.spaceSm,
-          children: <Widget>[
-            for (final String path in _attachmentPaths)
-              _buildAttachmentThumb(path),
-          ],
+        SizedBox(
+          // 72px 缩略图 + 上下 4px 余量，容纳 ✕ 徽标越出缩略图 2px
+          height: 80,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                for (int i = 0; i < _attachmentPaths.length; i++) ...<Widget>[
+                  if (i > 0) const SizedBox(width: AppDimens.spaceSm),
+                  _stripCell(i),
+                ],
+              ],
+            ),
+          ),
         ),
       ],
+    );
+  }
+
+  /// 横条单格：长按拖拽排序（与账单图片弹窗同款自绘）。
+  /// 优化点：拖起触感反馈、浮图放大跟手；原位留空槽；
+  /// 悬停落点放大+绿边+淡绿底，落定轻微触感反馈。单击看大图/✕ 删除不受影响。
+  Widget _stripCell(int index) {
+    final String path = _attachmentPaths[index];
+    return LongPressDraggable<String>(
+      data: path,
+      maxSimultaneousDrags: 1,
+      dragAnchorStrategy: childDragAnchorStrategy,
+      onDragStarted: () => HapticFeedback.mediumImpact(),
+      feedback: Transform.scale(
+        scale: 1.06,
+        child: Container(
+          width: 72,
+          height: 72,
+          transform: Matrix4.translationValues(0, -6, 0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                color: Color(0x552E5B39),
+                blurRadius: 14,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            child: Image(
+              image: resolveImageProvider(path, _attachmentBaseUrl),
+              width: 72,
+              height: 72,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      ),
+      // 原位变空槽，直观表达「已被拿起」
+      childWhenDragging: Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+          color: ForestBg.sunken,
+          border: Border.all(color: ForestNeutral.hairline, width: 1.5),
+        ),
+      ),
+      child: DragTarget<String>(
+        onWillAccept: (String? data) => data != null && data != path,
+        onAccept: (String dragged) {
+          final int from = _attachmentPaths.indexOf(dragged);
+          if (from < 0 || from == index) return;
+          setState(() {
+            final String item = _attachmentPaths.removeAt(from);
+            _attachmentPaths.insert(index, item);
+          });
+          HapticFeedback.selectionClick();
+        },
+        builder: (
+          BuildContext ctx,
+          List<String?> candidate,
+          List<dynamic> rejected,
+        ) {
+          final bool hovered = candidate.isNotEmpty;
+          return AnimatedScale(
+            scale: hovered ? 1.06 : 1.0,
+            duration: const Duration(milliseconds: 120),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+                border: hovered
+                    ? Border.all(color: const Color(0xFF3C8A60), width: 2.5)
+                    : null,
+                color: hovered ? const Color(0x1A3C8A60) : null,
+              ),
+              child: _buildAttachmentThumb(path),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -3273,25 +3420,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     if (mounted && _keyboardExpanded) {
       setState(() => _keyboardExpanded = false);
     }
-    final String? value = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
-      ),
-      builder: (BuildContext ctx) => const _PromptSheet(
-        title: '添加标签',
-        hint: '输入标签名称，多个用空格分隔',
-      ),
+    // 打开标签选择弹窗（50% 半屏），返回选中的标签名列表。
+    // 弹窗内可进入「标签管理页」增删改分组与标签，选择态与新增即时同步。
+    final List<String>? selected = await TagSheet.show(
+      context,
+      initialSelected: _tags,
     );
-    if (value == null || value.trim().isEmpty || !mounted) return;
-    setState(() {
-      _tags.addAll(
-        value.trim().split(RegExp(r'\s+')).where((String s) => s.isNotEmpty),
-      );
-    });
+    if (selected == null || !mounted) return;
+    setState(() => _tags
+      ..clear()
+      ..addAll(selected));
   }
 
   /// 打开「记一笔模板」面板：可把当前填写存为模板，也可一键套用已有模板。
@@ -3306,13 +3444,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       excludeFromBudget: _excludeFromBudget,
       isReimbursable: _isReimbursable,
     );
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext ctx) => _TemplateSheet(
-        draft: draft,
-        onApply: _applyTemplate,
-      ),
+    await RecordTemplateSheet.show(
+      context,
+      draft: draft,
+      onApply: _applyTemplate,
     );
   }
 
@@ -4007,19 +4142,25 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
   }
 }
 
-/// 通用单行输入对话框。
-/// 优惠功能键弹窗：复刻「森林手账·鼠尾草绿」优惠金额模板。
+/// 优惠功能键弹窗：复刻「森林手账·鼠尾草绿」优惠金额模板（对齐小青账逻辑）。
 ///
-/// 三种金额始终联动：优惠后金额 = 优惠前金额(原价) − 优惠金额。
-/// - 分段「输入优惠金额」：直接录入优惠（点「优惠前算法」可切到录入优惠后/实付）。
-/// - 分段「输入原价和实付」：录入原价与实付，反推优惠。
+/// 优惠前金额 = 上一页（记一笔）当前输入的金额（摘要卡只读展示，固定两位小数）。
+/// 三种金额始终联动：优惠后金额 = 原价 − 实付，优惠金额 = 原价 − 实付。
+/// - 分段「输入优惠金额」：优惠前锁定为上一页金额，直接录入优惠
+///   （点「优惠前算法」可切到录入优惠后/实付）。
+/// - 分段「输入原价和实付」：原价预填上一页金额、可键盘修改；实付为纯手动
+///   输入（进入模式时清空、不联动原价），填实付后反推优惠（实付超原价自动钳回）。
 /// 键盘复用项目内 [_RecordKeypad]（4×4：数字 + 删除/−/+ + 再记/0/•/保存）。
 /// 确认后回传的仍是「优惠金额」字符串（与旧 [_PromptSheet] 行为一致，最小化数据改动）。
 class DiscountSheet extends StatefulWidget {
-  const DiscountSheet({this.initial});
+  const DiscountSheet({this.initial, this.base});
 
   /// 已填写的优惠金额（元字符串），用于回显。
   final String? initial;
+
+  /// 优惠前金额（元字符串）= 上一页（记一笔）当前输入的金额，
+  /// 弹窗内只读展示，不可用键盘修改。
+  final String? base;
 
   @override
   State<DiscountSheet> createState() => _DiscountSheetState();
@@ -4041,16 +4182,41 @@ class _DiscountSheetState extends State<DiscountSheet> {
   /// 优惠模式下键盘写入目标：discount=优惠，paid=优惠后(实付)
   String _algo = 'discount';
 
-  /// 原价+实付模式下键盘焦点：amt / base / paid
-  String _focus = 'amt';
+  /// 原价+实付模式下键盘焦点：base(原价) / paid(实付)，进模式默认选原价
+  String _focus = 'base';
 
   /// 最近一次录入的字段，用于重算时反推另一项
   String _lastEdited = 'amt';
 
+  /// 记忆设置：上次使用的分段模式 / 算法（SharedPreferences 持久化）
+  static const String _prefModeKey = 'discount_sheet_mode';
+  static const String _prefAlgoKey = 'discount_sheet_algo';
+
   @override
   void initState() {
     super.initState();
+    // 记忆设置：还原上次使用的分段模式与算法（无记录/非法值回落默认）
+    final String savedMode = appPrefs.getString(_prefModeKey) ?? '';
+    if (savedMode == 'discount' || savedMode == 'original') {
+      _mode = savedMode;
+    }
+    if (_mode == 'discount') {
+      final String savedAlgo = appPrefs.getString(_prefAlgoKey) ?? '';
+      if (savedAlgo == 'discount' || savedAlgo == 'paid') {
+        _algo = savedAlgo;
+      }
+    }
+    // 优惠前金额预填上一页输入的金额（如 ¥100 → "100.00"，对齐小青账）。
+    _base = _fmt2(_toDouble(widget.base?.trim() ?? ''));
     _amt = widget.initial?.trim() ?? '';
+    if ((_mode == 'discount' && _algo == 'paid') || _mode == 'original') {
+      // 优惠后算法 / 原价+实付模式：打开弹窗不自动填充、不反算
+      //（避免把「实付 0」反推成 ¥100 填进输入栏），等键盘录入才联动
+      _paid = '';
+      _lastEdited = 'paid';
+    } else {
+      _recalc();
+    }
   }
 
   double _toDouble(String v) {
@@ -4063,9 +4229,16 @@ class _DiscountSheetState extends State<DiscountSheet> {
     return d.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
   }
 
+  /// 摘要卡展示用：固定两位小数（如 100 → "100.00"，对齐小青账 ¥100.00）。
+  String _fmt2(double v) {
+    final double d = (v * 100).round() / 100;
+    return d.toStringAsFixed(2);
+  }
+
   String _display(String v) => v.isEmpty ? '0.00' : v;
 
-  /// 当前键盘写入的字段 key
+  /// 当前键盘写入的字段 key：
+  /// 模式一优惠前来自上一页不可编辑（写 优惠/优惠后）；模式二原价、实付均可编辑。
   String _focusKey() {
     if (_mode == 'original') return _focus;
     return _algo == 'paid' ? 'paid' : 'amt';
@@ -4076,16 +4249,28 @@ class _DiscountSheetState extends State<DiscountSheet> {
     final double amt = _toDouble(_amt);
     final double paid = _toDouble(_paid);
     if (_lastEdited == 'paid') {
+      // 录实付：钳制 ≤ 原价（优惠前为 0 时任何实付都钳为 0），反推优惠
       double p = paid;
       if (p > base) p = base;
       _paid = _fmt(p);
       _amt = _fmt(base - p);
     } else if (_lastEdited == 'base') {
-      final double p = base - amt;
-      _paid = _fmt(p < 0 ? 0 : p);
+      // 录原价（模式二）：实付为手动输入、不联动；
+      // 仅当实付已填时反推优惠（实付超原价时钳回）
+      if (_paid.isNotEmpty) {
+        double p = _toDouble(_paid);
+        if (p > base) {
+          p = base;
+          _paid = _fmt(p);
+        }
+        _amt = _fmt(base - p);
+      }
     } else {
-      final double p = base - amt;
-      _paid = _fmt(p < 0 ? 0 : p);
+      // 录优惠：钳制 ≤ 原价（优惠前为 0 时任何优惠都钳为 0），反推优惠后
+      double a = amt;
+      if (a > base) a = base;
+      _amt = _fmt(a);
+      _paid = _fmt(base - a);
     }
   }
 
@@ -4110,133 +4295,206 @@ class _DiscountSheetState extends State<DiscountSheet> {
   Future<void> _openAlgo() async {
     final String? choice = await showModalBottomSheet<String>(
       context: context,
+      backgroundColor: ForestBg.paper,
       shape: RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
       ),
       builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const SizedBox(height: 8),
-            ListTile(
-              title: const Text('优惠前'),
-              subtitle: const Text('键盘输入为优惠前金额'),
-              trailing: _algo == 'discount'
-                  ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
-                  : null,
-              onTap: () => Navigator.of(ctx).pop('discount'),
-            ),
-            ListTile(
-              title: const Text('优惠后'),
-              subtitle: const Text('键盘输入为优惠后金额'),
-              trailing: _algo == 'paid'
-                  ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
-                  : null,
-              onTap: () => Navigator.of(ctx).pop('paid'),
-            ),
-            const SizedBox(height: 8),
-          ],
+        child: Container(
+          decoration: BoxDecoration(
+            color: ForestBg.paper,
+            borderRadius: BorderRadius.vertical(
+                top: Radius.circular(AppDimens.radiusLg)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const SizedBox(height: 8),
+              ListTile(
+                title: const Text('优惠前算法'),
+                subtitle: const Text('键盘输入为优惠金额，优惠后 = 优惠前 − 优惠'),
+                trailing: _algo == 'discount'
+                    ? Icon(Icons.check, color: ForestGreen.deep)
+                    : null,
+                onTap: () => Navigator.of(ctx).pop('discount'),
+              ),
+              ListTile(
+                title: const Text('优惠后算法'),
+                subtitle: const Text('键盘输入为优惠后金额，优惠 = 优惠前 − 优惠后'),
+                trailing: _algo == 'paid'
+                    ? Icon(Icons.check, color: ForestGreen.deep)
+                    : null,
+                onTap: () => Navigator.of(ctx).pop('paid'),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
     if (choice == null || !mounted) return;
-    setState(() => _algo = choice);
+    setState(() {
+      if (choice != _algo) {
+        _algo = choice;
+        // 记忆设置：持久化本次算法选择
+        appPrefs.setString(_prefAlgoKey, choice);
+        // 切换算法：输入栏自动清空、不做反算（避免把 0 实付反推成 ¥100 填进输入栏）
+        _amt = '';
+        _paid = '';
+        _lastEdited = choice == 'paid' ? 'paid' : 'amt';
+      }
+    });
   }
 
   Widget _infoHint(ThemeData theme) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
+          color: ForestBg.sunken,
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: ForestNeutral.hairline),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Icon(Icons.info_outline,
-                size: 16, color: AppColors.textSecondary),
+                size: 16, color: ForestNeutral.textSecondary),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                '支出可使用此功能：如信用卡笔笔返现，实际扣款 = 消费金额 − 优惠金额。',
+                '支出可以使用这个功能哦。如使用招商信用卡，消费20元笔笔返现0.5元，实际扣款19.5 = 消费金额(20) − 优惠金额(0.5)',
                 style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textSecondary),
+                    ?.copyWith(color: ForestNeutral.textSecondary),
               ),
             ),
           ],
         ),
       );
 
+  /// 分段控件（模板 .seg）：未选 = 沙色底灰绿字；选中 = 浅绿平涂 + 浅绿描边 + 深绿墨字
   Widget _segPill(ThemeData theme, String mode, String label) {
     final bool on = _mode == mode;
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _mode = mode),
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: on ? theme.colorScheme.primary : AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(18),
+    return InkWell(
+      onTap: () => setState(() {
+        _mode = mode;
+        // 记忆设置：持久化本次分段选择
+        appPrefs.setString(_prefModeKey, mode);
+        if (mode == 'original') {
+          // 默认聚焦原价；实付为纯手动输入，进入时不联动原价、保持为空
+          _focus = 'base';
+          _paid = '';
+        }
+      }),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: on ? ForestGreen.soft : ForestBg.sunken,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: on ? ForestGreen.softBorder : Colors.transparent,
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: on ? Colors.white : AppColors.textSecondary),
-            ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: on ? ForestSage.ink : ForestNeutral.textSecondary,
           ),
         ),
       ),
     );
   }
 
-  Widget _amountPill(
+  /// 输入胶囊（模板 .pill）：单行全圆角，未选 = 奶油卡 + 暖发丝线；
+  /// 选中 = 鼠尾草绿渐变选中卡 + 深绿圆白✓ + 深绿墨字；可选右侧算法入口。
+  Widget _focusPill(
     ThemeData theme, {
     required String label,
     required String value,
     required bool selected,
     required VoidCallback onTap,
+    String? algoLabel,
+    VoidCallback? onAlgoTap,
   }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          decoration: BoxDecoration(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        margin: const EdgeInsets.only(top: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: selected ? ForestGradients.sageMid : null,
+          color: selected ? null : ForestSurface.card,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
             color: selected
-                ? theme.colorScheme.primary
-                : AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.divider),
+                ? const Color(0x402E5B39) // rgba(46,91,57,.25)
+                : ForestNeutral.hairline,
+            width: 1.5,
           ),
-          child: Row(
-            children: <Widget>[
-              Icon(Icons.local_offer_outlined,
-                  size: 14,
-                  color: selected ? Colors.white : AppColors.textSecondary),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(label,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: selected
-                                ? Colors.white
-                                : AppColors.textSecondary)),
-                    const SizedBox(height: 2),
-                    Text('¥${_display(value)}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            color: selected ? Colors.white : theme.textTheme.bodyMedium?.color)),
-                  ],
+          boxShadow: selected
+              ? <BoxShadow>[
+                  const BoxShadow(
+                    color: Color(0x333C8A60), // rgba(60,138,96,.20)
+                    blurRadius: 14,
+                    offset: Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: selected ? ForestGreen.deep : ForestSurface.cardAlt,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: selected
+                    ? const Icon(Icons.check, size: 12, color: Colors.white)
+                    : const Text(
+                        '¥',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: ForestNeutral.textSecondary,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$label ¥${_display(value)}',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                color: selected ? ForestSage.ink : ForestNeutral.textTertiary,
+              ),
+            ),
+            if (algoLabel != null) ...<Widget>[
+              const Spacer(),
+              InkWell(
+                onTap: onAlgoTap,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                  child: Text(
+                    algoLabel,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: ForestSage.label,
+                    ),
+                  ),
                 ),
               ),
-              if (selected)
-                const Icon(Icons.check, size: 16, color: Colors.white),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -4248,6 +4506,8 @@ class _DiscountSheetState extends State<DiscountSheet> {
     final String focused = _focusKey();
     final String keypadValue =
         focused == 'base' ? _base : focused == 'paid' ? _paid : _amt;
+    // 模式一 · 优惠后算法：键盘录「优惠后」，胶囊/小卡随之切换（小卡显示计算出的优惠）
+    final bool typingPaid = _mode == 'discount' && _algo == 'paid';
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -4255,149 +4515,183 @@ class _DiscountSheetState extends State<DiscountSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
+          // 拖动条（模板 .grab）
           Center(
             child: Container(
-              margin: const EdgeInsets.only(top: 8),
+              margin: const EdgeInsets.only(top: 8, bottom: 6),
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.divider,
-                borderRadius: BorderRadius.circular(2),
+                color: const Color(0x332E5B39), // rgba(46,91,57,.20)
+                borderRadius: BorderRadius.circular(999),
               ),
             ),
           ),
+          // 头部：✕（左 · 圆形沙底）+ 分段控件，无标题行（模板 .hd）
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppDimens.spaceLg,
-              AppDimens.spaceMd,
-              AppDimens.spaceMd,
-              AppDimens.spaceSm,
-            ),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
             child: Row(
               children: <Widget>[
-                Text('优惠金额', style: theme.textTheme.titleMedium),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceLg),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('优惠前金额',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: AppColors.textSecondary)),
-                      const SizedBox(height: 4),
-                      Text('¥${_display(_base)}',
-                          style: theme.textTheme.headlineMedium),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      Text('优惠后金额',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: AppColors.textSecondary)),
-                      const SizedBox(height: 4),
-                      Text('¥${_display(_paid)}',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.primary)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
-            child: _infoHint(theme),
-          ),
-          const SizedBox(height: AppDimens.spaceMd),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
-            child: Row(
-              children: <Widget>[
-                _segPill(theme, 'discount', '输入优惠金额'),
-                const SizedBox(width: AppDimens.spaceSm),
-                _segPill(theme, 'original', '输入原价和实付'),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppDimens.spaceSm),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
-            child: _mode == 'discount'
-                ? Row(
-                    children: <Widget>[
-                      _amountPill(
-                        theme,
-                        label: '优惠',
-                        value: _amt,
-                        selected: _algo == 'discount',
-                        onTap: () => setState(() => _algo = 'discount'),
-                      ),
-                      const SizedBox(width: AppDimens.spaceSm),
-                      Expanded(
-                        child: InkWell(
-                          onTap: _openAlgo,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.divider),
-                            ),
-                            child: Center(
-                              child: Text(
-                                _algo == 'paid' ? 'Ⓢ 优惠后算法' : 'Ⓢ 优惠前算法',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.primary),
-                              ),
-                            ),
-                          ),
+                InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: const BoxDecoration(
+                      color: ForestSurface.cardAlt,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Text(
+                        '✕',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: ForestNeutral.textSecondary,
                         ),
                       ),
-                    ],
-                  )
-                : Row(
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
-                      _amountPill(
-                        theme,
-                        label: '优惠',
-                        value: _amt,
-                        selected: _focus == 'amt',
-                        onTap: () => setState(() => _focus = 'amt'),
-                      ),
-                      const SizedBox(width: AppDimens.spaceSm),
-                      _amountPill(
+                      Flexible(child: _segPill(theme, 'discount', '输入优惠金额')),
+                      const SizedBox(width: 6),
+                      Flexible(child: _segPill(theme, 'original', '输入原价和实付')),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 信息提示卡（沙色 · 模板 .hint）
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: _infoHint(theme),
+          ),
+          // 摘要：奶油卡 + 深绿墨字（模板 .sum）；优惠后小卡浅绿底，聚焦时描边环
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: ForestSurface.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: ForestNeutral.hairline),
+                boxShadow: const <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x142C3329), // rgba(44,51,41,.08)
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text(
+                          '优惠前金额',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: .3,
+                            color: ForestNeutral.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          // 优惠前金额 = 上一页金额，固定两位小数（¥100.00）
+                          '¥${_fmt2(_toDouble(_base))}',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            height: 1.1,
+                            fontWeight: FontWeight.w800,
+                            color: ForestSage.ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: ForestGreen.soft,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: focused == 'paid'
+                          ? const <BoxShadow>[
+                              BoxShadow(
+                                color: Color(0x593C8A60), // rgba(46,138,96,.35)
+                                blurRadius: 0,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        Text(
+                          // 优惠后算法（键盘录优惠后）时，小卡切换为显示计算出的「优惠」
+                          typingPaid ? '优惠' : '优惠后金额',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: ForestSage.label,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          // 常规：优惠后 = 优惠前 − 优惠；优惠后算法：优惠 = 优惠前 − 优惠后
+                          '¥${_fmt2(_toDouble(typingPaid ? _amt : _paid))}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: ForestGreen.deep,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // 输入胶囊（模板 .pill）：模式一单条（含算法入口）；
+          // 模式二原价(预填上一页金额，可改)/实付 两行堆叠（标签在上方，小青账样式）
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: _mode == 'discount'
+                ? _focusPill(
+                    theme,
+                    // 优惠后算法时胶囊切换为正在录入的「优惠后」，右侧入口显示当前算法
+                    label: typingPaid ? '优惠后' : '优惠',
+                    value: typingPaid ? _paid : _amt,
+                    selected: true,
+                    onTap: () {},
+                    // 右侧入口跟随当前算法显示「优惠前 / 优惠后」（不带「算法」字样）
+                    algoLabel:
+                        typingPaid ? 'Ⓢ 优惠后' : 'Ⓢ 优惠前',
+                    onAlgoTap: _openAlgo,
+                  )
+                : Column(
+                    children: <Widget>[
+                      _focusPill(
                         theme,
                         label: '原价',
                         value: _base,
                         selected: _focus == 'base',
                         onTap: () => setState(() => _focus = 'base'),
                       ),
-                      const SizedBox(width: AppDimens.spaceSm),
-                      _amountPill(
+                      _focusPill(
                         theme,
                         label: '实付价格',
                         value: _paid,
@@ -4407,30 +4701,25 @@ class _DiscountSheetState extends State<DiscountSheet> {
                     ],
                   ),
           ),
-          const SizedBox(height: AppDimens.spaceMd),
-          _RecordKeypad(
-            value: keypadValue,
-            onChanged: _onKey,
-            onSave: _confirm,
-            onSaveAndMore: null,
-            onOperator: null,
-            onBackspace: null,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppDimens.spaceLg,
-              AppDimens.spaceSm,
-              AppDimens.spaceLg,
-              AppDimens.spaceLg,
+          const SizedBox(height: 12),
+          // 键盘托盘（模板 .kb：沙色底 + 4×4 键盘；保存键即确认，无独立确定按钮）
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: ForestBg.sunken,
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _confirm,
-                child: const Text('确定'),
-              ),
+            child: _RecordKeypad(
+              value: keypadValue,
+              onChanged: _onKey,
+              onSave: _confirm,
+              onSaveAndMore: null,
+              onOperator: null,
+              onBackspace: null,
             ),
           ),
+          const SizedBox(height: 10),
         ],
       ),
     );
@@ -4522,289 +4811,6 @@ class _PromptSheetState extends State<_PromptSheet> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 记一笔模板草稿：从当前记一笔面板抓取的可复用字段（金额除外，金额每次仍需手填）。
-class RecordTemplateDraft {
-  const RecordTemplateDraft({
-    required this.tabIndex,
-    this.accountId,
-    this.categoryId,
-    this.note,
-    this.tags,
-    this.excludeFromStats = false,
-    this.excludeFromBudget = false,
-    this.isReimbursable = false,
-  });
-
-  final int tabIndex;
-  final String? accountId;
-  final String? categoryId;
-  final String? note;
-  final String? tags;
-  final bool excludeFromStats;
-  final bool excludeFromBudget;
-  final bool isReimbursable;
-}
-
-/// 模板面板：保存当前组合为模板，或套用已有模板一键填充记一笔表单。
-class _TemplateSheet extends ConsumerStatefulWidget {
-  const _TemplateSheet({
-    required this.draft,
-    required this.onApply,
-  });
-
-  final RecordTemplateDraft draft;
-  final ValueChanged<RecordTemplate> onApply;
-
-  @override
-  ConsumerState<_TemplateSheet> createState() => _TemplateSheetState();
-}
-
-class _TemplateSheetState extends ConsumerState<_TemplateSheet> {
-  final TextEditingController _nameController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  String _resolveAccountName(
-    AsyncValue<List<Account>> accounts,
-    String? id,
-  ) {
-    if (id == null) return '';
-    return accounts.maybeWhen(
-      data: (List<Account> list) {
-        final Account? a = list.cast<Account?>().firstWhere(
-              (Account? x) => x?.id == id,
-              orElse: () => null,
-            );
-        return a?.name ?? '';
-      },
-      orElse: () => '',
-    );
-  }
-
-  String _summaryFor(
-    RecordTemplate t,
-    AsyncValue<List<Account>> accounts,
-  ) {
-    final RecordTab tab = RecordTab.values[t.tabIndex];
-    final String acc = _resolveAccountName(accounts, t.accountId);
-    final List<String> parts = <String>[tab.label];
-    if (acc.isNotEmpty) parts.add('账户 $acc');
-    if (t.note != null && t.note!.isNotEmpty) parts.add(t.note!);
-    if (t.tags != null && t.tags!.isNotEmpty) parts.add('标签 ${t.tags}');
-    final List<String> sw = <String>[
-      if (t.excludeFromStats) '不计收支',
-      if (t.excludeFromBudget) '不计预算',
-      if (t.isReimbursable) '可报销',
-    ];
-    if (sw.isNotEmpty) parts.add(sw.join('/'));
-    return parts.join(' · ');
-  }
-
-  Future<void> _save() async {
-    final String name = _nameController.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入模板名称')),
-      );
-      return;
-    }
-    final RecordTemplateDraft d = widget.draft;
-    await ref.read(recordTemplateRepositoryProvider).add(
-          bookId: ref.read(currentBookIdProvider),
-          name: name,
-          tabIndex: d.tabIndex,
-          accountId: d.accountId,
-          categoryId: d.categoryId,
-          note: d.note,
-          tags: d.tags,
-          excludeFromStats: d.excludeFromStats,
-          excludeFromBudget: d.excludeFromBudget,
-          isReimbursable: d.isReimbursable,
-        );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已保存模板「$name」')),
-    );
-    _nameController.clear();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final RecordTab tab = RecordTab.values[widget.draft.tabIndex];
-    final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
-    final String accountName =
-        _resolveAccountName(accounts, widget.draft.accountId);
-
-    String? categoryName;
-    final int ti = widget.draft.tabIndex;
-    if (widget.draft.categoryId != null &&
-        (ti == RecordTab.expense.index || ti == RecordTab.income.index)) {
-      final AsyncValue<List<Category>> cats = ref.watch(
-        ti == RecordTab.income.index
-            ? incomeCategoriesProvider
-            : expenseCategoriesProvider,
-      );
-      categoryName = cats.maybeWhen(
-        data: (List<Category> list) {
-          final Category? c = list.cast<Category?>().firstWhere(
-                (Category? x) => x?.id == widget.draft.categoryId,
-                orElse: () => null,
-              );
-          return c?.name;
-        },
-        orElse: () => null,
-      );
-    }
-
-    final List<String> switches = <String>[
-      if (widget.draft.excludeFromStats) '不计收支',
-      if (widget.draft.excludeFromBudget) '不计预算',
-      if (widget.draft.isReimbursable) '可报销',
-    ];
-    final String draftSummary = <String>[
-      tab.label,
-      if (accountName.isNotEmpty) '账户 $accountName',
-      if (categoryName != null && categoryName.isNotEmpty) '分类 $categoryName',
-      if (widget.draft.note != null && widget.draft.note!.isNotEmpty)
-        widget.draft.note!,
-      if (switches.isNotEmpty) switches.join('/'),
-    ].join(' · ');
-
-    final AsyncValue<List<RecordTemplate>> templates =
-        ref.watch(recordTemplatesProvider);
-
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.82,
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceLg,
-                AppDimens.spaceLg,
-                AppDimens.spaceMd,
-                AppDimens.spaceSm,
-              ),
-              child: Row(
-                children: <Widget>[
-                  Text('记一笔模板', style: theme.textTheme.titleMedium),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(AppDimens.spaceLg),
-                children: <Widget>[
-                  TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: '模板名称',
-                      hintText: '如「滴滴通勤」「午饭」',
-                    ),
-                  ),
-                  const SizedBox(height: AppDimens.spaceMd),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppDimens.spaceMd),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                    ),
-                    child: Text(
-                      '将保存：$draftSummary',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppDimens.spaceLg),
-                  FilledButton.icon(
-                    onPressed: _save,
-                    icon: const Icon(Icons.bookmark_add_outlined),
-                    label: const Text('保存为模板'),
-                  ),
-                  const SizedBox(height: AppDimens.spaceXl),
-                  Text('已有模板', style: theme.textTheme.titleSmall),
-                  const SizedBox(height: AppDimens.spaceSm),
-                  templates.when(
-                    data: (List<RecordTemplate> list) => list.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.symmetric(
-                              vertical: AppDimens.spaceLg,
-                            ),
-                            child: Text(
-                              '还没有模板，先在上方保存一个',
-                              style: TextStyle(color: AppColors.textTertiary),
-                            ),
-                          )
-                        : Column(
-                            children: <Widget>[
-                              for (final RecordTemplate t in list)
-                                ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(t.name),
-                                  subtitle: Text(
-                                    _summaryFor(t, accounts),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: <Widget>[
-                                      TextButton(
-                                        onPressed: () {
-                                          widget.onApply(t);
-                                          Navigator.of(context).pop();
-                                        },
-                                        child: const Text('套用'),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline,
-                                          color: AppColors.textTertiary,
-                                        ),
-                                        onPressed: () => ref
-                                            .read(
-                                                recordTemplateRepositoryProvider)
-                                            .remove(t.id),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ],
-                          ),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (Object e, StackTrace? s) =>
-                        Center(child: Text('加载失败：$e')),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -5015,4 +5021,401 @@ class _KeyAction extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 图片功能键底部弹窗（暖纸皮肤，对齐 bill-photo-sheet-forest.html FINAL）。
+/// 半屏贴底（屏幕 50% 高）；✕ 关闭 + 居中标题「账单图片」+ 满高虚线描述卡 +
+/// 「最多选择9张图片」提示 + 照片/拍照互斥切换选中。默认选中「照片」。
+///
+/// [attachments] 非空时，虚线卡内改为展示已选图片缩略图（右上角 ✕ 删除，
+/// 删除同步回调 [onRemove] 通知宿主页）；为空时显示原描述文案。
+class ImageSourceSheet extends StatefulWidget {
+  const ImageSourceSheet({
+    super.key,
+    this.attachments = const <String>[],
+    this.onRemove,
+    this.onReorder,
+  });
+
+  /// 当前已选图片（本地持久化路径），宿主页传入用于回显。
+  final List<String> attachments;
+
+  /// 在弹窗内删除某张图片时回调宿主页同步删除。
+  final ValueChanged<String>? onRemove;
+
+  /// 在弹窗内拖拽排序后回调宿主页同步顺序（from/to 为重排前下标）。
+  final void Function(int from, int to)? onReorder;
+
+  @override
+  State<ImageSourceSheet> createState() => _ImageSourceSheetState();
+}
+
+class _ImageSourceSheetState extends State<ImageSourceSheet> {
+  bool _isPhoto = true;
+
+  /// 弹窗内的本地副本：删除即时生效（宿主页通过 [ImageSourceSheet.onRemove]
+  /// 同步），重新打开时由宿主页重新传入最新列表。
+  late final List<String> _paths = List<String>.of(widget.attachments);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.5,
+      decoration: BoxDecoration(
+        color: ForestBg.paper,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+      child: Column(
+        children: <Widget>[
+          // 头部：左 ✕（沙底圆）+ 居中标题
+          SizedBox(
+            height: 34,
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: ForestBg.sunken,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: ForestNeutral.hairline),
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFF6A7263),
+                      ),
+                    ),
+                  ),
+                ),
+                const Text(
+                  '账单图片',
+                  style: TextStyle(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2C3329),
+                    letterSpacing: 0.02,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          // 满高虚线卡（奶油卡底 + 沙色虚线描边）：固定尺寸（高度由弹窗布局锁定，
+          // 不随图片数量变化）；已选图片时内部为固定 3 列网格。
+          Expanded(
+            child: _DashedRoundedCard(
+              child: _paths.isEmpty
+                  ? const Center(
+                      child: Text(
+                        '可将小票、消费账单拍照上传，或者配一些精美的照片丰富记账~',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          height: 1.8,
+                          color: Color(0xFF6A7263),
+                        ),
+                      ),
+                    )
+                  : LayoutBuilder(
+                      builder: (BuildContext ctx, BoxConstraints c) {
+                        const double gap = 10;
+                        // 固定 3 列：格子边长 = (可用宽 - 2 个间距) / 3，
+                        // 高度受限时按可用高度收格子，保证 3 行完整放下。
+                        // 网格留出 top/right 6px 内边距，容纳 ✕ 徽标越出格子。
+                        final double w = (c.maxWidth - 6 - 2 * gap) / 3;
+                        final double h = (c.maxHeight - 6 - 2 * gap) / 3;
+                        final double cell = w < h ? w : h;
+                        return GridView.count(
+                          crossAxisCount: 3,
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.only(top: 6, right: 6),
+                          mainAxisSpacing: gap,
+                          crossAxisSpacing: gap,
+                          childAspectRatio: 1,
+                          children: <Widget>[
+                            for (int i = 0; i < _paths.length; i++)
+                              _gridCell(i, cell),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _paths.isEmpty ? '最多选择9张图片' : '已选 ${_paths.length}/9 张图片',
+            style: const TextStyle(fontSize: 11.5, color: Color(0xFF9AA091)),
+          ),
+          const SizedBox(height: 8),
+          // 照片（默认选中）
+          _imageModeButton(
+            label: '照片',
+            selected: _isPhoto,
+            onTap: () {
+              setState(() => _isPhoto = true);
+              Navigator.of(context).pop(ImageSource.gallery);
+            },
+          ),
+          const SizedBox(height: 4),
+          // 拍照
+          _imageModeButton(
+            label: '拍照',
+            selected: !_isPhoto,
+            onTap: () {
+              setState(() => _isPhoto = false);
+              Navigator.of(context).pop(ImageSource.camera);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 网格格子：长按拖拽排序（自绘，不依赖第三方包）。
+  /// 优化点：拖起有触感反馈、浮图轻微放大并跟随手指；原位显示空槽；
+  /// 悬停落点格放大+深绿描边+淡绿底，落定有轻微触感反馈。删除 ✕ 不受影响。
+  Widget _gridCell(int index, double cell) {
+    final String path = _paths[index];
+    return LongPressDraggable<String>(
+      data: path,
+      maxSimultaneousDrags: 1,
+      dragAnchorStrategy: childDragAnchorStrategy, // 浮图贴住原图位置，跟手更自然
+      onDragStarted: () => HapticFeedback.mediumImpact(),
+      feedback: Transform.scale(
+        scale: 1.06,
+        child: Container(
+          width: cell,
+          height: cell,
+          transform: Matrix4.translationValues(0, -8, 0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                color: Color(0x552E5B39),
+                blurRadius: 16,
+                offset: Offset(0, 7),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.file(File(path), fit: BoxFit.cover),
+          ),
+        ),
+      ),
+      // 原位变空槽（沙底描边），直观表达「已被拿起」
+      childWhenDragging: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: ForestBg.sunken,
+          border: Border.all(color: ForestNeutral.hairline, width: 1.5),
+        ),
+      ),
+      child: DragTarget<String>(
+        onWillAccept: (String? data) => data != null && data != path,
+        onAccept: (String dragged) {
+          final int from = _paths.indexOf(dragged);
+          final int to = _paths.indexOf(path);
+          if (from < 0 || to < 0 || from == to) return;
+          setState(() => _paths.insert(to, _paths.removeAt(from)));
+          HapticFeedback.selectionClick();
+          widget.onReorder?.call(from, to);
+        },
+        builder: (
+          BuildContext ctx,
+          List<String?> candidate,
+          List<dynamic> rejected,
+        ) {
+          // 悬停落点：放大 + 深绿描边 + 淡绿底，提示将插入此处
+          final bool hovered = candidate.isNotEmpty;
+          return AnimatedScale(
+            scale: hovered ? 1.04 : 1.0,
+            duration: const Duration(milliseconds: 120),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: hovered
+                    ? Border.all(color: ForestGreen.deep, width: 2.5)
+                    : null,
+                color: hovered ? const Color(0x1A3C8A60) : null,
+              ),
+              child: _thumb(path),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// 弹窗内缩略图：填满整个网格格子（GridView 传入的格子约束为紧约束），
+  /// 圆角方图 + 右上角深绿 ✕ 删除徽标（与关闭钮同源，可越出格子 6px）。
+  Widget _thumb(String path) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.file(
+              File(path),
+              fit: BoxFit.cover,
+              errorBuilder: (_, Object e, StackTrace? st) => Container(
+                color: ForestBg.sunken,
+                child: const Icon(
+                  Icons.broken_image_outlined,
+                  size: 22,
+                  color: Color(0xFF9AA091),
+                ),
+              ),
+            ),
+          ),
+        ),
+          Positioned(
+            right: -6,
+            top: -6,
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _paths.remove(path));
+                widget.onRemove?.call(path);
+              },
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: ForestGreen.deep,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: ForestBg.paper, width: 1.5),
+                ),
+                child: const Icon(Icons.close, size: 12, color: Colors.white),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 照片/拍照切换按钮：选中 = 鼠尾草绿渐变胶囊（深绿墨字加粗 + 投影），
+  /// 未选 = 中深绿文字钮（与模板 .on 态同源）。
+  Widget _imageModeButton({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(vertical: selected ? 13 : 11),
+          decoration: BoxDecoration(
+            gradient: selected ? ForestGradients.sageMid : null,
+            color: selected ? null : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: selected
+                ? const <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x333C8A60),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: selected ? 15.5 : 14.5,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                color: selected ? ForestSage.ink : ForestSage.label,
+                letterSpacing: selected ? 0.06 : 0.04,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 虚线圆角卡片（Flutter 原生 BorderStyle 无 dashed，用 CustomPaint 实现）。
+class _DashedRoundedCard extends StatelessWidget {
+  const _DashedRoundedCard({
+    required this.child,
+    this.radius = 14,
+    this.color = const Color(0xFFD8CBB2),
+    this.strokeWidth = 1.6,
+  });
+
+  final Widget child;
+  final double radius;
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _DashedRoundedRectPainter(
+        radius: radius,
+        color: color,
+        strokeWidth: strokeWidth,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedRoundedRectPainter extends CustomPainter {
+  const _DashedRoundedRectPainter({
+    required this.radius,
+    required this.color,
+    required this.strokeWidth,
+  });
+
+  final double radius;
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final RRect rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
+    final Path path = Path()..addRRect(rrect);
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    const double dash = 6;
+    const double gap = 4;
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final double len =
+            dash < (metric.length - distance) ? dash : metric.length - distance;
+        canvas.drawPath(metric.extractPath(distance, distance + len), paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }

@@ -6,6 +6,7 @@ import 'daos/accounts_dao.dart';
 import 'daos/books_dao.dart';
 import 'daos/categories_dao.dart';
 import 'daos/pending_ops_dao.dart';
+import 'daos/tags_dao.dart';
 import 'daos/transactions_dao.dart';
 import 'tables.dart';
 
@@ -41,6 +42,8 @@ part 'app_database.g.dart';
     InventoryItems,
     RecordTemplates,
     PendingOps,
+    TagCategories,
+    Tags,
   ],
   daos: <Type>[
     BooksDao,
@@ -48,6 +51,7 @@ part 'app_database.g.dart';
     CategoriesDao,
     TransactionsDao,
     PendingOpsDao,
+    TagsDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -63,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -187,6 +191,12 @@ class AppDatabase extends _$AppDatabase {
               installmentPlans,
               installmentPlans.repeatRule,
             );
+          }
+
+          if (from < 11) {
+            // v11：新增本地「标签」两张表（分组 + 标签），不参与云端同步。
+            await _createTableIfMissing(m, tagCategories);
+            await _createTableIfMissing(m, tags);
           }
 
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
