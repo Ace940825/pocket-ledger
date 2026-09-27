@@ -62,7 +62,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     );
   }
 
-  void _openDetail(Account a) => context.push('/accounts/${a.id}/transactions');
+  /// 报销账户统一跳报销页（资产流水明细无意义），其余类型进资产详情页。
+  void _openDetail(Account a) => context.push(
+        a.type == AccountType.reimbursement
+            ? Routes.reimbursement
+            : '/accounts/${a.id}/transactions',
+      );
 
   void _editAccount(Account a) => _showEditor(context, ref, a);
 

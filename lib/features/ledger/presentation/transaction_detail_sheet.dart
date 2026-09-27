@@ -11,6 +11,7 @@ import '../../../../core/theme/forest_design_tokens.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
 import '../../../../providers/app_providers.dart';
+import '../../../../routing/app_router.dart';
 import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/line_icons.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -302,13 +303,16 @@ class TransactionDetailSheet extends ConsumerWidget {
     rows.add(_kv('时间', DateFormat('yyyy-MM-dd HH:mm').format(occurred)));
     rows.add(_kv('账本', book?.name ?? '默认账本'));
     rows.add(
-      _kvTap(
-        '资产账户',
-        account?.name ?? '未知账户',
-        onTap: account != null
-            ? () => context.push('/accounts/${account.id}/transactions')
-            : null,
-      ),
+        _kvTap(
+          '资产账户',
+          account?.name ?? '未知账户',
+          // 报销账户统一跳报销页，与账户页点击口径一致
+          onTap: account == null
+              ? null
+              : account.type == AccountType.reimbursement
+                  ? () => context.push(Routes.reimbursement)
+                  : () => context.push('/accounts/${account.id}/transactions'),
+        ),
     );
     if (tags.isNotEmpty) {
       rows.add(
