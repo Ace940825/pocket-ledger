@@ -3321,7 +3321,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       const SizedBox(height: 8),
       _buildRbBillCard(),
       const SizedBox(height: 16),
-      _microLabel('报销收入'),
+      _rbSectionHeader(
+        '报销收入',
+        onPick: _fillRbFullAmount,
+        pickLabel: '全额报销',
+        pickIcon: false,
+      ),
       const SizedBox(height: 8),
       _buildRbAmountCard(),
       const SizedBox(height: 16),
@@ -3365,7 +3370,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       );
 
   /// 报销页节头（对齐参考稿）：绿色竖条 + 加粗标题 + 右侧「选取」胶囊。
-  Widget _rbSectionHeader(String title, {VoidCallback? onPick}) => Padding(
+  Widget _rbSectionHeader(
+    String title, {
+    VoidCallback? onPick,
+    String pickLabel = '选取',
+    bool pickIcon = true,
+  }) => Padding(
         padding: const EdgeInsets.only(top: 2),
         child: Row(
           children: <Widget>[
@@ -3403,18 +3413,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       border: Border.all(color: _Sage.hairline),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Icon(
-                          Icons.grid_view_outlined,
-                          size: 13,
-                          color: _Sage.ink2,
-                        ),
-                        SizedBox(width: 4),
+                        if (pickIcon) ...<Widget>[
+                          const Icon(
+                            Icons.grid_view_outlined,
+                            size: 13,
+                            color: _Sage.ink2,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                         Text(
-                          '选取',
-                          style: TextStyle(
+                          pickLabel,
+                          style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w500,
                             color: _Sage.ink,
@@ -4113,92 +4125,105 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return '已附票据 $photos 项 · 含历史账单 $hist 笔';
   }
 
-  /// 报销收入金额卡：¥ 渐变徽标 + 数字输入框 + 人民币胶囊。
-  Widget _buildRbAmountCard() => _rbCard(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: <Color>[_Sage.sageA, _Sage.sageB],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
+  /// 「全额报销」：把报销收入金额一键填为所选账单中
+  /// 未勾选「完成报销」部分的合计（完成报销的账单整笔核销、
+  /// 不占用本次收入，故不计入）。
+  void _fillRbFullAmount() {
+    final List<Transaction> expenses =
+        ref.read(bookExpenseTransactionsProvider).valueOrNull ??
+            const <Transaction>[];
+    final int needMinor = expenses
+        .where((Transaction t) =>
+            _rbHistIds.contains(t.id) && !_rbFinishIds.contains(t.id))
+        .fold<int>(0, (int s, Transaction t) => s + t.amountMinor);
+    if (needMinor <= 0) {
+      _toast('请先选择需要报销的账单');
+      return;
+    }
+    setState(() {
+      _rbAmountController.text =
+          Money.fromMinor(needMinor).format(showSymbol: false);
+      _activateFeeKeyboard('rbAmount');
+    });
+  }
+
+  /// 报销收入金额卡（对齐参考稿）：胶囊形输入框，占位「报销金额」；
+  /// ¥ 渐变徽标 + 只读数字输入（录入走工程内数字键盘）。
+  Widget _buildRbAmountCard() => Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        decoration: const BoxDecoration(
+          color: ForestBg.sunken,
+          borderRadius: BorderRadius.all(Radius.circular(999)),
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: <Color>[_Sage.sageA, _Sage.sageB],
                 ),
-                child: const Center(
-                  child: Text(
-                    '¥',
-                    style: TextStyle(
-                      fontSize: 16,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Center(
+                child: Text(
+                  '¥',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // 只读显示框：录入走工程内数字键盘（_feeKeyboardTarget =
+            // 'rbAmount'），点击「¥ + 金额」区域即切换键盘目标；
+            // 点击表单其他位置由报销页 tap-away 移除焦点。
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _activateFeeKeyboard('rbAmount'),
+                child: IgnorePointer(
+                  // 屏蔽 TextField 自身手势，让点击穿透到外层 GestureDetector。
+                  child: TextField(
+                    controller: _rbAmountController,
+                    focusNode: _rbAmountFocusNode,
+                    // 只读：不唤起系统键盘；焦点由 _activateFeeKeyboard
+                    // 程序化赋予，光标可闪烁。
+                    readOnly: true,
+                    showCursor: _feeKeyboardTarget == 'rbAmount',
+                    cursorColor: _Sage.greenDeep,
+                    textAlignVertical: TextAlignVertical.center,
+                    decoration: const InputDecoration(
+                      hintText: '报销金额',
+                      hintStyle: TextStyle(
+                        fontSize: 15,
+                        color: _Sage.ink2,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      contentPadding: EdgeInsets.zero,
+                      isCollapsed: true,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: _Sage.ink,
                     ),
+                    maxLines: 1,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              // 只读显示框：录入走工程内数字键盘（_feeKeyboardTarget =
-              // 'rbAmount'），点击「¥ + 金额」区域即切换键盘目标；
-              // 点击表单其他位置由报销页 tap-away 移除焦点。
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _activateFeeKeyboard('rbAmount'),
-                  child: IgnorePointer(
-                    // 屏蔽 TextField 自身手势，让点击穿透到外层 GestureDetector。
-                    child: TextField(
-                      controller: _rbAmountController,
-                      focusNode: _rbAmountFocusNode,
-                      // 只读：不唤起系统键盘；焦点由 _activateFeeKeyboard
-                      // 程序化赋予，光标可闪烁。
-                      readOnly: true,
-                      showCursor: _feeKeyboardTarget == 'rbAmount',
-                      cursorColor: _Sage.greenDeep,
-                      textAlignVertical: TextAlignVertical.center,
-                      decoration: const InputDecoration(
-                        hintText: '0.00',
-                        hintStyle: TextStyle(
-                          fontSize: 22,
-                          color: _Sage.ink2,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        errorBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                        filled: true,
-                        fillColor: Colors.transparent,
-                        contentPadding: EdgeInsets.zero,
-                        isCollapsed: true,
-                      ),
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: _Sage.ink,
-                      ),
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: ForestBg.sunken,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  '人民币',
-                  style: TextStyle(fontSize: 12, color: _Sage.ink2),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
 
