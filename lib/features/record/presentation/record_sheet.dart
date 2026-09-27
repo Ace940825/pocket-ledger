@@ -231,7 +231,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   String? _lendDiscountAmount;
 
   // 报销
-  bool _rbExclude = false;
+  // 报销收入默认「不计入收支」（收回垫付不是真实收入，可手动关）。
+  bool _rbExclude = true;
   String? _rbAccountId; // 报销账户
   String? _rbToAccountId; // 收款账户
   final TextEditingController _rbAmountController = TextEditingController();
@@ -759,7 +760,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           _rbAmountController.clear();
           _rbAccountId = null;
           _rbToAccountId = null;
-          _rbExclude = false;
+          _rbExclude = true;
           _rbHistIds.clear();
           _refundOriginals.clear();
           _refundAmountController.clear();
@@ -836,6 +837,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         note: userNote.isEmpty ? '报销收入' : userNote,
         sourceModule: SourceModule.reimbursement,
         excludeFromStats: _rbExclude,
+        // 报销收入不参与预算（表单无预算开关，恒排除；收支侧由上方开关控制）。
+        excludeFromBudget: true,
         attachmentUrls: _attachmentPaths,
       );
     }
@@ -3938,7 +3941,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   const Text(
-                    '不计入收支',
+                    '默认开启：收回垫付不计入收支',
                     style: TextStyle(
                       fontSize: 13,
                       color: _Sage.ink,
@@ -3947,7 +3950,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   ),
                   const SizedBox(height: 3),
                   const Text(
-                    '个人垫款、与报销统计无关时开启',
+                    '确需计入日常收支时可手动关闭',
                     style: TextStyle(fontSize: 12, color: _Sage.ink2),
                   ),
                 ],
