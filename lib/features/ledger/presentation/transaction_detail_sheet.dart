@@ -712,9 +712,22 @@ class TransactionDetailSheet extends ConsumerWidget {
     final String? billId = r.transactionId;
     final AsyncValue<Transaction?> billAsync =
         billId == null ? const AsyncValue<Transaction?>.data(null) : ref.watch(transactionDetailProvider(billId));
+    final Transaction? bill = billAsync.valueOrNull;
+    // 关联账单行展示原账单类目：图标 + 颜色 + 标题兜底都取账单类目。
+    final Map<String, Category> categories =
+        ref.watch(categoryMapProvider).valueOrNull ?? <String, Category>{};
+    final Category? billCategory =
+        bill == null ? null : categories[bill.categoryId];
+    final LineIconKind billIcon = billCategory != null
+        ? (categoryLineKind(billCategory.iconKey) ??
+            LineIconKind.reimbursement)
+        : LineIconKind.reimbursement;
+    final Color billTint = billCategory?.colorValue != null
+        ? Color(billCategory!.colorValue!)
+        : ForestGreen.deep;
     final String time = DateFormat('yyyy-MM-dd HH:mm').format(
       DateTime.fromMillisecondsSinceEpoch(
-        billAsync.valueOrNull?.occurredAt ?? r.occurredAt,
+        bill?.occurredAt ?? r.occurredAt,
         isUtc: true,
       ).toLocal(),
     );
@@ -784,15 +797,16 @@ class TransactionDetailSheet extends ConsumerWidget {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: ForestGreen.soft,
-                      border: Border.all(color: ForestGreen.softBorder),
+                      color: billTint.withValues(alpha: 0.12),
+                      border:
+                          Border.all(color: billTint.withValues(alpha: 0.25)),
                       borderRadius: BorderRadius.circular(11),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: LineIcon(
-                        LineIconKind.reimbursement,
+                        billIcon,
                         size: 15,
-                        color: ForestGreen.deep,
+                        color: billTint,
                       ),
                     ),
                   ),
@@ -802,11 +816,9 @@ class TransactionDetailSheet extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          billAsync.valueOrNull?.note?.trim()
-                                      .isNotEmpty ==
-                                  true
-                              ? billAsync.valueOrNull!.note!.trim()
-                              : r.title,
+                          bill?.note?.trim().isNotEmpty == true
+                              ? bill!.note!.trim()
+                              : (billCategory?.name ?? r.title),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
