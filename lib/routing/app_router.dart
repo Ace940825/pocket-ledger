@@ -198,7 +198,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: Routes.reimbursement,
-        builder: (_, __) => const ReimbursementPage(),
+        // ?from=account：从账户侧进入的报销账户「资产详情」，标题随来源切换。
+        builder: (_, GoRouterState state) => ReimbursementPage(
+          assetDetail: state.uri.queryParameters['from'] == 'account',
+        ),
       ),
       GoRoute(
         path: Routes.savings,

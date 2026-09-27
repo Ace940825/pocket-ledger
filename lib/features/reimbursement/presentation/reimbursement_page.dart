@@ -30,7 +30,11 @@ enum _StatusFilter { all, pending, reimbursed, incomes }
 /// 按月分组或平铺账单列表（左滑四操作）+ 空态 + 底部双按钮（记一笔 / 报销收入）。
 /// 右上「操作」打开资产操作弹窗（方案一：奶油分组列表）。
 class ReimbursementPage extends ConsumerStatefulWidget {
-  const ReimbursementPage({super.key});
+  const ReimbursementPage({super.key, this.assetDetail = false});
+
+  /// true = 从账户侧进入（报销账户的「资产详情」），AppBar 标题显示
+  /// 「资产详情」；false = 常规报销入口，标题显示「报销」。
+  final bool assetDetail;
 
   @override
   ConsumerState<ReimbursementPage> createState() => _ReimbursementPageState();
@@ -607,8 +611,8 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
             isDark ? ForestNeutral.textPrimary : ForestNeutral.deepInk,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          '报销',
+        title: Text(
+          widget.assetDetail ? '资产详情' : '报销',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w400,

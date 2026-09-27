@@ -310,7 +310,7 @@ class TransactionDetailSheet extends ConsumerWidget {
           onTap: account == null
               ? null
               : account.type == AccountType.reimbursement
-                  ? () => context.push(Routes.reimbursement)
+                  ? () => context.push('${Routes.reimbursement}?from=account')
                   : () => context.push('/accounts/${account.id}/transactions'),
         ),
     );
