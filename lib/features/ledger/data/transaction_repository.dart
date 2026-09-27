@@ -434,7 +434,8 @@ class TransactionRepository {
           entries.removeAt(idx);
           final bool wasReimbursed =
               r.status == ReimbursementStatus.reimbursed;
-          // 已报销：全额抵扣时 amountMinor 未被扣减，恢复后金额=被抵扣额；
+          // 已报销：amountMinor=账单总额，账单总额 − 剩余台账合计 = 被删笔
+          // 抵扣额，恢复后待收金额 = 被抵扣额；
           // 待报销：部分抵扣时 amountMinor 已减过，加回即可。
           final int restoredAmount =
               wasReimbursed ? alloc : r.amountMinor + alloc;

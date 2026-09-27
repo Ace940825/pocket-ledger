@@ -291,6 +291,10 @@ class ReimbursementRepository {
                 status: const Value<ReimbursementStatus>(
                     ReimbursementStatus.reimbursed),
                 receivedAt: Value<int?>(now),
+                // 翻「已报销」时金额还原为账单总额（此前部分抵扣已把
+                // amountMinor 扣成余额，加上本次抵扣即原始账单额），
+                // 保证已报销列表展示与实际收入一致。
+                amountMinor: Value<int>(row.amountMinor + allocMinor),
                 incomeTransactionId: incomeTransactionId == null
                     ? const Value<String?>.absent()
                     : Value<String?>(incomeTransactionId),
@@ -322,6 +326,7 @@ class ReimbursementRepository {
             ? <String, Object?>{
                 'status': ReimbursementStatus.reimbursed.index,
                 'receivedAt': now,
+                'amountMinor': row.amountMinor + allocMinor,
                 'incomeAllocs': allocsJson,
               }
             : <String, Object?>{

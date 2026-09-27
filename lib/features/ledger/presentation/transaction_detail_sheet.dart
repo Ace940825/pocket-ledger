@@ -437,13 +437,25 @@ class TransactionDetailSheet extends ConsumerWidget {
         .watch(reimbursementByTransactionIdProvider(transaction.id))
         .valueOrNull;
     final bool reimbursed = linked?.status == ReimbursementStatus.reimbursed;
+    // 实际收到的报销收入：取抵扣台账（incomeAllocs）合计，
+    // 而非账单原始金额——部分报销时两者不同。
+    final List<ReimbAllocEntry> allocs = linked == null
+        ? const <ReimbAllocEntry>[]
+        : parseReimbAllocs(linked.incomeAllocs);
+    final int receivedMinor =
+        allocs.fold<int>(0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
     return Column(
       children: _withDividers(<Widget>[
         _kv(
           '报销收入',
-          Money.fromMinor(transaction.amountMinor).format(),
+          linked == null
+              ? '无'
+              : Money.fromMinor(receivedMinor).format(),
         ),
-        _kv('关联收入', '无'),
+        _kv(
+          '关联收入',
+          allocs.isEmpty ? '无' : '${allocs.length} 笔',
+        ),
         _kvCustom(
           '是否报销',
           // 与其它行一致：值区贴右对齐。

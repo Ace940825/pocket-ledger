@@ -75,6 +75,7 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 报销账户余额对账（幂等，每次启动运行）：余额 = 名下「待报销」合计，
   // 修复历史版本挂账/核销链路缺失导致的 100 vs 30 类不一致。
   await _reconcileReimbursementBalances(db);
+  await _reconcileReimbursedAmounts(db);
   final List<Book> books = await db.booksDao.watchAll().first;
   if (books.isEmpty) {
     await _seedDefaults(db);
@@ -119,6 +120,44 @@ Future<void> _reconcileReimbursementBalances(AppDatabase db) async {
         .write(
       AccountsCompanion(
         balanceMinor: Value<int>(want),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+  }
+}
+
+/// 已报销记录金额对账：「已报销」记录的金额应等于关联账单（transactionId）
+/// 的原始金额。历史版本 deduct 全额抵扣时未还原金额（部分抵扣把 amountMinor
+/// 扣成余额后直接翻状态），出现「已报销 ¥50 vs 实收 ¥100」类不一致——
+/// 启动时按账单重算一次性修复；无关联账单的手建记录不动。
+Future<void> _reconcileReimbursedAmounts(AppDatabase db) async {
+  final List<Reimbursement> reimbursed = await (db.select(db.reimbursements)
+        ..where((Reimbursements t) =>
+            t.status.equals(ReimbursementStatus.reimbursed.index) &
+            t.deleted.equals(false) &
+            t.transactionId.isNotNull()))
+      .get();
+  if (reimbursed.isEmpty) return;
+
+  final Set<String> txnIds =
+      reimbursed.map((Reimbursement r) => r.transactionId!).toSet();
+  final List<Transaction> bills = await (db.select(db.transactions)
+        ..where((Transactions t) => t.id.isIn(txnIds)))
+      .get();
+  final Map<String, int> billAmount = <String, int>{
+    for (final Transaction t in bills) t.id: t.amountMinor,
+  };
+
+  final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+  for (final Reimbursement r in reimbursed) {
+    final int? want = billAmount[r.transactionId!];
+    if (want == null || want == r.amountMinor) continue;
+    await (db.update(db.reimbursements)
+          ..where((Reimbursements t) => t.id.equals(r.id)))
+        .write(
+      ReimbursementsCompanion(
+        amountMinor: Value<int>(want),
         updatedAt: Value<int>(now),
         dirty: const Value<bool>(true),
       ),
