@@ -4769,7 +4769,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         _FunctionItem(
           label: '报销',
           icon: LineIconKind.reimbursement,
-          onTap: () => setState(() => _isReimbursable = !_isReimbursable),
+          onTap: () => setState(() {
+            _isReimbursable = !_isReimbursable;
+            // 垫付类支出默认不计入收支与预算，由报销页「报销收入」单独统计；
+            // 取消报销时一并恢复，保持该开关与两个排除项状态一致。
+            if (_isReimbursable) {
+              _excludeFromStats = true;
+              _excludeFromBudget = true;
+            } else {
+              _excludeFromStats = false;
+              _excludeFromBudget = false;
+            }
+          }),
           active: _isReimbursable,
         ),
       // 报销账户：平时隐藏；勾选「报销」后出现在报销键右侧。
