@@ -288,9 +288,9 @@ class _ReimbursementBillPickerPageState
     return InkWell(
       onTap: () => _toggle(t.id),
       child: Container(
-        color: ForestSurface.card,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: const BoxDecoration(
+          color: ForestSurface.card,
           border: Border(bottom: BorderSide(color: ForestNeutral.hairline)),
         ),
         child: Row(
