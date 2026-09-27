@@ -14,6 +14,7 @@ import '../../../../providers/app_providers.dart';
 import '../../../../routing/app_router.dart';
 import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/line_icons.dart';
+import '../../../../shared/widgets/modal_sheet_registry.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../reimbursement/data/reimbursement_repository.dart';
 import '../../reimbursement/presentation/reimbursement_record_sheet.dart';
@@ -32,15 +33,20 @@ class TransactionDetailSheet extends ConsumerWidget {
   final Transaction transaction;
 
   static Future<void> show(BuildContext context, Transaction transaction) {
-    return showModalBottomSheet<void>(
-      context: context,
+    // 挂在 Tab 分支导航器上（不用根导航器）：底部 Tab 栏不被遮罩盖住、
+    // 保持可点；切 Tab 时由 AppShell 通过 ModalSheetRegistry 统一收起，
+    // 落到目标页后按流数据自动刷新。
+    final ModalBottomSheetRoute<void> route = ModalBottomSheetRoute<void>(
+      builder: (_) => TransactionDetailSheet(transaction: transaction),
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       // 下拉把手 / 点空白关闭：保留默认 enableDrag + isDismissible。
       showDragHandle: false,
-      builder: (_) => TransactionDetailSheet(transaction: transaction),
     );
+    ModalSheetRegistry.register(route);
+    route.popped.whenComplete(() => ModalSheetRegistry.unregister(route));
+    return Navigator.of(context, rootNavigator: false).push(route);
   }
 
   // —— 设计稿固定尺寸（CSS → Flutter，单位 px→dp，保持与设计稿一致）——

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../shared/widgets/modal_sheet_registry.dart';
+
 /// 底部 5 Tab 外壳。
 ///
 /// 使用 [StatefulShellRoute.indexedStack] 的好处：
@@ -27,6 +29,10 @@ class AppShell extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (int index) {
+          // 明细/报销详情等弹层挂在分支导航器上、Tab 栏保持可点；
+          // 切 Tab（含回根）时先收起打开中的弹层，落到目标页后
+          // 各页数据走 Drift 流自动刷新。
+          ModalSheetRegistry.closeAll();
           // 再次点击当前 Tab 时回到该分支的根页面
           navigationShell.goBranch(
             index,

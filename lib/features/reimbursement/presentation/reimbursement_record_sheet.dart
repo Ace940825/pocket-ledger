@@ -11,6 +11,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../data/reimbursement_repository.dart';
+import '../../../../shared/widgets/modal_sheet_registry.dart';
 
 /// 报销账单详情底部弹窗（对齐参考稿两节卡片逻辑）。
 ///
@@ -22,13 +23,16 @@ Future<void> showReimbursementRecordSheet(
   BuildContext context,
   Reimbursement record,
 ) {
-  return showModalBottomSheet<void>(
-    context: context,
+  // 与流水明细同策略：挂 Tab 分支导航器并登记，切 Tab 时统一收起。
+  final ModalBottomSheetRoute<void> route = ModalBottomSheetRoute<void>(
+    builder: (_) => _ReimbursementRecordSheet(record: record),
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _ReimbursementRecordSheet(record: record),
   );
+  ModalSheetRegistry.register(route);
+  route.popped.whenComplete(() => ModalSheetRegistry.unregister(route));
+  return Navigator.of(context, rootNavigator: false).push(route);
 }
 
 class _ReimbursementRecordSheet extends ConsumerWidget {
