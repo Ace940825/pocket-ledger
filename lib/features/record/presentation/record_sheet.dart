@@ -4132,7 +4132,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 「全额报销」：把报销收入金额一键填为所选账单的**未报销金额总额**。
   /// 口径与保存时的抵扣链路一致：
-  /// - 勾了「完成报销」的账单整笔核销、不占用收入 → 不计入；
+  /// - 勾「完成报销」的账单正是本次要结清的，按其未报销余额计入
+  ///   （保存时整笔核销、不占用收入抵扣，但金额属于本次收到的报销款）；
   /// - 已全额报销（status == reimbursed）的账单无剩余 → 不计入；
   /// - 待报销账单取报销记录的 amountMinor（即被部分抵扣后的剩余额），
   ///   无报销记录的账单取账单全额。
@@ -4152,8 +4153,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         if (r.transactionId != null) r.transactionId!: r,
     };
     final int needMinor = expenses
-        .where((Transaction t) =>
-            _rbHistIds.contains(t.id) && !_rbFinishIds.contains(t.id))
+        .where((Transaction t) => _rbHistIds.contains(t.id))
         .fold<int>(0, (int s, Transaction t) {
       final Reimbursement? linked = rbByTxn[t.id];
       if (linked != null &&
