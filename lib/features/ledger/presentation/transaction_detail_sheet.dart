@@ -16,6 +16,7 @@ import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/line_icons.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../reimbursement/data/reimbursement_repository.dart';
+import '../../reimbursement/presentation/reimbursement_record_sheet.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../providers/ledger_providers.dart';
 
@@ -452,10 +453,19 @@ class TransactionDetailSheet extends ConsumerWidget {
               ? '无'
               : Money.fromMinor(receivedMinor).format(),
         ),
-        _kv(
-          '关联收入',
-          allocs.isEmpty ? '无' : '${allocs.length} 笔',
-        ),
+        // 关联收入：可点击跳「报销账单详情」（原账单 + 关联收入账单互跳）。
+        if (allocs.isEmpty || linked == null)
+          _kv(
+            '关联收入',
+            allocs.isEmpty ? '无' : '${allocs.length} 笔',
+          )
+        else
+          _kvTap(
+            '关联收入',
+            '${allocs.length} 笔',
+            valueColor: ForestGreen.label,
+            onTap: () => showReimbursementRecordSheet(context, linked),
+          ),
         _kvCustom(
           '是否报销',
           // 与其它行一致：值区贴右对齐。
