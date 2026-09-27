@@ -9,7 +9,6 @@ import 'package:pocket_ledger/features/accounts/data/account_group_order.dart';
 import 'package:pocket_ledger/features/accounts/presentation/accounts_page.dart';
 import 'package:pocket_ledger/features/accounts/providers/accounts_providers.dart';
 import 'package:pocket_ledger/features/lend/providers/lend_providers.dart';
-import 'package:pocket_ledger/features/reimbursement/providers/reimbursement_providers.dart';
 
 /// 账户列表页（分组卡片布局）的整页渲染测试。
 ///
@@ -41,7 +40,6 @@ void main() {
 
   Widget wrap({
     required List<Account> accounts,
-    int reimbursementMinor = 0,
     int lendOutMinor = 0,
     int borrowInMinor = 0,
   }) {
@@ -50,8 +48,6 @@ void main() {
         accountsProvider
             .overrideWith((Ref ref) => Stream<List<Account>>.value(accounts)),
         netAssetsProvider.overrideWith((Ref ref) => Stream<int>.value(0)),
-        reimbursementPendingProvider
-            .overrideWith((Ref ref) => Stream<int>.value(reimbursementMinor)),
         lendOutOngoingProvider
             .overrideWith((Ref ref) => Stream<int>.value(lendOutMinor)),
         borrowInOngoingProvider
@@ -124,16 +120,22 @@ void main() {
     await tester.pumpWidget(wrap(
       accounts: <Account>[
         fakeAccount(id: 'a1', name: '现金', type: AccountType.cash),
+        // 报销账户（应收类）：垫付应收体现在账户余额里
+        fakeAccount(
+          id: 'a2',
+          name: '报销垫付',
+          type: AccountType.reimbursement,
+          balanceMinor: 8800,
+        ),
       ],
-      reimbursementMinor: 8800,
       borrowInMinor: 20000,
     ));
     await tester.pumpAndSettle();
 
     expect(find.text('应收类'), findsOneWidget);
-    expect(find.text('待收回报销'), findsOneWidget);
-    // 金额同时出现在分组头部与汇总行
-    expect(find.text('¥88.00'), findsAtLeastNWidgets(1));
+    expect(find.text('报销垫付'), findsOneWidget);
+    // 「待收回报销」汇总行已移除：未指向固定报销账户的待收回不进账户列表
+    expect(find.text('待收回报销'), findsNothing);
 
     expect(find.text('应付类'), findsOneWidget);
     expect(find.text('借入'), findsOneWidget);

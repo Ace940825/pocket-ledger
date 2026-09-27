@@ -6,8 +6,8 @@ import '../../../domain/enums.dart';
 /// 口径与小青账资产详情页对齐：
 /// - 按月分组仅用于「账单列表按年月分组」开启时的展示（带月份小标题）；
 /// - 按年统计用于年份选择弹窗与 Hero「本年已收」汇总；
-/// - 「不计入收支」(`excludeFromStats`) 的报销不进入任何汇总金额，
-///   与 `reimbursementPendingProvider` 口径一致。
+/// - 「不计入收支」(`excludeFromStats`) 的报销不进入任何汇总金额
+///   （与报销页「待收回」汇总口径一致；未指向固定报销账户的待收回只在报销页体现，不进账户列表）。
 
 /// 按月聚合的结果（月份倒序）。
 class ReimbMonthGroup {

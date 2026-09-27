@@ -25,7 +25,7 @@ import '../providers/accounts_providers.dart';
 /// **资金类 / 负债类 / 投资类 / 应收类 / 应付类**。
 ///
 /// - 资金、投资、负债类卡片列出该类的真实账户；
-/// - 应收类卡片展示「待收回报销」入口，并在借出下方展开每个对方账户（如小米）的应收余额；
+/// - 应收类卡片列出报销/借出等真实应收账户（未指向固定报销账户的待收回只在报销页体现，不进账户列表），并在借出下方展开每个对方账户（如小米）的应收余额；
 /// - 应付类卡片展示「借入」入口，并在下方展开每个对方账户（如小明）的应付余额；
 /// - 点击分组头部折叠/展开，长按头部拖动排序；
 /// - 账户行支持左滑「隐藏 / 编辑 / 删除」，点击进资产详情页。
@@ -247,8 +247,6 @@ class _Body extends ConsumerWidget {
     final List<String> order = ref.watch(accountGroupOrderProvider);
     final Map<String, bool> collapsed =
         ref.watch(accountGroupCollapsedProvider);
-    final int reimbursementMinor =
-        ref.watch(reimbursementPendingProvider).valueOrNull ?? 0;
     final int lendOutMinor = ref.watch(lendOutOngoingProvider).valueOrNull ?? 0;
     final int borrowInMinor =
         ref.watch(borrowInOngoingProvider).valueOrNull ?? 0;
@@ -294,7 +292,6 @@ class _Body extends ConsumerWidget {
           debts: debts,
           receivables: receivables,
           payables: payables,
-          reimbursementMinor: reimbursementMinor,
           lendOutMinor: lendOutMinor,
           borrowInMinor: borrowInMinor,
         );
@@ -325,8 +322,7 @@ class _Body extends ConsumerWidget {
                     debts: debts,
                     receivables: receivables,
                     payables: payables,
-                    reimbursementMinor: reimbursementMinor,
-                    lendOutMinor: lendOutMinor,
+                              lendOutMinor: lendOutMinor,
                     borrowInMinor: borrowInMinor,
                     lendOutBalances: lendOutBalances,
                     borrowInBalances: borrowInBalances,
@@ -359,7 +355,6 @@ class _Body extends ConsumerWidget {
     required List<Account> debts,
     required List<Account> receivables,
     required List<Account> payables,
-    required int reimbursementMinor,
     required int lendOutMinor,
     required int borrowInMinor,
     required Map<String, int> lendOutBalances,
@@ -395,7 +390,6 @@ class _Body extends ConsumerWidget {
         ),
       '应收类' => _ReceivableBody(
           accounts: receivables,
-          reimbursementMinor: reimbursementMinor,
           lendOutMinor: lendOutMinor,
           lendOutBalances: lendOutBalances,
           onOpenDetail: onOpenDetail,
@@ -423,7 +417,6 @@ class _Body extends ConsumerWidget {
     required List<Account> debts,
     required List<Account> receivables,
     required List<Account> payables,
-    required int reimbursementMinor,
     required int lendOutMinor,
     required int borrowInMinor,
   }) {
@@ -436,7 +429,6 @@ class _Body extends ConsumerWidget {
         debts: debts,
         receivables: receivables,
         payables: payables,
-        reimbursementMinor: reimbursementMinor,
         lendOutMinor: lendOutMinor,
         borrowInMinor: borrowInMinor,
       );
@@ -469,7 +461,6 @@ class _GroupConfig {
     required List<Account> debts,
     required List<Account> receivables,
     required List<Account> payables,
-    required int reimbursementMinor,
     required int lendOutMinor,
     required int borrowInMinor,
   }) =>
@@ -491,15 +482,14 @@ class _GroupConfig {
           ),
         '应收类' => _GroupConfig(
             title: '应收类',
+            // 未指向固定报销账户的待收回不进账户列表（只在报销页体现）；
+            // 指向了报销账户的应收已含在报销账户余额里，这里只汇总真实账户 + 借出。
             totalMinor: receivables.fold(
                   0,
                   (int s, Account a) => s + a.balanceMinor,
                 ) +
-                reimbursementMinor +
                 lendOutMinor,
-            isVisible: receivables.isNotEmpty ||
-                reimbursementMinor != 0 ||
-                lendOutMinor != 0,
+            isVisible: receivables.isNotEmpty || lendOutMinor != 0,
             isDebt: false,
           ),
         '负债类' => _GroupConfig(
@@ -782,7 +772,6 @@ class _SideTag extends StatelessWidget {
 class _ReceivableBody extends StatelessWidget {
   const _ReceivableBody({
     required this.accounts,
-    required this.reimbursementMinor,
     required this.lendOutMinor,
     required this.lendOutBalances,
     required this.onOpenDetail,
@@ -792,7 +781,6 @@ class _ReceivableBody extends StatelessWidget {
   });
 
   final List<Account> accounts;
-  final int reimbursementMinor;
   final int lendOutMinor;
   final Map<String, int> lendOutBalances;
   final void Function(Account) onOpenDetail;
@@ -802,7 +790,7 @@ class _ReceivableBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (accounts.isEmpty && reimbursementMinor == 0 && lendOutMinor == 0) {
+    if (accounts.isEmpty && lendOutMinor == 0) {
       return const Padding(
         padding: EdgeInsets.only(bottom: AppDimens.spaceMd),
         child: EmptyState(message: '没有待收回的款项'),
@@ -821,16 +809,8 @@ class _ReceivableBody extends StatelessWidget {
             onArchiveAccount: onArchiveAccount,
             onDeleteAccount: onDeleteAccount,
           ),
-        if (accounts.isNotEmpty &&
-            (reimbursementMinor != 0 || lendOutMinor != 0))
+        if (accounts.isNotEmpty && lendOutMinor != 0)
           const Divider(height: 1),
-        if (reimbursementMinor != 0)
-          _SummaryRow(
-            icon: Icons.receipt_long_outlined,
-            title: '待收回报销',
-            amountMinor: reimbursementMinor,
-            onTap: () => context.push(Routes.reimbursement),
-          ),
         if (lendOutMinor != 0)
           _CounterpartyBalanceBody(
             title: '借出',

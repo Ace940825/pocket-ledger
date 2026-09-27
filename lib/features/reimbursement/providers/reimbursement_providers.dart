@@ -33,19 +33,6 @@ final StreamProvider<List<Reimbursement>>
 final StateProvider<bool> showDeletedReimbursementsProvider =
     StateProvider<bool>((Ref ref) => false);
 
-/// 待收回的报销合计（应收类）：仅「待报销」状态计入，已报销视为已收回。
-/// 开启了「不计入收支」开关的不算。
-final StreamProvider<int> reimbursementPendingProvider =
-    StreamProvider<int>((Ref ref) {
-  final String bookId = ref.watch(currentBookIdProvider);
-  return ref.watch(reimbursementRepositoryProvider).watch(bookId).map(
-        (List<Reimbursement> records) => records
-            .where((Reimbursement r) =>
-                r.status == ReimbursementStatus.pending && !r.excludeFromStats)
-            .fold<int>(0, (int sum, Reimbursement r) => sum + r.amountMinor),
-      );
-});
-
 /// 按关联流水 id 查报销记录（流水详情弹窗「是否报销」开关同步用）。
 final AutoDisposeStreamProviderFamily<Reimbursement?, String>
     reimbursementByTransactionIdProvider =
