@@ -243,6 +243,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   // 报销：从历史账单选择关联的交易（多选）。
   final Set<String> _rbHistIds = <String>{};
+  // 报销：勾选「完成报销(结束此报销)」的账单——保存时整笔核销翻「已报销」，
+  // 不占用本次报销收入金额（用于公司一次性结清、无需资金抵扣的账单）。
+  final Set<String> _rbFinishIds = <String>{};
 
   // 退款
   RefundMode _refundMode = RefundMode.full;
@@ -763,6 +766,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           _rbToAccountId = null;
           _rbExclude = true;
           _rbHistIds.clear();
+          _rbFinishIds.clear();
           _refundOriginals.clear();
           _refundAmountController.clear();
           _refundAmountAuto = true;
@@ -846,12 +850,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
     // 2. 按勾选顺序抵扣所选账单，抵扣关联写回收款流水 ID，
     //    供账单明细弹窗反向展示「关联账单」。
+    //    勾选「完成报销(结束此报销)」的账单（_rbFinishIds）：整笔核销翻
+    //    「已报销」，不占用本次收入金额（视同已一并结清），核销额一并
+    //    计入报销账户挂账核销合计，保持「余额 = 待收垫付」不变量。
     int left = minor;
     final List<Transaction> bills = _rbHistIds.isEmpty
         ? const <Transaction>[]
         : await txnRepo.getByIds(_rbHistIds.toList());
     for (final Transaction t in bills) {
-      if (left <= 0) break;
+      final bool finish = _rbFinishIds.contains(t.id);
       final Reimbursement? linked = await reimbRepo.byTransaction(t.id);
       if (linked != null &&
           linked.status == ReimbursementStatus.reimbursed) {
@@ -859,7 +866,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         continue;
       }
       final int remaining = linked?.amountMinor ?? t.amountMinor;
-      final int alloc = left < remaining ? left : remaining;
+      final int alloc;
+      if (finish) {
+        alloc = remaining;
+      } else {
+        if (left <= 0) break;
+        alloc = left < remaining ? left : remaining;
+        left -= alloc;
+      }
       if (alloc <= 0) continue;
       final String billTitle =
           t.note?.trim().isNotEmpty == true ? t.note!.trim() : '报销';
@@ -3292,7 +3306,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           value: _rbAccountId,
           allowedTypes: const <AccountType>[AccountType.reimbursement],
           onChanged: (String? v) => setState(() {
-            if (v != _rbAccountId) _rbHistIds.clear();
+            if (v != _rbAccountId) {
+              _rbHistIds.clear();
+              _rbFinishIds.clear();
+            }
             _rbAccountId = v;
           }),
         ),
@@ -3434,7 +3451,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             allowedTypes: const <AccountType>[AccountType.reimbursement],
             onChanged: (String? v) => setState(() {
               // 报销账户变更后，已提取的账单归属随之失效，清空重选。
-              if (v != _rbAccountId) _rbHistIds.clear();
+              if (v != _rbAccountId) {
+                _rbHistIds.clear();
+                _rbFinishIds.clear();
+              }
               _rbAccountId = v;
             }),
           ),
@@ -3739,26 +3759,58 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
-  /// 报销账单卡：已选账单胶囊（空态居中提示）+ 票据照片。
-  /// 选取入口在节头「选取」胶囊，点卡片本身同样进入选择页。
-  Widget _buildRbBillCard() => _rbCard(
-        onTap: _showRbHistoryPicker,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            if (_rbHistIds.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 18),
-                child: Center(
+  /// 报销账单卡（对齐参考稿）：总金额行 + 全部结束胶囊 + 账单行
+  /// （类目图标 + 标题/报徽章 + 日期时间 + 金额/排除标注 + 完成报销勾选），
+  /// 账单组之间点线分隔；票据照片行保留。点账单行进入选择页（可取消勾选）。
+  Widget _buildRbBillCard() {
+    final List<Transaction> expenses =
+        ref.watch(bookExpenseTransactionsProvider).valueOrNull ??
+            const <Transaction>[];
+    final List<Transaction> sel = expenses
+        .where((Transaction t) => _rbHistIds.contains(t.id))
+        .toList(growable: false);
+    final int totalMinor =
+        sel.fold<int>(0, (int s, Transaction t) => s + t.amountMinor);
+    final bool allDone = sel.isNotEmpty &&
+        sel.every((Transaction t) => _rbFinishIds.contains(t.id));
+    return _rbCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (sel.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Center(
+                child: Text(
+                  '请选择需要报销的账单',
+                  style: TextStyle(fontSize: 13.5, color: _Sage.ink2),
+                ),
+              ),
+            )
+          else ...<Widget>[
+            // 总金额 + 全部结束。
+            Row(
+              children: <Widget>[
+                Expanded(
                   child: Text(
-                    '请选择需要报销的账单',
-                    style: TextStyle(fontSize: 13.5, color: _Sage.ink2),
+                    '账单总金额: ${Money.fromMinor(totalMinor).format()}',
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: _Sage.ink,
+                    ),
                   ),
                 ),
-              )
-            else
-              _rbHistChips(),
-            const SizedBox(height: 10),
+                _rbFinishAllPill(allDone: allDone, count: sel.length),
+              ],
+            ),
+            const SizedBox(height: 4),
+            for (int i = 0; i < sel.length; i++) ...<Widget>[
+              if (i > 0) _dottedDivider(),
+              _rbBillRow(sel[i]),
+            ],
+          ],
+          const SizedBox(height: 10),
             Row(
               children: <Widget>[
                 _sageLead(LineIconKind.photo),
@@ -3789,50 +3841,227 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           ],
         ),
       );
+  }
 
-  Widget _rbHistChips() {
-    final List<Transaction> txns =
-        ref.watch(recentTransactionsProvider).valueOrNull ??
-            const <Transaction>[];
-    final List<Transaction> sel = txns
-        .where((Transaction t) => _rbHistIds.contains(t.id))
-        .toList(growable: false);
-    return Wrap(
-      spacing: 7,
-      runSpacing: 7,
-      children: sel
-          .map(
-            (Transaction t) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: _Sage.greenSoft,
-                border: Border.all(color: _Sage.sageA),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    '${t.note?.isNotEmpty == true ? t.note : '支出'}'
-                    ' ${Money.fromMinor(t.amountMinor).format()}',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: _Sage.greenDeep,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: () => setState(() => _rbHistIds.remove(t.id)),
-                    child: const Text(
-                      '×',
-                      style: TextStyle(fontSize: 14, color: _Sage.ink3),
-                    ),
-                  ),
-                ],
+  /// 「全部结束」琥珀胶囊：一键把所选账单全部标记/取消「完成报销」。
+  Widget _rbFinishAllPill({required bool allDone, required int count}) =>
+      Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() {
+            if (allDone) {
+              _rbFinishIds.clear();
+            } else {
+              _rbFinishIds
+                ..clear()
+                ..addAll(_rbHistIds);
+            }
+          }),
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: allDone ? _Sage.greenSoft : const Color(0xFFFFF3D6),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              allDone ? '取消全部结束' : '全部结束',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: allDone ? _Sage.greenDeep : const Color(0xFFB87A1E),
               ),
             ),
-          )
-          .toList(growable: false),
+          ),
+        ),
+      );
+
+  /// 账单组间点线分隔。
+  Widget _dottedDivider() {
+    final int count = 46;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: <Widget>[
+          for (int i = 0; i < count; i++)
+            Expanded(
+              child: Container(
+                height: 1.2,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: i.isEven ? _Sage.hairline : Colors.transparent,
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 单笔报销账单行（参考稿）：圆角方类目图标 + 标题/「报」徽章 +
+  /// 日期/时间 + 右侧金额与排除标注；行下方「完成报销(结束此报销)」圆选。
+  Widget _rbBillRow(Transaction t) {
+    final Map<String, Category> categories =
+        ref.watch(categoryMapProvider).valueOrNull ?? const <String, Category>{};
+    final Category? cat = categories[t.categoryId];
+    final Color tint = cat?.colorValue != null
+        ? Color(cat!.colorValue!)
+        : _Sage.greenDeep;
+    final IconData icon = cat?.iconKey != null && cat!.iconKey!.isNotEmpty
+        ? categoryIconData(cat.iconKey)
+        : Icons.receipt_long;
+    final String title =
+        cat?.name ?? (t.note?.isNotEmpty == true ? t.note! : '支出');
+    final DateTime occurred = DateTime.fromMillisecondsSinceEpoch(
+      t.occurredAt,
+      isUtc: true,
+    ).toLocal();
+    final List<String> excludeLabels = <String>[
+      if (t.excludeFromStats) '不计收支',
+      if (t.excludeFromBudget) '不计预算',
+    ];
+    final bool finish = _rbFinishIds.contains(t.id);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        InkWell(
+          onTap: _showRbHistoryPicker,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // 类目图标（圆角方，类目色浅底）。
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: tint.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, size: 20, color: tint),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Flexible(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: _Sage.ink,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _Sage.greenSoft,
+                              border: Border.all(color: _Sage.greenSoftBd),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              '报',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: _Sage.greenDeep,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        DateFormat('M月d日').format(occurred),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: _Sage.ink2,
+                        ),
+                      ),
+                      Text(
+                        DateFormat('HH:mm').format(occurred),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: _Sage.ink3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    Text(
+                      '-${Money.fromMinor(t.amountMinor).format()}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: _Sage.ink,
+                      ),
+                    ),
+                    if (excludeLabels.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(
+                          excludeLabels.join('、'),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: ForestSemantic.expense,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        // 完成报销勾选行。
+        InkWell(
+          onTap: () => setState(() {
+            if (finish) {
+              _rbFinishIds.remove(t.id);
+            } else {
+              _rbFinishIds.add(t.id);
+            }
+          }),
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8, left: 2, top: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                _sageCircle(finish),
+                const SizedBox(width: 8),
+                Text(
+                  '完成报销(结束此报销)',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: finish ? _Sage.greenDeep : _Sage.ink2,
+                    fontWeight: finish ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
