@@ -275,6 +275,9 @@ class ReimbursementRepository {
     // 抵扣台账：追加本次抵扣明细，供删除收入流水时反向恢复。
     final List<ReimbAllocEntry> allocs =
         List<ReimbAllocEntry>.of(parseReimbAllocs(row.incomeAllocs));
+    // 历史累计抵扣 = 台账合计（追加本次之前先取快照）。
+    final int prevAllocSum =
+        allocs.fold<int>(0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
     if (incomeTransactionId != null) {
       allocs.add(ReimbAllocEntry(
         incomeId: incomeTransactionId,
@@ -282,6 +285,21 @@ class ReimbursementRepository {
       ));
     }
     final String? allocsJson = encodeReimbAllocs(allocs);
+    // 翻「已报销」时金额还原为累计抵扣总额（历史台账 + 本次）。此前误用
+    // 「剩余待收 + 本次」，多次部分抵扣后会写小：账单 100 = 50+40+10，
+    // 最后一笔翻转时 10+10=20，与实际账单不符。
+    int restoredAmount = prevAllocSum + allocMinor;
+    if (full && row.transactionId != null) {
+      // 关联账单存在时直接取账单当前总额（与启动对账同口径），
+      // 兜住超额抵扣 / 台账缺失等边缘情况。
+      final Transaction? bill = await (_db.select(_db.transactions)
+            ..where((Transactions t) => t.id.equals(row.transactionId!))
+            ..limit(1))
+          .getSingleOrNull();
+      if (bill != null) {
+        restoredAmount = bill.amountMinor;
+      }
+    }
     await _db.transaction<void>(() async {
       await (_db.update(_db.reimbursements)
             ..where((Reimbursements t) => t.id.equals(id)))
@@ -291,10 +309,9 @@ class ReimbursementRepository {
                 status: const Value<ReimbursementStatus>(
                     ReimbursementStatus.reimbursed),
                 receivedAt: Value<int?>(now),
-                // 翻「已报销」时金额还原为账单总额（此前部分抵扣已把
-                // amountMinor 扣成余额，加上本次抵扣即原始账单额），
-                // 保证已报销列表展示与实际收入一致。
-                amountMinor: Value<int>(row.amountMinor + allocMinor),
+                // 翻「已报销」时金额还原为累计抵扣总额（= 原始账单额），
+                // 保证已报销列表展示与实际账单一致。
+                amountMinor: Value<int>(restoredAmount),
                 incomeTransactionId: incomeTransactionId == null
                     ? const Value<String?>.absent()
                     : Value<String?>(incomeTransactionId),
@@ -326,7 +343,7 @@ class ReimbursementRepository {
             ? <String, Object?>{
                 'status': ReimbursementStatus.reimbursed.index,
                 'receivedAt': now,
-                'amountMinor': row.amountMinor + allocMinor,
+                'amountMinor': restoredAmount,
                 'incomeAllocs': allocsJson,
               }
             : <String, Object?>{
