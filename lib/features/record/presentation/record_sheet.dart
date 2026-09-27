@@ -4081,11 +4081,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ref.watch(recentTransactionsProvider);
             return av.when(
               data: (List<Transaction> list) {
+                // 已全额报销的账单不再提取：按报销记录反查账单流水 ID，
+                // 与保存路径「已报销跳过抵扣」同一口径，避免重复抵扣。
+                final Set<String> reimbursedBillIds = <String>{
+                  for (final Reimbursement r
+                      in ref.watch(reimbursementListProvider).valueOrNull ??
+                          const <Reimbursement>[])
+                    if (r.status == ReimbursementStatus.reimbursed &&
+                        r.transactionId != null)
+                      r.transactionId!,
+                };
                 // 只列「需要报销」的支出，并按报销账户归属分两类。
                 final List<Transaction> branch = <Transaction>[];
                 final List<Transaction> loose = <Transaction>[];
                 for (final Transaction t in list) {
                   if (t.type != TxnType.expense || !t.isReimbursable) {
+                    continue;
+                  }
+                  if (reimbursedBillIds.contains(t.id)) {
                     continue;
                   }
                   if (t.reimbursementAccountId == _rbAccountId) {
