@@ -60,6 +60,9 @@ import 'record_template_sheet.dart';
 /// 退款模式：全额退回 / AA 付款分摊。
 enum RefundMode { full, aa }
 
+/// 退款 AA 付款的人均取整方式（向下取整 / 四舍五入 / 向上取整）。
+enum _AaRounding { down, half, up }
+
 /// 转账页 / 借还页 手续费 / 利息 / 优惠输入模式。
 enum _FeeInputType { fee, discount }
 
@@ -255,6 +258,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   final List<Transaction> _refundOriginals = <Transaction>[];
   final TextEditingController _refundAmountController = TextEditingController();
 
+  // 退款 AA 付款参数（底部弹窗「AA付款」确认后生效）。
+  int _aaHeadcount = 2; // 总AA人数
+  bool _aaIncludeSelf = true; // 计算方式：包含自己 / 不包含自己
+  int _aaCollectCount = 1; // 本次收款人数
+  _AaRounding _aaRounding = _AaRounding.half; // 人均取整方式
+  /// 手动改过的「本次收款(约)」金额（分）；null = 按人均 × 收款人数自动计算。
+  int? _aaCollectOverrideMinor;
+
   // 存钱
   bool _saveDeposit = true;
   String? _goalId;
@@ -423,7 +434,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 退款页实际退款金额（分）。
   ///
   /// - 全额退款 + 自动：以选中账单金额之和作为退款金额（多选时合并为一条）。
-  /// - AA 付款 + 自动：按人均退款，默认 2 人 AA，即原账单总额的一半。
+  /// - AA 付款 + 自动：按弹窗参数计算——人均 = 原账单总额 ÷ 总AA人数
+  ///   （按 [_aaRounding] 取整），本次收款 = 人均 × 本次收款人数；
+  ///   在弹窗里手动改过金额则用改后的值。
   /// - 自定义：读取输入框。
   int get _refundAmountMinor {
     if (_refundOriginals.isNotEmpty && _refundAmountAuto) {
@@ -432,11 +445,31 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         (int sum, Transaction t) => sum + t.amountMinor,
       );
       if (_refundMode == RefundMode.aa) {
-        return Money.fromMinor(total).ratio(0.5).minor;
+        return _aaCollectMinor(total);
       }
       return total;
     }
     return Money.tryParse(_refundAmountController.text).minor;
+  }
+
+  /// AA 人均金额（分）：总金额 ÷ 总AA人数，按 [_aaRounding] 取整。
+  int _aaPerHeadMinor(int totalMinor) {
+    final int n = _aaHeadcount < 2 ? 2 : _aaHeadcount;
+    switch (_aaRounding) {
+      case _AaRounding.down:
+        return totalMinor ~/ n;
+      case _AaRounding.half:
+        return (2 * totalMinor + n) ~/ (2 * n);
+      case _AaRounding.up:
+        return (totalMinor + n - 1) ~/ n;
+    }
+  }
+
+  /// AA 本次收款金额（分）：人均 × 本次收款人数；弹窗里手动改过则取改后值。
+  int _aaCollectMinor(int totalMinor) {
+    final int? overrideMinor = _aaCollectOverrideMinor;
+    if (overrideMinor != null) return overrideMinor < 0 ? 0 : overrideMinor;
+    return _aaPerHeadMinor(totalMinor) * _aaCollectCount;
   }
 
   /// 选中账单的原始金额合计（分），用于备注与显示。
@@ -618,12 +651,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           final String originalAmounts = _refundOriginals
               .map((Transaction t) => Money.fromMinor(t.amountMinor).format())
               .join(' + ');
-          final String refundAmountText =
-              Money.fromMinor(minor).format(showSymbol: false);
+          final String aaDetail = _refundMode == RefundMode.aa
+              ? '，AA：$_aaHeadcount 人${_aaIncludeSelf ? '（含自己）' : '（不含自己）'}'
+                  '·人均 ${Money.fromMinor(_aaPerHeadMinor(originalTotalMinor)).format(showSymbol: false)}'
+                  '·本次收款 $_aaCollectCount 人'
+              : '';
           final String detail = '[$modeText] 原账单合计：'
               '${Money.fromMinor(originalTotalMinor).format()}'
               '（$originalAmounts）'
-              '${_refundMode == RefundMode.aa ? '，人均退款：$refundAmountText' : ''}';
+              '$aaDetail';
           refundNote = refundNote.isEmpty ? detail : '$refundNote\n$detail';
 
           // 单选时保留 relatedId 语义；多选时通过 note 记录关联关系。
@@ -770,6 +806,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           _refundAmountController.clear();
           _refundAmountAuto = true;
           _refundMode = RefundMode.full;
+          _aaHeadcount = 2;
+          _aaIncludeSelf = true;
+          _aaCollectCount = 1;
+          _aaRounding = _AaRounding.half;
+          _aaCollectOverrideMinor = null;
           _feeAmount = null;
           _discountAmount = null;
           _feeInputController.clear();
@@ -4580,12 +4621,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       const SizedBox(height: AppDimens.spaceMd),
       _buildSectionTitle('账户'),
       const SizedBox(height: AppDimens.spaceSm),
-      _buildTransferAccountCard(
-        label: '入款账户',
-        value: _accountId,
-        placeholder: '入款账户',
-        onChanged: (String? v) => setState(() => _accountId = v),
-      ),
+      _buildRefundAccountRow(),
       const SizedBox(height: AppDimens.spaceMd),
       _buildAttachmentSection(),
       const SizedBox(height: AppDimens.spaceMd),
@@ -4683,6 +4719,105 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     _toast('账单搜索功能开发中');
   }
 
+  /// 退款页「账户」整行卡（方案 A）：单张卡片内左侧账户胶囊 +
+  /// 右侧「入款账户」选取按钮，均打开账户选择弹窗。
+  Widget _buildRefundAccountRow() {
+    final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
+    return accounts.when(
+      data: (List<Account> list) {
+        final List<Account> shown = fundAccountsOnly(list);
+        final String? safe =
+            shown.any((Account a) => a.id == _accountId) ? _accountId : null;
+        final Account? selected =
+            safe == null ? null : shown.firstWhere((Account a) => a.id == safe);
+        void pick() {
+          _showTransferAccountPicker(
+            label: '入款账户',
+            accounts: shown,
+            selectedId: safe,
+            onChanged: (String? v) => setState(() => _accountId = v),
+          );
+        }
+        return Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _Sage.card,
+            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            border: Border.all(color: ForestNeutral.hairline),
+          ),
+          child: Row(
+            children: <Widget>[
+              // 左：已选账户胶囊（绿描边），点击同样进入选择弹窗。
+              Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: shown.isEmpty ? null : pick,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      alignment: Alignment.centerLeft,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: selected == null
+                              ? ForestNeutral.hairline
+                              : _Sage.sageB,
+                          width: selected == null ? 1 : 1.4,
+                        ),
+                      ),
+                      child: Text(
+                        selected?.name ?? '请选择入款账户',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight:
+                              selected == null ? FontWeight.w400 : FontWeight.w600,
+                          color: selected == null ? _Sage.ink3 : _Sage.ink,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // 右：「入款账户」选取按钮。
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: shown.isEmpty ? null : pick,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _Sage.greenSoft,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      '入款账户',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _Sage.greenDeep,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const LinearProgressIndicator(),
+      error: (Object e, _) => Text('账户加载失败：$e'),
+    );
+  }
+
   /// 点击「选取」打开账单选择页面（全屏 Navigator.push）。
   ///
   /// 跳转与传参逻辑：
@@ -4711,25 +4846,111 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       _refundOriginals
         ..clear()
         ..addAll(selected);
+      // 原账单变化后，AA 手动改过的收款金额随旧总额失效，恢复自动计算。
+      _aaCollectOverrideMinor = null;
     });
   }
 
-  /// 退款模式：全额退款 / AA 付款。
-  Widget _buildRefundModeChips() {
-    return SegmentedButton<RefundMode>(
-      segments: const <ButtonSegment<RefundMode>>[
-        ButtonSegment<RefundMode>(
-          value: RefundMode.aa,
-          label: Text('AA 付款'),
+  /// 弹出「AA付款」分摊参数弹窗（小青账模板），确认后把参数写回退款表单
+  /// 并切到 AA 模式；金额保持「自动」由 [_aaCollectMinor] 计算。
+  Future<void> _showAaPaymentSheet() async {
+    if (_refundOriginals.isEmpty) {
+      _toast('请先选择需要退款的账单');
+      return;
+    }
+    final int totalMinor = _refundOriginalTotalMinor;
+    final _AaPaymentResult? result =
+        await showModalBottomSheet<_AaPaymentResult>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext ctx) => _AaPaymentSheet(
+        totalMinor: totalMinor,
+        initial: _AaPaymentResult(
+          headcount: _aaHeadcount,
+          includeSelf: _aaIncludeSelf,
+          collectCount: _aaCollectCount,
+          rounding: _aaRounding,
+          collectMinor: _aaCollectMinor(totalMinor),
+          manual: _aaCollectOverrideMinor != null,
         ),
-        ButtonSegment<RefundMode>(
-          value: RefundMode.full,
-          label: Text('全额退款'),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _refundMode = RefundMode.aa;
+      _aaHeadcount = result.headcount;
+      _aaIncludeSelf = result.includeSelf;
+      _aaCollectCount = result.collectCount;
+      _aaRounding = result.rounding;
+      _aaCollectOverrideMinor = result.manual ? result.collectMinor : null;
+    });
+  }
+
+  /// 退款模式：AA 付款 / 全额退款（ForestSage 胶囊）。
+  ///
+  /// 点「AA 付款」弹出分摊参数弹窗（再次点击可重新调整）；
+  /// 点「全额退款」直接切换并清除 AA 参数覆盖。
+  Widget _buildRefundModeChips() {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: _refundModePill(
+            label: 'AA 付款',
+            selected: _refundMode == RefundMode.aa,
+            onTap: _showAaPaymentSheet,
+          ),
+        ),
+        const SizedBox(width: AppDimens.spaceSm),
+        Expanded(
+          child: _refundModePill(
+            label: '全额退款',
+            selected: _refundMode == RefundMode.full,
+            onTap: () => setState(() {
+              _refundMode = RefundMode.full;
+              _aaCollectOverrideMinor = null;
+            }),
+          ),
         ),
       ],
-      selected: <RefundMode>{_refundMode},
-      onSelectionChanged: (Set<RefundMode> next) =>
-          setState(() => _refundMode = next.first),
+    );
+  }
+
+  Widget _refundModePill({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: selected
+                ? const LinearGradient(
+                    colors: <Color>[_Sage.sageA, _Sage.sageB])
+                : null,
+            color: selected ? null : _Sage.card,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? Colors.transparent : ForestNeutral.hairline,
+            ),
+          ),
+          child: Text(
+            selected ? '✓ $label' : label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? Colors.white : _Sage.ink2,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -4803,11 +5024,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           ),
           if (isAa) ...<Widget>[
             const Spacer(),
-            Text(
-              '人均（2人AA）',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+            // 点金额行重新打开 AA 付款弹窗调整分摊参数。
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _showAaPaymentSheet,
+              child: Text(
+                '每人均 ${Money.fromMinor(_aaPerHeadMinor(originalTotal)).format(showSymbol: false)}'
+                '（${_aaHeadcount}人AA）›',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
             ),
             const SizedBox(width: AppDimens.spaceMd),
           ],
@@ -8232,4 +8459,495 @@ class _FeeYuanPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_FeeYuanPainter oldDelegate) => oldDelegate.color != color;
+}
+
+/// 「AA付款」弹窗回传结果：分摊参数 + 本次收款金额。
+class _AaPaymentResult {
+  const _AaPaymentResult({
+    required this.headcount,
+    required this.includeSelf,
+    required this.collectCount,
+    required this.rounding,
+    required this.collectMinor,
+    required this.manual,
+  });
+
+  final int headcount; // 总AA人数
+  final bool includeSelf; // 计算方式：包含自己 / 不包含自己
+  final int collectCount; // 本次收款人数
+  final _AaRounding rounding; // 人均取整方式
+  final int collectMinor; // 本次收款金额（分）
+  final bool manual; // collectMinor 是否为手动改过的值
+}
+
+/// AA 付款分摊弹窗（小青账模板 · ForestSage 皮肤）：
+/// 总金额卡（总金额 / 每人均 / 本次收款(约) + 向下·四舍·向上取整）
+/// → 总AA人数（横滑胶囊）→ 计算方式（包含/不包含自己）
+/// → 本次收款人数 → 鼠尾草渐变「确认」。
+class _AaPaymentSheet extends StatefulWidget {
+  const _AaPaymentSheet({
+    required this.totalMinor,
+    required this.initial,
+  });
+
+  /// 原账单总额（分），即「总金额」。
+  final int totalMinor;
+
+  final _AaPaymentResult initial;
+
+  @override
+  State<_AaPaymentSheet> createState() => _AaPaymentSheetState();
+}
+
+class _AaPaymentSheetState extends State<_AaPaymentSheet> {
+  late int _headcount = widget.initial.headcount;
+  late bool _includeSelf = widget.initial.includeSelf;
+  late int _collectCount = widget.initial.collectCount;
+  late _AaRounding _rounding = widget.initial.rounding;
+
+  /// 手动改过的「本次收款(约)」金额（分）；null = 按参数自动计算。
+  /// 任一参数变化时清空，恢复自动。初始值在 [initState] 里取弹窗入参。
+  int? _manualMinor;
+  final TextEditingController _collectController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initial.manual) {
+      _manualMinor = widget.initial.collectMinor;
+    }
+    _collectController.text =
+        Money.fromMinor(_collect).format(showSymbol: false);
+  }
+
+  @override
+  void dispose() {
+    _collectController.dispose();
+    super.dispose();
+  }
+
+  /// 人均金额（分）：总金额 ÷ 总AA人数，按取整方式取整。
+  int get _perHead {
+    final int total = widget.totalMinor;
+    final int n = _headcount;
+    switch (_rounding) {
+      case _AaRounding.down:
+        return total ~/ n;
+      case _AaRounding.half:
+        return (2 * total + n) ~/ (2 * n);
+      case _AaRounding.up:
+        return (total + n - 1) ~/ n;
+    }
+  }
+
+  /// 本次收款（分）：手动值优先，否则人均 × 本次收款人数。
+  int get _collect => _manualMinor ?? _perHead * _collectCount;
+
+  /// 本次收款人数可选项：包含自己只收 1 笔（自己那份直接留存）；
+  /// 不包含自己可从 1 到总AA人数中选本次向几人收款。
+  List<int> get _collectOptions =>
+      List<int>.generate(_includeSelf ? 1 : _headcount, (int i) => i + 1);
+
+  void _syncCollectText() {
+    _collectController.text =
+        Money.fromMinor(_collect).format(showSymbol: false);
+  }
+
+  /// 参数变化：清手动覆盖并重算收款金额。
+  void _onParamsChanged(VoidCallback apply) {
+    setState(() {
+      apply();
+      _manualMinor = null;
+      // 切换计算方式 / 人数后，收款人数可能越界，钳到可选范围内。
+      final List<int> options = _collectOptions;
+      if (!options.contains(_collectCount)) {
+        _collectCount = options.last;
+      }
+      _syncCollectText();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: _Sage.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewPadding.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          _buildHeader(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                _buildAmountCard(),
+                const SizedBox(height: 18),
+                _label('总AA人数'),
+                const SizedBox(height: 10),
+                _buildHeadcountPills(),
+                const SizedBox(height: 16),
+                _label('计算方式'),
+                const SizedBox(height: 10),
+                _buildIncludePills(),
+                const SizedBox(height: 16),
+                Row(
+                  children: <Widget>[
+                    _label('本次收款人数'),
+                    const SizedBox(width: 6),
+                    const Text(
+                      '👑',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildCollectCountPills(),
+                const SizedBox(height: 22),
+                _buildConfirmButton(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 头部：左 × 关闭 + 居中标题 ──────────────────────────────────
+  Widget _buildHeader() {
+    return SizedBox(
+      height: 56,
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          const Text(
+            'AA付款',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: _Sage.ink,
+            ),
+          ),
+          Positioned(
+            left: 16,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => Navigator.of(context).pop(),
+                customBorder: const CircleBorder(),
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: const BoxDecoration(
+                    color: _Sage.cardAlt,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    size: 17,
+                    color: _Sage.ink2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 总金额卡：总金额 + 每人均 + 本次收款(约) + 取整胶囊 ─────────
+  Widget _buildAmountCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _Sage.greenSoft,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    '总金额',
+                    style: TextStyle(fontSize: 12.5, color: _Sage.ink2),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    Money.fromMinor(widget.totalMinor).format(),
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: _Sage.greenDeep,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    const Text(
+                      '每人均',
+                      style: TextStyle(fontSize: 11.5, color: _Sage.ink2),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      Money.fromMinor(_perHead).format(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _Sage.greenDeep,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '本次收款(约)',
+            style: TextStyle(fontSize: 12, color: _Sage.ink2),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: TextField(
+                  controller: _collectController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: _Sage.ink,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  maxLines: 1,
+                  onChanged: (String v) {
+                    final int? minor = Money.tryParse(v).minor;
+                    setState(() {
+                      _manualMinor = minor == null || minor <= 0 ? null : minor;
+                    });
+                  },
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    _roundingPill('向下', _AaRounding.down),
+                    _roundingPill('四舍', _AaRounding.half),
+                    _roundingPill('向上', _AaRounding.up),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _roundingPill(String label, _AaRounding value) {
+    final bool selected = _rounding == value;
+    return GestureDetector(
+      onTap: () => _onParamsChanged(() => _rounding = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? _Sage.greenSoft : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+            color: selected ? _Sage.greenDeep : _Sage.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) => Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14.5,
+          fontWeight: FontWeight.w700,
+          color: _Sage.ink,
+        ),
+      );
+
+  // ── 通用胶囊（选中：浅绿底 + 绿描边 + 深绿字） ──────────────────
+  Widget _pill({
+    required String text,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? _Sage.greenSoft : _Sage.card,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? _Sage.sageB : ForestNeutral.hairline,
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+              color: selected ? _Sage.greenDeep : _Sage.ink2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 总AA人数：2 ~ 12 人，横向滑动。
+  Widget _buildHeadcountPills() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List<Widget>.generate(11, (int i) {
+          final int n = i + 2;
+          return Padding(
+            padding: EdgeInsets.only(right: i == 10 ? 0 : 8),
+            child: _pill(
+              text: '$n人',
+              selected: _headcount == n,
+              onTap: () => _onParamsChanged(() => _headcount = n),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  /// 计算方式：包含自己 / 不包含自己（互斥）。
+  Widget _buildIncludePills() {
+    return Row(
+      children: <Widget>[
+        _pill(
+          text: '包含自己',
+          selected: _includeSelf,
+          onTap: () => _onParamsChanged(() => _includeSelf = true),
+        ),
+        const SizedBox(width: 8),
+        _pill(
+          text: '不包含自己',
+          selected: !_includeSelf,
+          onTap: () => _onParamsChanged(() => _includeSelf = false),
+        ),
+      ],
+    );
+  }
+
+  /// 本次收款人数：包含自己 → 仅 1 人；不包含自己 → 1 ~ 总AA人数。
+  Widget _buildCollectCountPills() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _collectOptions
+          .map(
+            (int k) => _pill(
+              text: '$k人',
+              selected: _collectCount == k,
+              onTap: () => _onParamsChanged(() => _collectCount = k),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  // ── 确认：鼠尾草渐变全宽胶囊 ──────────────────────────────────
+  Widget _buildConfirmButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _confirm,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: <Color>[_Sage.sageA, _Sage.sageB],
+            ),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: const Text(
+            '确认',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirm() {
+    final int collect = _collect;
+    if (collect <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('本次收款金额需大于 0')),
+      );
+      return;
+    }
+    Navigator.of(context).pop(
+      _AaPaymentResult(
+        headcount: _headcount,
+        includeSelf: _includeSelf,
+        collectCount: _collectCount,
+        rounding: _rounding,
+        collectMinor: collect,
+        manual: _manualMinor != null,
+      ),
+    );
+  }
 }
