@@ -4605,7 +4605,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   List<Widget> _buildRefundForm() {
     return <Widget>[
-      _buildSectionTitle('原账单'),
+      _buildSectionTitle(
+        '原账单',
+        note: _refundOriginals.isEmpty ? null : '已选 ${_refundOriginals.length} 笔',
+      ),
       const SizedBox(height: AppDimens.spaceSm),
       _buildRefundOriginalField(),
       const SizedBox(height: AppDimens.spaceMd),
@@ -4615,7 +4618,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       const SizedBox(height: AppDimens.spaceMd),
       _buildRefundAmountRow(),
       const SizedBox(height: AppDimens.spaceMd),
-      _dateField(label: '时间'),
+      _buildRefundDateCard(),
       const SizedBox(height: AppDimens.spaceMd),
       _buildRefundNoteField(),
       const SizedBox(height: AppDimens.spaceMd),
@@ -4625,31 +4628,87 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       const SizedBox(height: AppDimens.spaceMd),
       _buildAttachmentSection(),
       const SizedBox(height: AppDimens.spaceMd),
-      _buildRbBookRow(),
+      _buildRefundBookRow(),
     ];
   }
 
-  /// 带绿色竖线的分组标题。
-  Widget _buildSectionTitle(String label) {
+  /// 带绿色竖线的分组标题（方案 A：渐变竖条 + 可选右侧灰字备注）。
+  Widget _buildSectionTitle(String label, {String? note}) {
     return Row(
       children: <Widget>[
         Container(
           width: 4,
-          height: 16,
+          height: 15,
           decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(2),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[_Sage.sageA, _Sage.sageB],
+            ),
+            borderRadius: BorderRadius.circular(3),
           ),
         ),
         const SizedBox(width: AppDimens.spaceSm),
         Text(
           label,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: _Sage.ink,
               ),
         ),
+        if (note != null) ...<Widget>[
+          const Spacer(),
+          Text(
+            note,
+            style: const TextStyle(fontSize: 11, color: _Sage.ink3),
+          ),
+        ],
       ],
+    );
+  }
+
+  /// 方案 A 迷你按钮：
+  /// - 默认（深沙底 + 发丝线描边）：搜索 / 入款账户。
+  /// - primary（鼠尾草渐变 + 白字 + 绿影）：选取。
+  Widget _refundMiniButton(
+    String label, {
+    required VoidCallback onTap,
+    bool primary = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: primary ? null : ForestBg.sunken,
+            gradient: primary ? ForestGradients.sage : null,
+            borderRadius: BorderRadius.circular(13),
+            border: primary ? null : Border.all(color: _Sage.hairline),
+            boxShadow: primary
+                ? const <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x475F9A6E),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: primary ? Colors.white : _Sage.ink,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -4680,35 +4739,27 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       display = '共 ${txns.length} 笔，合计 ${Money.fromMinor(totalMinor).format()}'
           '${sample.isEmpty ? '' : ' · $sample 等'}';
     }
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
+    return _rbCard(
       child: Row(
         children: <Widget>[
           Expanded(
             child: Text(
               display,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: txns.isEmpty
-                        ? AppColors.textTertiary
-                        : AppColors.textPrimary,
-                  ),
+              style: TextStyle(
+                fontSize: 14,
+                color: txns.isEmpty ? _Sage.ink3 : _Sage.ink,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          ActionChip(
-            label: const Text('搜索'),
-            onPressed: _onSearchRefundOriginal,
-          ),
-          const SizedBox(width: AppDimens.spaceSm),
-          ActionChip(
-            label: const Text('选取'),
-            onPressed: _pickRefundOriginal,
+          const SizedBox(width: 10),
+          _refundMiniButton('搜索', onTap: _onSearchRefundOriginal),
+          const SizedBox(width: 10),
+          _refundMiniButton(
+            '选取',
+            primary: true,
+            onTap: _pickRefundOriginal,
           ),
         ],
       ),
@@ -4747,26 +4798,23 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           ),
           child: Row(
             children: <Widget>[
-              // 左：已选账户胶囊（绿描边），点击同样进入选择弹窗。
+              // 左：账户胶囊（深沙底；选中绿描边），点击同样进入选择弹窗。
               Expanded(
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: shown.isEmpty ? null : pick,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(13),
                     child: Container(
-                      height: 40,
+                      height: 42,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       alignment: Alignment.centerLeft,
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selected == null
-                              ? ForestNeutral.hairline
-                              : _Sage.sageB,
-                          width: selected == null ? 1 : 1.4,
-                        ),
+                        color: ForestBg.sunken,
+                        borderRadius: BorderRadius.circular(13),
+                        border: selected == null
+                            ? null
+                            : Border.all(color: _Sage.sageB, width: 1.4),
                       ),
                       child: Text(
                         selected?.name ?? '请选择入款账户',
@@ -4784,26 +4832,27 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ),
               ),
               const SizedBox(width: 10),
-              // 右：「入款账户」选取按钮。
+              // 右：「入款账户」选取按钮（深沙底 + 发丝线描边，方案 A 中性钮）。
               Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: shown.isEmpty ? null : pick,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(13),
                   child: Container(
-                    height: 40,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: _Sage.greenSoft,
-                      borderRadius: BorderRadius.circular(10),
+                      color: ForestBg.sunken,
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(color: _Sage.hairline),
                     ),
                     child: const Text(
                       '入款账户',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: _Sage.greenDeep,
+                        color: _Sage.ink,
                       ),
                     ),
                   ),
@@ -4928,24 +4977,37 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         borderRadius: BorderRadius.circular(999),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          height: 40,
+          height: 44,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             gradient: selected
                 ? const LinearGradient(
-                    colors: <Color>[_Sage.sageA, _Sage.sageB])
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[_Sage.sageA, _Sage.sageB],
+                  )
                 : null,
             color: selected ? null : _Sage.card,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: selected ? Colors.transparent : ForestNeutral.hairline,
+              width: selected ? 0 : 1.5,
             ),
+            boxShadow: selected
+                ? const <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x525F9A6E),
+                      blurRadius: 12,
+                      offset: Offset(0, 5),
+                    ),
+                  ]
+                : null,
           ),
           child: Text(
             selected ? '✓ $label' : label,
             style: TextStyle(
               fontSize: 14,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
               color: selected ? Colors.white : _Sage.ink2,
             ),
           ),
@@ -4954,199 +5016,337 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
-  /// 退款金额行：标签 + 自动/自定义开关，下方显示/输入金额。
+  /// 退款金额区（方案 A）：标题行（灰字标签 + 深沙「自动/自定义」胶囊分段）
+  /// + 金额奶油卡（¥ 大数 + AA 人均入口 + 绿点提示行）。
   Widget _buildRefundAmountRow() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Row(
           children: <Widget>[
-            Text(
+            const Text(
               '退款金额',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+                color: _Sage.ink2,
+              ),
             ),
             const Spacer(),
-            SegmentedButton<bool>(
-              segments: const <ButtonSegment<bool>>[
-                ButtonSegment<bool>(value: true, label: Text('自动')),
-                ButtonSegment<bool>(value: false, label: Text('自定义')),
-              ],
-              selected: <bool>{_refundAmountAuto},
-              onSelectionChanged: (Set<bool> next) => setState(() {
-                _refundAmountAuto = next.first;
-                if (_refundAmountAuto) {
-                  _refundAmountController.clear();
-                }
-              }),
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: ForestBg.sunken,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _refundAmtSeg(true),
+                  _refundAmtSeg(false),
+                ],
+              ),
             ),
           ],
         ),
-        const SizedBox(height: AppDimens.spaceSm),
-        if (_refundAmountAuto)
-          _buildRefundAmountDisplay()
-        else
-          _buildRefundAmountInput(),
+        const SizedBox(height: 10),
+        _buildRefundAmountCard(),
       ],
     );
   }
 
-  Widget _buildRefundAmountDisplay() {
+  /// 自动/自定义分段单格（深沙容器内：选中奶油胶囊 + 鼠尾草绿字）。
+  Widget _refundAmtSeg(bool isAuto) {
+    final bool on = isAuto == _refundAmountAuto;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() {
+          _refundAmountAuto = isAuto;
+          if (_refundAmountAuto) {
+            _refundAmountController.clear();
+          }
+        }),
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: on ? _Sage.card : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: on
+                ? const <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x2E786E5A),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            isAuto ? (on ? '✓ 自动' : '自动') : '自定义',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: on ? _Sage.sageB : _Sage.ink2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 金额奶油卡：¥ 前缀 + 28/800 大数（自动=展示 / 自定义=输入），
+  /// AA 模式右侧「每人均 xx（N人AA）›」可点回分摊弹窗；底部绿点提示行。
+  Widget _buildRefundAmountCard() {
     final int m = _refundAmountMinor;
     final int originalTotal = _refundOriginalTotalMinor;
     final bool isAa = _refundMode == RefundMode.aa && originalTotal > 0;
-    return Container(
-      constraints: const BoxConstraints(minHeight: 48),
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+    final String hint;
+    if (_refundAmountAuto) {
+      hint = _refundOriginals.isEmpty
+          ? '自动 = 已选账单合计'
+          : '自动 = 已选账单合计'
+              '（${_refundOriginals.length} 笔 · '
+              '${Money.fromMinor(originalTotal).format()}）';
+    } else {
+      hint = '自定义 = 手动输入退款金额';
+    }
+    return _rbCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const SizedBox(width: AppDimens.spaceMd),
-          Container(
-            width: 3,
-            height: 20,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(1.5),
-            ),
-          ),
-          const SizedBox(width: AppDimens.spaceMd),
-          Text(
-            m <= 0 ? '0.00' : Money.fromMinor(m).format(showSymbol: false),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textPrimary,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              const Text(
+                '¥',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: _Sage.sageB,
                 ),
-          ),
-          if (isAa) ...<Widget>[
-            const Spacer(),
-            // 点金额行重新打开 AA 付款弹窗调整分摊参数。
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _showAaPaymentSheet,
-              child: Text(
-                '每人均 ${Money.fromMinor(_aaPerHeadMinor(originalTotal)).format(showSymbol: false)}'
-                '（${_aaHeadcount}人AA）›',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
               ),
-            ),
-            const SizedBox(width: AppDimens.spaceMd),
-          ],
+              const SizedBox(width: 6),
+              Expanded(
+                child: _refundAmountAuto
+                    ? Text(
+                        m <= 0
+                            ? '0.00'
+                            : Money.fromMinor(m).format(showSymbol: false),
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: _Sage.ink,
+                        ),
+                      )
+                    : TextField(
+                        controller: _refundAmountController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.done,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: InputBorder.none,
+                          hintText: '请输入退款金额',
+                          hintStyle: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: _Sage.ink3,
+                          ),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: _Sage.ink,
+                        ),
+                        maxLines: 1,
+                        onChanged: (_) => setState(() {}),
+                        onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                      ),
+              ),
+              if (isAa)
+                // 点金额行重新打开 AA 付款弹窗调整分摊参数。
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _showAaPaymentSheet,
+                  child: Text(
+                    '每人均 ${Money.fromMinor(_aaPerHeadMinor(originalTotal)).format(showSymbol: false)}'
+                    '（${_aaHeadcount}人AA）›',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _Sage.ink2,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              Container(
+                width: 5,
+                height: 5,
+                decoration: const BoxDecoration(
+                  color: _Sage.sageA,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  hint,
+                  style: const TextStyle(fontSize: 11.5, color: _Sage.ink3),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRefundAmountInput() {
-    final OutlineInputBorder border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      borderSide: const BorderSide(color: AppColors.divider),
-    );
-    return TextField(
-      controller: _refundAmountController,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      textInputAction: TextInputAction.done,
-      textAlignVertical: TextAlignVertical.center,
-      decoration: InputDecoration(
-        hintText: '请输入退款金额',
-        hintStyle: Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.copyWith(color: AppColors.textTertiary),
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 12, right: 8),
-          child: Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-            ),
-            child: Text(
-              '¥',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    height: 1.0,
-                  ),
+  /// 退款备注卡（方案 A 奶油卡内无边框输入，保留线稿信息图标）。
+  Widget _buildRefundNoteField() {
+    return _rbCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Padding(
+            padding: EdgeInsets.only(top: 9),
+            child: LineIcon(
+              LineIconKind.info,
+              size: 17,
+              color: _Sage.ink3,
             ),
           ),
-        ),
-        prefixIconConstraints:
-            const BoxConstraints(minWidth: 44, minHeight: 24),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceMd,
-          vertical: AppDimens.spaceXs / 2,
-        ),
-        border: border,
-        enabledBorder: border,
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          borderSide: const BorderSide(color: AppColors.primary),
-        ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _noteController,
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                hintText: '备注（选填）',
+                hintStyle: const TextStyle(fontSize: 14, color: _Sage.ink3),
+              ),
+              style: const TextStyle(fontSize: 14, color: _Sage.ink),
+              maxLines: 2,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
+          ),
+        ],
       ),
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.textPrimary,
-          ),
-      maxLines: 1,
-      onChanged: (_) => setState(() {}),
-      onTapOutside: (_) => FocusScope.of(context).unfocus(),
     );
   }
 
-  /// 退款备注输入框（带左侧信息图标）。
-  ///
-  /// 绿色圆角边框 + 白色填充，占满整行宽度。
-  Widget _buildRefundNoteField() {
-    final OutlineInputBorder border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      borderSide: const BorderSide(color: AppColors.divider),
-    );
-    return TextField(
-      controller: _noteController,
-      decoration: InputDecoration(
-        hintText: '备注',
-        hintStyle: Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.copyWith(color: AppColors.textTertiary),
-        prefixIcon: const Padding(
-          padding: EdgeInsets.only(left: 12, right: 8),
-          child: Icon(
-            Icons.info_outline,
-            size: 18,
-            color: AppColors.textTertiary,
+  /// 方案 A 时间卡：深沙圆角图标位 + 「时间/日期时间」两行 + 跳转箭头。
+  Widget _buildRefundDateCard() {
+    return _rbCard(
+      onTap: _pickDate,
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: ForestBg.sunken,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Center(
+              child: LineIcon(
+                LineIconKind.calendar,
+                size: 17,
+                color: _Sage.ink2,
+              ),
+            ),
           ),
-        ),
-        prefixIconConstraints:
-            const BoxConstraints(minWidth: 38, minHeight: 18),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceMd,
-          vertical: AppDimens.spaceSm,
-        ),
-        border: border,
-        enabledBorder: border,
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          borderSide: const BorderSide(color: AppColors.primary),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Text(
+                  '时间',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _Sage.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  DateFormat('yyyy-MM-dd HH:mm').format(_occurredAt),
+                  style: const TextStyle(fontSize: 12.5, color: _Sage.ink2),
+                ),
+              ],
+            ),
+          ),
+          const LineIcon(
+            LineIconKind.chevronRight,
+            size: 15,
+            color: _Sage.ink3,
+          ),
+        ],
       ),
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.textPrimary,
+    );
+  }
+
+  /// 方案 A 账本卡：浅绿渐变图标位 + 账本名 + 跳转箭头。
+  /// （与报销区 [_buildRbBookRow] 分离，避免改动波及报销 Tab。）
+  Widget _buildRefundBookRow() {
+    final AsyncValue<Book?> book = ref.watch(currentBookProvider);
+    return _rbCard(
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: <Color>[Color(0xFFEAF3EA), Color(0xFFDDEBDD)],
+              ),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Center(
+              child: LineIcon(
+                LineIconKind.book,
+                size: 17,
+                color: _Sage.greenDeep,
+              ),
+            ),
           ),
-      maxLines: 2,
-      onTapOutside: (_) => FocusScope.of(context).unfocus(),
+          const SizedBox(width: 12),
+          const Text(
+            '账本',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _Sage.ink,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            book.valueOrNull?.name ?? '账本',
+            style: const TextStyle(fontSize: 13, color: _Sage.ink2),
+          ),
+          const SizedBox(width: 4),
+          const LineIcon(
+            LineIconKind.chevronRight,
+            size: 14,
+            color: _Sage.ink3,
+          ),
+        ],
+      ),
     );
   }
 
@@ -8601,9 +8801,10 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                   children: <Widget>[
                     _label('本次收款人数'),
                     const SizedBox(width: 6),
-                    const Text(
-                      '👑',
-                      style: TextStyle(fontSize: 13),
+                    const LineIcon(
+                      LineIconKind.person,
+                      size: 13,
+                      color: _Sage.ink2,
                     ),
                   ],
                 ),
@@ -8648,8 +8849,8 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                     color: _Sage.cardAlt,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.close,
+                  child: const LineIcon(
+                    LineIconKind.close,
                     size: 17,
                     color: _Sage.ink2,
                   ),
