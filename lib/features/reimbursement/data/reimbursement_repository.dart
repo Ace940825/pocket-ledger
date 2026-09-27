@@ -264,8 +264,13 @@ class ReimbursementRepository {
 
   /// 流水明细「是否报销」开关：
   /// 是 → 已报销 + receivedAt=now；否 → 待报销 + 清空 receivedAt。
+  /// 状态真实翻转时同步联动报销账户余额（核销 / 恢复垫付）。
   Future<void> setReimbursed(String id, bool reimbursed) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final Reimbursement? record = await (_db.select(_db.reimbursements)
+          ..where((Reimbursements t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (record == null) return;
     final ReimbursementStatus status = reimbursed
         ? ReimbursementStatus.reimbursed
         : ReimbursementStatus.pending;
@@ -291,15 +296,26 @@ class ReimbursementRepository {
           'receivedAt': reimbursed ? now : null,
         },
       );
+      await _adjustBalanceForStatusChange(
+        record.status,
+        status,
+        accountId: record.accountId,
+        amountMinor: record.amountMinor,
+      );
     });
   }
 
-  /// 推进状态。
+  /// 推进状态（报销页手动标记已报销 / 退回待报销），
+  /// 状态真实翻转时同步联动报销账户余额（核销 / 恢复垫付）。
   Future<void> advanceStatus(
     String id,
     ReimbursementStatus status,
   ) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final Reimbursement? record = await (_db.select(_db.reimbursements)
+          ..where((Reimbursements t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (record == null) return;
     await _db.transaction<void>(() async {
       await (_db.update(_db.reimbursements)
             ..where((Reimbursements t) => t.id.equals(id)))
@@ -317,6 +333,12 @@ class ReimbursementRepository {
         opType: SyncOpType.update,
         updatedAt: now,
         payload: <String, Object?>{'status': status.index},
+      );
+      await _adjustBalanceForStatusChange(
+        record.status,
+        status,
+        accountId: record.accountId,
+        amountMinor: record.amountMinor,
       );
     });
   }
@@ -353,6 +375,50 @@ class ReimbursementRepository {
     await _db.accountsDao.adjustBalance(
       accountId,
       -amountMinor,
+      DateTime.now().toUtc().millisecondsSinceEpoch,
+    );
+  }
+
+  /// 垫付挂账：把实付金额挂到报销账户（应收桶），与 [writeOffReceivable]
+  /// 对偶。用于「记报销收入时为无报销账户的历史账单补建记录」的场景——
+  /// 这类账单落账时没挂过余额，须先补挂再核销，余额才等于待收垫付。
+  Future<void> hangAdvance(String accountId, int amountMinor) async {
+    if (amountMinor <= 0) return;
+    await _db.accountsDao.adjustBalance(
+      accountId,
+      amountMinor,
+      DateTime.now().toUtc().millisecondsSinceEpoch,
+    );
+  }
+
+  /// 状态手动流转联动报销账户余额（维持「余额 = 待收垫付」不变量）：
+  /// 待报销 → 已报销：垫付收回，核销 -amount；
+  /// 已报销 → 待报销：垫付恢复，+amount。
+  /// 抵扣链路（[deduct]）不走这里——那次核销由记账侧 writeOffReceivable 处理。
+  Future<void> _adjustBalanceForStatusChange(
+    ReimbursementStatus before,
+    ReimbursementStatus after, {
+    required String? accountId,
+    required int amountMinor,
+  }) async {
+    if (accountId == null || before == after) return;
+    final int delta = switch ((before, after)) {
+      (
+        ReimbursementStatus.pending,
+        ReimbursementStatus.reimbursed
+      ) =>
+        -amountMinor,
+      (
+        ReimbursementStatus.reimbursed,
+        ReimbursementStatus.pending
+      ) =>
+        amountMinor,
+      _ => 0,
+    };
+    if (delta == 0) return;
+    await _db.accountsDao.adjustBalance(
+      accountId,
+      delta,
       DateTime.now().toUtc().millisecondsSinceEpoch,
     );
   }

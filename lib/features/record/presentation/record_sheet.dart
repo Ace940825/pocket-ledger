@@ -869,6 +869,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       } else {
         // 旧数据 / 记支出时未指定报销账户的账单：补建全额待报销记录再抵扣，
         // deduct 内部覆盖完整笔时自动翻「已报销」，明细开关有记录可联动。
+        // 这类账单落账时没挂过报销账户余额，先补挂垫付再核销抵扣部分，
+        // 保证「报销账户余额 = 待收垫付」。
         final String createdId = await reimbRepo.add(
           bookId: bookId,
           title: billTitle,
@@ -880,6 +882,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           toAccountId: _rbToAccountId,
           transactionId: t.id,
         );
+        if (_rbAccountId != null) {
+          await reimbRepo.hangAdvance(_rbAccountId!, remaining);
+        }
         await reimbRepo.deduct(
           createdId,
           alloc,

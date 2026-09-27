@@ -72,6 +72,9 @@ final Map<String, _DefaultCategory> _incomeCategoryLookup =
 ///
 /// 幂等：已存在账本时直接返回，不会重复写入。
 Future<void> bootstrapData(AppDatabase db) async {
+  // 报销账户余额对账（幂等，每次启动运行）：余额 = 名下「待报销」合计，
+  // 修复历史版本挂账/核销链路缺失导致的 100 vs 30 类不一致。
+  await _reconcileReimbursementBalances(db);
   final List<Book> books = await db.booksDao.watchAll().first;
   if (books.isEmpty) {
     await _seedDefaults(db);
@@ -81,6 +84,46 @@ Future<void> bootstrapData(AppDatabase db) async {
   await _repairDefaultCategoryIcons(db);
   // 色调迁移：旧 Material 粉彩 → ForestSage 调和色板（幂等，每次启动运行）。
   await _harmonizeDefaultCategoryColors(db);
+}
+
+/// 报销账户余额对账：每个报销类型账户的余额重算为
+/// 名下未删除「待报销」记录的金额合计（保持「余额 = 待收垫付」不变量）。
+///
+/// 历史版本中「明细是否报销开关 / 报销页手动推进状态 / 历史账单补建」
+/// 均未联动余额，长期漂移后出现「报销页垫付 100 vs 账户余额 30」类
+/// 不一致——启动时按记录重算一次性修复，仅在有偏差时写库（避免脏同步）。
+Future<void> _reconcileReimbursementBalances(AppDatabase db) async {
+  final List<Account> reimbAccounts = await (db.select(db.accounts)
+        ..where((Accounts t) =>
+            t.type.equals(AccountType.reimbursement.index) &
+            t.deleted.equals(false)))
+      .get();
+  if (reimbAccounts.isEmpty) return;
+
+  final List<Reimbursement> pendings = await (db.select(db.reimbursements)
+        ..where((Reimbursements t) =>
+            t.status.equals(ReimbursementStatus.pending.index) &
+            t.deleted.equals(false) &
+            t.accountId.isNotNull()))
+      .get();
+  final Map<String, int> expected = <String, int>{};
+  for (final Reimbursement r in pendings) {
+    expected[r.accountId!] = (expected[r.accountId!] ?? 0) + r.amountMinor;
+  }
+
+  final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+  for (final Account a in reimbAccounts) {
+    final int want = expected[a.id] ?? 0;
+    if (a.balanceMinor == want) continue;
+    await (db.update(db.accounts)..where((Accounts t) => t.id.equals(a.id)))
+        .write(
+      AccountsCompanion(
+        balanceMinor: Value<int>(want),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+  }
 }
 
 /// 色调迁移：一级默认分类若仍持有旧版 Material 粉彩色（见
