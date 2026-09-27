@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_dimens.dart';
+import '../../../../../core/theme/forest_design_tokens.dart';
 import '../../../../../database/app_database.dart';
 import '../../../../../domain/enums.dart';
 import '../../providers/ledger_providers.dart';
@@ -12,11 +13,15 @@ import '../../../../../shared/widgets/attachment_viewer.dart';
 import '../../../../../shared/widgets/category_icons.dart';
 import '../../../../../shared/widgets/money_text.dart';
 import '../../../accounts/providers/accounts_providers.dart';
+import '../../../reimbursement/data/reimbursement_repository.dart';
+import '../../../reimbursement/providers/reimbursement_providers.dart';
 
-/// 流水列表项（小青账版本）。
+/// 流水列表项（小青账版本，对齐参考稿卡片逻辑）。
 ///
-/// 左侧为彩色圆角分类图标，中间是「分类名 + 账户 · 时间」两行，
-/// 右侧为按类型着色的金额。用 [RepaintBoundary] 包裹，避免列表滚动时整屏重绘。
+/// 左侧为彩色圆角分类图标（报销收入行用「报」字图标），中间是
+/// 「标题 + 报销徽章」与时间两行，右侧为金额 + 账户名 + 红色标注
+/// （「已报 ¥xx」「不计收支、预算」）。用 [RepaintBoundary] 包裹，
+/// 避免列表滚动时整屏重绘。
 class TransactionTile extends ConsumerWidget {
   const TransactionTile({
     required this.transaction,
@@ -39,11 +44,16 @@ class TransactionTile extends ConsumerWidget {
     };
 
     final Category? category = categories[transaction.categoryId];
+    final bool isReimbIncome =
+        transaction.type == TxnType.income &&
+            transaction.sourceModule == SourceModule.reimbursement;
     // 退款必须显示「退款」而不是「收入」：两者的 `type` 都是 income，
     // 但统计口径不同（退款默认抵扣支出）。
     final String title = transaction.sourceModule == SourceModule.refund
         ? SourceModule.refund.label
-        : (category?.name ?? transaction.type.label);
+        : isReimbIncome
+            ? '报销收入'
+            : (category?.name ?? transaction.type.label);
     final DateTime occurred = DateTime.fromMillisecondsSinceEpoch(
       transaction.occurredAt,
       isUtc: true,
@@ -79,14 +89,49 @@ class TransactionTile extends ConsumerWidget {
       refundFromSuffix = '';
     }
 
-    final Color tint = category?.colorValue != null
-        ? Color(category!.colorValue!)
-        : _tintFor(transaction.type);
+    // 报销支出：反查报销记录，算累计已报（台账合计，旧数据按收入流水兜底），
+    // 用于「已报 ¥xx」红字与超额报销标签。
+    final bool isReimbExpense =
+        transaction.type == TxnType.expense && transaction.isReimbursable;
+    int receivedMinor = 0;
+    if (isReimbExpense) {
+      final List<Reimbursement> records =
+          ref.watch(reimbursementListProvider).valueOrNull ??
+              const <Reimbursement>[];
+      for (final Reimbursement r in records) {
+        if (r.transactionId != transaction.id) continue;
+        final List<ReimbAllocEntry> allocs = parseReimbAllocs(r.incomeAllocs);
+        if (allocs.isNotEmpty) {
+          receivedMinor += allocs
+              .fold<int>(0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
+        } else if (r.incomeTransactionId != null) {
+          receivedMinor += ref
+                  .watch(transactionDetailProvider(r.incomeTransactionId!))
+                  .valueOrNull
+                  ?.amountMinor ??
+              0;
+        }
+      }
+    }
+    final bool overReimbursed =
+        isReimbExpense && receivedMinor > transaction.amountMinor;
+
+    final Color tint = isReimbIncome
+        ? AppColors.textTertiary
+        : category?.colorValue != null
+            ? Color(category!.colorValue!)
+            : _tintFor(transaction.type);
     final IconData icon =
         category?.iconKey != null && category!.iconKey!.isNotEmpty
             ? categoryIconData(category.iconKey)
             : _iconFor(transaction.type);
     final String accountLabel = _accountLabel(accounts);
+
+    // 红色标注：不计收支 / 不计预算（任一开启才显示）。
+    final List<String> excludeLabels = <String>[
+      if (transaction.excludeFromStats) '不计收支',
+      if (transaction.excludeFromBudget) '不计预算',
+    ];
 
     return RepaintBoundary(
       child: InkWell(
@@ -104,30 +149,66 @@ class TransactionTile extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: tint.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              // 左侧图标：报销收入用「报」字圆角标，其余用分类图标。
+              if (isReimbIncome)
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: tint.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      '报',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: tint.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  ),
+                  child: Icon(icon, color: tint, size: 22),
                 ),
-                child: Icon(icon, color: tint, size: 22),
-              ),
               const SizedBox(width: AppDimens.spaceMd),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      title,
-                      style: theme.textTheme.bodyLarge
-                          ?.copyWith(fontWeight: FontWeight.w500),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    // 标题 + 「报」徽章 + 「超额报销」标签。
+                    Row(
+                      children: <Widget>[
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: theme.textTheme.bodyLarge
+                                ?.copyWith(fontWeight: FontWeight.w500),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isReimbExpense) ...<Widget>[
+                          const SizedBox(width: 6),
+                          const _RebBadge(),
+                          if (overReimbursed) ...<Widget>[
+                            const SizedBox(width: 6),
+                            const _OverTag(),
+                          ],
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$accountLabel  ${DateFormat('MM-dd HH:mm').format(occurred)}'
+                      '${DateFormat('HH:mm').format(occurred)}'
                       '${_noteSuffix()}$refundFromSuffix',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AppColors.textTertiary,
@@ -147,21 +228,66 @@ class TransactionTile extends ConsumerWidget {
                     color: AppColors.textTertiary,
                   ),
                 ),
-              transaction.type == TxnType.transfer
-                  ? Text(
-                      Money.fromMinor(transaction.amountMinor).format(),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppColors.transfer,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  : (transaction.type == TxnType.expense &&
-                          transaction.discountMinor > 0)
-                      ? _DiscountedAmount(
-                          originalMinor: transaction.amountMinor,
-                          discountMinor: transaction.discountMinor,
+              // 右侧：金额 + 已报 + 账户名 + 排除标注（自上而下）。
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  transaction.type == TxnType.transfer
+                      ? Text(
+                          Money.fromMinor(transaction.amountMinor).format(),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppColors.transfer,
+                            fontWeight: FontWeight.w600,
+                          ),
                         )
-                      : MoneyText(Money.fromMinor(signedMinor), signed: true),
+                      : (transaction.type == TxnType.expense &&
+                              transaction.discountMinor > 0)
+                          ? _DiscountedAmount(
+                              originalMinor: transaction.amountMinor,
+                              discountMinor: transaction.discountMinor,
+                            )
+                          : MoneyText(
+                              Money.fromMinor(signedMinor),
+                              signed: true,
+                            ),
+                  if (isReimbExpense && receivedMinor > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '已报 ${Money.fromMinor(receivedMinor).format()}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.expense,
+                        ),
+                      ),
+                    ),
+                  if (accountLabel.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        accountLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textTertiary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  if (excludeLabels.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        excludeLabels.join('、'),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.expense,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),
@@ -197,6 +323,51 @@ class TransactionTile extends ConsumerWidget {
         TxnType.expense => Icons.north_east,
         TxnType.transfer => Icons.swap_horiz,
       };
+}
+
+/// 「报」小徽章：浅绿底 + 描边圆角方块（对齐报销账单详情）。
+class _RebBadge extends StatelessWidget {
+  const _RebBadge();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+        decoration: BoxDecoration(
+          color: ForestGreen.soft,
+          border: Border.all(color: ForestGreen.softBorder),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text(
+          '报',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: ForestGreen.deep,
+          ),
+        ),
+      );
+}
+
+/// 「超额报销」描边胶囊标签。
+class _OverTag extends StatelessWidget {
+  const _OverTag();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          border: Border.all(color: ForestGreen.softBorder),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: const Text(
+          '超额报销',
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            color: ForestGreen.deep,
+          ),
+        ),
+      );
 }
 
 /// 优惠支出金额（对齐小青账）：第一行「划线原价 + 红色实付」，
