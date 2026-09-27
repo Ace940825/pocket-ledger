@@ -4021,10 +4021,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   children: <Widget>[
                     Text(
                       '-${Money.fromMinor(t.amountMinor).format()}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: _Sage.ink,
+                        color: finish ? _Sage.ink2 : _Sage.ink,
+                        // 勾选「完成报销」后金额划掉。
+                        decoration:
+                            finish ? TextDecoration.lineThrough : null,
+                        decorationColor: _Sage.ink3,
+                        decorationThickness: 1.6,
                       ),
                     ),
                     if (excludeLabels.isNotEmpty)
@@ -4125,19 +4130,40 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return '已附票据 $photos 项 · 含历史账单 $hist 笔';
   }
 
-  /// 「全额报销」：把报销收入金额一键填为所选账单中
-  /// 未勾选「完成报销」部分的合计（完成报销的账单整笔核销、
-  /// 不占用本次收入，故不计入）。
+  /// 「全额报销」：把报销收入金额一键填为所选账单的**未报销金额总额**。
+  /// 口径与保存时的抵扣链路一致：
+  /// - 勾了「完成报销」的账单整笔核销、不占用收入 → 不计入；
+  /// - 已全额报销（status == reimbursed）的账单无剩余 → 不计入；
+  /// - 待报销账单取报销记录的 amountMinor（即被部分抵扣后的剩余额），
+  ///   无报销记录的账单取账单全额。
   void _fillRbFullAmount() {
+    if (_rbHistIds.isEmpty) {
+      _toast('请先选择需要报销的账单');
+      return;
+    }
     final List<Transaction> expenses =
         ref.read(bookExpenseTransactionsProvider).valueOrNull ??
             const <Transaction>[];
+    // 报销记录按关联账单 transactionId 建索引，反查各账单的报销状态。
+    final Map<String, Reimbursement> rbByTxn = <String, Reimbursement>{
+      for (final Reimbursement r
+          in ref.read(reimbursementListProvider).valueOrNull ??
+              const <Reimbursement>[])
+        if (r.transactionId != null) r.transactionId!: r,
+    };
     final int needMinor = expenses
         .where((Transaction t) =>
             _rbHistIds.contains(t.id) && !_rbFinishIds.contains(t.id))
-        .fold<int>(0, (int s, Transaction t) => s + t.amountMinor);
+        .fold<int>(0, (int s, Transaction t) {
+      final Reimbursement? linked = rbByTxn[t.id];
+      if (linked != null &&
+          linked.status == ReimbursementStatus.reimbursed) {
+        return s; // 已全额报销，无未报销余额。
+      }
+      return s + (linked?.amountMinor ?? t.amountMinor);
+    });
     if (needMinor <= 0) {
-      _toast('请先选择需要报销的账单');
+      _toast('所选账单均无待报销金额');
       return;
     }
     setState(() {
