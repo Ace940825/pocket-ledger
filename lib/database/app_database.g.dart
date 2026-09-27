@@ -4298,6 +4298,12 @@ class $ReimbursementsTable extends Reimbursements
   late final GeneratedColumn<String> incomeTransactionId =
       GeneratedColumn<String>('income_transaction_id', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _incomeAllocsMeta =
+      const VerificationMeta('incomeAllocs');
+  @override
+  late final GeneratedColumn<String> incomeAllocs =
+      GeneratedColumn<String>('income_allocs', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _accountIdMeta =
       const VerificationMeta('accountId');
   @override
@@ -4340,6 +4346,7 @@ class $ReimbursementsTable extends Reimbursements
         attachmentUrls,
         transactionId,
         incomeTransactionId,
+        incomeAllocs,
         accountId,
         toAccountId,
         excludeFromStats
@@ -4447,6 +4454,12 @@ class $ReimbursementsTable extends Reimbursements
           incomeTransactionId.isAcceptableOrUnknown(
               data['income_transaction_id']!, _incomeTransactionIdMeta));
     }
+    if (data.containsKey('income_allocs')) {
+      context.handle(
+          _incomeAllocsMeta,
+          incomeAllocs.isAcceptableOrUnknown(
+              data['income_allocs']!, _incomeAllocsMeta));
+    }
     if (data.containsKey('account_id')) {
       context.handle(_accountIdMeta,
           accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
@@ -4509,6 +4522,8 @@ class $ReimbursementsTable extends Reimbursements
           .read(DriftSqlType.string, data['${effectivePrefix}transaction_id']),
       incomeTransactionId: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}income_transaction_id']),
+      incomeAllocs: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}income_allocs']),
       accountId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}account_id']),
       toAccountId: attachedDatabase.typeMapping
@@ -4549,6 +4564,9 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
   final String? transactionId;
   final String? incomeTransactionId;
 
+  /// 抵扣台账：被各笔「报销收入」抵扣的明细（JSON 数组字符串）。
+  final String? incomeAllocs;
+
   /// 报销账户：产生原始支出的资产账户。
   final String? accountId;
 
@@ -4577,6 +4595,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       this.attachmentUrls,
       this.transactionId,
       this.incomeTransactionId,
+      this.incomeAllocs,
       this.accountId,
       this.toAccountId,
       required this.excludeFromStats});
@@ -4617,6 +4636,9 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
     }
     if (!nullToAbsent || incomeTransactionId != null) {
       map['income_transaction_id'] = Variable<String>(incomeTransactionId);
+    }
+    if (!nullToAbsent || incomeAllocs != null) {
+      map['income_allocs'] = Variable<String>(incomeAllocs);
     }
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<String>(accountId);
@@ -4659,6 +4681,9 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       incomeTransactionId: incomeTransactionId == null && nullToAbsent
           ? const Value.absent()
           : Value(incomeTransactionId),
+      incomeAllocs: incomeAllocs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(incomeAllocs),
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
           : Value(accountId),
@@ -4693,6 +4718,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       transactionId: serializer.fromJson<String?>(json['transactionId']),
       incomeTransactionId:
           serializer.fromJson<String?>(json['incomeTransactionId']),
+      incomeAllocs: serializer.fromJson<String?>(json['incomeAllocs']),
       accountId: serializer.fromJson<String?>(json['accountId']),
       toAccountId: serializer.fromJson<String?>(json['toAccountId']),
       excludeFromStats: serializer.fromJson<bool>(json['excludeFromStats']),
@@ -4721,6 +4747,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       'attachmentUrls': serializer.toJson<String?>(attachmentUrls),
       'transactionId': serializer.toJson<String?>(transactionId),
       'incomeTransactionId': serializer.toJson<String?>(incomeTransactionId),
+      'incomeAllocs': serializer.toJson<String?>(incomeAllocs),
       'accountId': serializer.toJson<String?>(accountId),
       'toAccountId': serializer.toJson<String?>(toAccountId),
       'excludeFromStats': serializer.toJson<bool>(excludeFromStats),
@@ -4746,6 +4773,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           Value<String?> attachmentUrls = const Value.absent(),
           Value<String?> transactionId = const Value.absent(),
           Value<String?> incomeTransactionId = const Value.absent(),
+          Value<String?> incomeAllocs = const Value.absent(),
           Value<String?> accountId = const Value.absent(),
           Value<String?> toAccountId = const Value.absent(),
           bool? excludeFromStats}) =>
@@ -4772,6 +4800,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
         incomeTransactionId: incomeTransactionId.present
             ? incomeTransactionId.value
             : this.incomeTransactionId,
+        incomeAllocs:
+            incomeAllocs.present ? incomeAllocs.value : this.incomeAllocs,
         accountId: accountId.present ? accountId.value : this.accountId,
         toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
         excludeFromStats: excludeFromStats ?? this.excludeFromStats,
@@ -4805,6 +4835,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       incomeTransactionId: data.incomeTransactionId.present
           ? data.incomeTransactionId.value
           : this.incomeTransactionId,
+      incomeAllocs:
+          data.incomeAllocs.present ? data.incomeAllocs.value : this.incomeAllocs,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       toAccountId:
           data.toAccountId.present ? data.toAccountId.value : this.toAccountId,
@@ -4835,6 +4867,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           ..write('attachmentUrls: $attachmentUrls, ')
           ..write('transactionId: $transactionId, ')
           ..write('incomeTransactionId: $incomeTransactionId, ')
+          ..write('incomeAllocs: $incomeAllocs, ')
           ..write('accountId: $accountId, ')
           ..write('toAccountId: $toAccountId, ')
           ..write('excludeFromStats: $excludeFromStats')
@@ -4862,6 +4895,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
         attachmentUrls,
         transactionId,
         incomeTransactionId,
+        incomeAllocs,
         accountId,
         toAccountId,
         excludeFromStats
@@ -4888,6 +4922,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           other.attachmentUrls == this.attachmentUrls &&
           other.transactionId == this.transactionId &&
           other.incomeTransactionId == this.incomeTransactionId &&
+          other.incomeAllocs == this.incomeAllocs &&
           other.accountId == this.accountId &&
           other.toAccountId == this.toAccountId &&
           other.excludeFromStats == this.excludeFromStats);
@@ -4912,6 +4947,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
   final Value<String?> attachmentUrls;
   final Value<String?> transactionId;
   final Value<String?> incomeTransactionId;
+  final Value<String?> incomeAllocs;
   final Value<String?> accountId;
   final Value<String?> toAccountId;
   final Value<bool> excludeFromStats;
@@ -4935,6 +4971,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     this.attachmentUrls = const Value.absent(),
     this.transactionId = const Value.absent(),
     this.incomeTransactionId = const Value.absent(),
+    this.incomeAllocs = const Value.absent(),
     this.accountId = const Value.absent(),
     this.toAccountId = const Value.absent(),
     this.excludeFromStats = const Value.absent(),
@@ -4959,6 +4996,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     this.attachmentUrls = const Value.absent(),
     this.transactionId = const Value.absent(),
     this.incomeTransactionId = const Value.absent(),
+    this.incomeAllocs = const Value.absent(),
     this.accountId = const Value.absent(),
     this.toAccountId = const Value.absent(),
     this.excludeFromStats = const Value.absent(),
@@ -4990,6 +5028,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     Expression<String>? attachmentUrls,
     Expression<String>? transactionId,
     Expression<String>? incomeTransactionId,
+    Expression<String>? incomeAllocs,
     Expression<String>? accountId,
     Expression<String>? toAccountId,
     Expression<bool>? excludeFromStats,
@@ -5015,6 +5054,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       if (transactionId != null) 'transaction_id': transactionId,
       if (incomeTransactionId != null)
         'income_transaction_id': incomeTransactionId,
+      if (incomeAllocs != null) 'income_allocs': incomeAllocs,
       if (accountId != null) 'account_id': accountId,
       if (toAccountId != null) 'to_account_id': toAccountId,
       if (excludeFromStats != null) 'exclude_from_stats': excludeFromStats,
@@ -5041,6 +5081,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       Value<String?>? attachmentUrls,
       Value<String?>? transactionId,
       Value<String?>? incomeTransactionId,
+      Value<String?>? incomeAllocs,
       Value<String?>? accountId,
       Value<String?>? toAccountId,
       Value<bool>? excludeFromStats,
@@ -5064,6 +5105,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       attachmentUrls: attachmentUrls ?? this.attachmentUrls,
       transactionId: transactionId ?? this.transactionId,
       incomeTransactionId: incomeTransactionId ?? this.incomeTransactionId,
+      incomeAllocs: incomeAllocs ?? this.incomeAllocs,
       accountId: accountId ?? this.accountId,
       toAccountId: toAccountId ?? this.toAccountId,
       excludeFromStats: excludeFromStats ?? this.excludeFromStats,
@@ -5129,6 +5171,9 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     if (incomeTransactionId.present) {
       map['income_transaction_id'] = Variable<String>(incomeTransactionId.value);
     }
+    if (incomeAllocs.present) {
+      map['income_allocs'] = Variable<String>(incomeAllocs.value);
+    }
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
     }
@@ -5164,6 +5209,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
           ..write('transactionId: $transactionId, ')
+          ..write('incomeAllocs: $incomeAllocs, ')
           ..write('accountId: $accountId, ')
           ..write('toAccountId: $toAccountId, ')
           ..write('excludeFromStats: $excludeFromStats, ')

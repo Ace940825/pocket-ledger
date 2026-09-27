@@ -211,6 +211,12 @@ class Reimbursements extends Table with SyncColumns {
   /// 用于账单明细弹窗反向展示「关联账单」（报销收入 → 垫付账单）。
   TextColumn get incomeTransactionId => text().nullable()();
 
+  /// 抵扣台账：被各笔「报销收入」抵扣的明细，JSON 数组字符串，
+  /// 元素 `{"i": 收入流水ID, "a": 抵扣金额(分)}`。同一账单可被多笔收入
+  /// 分多次抵扣；删除某笔收入流水时按台账反向恢复（已报销→待报销、
+  /// 待收金额加回、垫付余额加回）。
+  TextColumn get incomeAllocs => text().nullable()();
+
   /// 报销账户：产生原始支出的资产账户。
   TextColumn get accountId => text().nullable()();
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -5,6 +7,54 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../database/sync_enqueue.dart';
 import '../../../domain/enums.dart';
+
+/// 抵扣台账条目：记录某笔报销账单被哪笔「报销收入」抵扣了多少。
+class ReimbAllocEntry {
+  const ReimbAllocEntry({required this.incomeId, required this.allocMinor});
+
+  /// 抵扣用的收入流水 ID。
+  final String incomeId;
+
+  /// 抵扣金额（分）。
+  final int allocMinor;
+}
+
+/// 解码报销记录上的抵扣台账 JSON（`[{"i":收入流水ID,"a":金额(分)}]`）。
+/// 脏数据 / 解析失败一律返回空列表，不让展示与删除级联崩掉。
+List<ReimbAllocEntry> parseReimbAllocs(String? json) {
+  if (json == null || json.isEmpty) {
+    return const <ReimbAllocEntry>[];
+  }
+  try {
+    final Object? decoded = jsonDecode(json);
+    if (decoded is! List<Object?>) {
+      return const <ReimbAllocEntry>[];
+    }
+    return <ReimbAllocEntry>[
+      for (final Object? e in decoded)
+        if (e is Map<Object?, Object?> &&
+            e['i'] is String &&
+            e['a'] is int)
+          ReimbAllocEntry(
+            incomeId: e['i']! as String,
+            allocMinor: e['a']! as int,
+          ),
+    ];
+  } catch (_) {
+    return const <ReimbAllocEntry>[];
+  }
+}
+
+/// 编码抵扣台账为 JSON 字符串；空台账返回 null（列可空）。
+String? encodeReimbAllocs(List<ReimbAllocEntry> entries) {
+  if (entries.isEmpty) {
+    return null;
+  }
+  return jsonEncode(<Map<String, Object?>>[
+    for (final ReimbAllocEntry e in entries)
+      <String, Object?>{'i': e.incomeId, 'a': e.allocMinor},
+  ]);
+}
 
 /// 报销仓储。
 ///
@@ -222,6 +272,16 @@ class ReimbursementRepository {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final bool full = allocMinor >= row.amountMinor;
     final int remaining = row.amountMinor - allocMinor;
+    // 抵扣台账：追加本次抵扣明细，供删除收入流水时反向恢复。
+    final List<ReimbAllocEntry> allocs =
+        List<ReimbAllocEntry>.of(parseReimbAllocs(row.incomeAllocs));
+    if (incomeTransactionId != null) {
+      allocs.add(ReimbAllocEntry(
+        incomeId: incomeTransactionId,
+        allocMinor: allocMinor,
+      ));
+    }
+    final String? allocsJson = encodeReimbAllocs(allocs);
     await _db.transaction<void>(() async {
       await (_db.update(_db.reimbursements)
             ..where((Reimbursements t) => t.id.equals(id)))
@@ -234,6 +294,9 @@ class ReimbursementRepository {
                 incomeTransactionId: incomeTransactionId == null
                     ? const Value<String?>.absent()
                     : Value<String?>(incomeTransactionId),
+                incomeAllocs: allocsJson == null
+                    ? const Value<String?>.absent()
+                    : Value<String?>(allocsJson),
                 updatedAt: Value<int>(now),
                 dirty: const Value<bool>(true),
               )
@@ -242,6 +305,9 @@ class ReimbursementRepository {
                 incomeTransactionId: incomeTransactionId == null
                     ? const Value<String?>.absent()
                     : Value<String?>(incomeTransactionId),
+                incomeAllocs: allocsJson == null
+                    ? const Value<String?>.absent()
+                    : Value<String?>(allocsJson),
                 updatedAt: Value<int>(now),
                 dirty: const Value<bool>(true),
               ),
@@ -256,8 +322,12 @@ class ReimbursementRepository {
             ? <String, Object?>{
                 'status': ReimbursementStatus.reimbursed.index,
                 'receivedAt': now,
+                'incomeAllocs': allocsJson,
               }
-            : <String, Object?>{'amountMinor': remaining},
+            : <String, Object?>{
+                'amountMinor': remaining,
+                'incomeAllocs': allocsJson,
+              },
       );
     });
   }

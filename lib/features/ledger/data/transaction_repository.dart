@@ -7,6 +7,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import '../../reimbursement/data/reimbursement_repository.dart';
 import 'transaction_edit_rules.dart';
 
 /// 记账仓储。
@@ -407,6 +408,72 @@ class TransactionRepository {
             opType: SyncOpType.delete,
             updatedAt: now,
           );
+        }
+      }
+
+      // 级联恢复被这笔「报销收入」抵扣的账单（反向抵扣）。
+      // 按抵扣台账（incomeAllocs）逐笔恢复：已报销 → 退回待报销
+      // （金额=被抵扣额）、待报销 → 待收金额加回；报销账户垫付余额同步加回。
+      // 「是否报销」开关 / 垫付中合计 / 已报销计数随之全局同步。
+      if (txn.type == TxnType.income &&
+          txn.sourceModule == SourceModule.reimbursement) {
+        final List<Reimbursement> candidates = await (_db.select(
+          _db.reimbursements,
+        )..where((Reimbursements t) =>
+            t.bookId.equals(txn.bookId) & t.deleted.equals(false)))
+            .get();
+        for (final Reimbursement r in candidates) {
+          final List<ReimbAllocEntry> entries =
+              List<ReimbAllocEntry>.of(parseReimbAllocs(r.incomeAllocs));
+          final int idx =
+              entries.indexWhere((ReimbAllocEntry e) => e.incomeId == id);
+          if (idx < 0) {
+            continue;
+          }
+          final int alloc = entries[idx].allocMinor;
+          entries.removeAt(idx);
+          final bool wasReimbursed =
+              r.status == ReimbursementStatus.reimbursed;
+          // 已报销：全额抵扣时 amountMinor 未被扣减，恢复后金额=被抵扣额；
+          // 待报销：部分抵扣时 amountMinor 已减过，加回即可。
+          final int restoredAmount =
+              wasReimbursed ? alloc : r.amountMinor + alloc;
+          final String? restJson = encodeReimbAllocs(entries);
+          await (_db.update(_db.reimbursements)
+                ..where((Reimbursements t) => t.id.equals(r.id)))
+              .write(
+            ReimbursementsCompanion(
+              amountMinor: Value<int>(restoredAmount),
+              status: wasReimbursed
+                  ? const Value<ReimbursementStatus>(
+                      ReimbursementStatus.pending)
+                  : const Value<ReimbursementStatus>.absent(),
+              receivedAt: wasReimbursed
+                  ? const Value<int?>(null)
+                  : const Value<int?>.absent(),
+              incomeTransactionId: r.incomeTransactionId == id
+                  ? const Value<String?>(null)
+                  : const Value<String?>.absent(),
+              incomeAllocs: Value<String?>(restJson),
+              updatedAt: Value<int>(now),
+              dirty: const Value<bool>(true),
+            ),
+          );
+          await _enqueue(
+            tableName: 'reimbursements',
+            recordId: r.id,
+            opType: SyncOpType.update,
+            updatedAt: now,
+            payload: <String, Object?>{
+              'amountMinor': restoredAmount,
+              if (wasReimbursed) 'status': ReimbursementStatus.pending.index,
+              'incomeAllocs': restJson,
+            },
+          );
+          // 垫付重新挂账：抵扣时核销过报销账户余额，删除收入后按台账加回。
+          if (r.accountId != null) {
+            await _db.accountsDao.adjustBalance(r.accountId!, alloc, now);
+          }
         }
       }
     });

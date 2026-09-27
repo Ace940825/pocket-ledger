@@ -67,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -242,6 +242,17 @@ class AppDatabase extends _$AppDatabase {
               m,
               reimbursements,
               reimbursements.incomeTransactionId,
+            );
+          }
+
+          if (from < 17) {
+            // v17：报销新增「抵扣台账」列（JSON 数组），记录被每笔报销收入
+            // 抵扣的金额明细。删除报销收入流水时按台账反向恢复账单状态与
+            // 垫付余额。历史数据 null（删除旧收入时按无台账处理，不恢复）。
+            await _addColumnIfMissing(
+              m,
+              reimbursements,
+              reimbursements.incomeAllocs,
             );
           }
 
