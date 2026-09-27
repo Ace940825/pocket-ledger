@@ -4332,7 +4332,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   const Text(
-                    '默认开启：收回垫付不计入收支',
+                    '不计入收支',
                     style: TextStyle(
                       fontSize: 13,
                       color: _Sage.ink,
