@@ -434,11 +434,15 @@ class TransactionRepository {
           entries.removeAt(idx);
           final bool wasReimbursed =
               r.status == ReimbursementStatus.reimbursed;
-          // 已报销：amountMinor=账单总额，账单总额 − 剩余台账合计 = 被删笔
-          // 抵扣额，恢复后待收金额 = 被抵扣额；
+          // 已报销：amountMinor=账单总额，恢复后待收金额 =
+          // 账单总额 − 剩余台账合计（超额报销时台账含超出账单的部分，
+          // 超出额不计回待收，与保存链路的封顶核销同口径）；
           // 待报销：部分抵扣时 amountMinor 已减过，加回即可。
-          final int restoredAmount =
-              wasReimbursed ? alloc : r.amountMinor + alloc;
+          final int restAllocSum = entries
+              .fold<int>(0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
+          final int restoredAmount = wasReimbursed
+              ? (r.amountMinor - restAllocSum).clamp(0, r.amountMinor)
+              : r.amountMinor + alloc;
           final String? restJson = encodeReimbAllocs(entries);
           await (_db.update(_db.reimbursements)
                 ..where((Reimbursements t) => t.id.equals(r.id)))
@@ -471,9 +475,15 @@ class TransactionRepository {
               'incomeAllocs': restJson,
             },
           );
-          // 垫付重新挂账：抵扣时核销过报销账户余额，删除收入后按台账加回。
+          // 垫付重新挂账：抵扣时按封顶额核销过报销账户余额，删除收入后
+          // 加回「实际恢复的待收额」（已报销 = restoredAmount，封顶后不
+          // 把超额台账部分加回；待报销 = 本次抵扣额）。
           if (r.accountId != null) {
-            await _db.accountsDao.adjustBalance(r.accountId!, alloc, now);
+            await _db.accountsDao.adjustBalance(
+              r.accountId!,
+              wasReimbursed ? restoredAmount : alloc,
+              now,
+            );
           }
         }
       }

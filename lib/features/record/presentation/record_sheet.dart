@@ -856,6 +856,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final List<Transaction> bills = _rbHistIds.isEmpty
         ? const <Transaction>[]
         : await txnRepo.getByIds(_rbHistIds.toList());
+    // 第一遍：按勾选顺序做封顶分摊计划。勾选「完成报销(结束此报销)」的
+    // 账单（_rbFinishIds）整笔核销翻「已报销」，不占用本次收入金额。
+    final List<({Transaction bill, Reimbursement? linked, bool finish, int alloc, int remaining})>
+        plan = <({Transaction bill, Reimbursement? linked, bool finish, int alloc, int remaining})>[];
     for (final Transaction t in bills) {
       final bool finish = _rbFinishIds.contains(t.id);
       final Reimbursement? linked = await reimbRepo.byTransaction(t.id);
@@ -874,13 +878,46 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         left -= alloc;
       }
       if (alloc <= 0) continue;
-      final String billTitle =
-          t.note?.trim().isNotEmpty == true ? t.note!.trim() : '报销';
+      plan.add((
+        bill: t,
+        linked: linked,
+        finish: finish,
+        alloc: alloc,
+        remaining: remaining,
+      ));
+    }
+    // 报销收入超出所选账单待收总额时，超出部分并入最后一个非「完成报销」
+    // 账单的台账（超额报销）：台账记收入实际金额，「已报」随之同步为
+    // 实际收到的收入总额，账单详情与流水列表展示「超额报销」标签。
+    if (left > 0) {
+      for (int i = plan.length - 1; i >= 0; i--) {
+        if (!plan[i].finish) {
+          plan[i] = (
+            bill: plan[i].bill,
+            linked: plan[i].linked,
+            finish: plan[i].finish,
+            alloc: plan[i].alloc + left,
+            remaining: plan[i].remaining,
+          );
+          left = 0;
+          break;
+        }
+      }
+    }
+    // 第二遍：落地抵扣。台账记收入实际分摊额（可超额），报销账户垫付
+    // 核销按封顶额——超额部分是进收款账户的新钱，不动报销账户。
+    int writeOffMinor = 0;
+    for (final ({Transaction bill, Reimbursement? linked, bool finish, int alloc, int remaining}) p
+        in plan) {
+      final Reimbursement? linked = p.linked;
+      final String billTitle = p.bill.note?.trim().isNotEmpty == true
+          ? p.bill.note!.trim()
+          : '报销';
       if (linked != null) {
         // 全额 → 自动翻「已报销」；部分 → 待收金额减少，保持「待报销」。
         await reimbRepo.deduct(
           linked.id,
-          alloc,
+          p.alloc,
           incomeTransactionId: firstLegId,
         );
       } else {
@@ -892,30 +929,29 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           bookId: bookId,
           title: billTitle,
           status: ReimbursementStatus.pending,
-          amountMinor: remaining,
+          amountMinor: p.remaining,
           payer: '本人',
-          occurredAt: t.occurredAt,
+          occurredAt: p.bill.occurredAt,
           accountId: _rbAccountId,
           toAccountId: _rbToAccountId,
-          transactionId: t.id,
+          transactionId: p.bill.id,
         );
         if (_rbAccountId != null) {
-          await reimbRepo.hangAdvance(_rbAccountId!, remaining);
+          await reimbRepo.hangAdvance(_rbAccountId!, p.remaining);
         }
         await reimbRepo.deduct(
           createdId,
-          alloc,
+          p.alloc,
           incomeTransactionId: firstLegId,
         );
       }
-      left -= alloc;
+      writeOffMinor += p.alloc < p.remaining ? p.alloc : p.remaining;
     }
 
-    // 3. 核销报销账户的垫付挂账（只核销被账单抵扣的部分，
-    //    超额部分本来就是进收款账户的新钱，不动报销账户）。
-    final int deducted = minor - left;
-    if (deducted > 0 && _rbAccountId != null) {
-      await reimbRepo.writeOffReceivable(_rbAccountId!, deducted);
+    // 3. 核销报销账户的垫付挂账（按封顶额合计；超额部分本来就是进收款
+    //    账户的新钱，不动报销账户）。
+    if (writeOffMinor > 0 && _rbAccountId != null) {
+      await reimbRepo.writeOffReceivable(_rbAccountId!, writeOffMinor);
     }
     return firstLegId;
   }
