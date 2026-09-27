@@ -716,10 +716,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 );
           }
         case RecordTab.reimbursement:
-          if (_rbAccountId == null) {
-            _toast('请选择报销账户');
-            return;
-          }
+          // 报销账户可不选：账单走「未指定报销账户」路径（补建记录
+          // accountId 为空、不动报销账户余额），收入仍落收款账户并
+          // 关联原账单。收款账户仍必选。
           if (_rbToAccountId == null) {
             _toast('请选择收款账户');
             return;
