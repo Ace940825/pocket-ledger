@@ -20,6 +20,7 @@ import '../features/installment/presentation/installment_detail_page.dart';
 import '../features/installment/presentation/installment_page.dart';
 import '../features/inventory/presentation/inventory_page.dart';
 import '../features/investment/presentation/investment_page.dart';
+import '../features/ledger/presentation/category_transactions_page.dart';
 import '../features/ledger/presentation/edit_transaction_page.dart';
 import '../features/ledger/presentation/ledger_page.dart';
 import '../features/lend/presentation/lend_page.dart';
@@ -54,6 +55,7 @@ abstract final class Routes {
   static const String addSubcategory = '/categories/add-subcategory';
   static const String editSubcategory = '/categories/edit-subcategory';
   static const String migrateCategory = '/categories/migrate';
+  static const String categoryTransactions = '/categories/:id/transactions';
   static const String transfer = '/transfer';
   static const String lend = '/lend';
   static const String reimbursement = '/reimbursement';
@@ -186,6 +188,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: Routes.migrateCategory,
         builder: (_, GoRouterState state) => CategoryMigratePage(
           source: state.extra! as Category,
+        ),
+      ),
+      GoRoute(
+        path: Routes.categoryTransactions,
+        builder: (_, GoRouterState state) => CategoryTransactionsPage(
+          categoryId: state.pathParameters['id'] ?? '',
         ),
       ),
       GoRoute(

@@ -117,6 +117,26 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// 实时监听某账本下指定分类的全部流水，按发生时间倒序。
+  ///
+  /// 分类账单页用：从账单明细点分类进入，展示该分类下所有账单。
+  Stream<List<Transaction>> watchByCategory({
+    required String bookId,
+    required String categoryId,
+  }) {
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.deleted.equals(false) &
+                tbl.categoryId.equals(categoryId),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch();
+  }
+
   /// 实时监听「报销收入」流水，按发生时间倒序。
   ///
   /// 收录两类收入：

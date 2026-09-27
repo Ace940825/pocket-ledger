@@ -36,6 +36,16 @@ final AutoDisposeStreamProviderFamily<List<Transaction>, String>
       .watchByAccount(bookId: bookId, accountId: accountId);
 });
 
+/// 指定分类的全部流水（分类账单页用：明细弹窗点分类进入）。
+final AutoDisposeStreamProviderFamily<List<Transaction>, String>
+    categoryTransactionsProvider = StreamProvider.autoDispose
+        .family<List<Transaction>, String>((Ref ref, String categoryId) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref
+      .watch(transactionsDaoProvider)
+      .watchByCategory(bookId: bookId, categoryId: categoryId);
+});
+
 /// 单条流水详情（编辑页使用）
 final AutoDisposeStreamProviderFamily<Transaction?, String>
     transactionDetailProvider =

@@ -231,8 +231,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                     child: GestureDetector(
                       onTap: category != null
                           ? () => context.push(
-                                '/categories/edit',
-                                extra: category,
+                                '/categories/${category.id}/transactions',
                               )
                           : null,
                       child: Text(
