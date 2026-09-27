@@ -387,7 +387,7 @@ class _OriginBillRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
                 Text(
-                  '-${Money.fromMinor(transaction.amountMinor).format()}',
+                  Money.fromMinor(transaction.amountMinor).format(),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -512,7 +512,7 @@ class _IncomeRow extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: <Widget>[
                         Text(
-                          '+${Money.fromMinor(t.amountMinor).format()}',
+                          Money.fromMinor(t.amountMinor).format(),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

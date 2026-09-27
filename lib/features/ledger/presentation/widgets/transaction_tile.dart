@@ -248,8 +248,8 @@ class TransactionTile extends ConsumerWidget {
                               discountMinor: transaction.discountMinor,
                             )
                           : MoneyText(
-                              Money.fromMinor(signedMinor),
-                              signed: true,
+                              Money.fromMinor(signedMinor.abs()),
+                              signed: false,
                             ),
                   if (isReimbExpense && receivedMinor > 0)
                     Padding(
