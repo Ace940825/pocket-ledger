@@ -3285,19 +3285,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   List<Widget> _buildReimbursementForm() {
     return <Widget>[
-      _microLabel('报销账户'),
-      const SizedBox(height: 8),
-      _buildRbAccountPair(
-        label: '报销账户',
-        value: _rbAccountId,
-        placeholder: '请选择报销账户',
-        allowedTypes: const <AccountType>[AccountType.reimbursement],
-        onChanged: (String? v) => setState(() {
-          // 报销账户变更后，已提取的账单归属随之失效，清空重选。
-          if (v != _rbAccountId) _rbHistIds.clear();
-          _rbAccountId = v;
-        }),
-        onQuick: () => _pickRbAccount(
+      _rbSectionHeader(
+        '报销账户',
+        onPick: () => _pickRbAccount(
           label: '报销账户',
           value: _rbAccountId,
           allowedTypes: const <AccountType>[AccountType.reimbursement],
@@ -3307,8 +3297,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           }),
         ),
       ),
+      const SizedBox(height: 8),
+      _buildRbAccountCard(),
       const SizedBox(height: 16),
-      _microLabel('报销账单'),
+      _rbSectionHeader('报销账单', onPick: _showRbHistoryPicker),
       const SizedBox(height: 8),
       _buildRbBillCard(),
       const SizedBox(height: 16),
@@ -3354,6 +3346,171 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           ),
         ),
       );
+
+  /// 报销页节头（对齐参考稿）：绿色竖条 + 加粗标题 + 右侧「选取」胶囊。
+  Widget _rbSectionHeader(String title, {VoidCallback? onPick}) => Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 3.5,
+              height: 14,
+              decoration: BoxDecoration(
+                color: _Sage.sageB,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+                color: _Sage.ink,
+              ),
+            ),
+            const Spacer(),
+            if (onPick != null)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onPick,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: ForestBg.sunken,
+                      border: Border.all(color: _Sage.hairline),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.grid_view_outlined,
+                          size: 13,
+                          color: _Sage.ink2,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          '选取',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: _Sage.ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+
+  /// 报销账户主卡（对齐参考稿）：圆形头像 + 名称/类型 + 右侧绿色余额。
+  /// 未选账户时显示占位提示；点卡片或节头「选取」打开账户选择浮层。
+  Widget _buildRbAccountCard() {
+    final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
+    return accounts.when(
+      data: (List<Account> list) {
+        final List<Account> shown = list
+            .where((Account a) => a.type == AccountType.reimbursement)
+            .toList(growable: false);
+        final String? safe =
+            shown.any((Account a) => a.id == _rbAccountId) ? _rbAccountId : null;
+        final Account? selected =
+            safe == null ? null : shown.firstWhere((Account a) => a.id == safe);
+        final bool picked = selected != null;
+        return _rbCard(
+          picked: picked,
+          onTap: () => _pickRbAccount(
+            label: '报销账户',
+            value: safe,
+            allowedTypes: const <AccountType>[AccountType.reimbursement],
+            onChanged: (String? v) => setState(() {
+              // 报销账户变更后，已提取的账单归属随之失效，清空重选。
+              if (v != _rbAccountId) _rbHistIds.clear();
+              _rbAccountId = v;
+            }),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: picked ? _Sage.greenSoft : ForestBg.sunken,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: picked ? _Sage.greenSoftBd : _Sage.hairline,
+                  ),
+                ),
+                child: Icon(
+                  accountIcon(selected?.type ?? AccountType.reimbursement),
+                  size: 20,
+                  color: picked ? _Sage.greenDeep : _Sage.ink3,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      selected?.name ?? '请选择报销账户',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: picked ? _Sage.ink : _Sage.ink2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      selected?.type.label ?? '报销',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: _Sage.ink2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (picked) ...<Widget>[
+                const SizedBox(width: 10),
+                Text(
+                  Money.fromMinor(
+                    selected!.balanceMinor,
+                    currency: selected.currency,
+                  ).format(),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _Sage.greenDeep,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox(
+        height: 56,
+        child: LinearProgressIndicator(
+          color: _Sage.sageB,
+          backgroundColor: _Sage.greenSoft,
+        ),
+      ),
+      error: (Object e, _) => Text('账户加载失败：$e'),
+    );
+  }
 
   /// 卡片左侧 LineIcon 圆角徽标（软绿底 + 浅绿描边，与借还区账户徽标同规格）。
   Widget _sageLead(LineIconKind kind) => Container(
@@ -3582,16 +3739,25 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
-  /// 报销账单卡：事由 + 历史账单选择 + 票据照片。
+  /// 报销账单卡：已选账单胶囊（空态居中提示）+ 票据照片。
+  /// 选取入口在节头「选取」胶囊，点卡片本身同样进入选择页。
   Widget _buildRbBillCard() => _rbCard(
+        onTap: _showRbHistoryPicker,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _rbHistButton(),
-            if (_rbHistIds.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 8),
+            if (_rbHistIds.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 18),
+                child: Center(
+                  child: Text(
+                    '请选择需要报销的账单',
+                    style: TextStyle(fontSize: 13.5, color: _Sage.ink2),
+                  ),
+                ),
+              )
+            else
               _rbHistChips(),
-            ],
             const SizedBox(height: 10),
             Row(
               children: <Widget>[
@@ -3621,62 +3787,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               ],
             ),
           ],
-        ),
-      );
-
-  Widget _rbHistButton() => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _showRbHistoryPicker,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: ForestNeutral.hairlineStrong,
-                width: 1.5,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: <Widget>[
-                LineIcon(LineIconKind.calendar, size: 15, color: _Sage.greenDeep),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    '从历史账单选择 · 仅提取需报销的支出',
-                    style: TextStyle(fontSize: 12, color: _Sage.ink2),
-                  ),
-                ),
-                Container(
-                  margin: const EdgeInsets.only(left: 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _rbHistIds.isEmpty
-                        ? ForestBg.sunken
-                        : _Sage.greenSoft,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '${_rbHistIds.length}',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: _rbHistIds.isEmpty
-                          ? _Sage.ink3
-                          : _Sage.greenDeep,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Text(
-                  '›',
-                  style: TextStyle(fontSize: 14, color: _Sage.ink3),
-                ),
-              ],
-            ),
-          ),
         ),
       );
 
