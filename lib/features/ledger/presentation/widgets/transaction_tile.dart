@@ -115,6 +115,9 @@ class TransactionTile extends ConsumerWidget {
     }
     final bool overReimbursed =
         isReimbExpense && receivedMinor > transaction.amountMinor;
+    final bool fullyReimbursed = isReimbExpense &&
+        receivedMinor > 0 &&
+        receivedMinor >= transaction.amountMinor;
 
     final Color tint = isReimbIncome
         ? AppColors.textTertiary
@@ -203,6 +206,10 @@ class TransactionTile extends ConsumerWidget {
                             const SizedBox(width: 6),
                             const _OverTag(),
                           ],
+                          if (fullyReimbursed) ...<Widget>[
+                            const SizedBox(width: 6),
+                            const _RebDoneBadge(),
+                          ],
                         ],
                       ],
                     ),
@@ -241,16 +248,28 @@ class TransactionTile extends ConsumerWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         )
-                      : (transaction.type == TxnType.expense &&
-                              transaction.discountMinor > 0)
-                          ? _DiscountedAmount(
-                              originalMinor: transaction.amountMinor,
-                              discountMinor: transaction.discountMinor,
-                            )
-                          : MoneyText(
-                              Money.fromMinor(signedMinor.abs()),
-                              signed: false,
-                            ),
+                          : (transaction.type == TxnType.expense &&
+                                  transaction.discountMinor > 0)
+                              ? _DiscountedAmount(
+                                  originalMinor: transaction.amountMinor,
+                                  discountMinor: transaction.discountMinor,
+                                  strikeActual: fullyReimbursed,
+                                )
+                              : MoneyText(
+                                  Money.fromMinor(signedMinor.abs()),
+                                  signed: false,
+                                  color: fullyReimbursed
+                                      ? AppColors.textTertiary
+                                      : null,
+                                  style: fullyReimbursed
+                                      ? const TextStyle(
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                          decorationColor:
+                                              AppColors.textTertiary,
+                                        )
+                                      : null,
+                                ),
                   if (isReimbExpense && receivedMinor > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
@@ -370,16 +389,40 @@ class _OverTag extends StatelessWidget {
       );
 }
 
+/// 「已报」实心徽章：账单已被全额报销时显示（与描边的「报」区分）。
+class _RebDoneBadge extends StatelessWidget {
+  const _RebDoneBadge();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+        decoration: BoxDecoration(
+          color: ForestGreen.deep,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text(
+          '已报',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+      );
+}
+
 /// 优惠支出金额（对齐小青账）：第一行「划线原价 + 红色实付」，
 /// 第二行「优惠45.00」红色小字。实付 = 原价 − 优惠。
 class _DiscountedAmount extends StatelessWidget {
   const _DiscountedAmount({
     required this.originalMinor,
     required this.discountMinor,
+    this.strikeActual = false,
   });
 
   final int originalMinor;
   final int discountMinor;
+  final bool strikeActual;
 
   @override
   Widget build(BuildContext context) {
@@ -405,10 +448,16 @@ class _DiscountedAmount extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               Money.fromMinor(actualMinor).format(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
-                color: AppColors.expense,
+                color: strikeActual
+                    ? AppColors.textTertiary
+                    : AppColors.expense,
                 fontWeight: FontWeight.w600,
+                decoration: strikeActual
+                    ? TextDecoration.lineThrough
+                    : null,
+                decorationColor: AppColors.textTertiary,
               ),
             ),
           ],
