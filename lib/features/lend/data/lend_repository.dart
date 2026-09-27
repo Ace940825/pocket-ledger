@@ -204,12 +204,16 @@ class LendRepository {
     int remaining = amountMinor;
     for (final LendRecord r in records) {
       if (remaining <= 0) break;
-      final int left = r.amountMinor - r.repaidMinor;
+      // 剩余债务 = 本金 − 优惠（减免）− 已还；优惠在借入/借出时已把
+      // 债务净额减少，冲销与结清判断都必须把它算进去。
+      final int left = r.amountMinor - r.discountMinor - r.repaidMinor;
       if (left <= 0) continue;
       final int apply = remaining < left ? remaining : left;
       final int newRepaid = r.repaidMinor + apply;
       final LendStatus newStatus =
-          newRepaid >= r.amountMinor ? LendStatus.settled : r.status;
+          newRepaid + r.discountMinor >= r.amountMinor
+              ? LendStatus.settled
+              : r.status;
 
       await (_db.update(_db.lendRecords)
             ..where((LendRecords t) => t.id.equals(r.id)))

@@ -20,7 +20,8 @@ final AutoDisposeStreamProvider<List<LendRecord>> lendListProvider =
   return ref.watch(lendRepositoryProvider).watch(bookId);
 });
 
-/// 借出（应收）进行中合计：别人欠我的、还没收回来的金额（本金 - 已还）。
+/// 借出（应收）进行中合计：别人欠我的、还没收回来的金额
+/// （本金 − 优惠 − 已还；优惠在借出时已减免部分应收）。
 final AutoDisposeStreamProvider<int> lendOutOngoingProvider =
     StreamProvider.autoDispose<int>((Ref ref) {
   final String bookId = ref.watch(currentBookIdProvider);
@@ -29,12 +30,16 @@ final AutoDisposeStreamProvider<int> lendOutOngoingProvider =
             .where((LendRecord r) =>
                 r.direction == LendDirection.lendOut &&
                 r.status == LendStatus.ongoing)
-            .fold<int>(0,
-                (int sum, LendRecord r) => sum + r.amountMinor - r.repaidMinor),
+            .fold<int>(
+              0,
+              (int sum, LendRecord r) =>
+                  sum + r.amountMinor - r.discountMinor - r.repaidMinor,
+            ),
       );
 });
 
-/// 借入（应付）进行中合计：我欠别人的、还没还上的金额（本金 - 已还）。
+/// 借入（应付）进行中合计：我欠别人的、还没还上的金额
+/// （本金 − 优惠 − 已还；优惠在借入时已减免部分应付）。
 final AutoDisposeStreamProvider<int> borrowInOngoingProvider =
     StreamProvider.autoDispose<int>((Ref ref) {
   final String bookId = ref.watch(currentBookIdProvider);
@@ -43,8 +48,11 @@ final AutoDisposeStreamProvider<int> borrowInOngoingProvider =
             .where((LendRecord r) =>
                 r.direction == LendDirection.borrowIn &&
                 r.status == LendStatus.ongoing)
-            .fold<int>(0,
-                (int sum, LendRecord r) => sum + r.amountMinor - r.repaidMinor),
+            .fold<int>(
+              0,
+              (int sum, LendRecord r) =>
+                  sum + r.amountMinor - r.discountMinor - r.repaidMinor,
+            ),
       );
 });
 
@@ -85,8 +93,10 @@ final AutoDisposeStreamProviderFamily<Map<String, int>, LendDirection>
         }
         final String trimmed = r.counterparty.trim();
         if (trimmed.isEmpty) continue;
-        result[trimmed] =
-            (result[trimmed] ?? 0) + r.amountMinor - r.repaidMinor;
+        result[trimmed] = (result[trimmed] ?? 0) +
+            r.amountMinor -
+            r.discountMinor -
+            r.repaidMinor;
       }
       return Map<String, int>.fromEntries(
         result.entries.toList()

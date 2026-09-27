@@ -2694,7 +2694,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
                         Text(
-                          isFee ? '利息' : '优惠',
+                          isFee
+                              ? '利息'
+                              : (_lendDir == LendDirection.borrowIn
+                                  ? '优惠'
+                                  : '减免'),
                           style: const TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
@@ -2940,6 +2944,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final String firstAcct = isIn ? '借入账户' : '借出账户';
     final String oppAcct = isIn ? '借入账户' : '借出账户';
     final String assetAcct = '资产账户';
+    // 优惠（借入）/ 减免（借出）：借入/借出时把债务净额直接减少，
+    // 后续还债 / 收债按净额结算即可，两腿公式都体现优惠。
+    final String cutKey = isIn ? '优惠' : '减免';
     final List<List<String>> cells = isIn
         ? (isFee
             ? <List<String>>[
@@ -2960,7 +2967,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   '$firstAcct = 借入金额 − 优惠',
                   '$assetAcct = 借入金额'
                 ],
-                <String>['$oppKey：', '$oppAcct = 借入金额', '$assetAcct = 借入金额'],
+                <String>[
+                  '$oppKey：',
+                  '$oppAcct = 借入金额 − 优惠',
+                  '$assetAcct = 借入金额 − 优惠'
+                ],
               ])
         : (isFee
             ? <List<String>>[
@@ -2981,7 +2992,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   '$firstAcct = 借出金额 − 减免',
                   '$assetAcct = 借出金额'
                 ],
-                <String>['$oppKey：', '$oppAcct = 借出金额', '$assetAcct = 借出金额'],
+                <String>[
+                  '$oppKey：',
+                  '$oppAcct = 借出金额 − 减免',
+                  '$assetAcct = 借出金额 − 减免'
+                ],
               ]);
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 11, 14, 12),
@@ -3004,7 +3019,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               const SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  '利息根据个人需求可在${isIn ? "借入" : "借出"}或者${isIn ? "还债" : "收债"}时候添加；一般在一方添加即可',
+                  isFee
+                      ? '利息根据个人需求可在${isIn ? "借入" : "借出"}或者${isIn ? "还债" : "收债"}时候添加；一般在一方添加即可'
+                      : '$cutKey在$firstKey时候添加即可；债务将按「金额 − $cutKey」自动结算，$oppKey时无需再减',
                   style: const TextStyle(
                     fontSize: 12,
                     height: 1.5,

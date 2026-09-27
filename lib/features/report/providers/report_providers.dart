@@ -105,8 +105,9 @@ final AutoDisposeProvider<NetWorth> netWorthProvider =
   for (final LendRecord l in lends) {
     if (l.direction == LendDirection.borrowIn &&
         l.status == LendStatus.ongoing) {
-      // 已还部分从负债中扣除。
-      liabilitiesMinor += (l.amountMinor - l.repaidMinor).clamp(0, 1 << 31);
+      // 已还与优惠（减免）部分从负债中扣除。
+      liabilitiesMinor +=
+          (l.amountMinor - l.discountMinor - l.repaidMinor).clamp(0, 1 << 31);
     }
   }
 
