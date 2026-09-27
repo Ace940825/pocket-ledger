@@ -62,11 +62,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     );
   }
 
-  /// 报销账户统一跳报销页（资产流水明细无意义），其余类型进资产详情页。
-  /// 带 from=account 标记，报销页标题显示「资产详情」。
+  /// 报销账户统一跳报销页（即其「资产详情」），其余类型进资产详情页。
   void _openDetail(Account a) => context.push(
         a.type == AccountType.reimbursement
-            ? '${Routes.reimbursement}?from=account'
+            ? Routes.reimbursement
             : '/accounts/${a.id}/transactions',
       );
 
