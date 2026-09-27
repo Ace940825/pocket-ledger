@@ -67,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -197,6 +197,52 @@ class AppDatabase extends _$AppDatabase {
             // v11：新增本地「标签」两张表（分组 + 标签），不参与云端同步。
             await _createTableIfMissing(m, tagCategories);
             await _createTableIfMissing(m, tags);
+          }
+
+          if (from < 12) {
+            // v12：模板新增「示例金额 / 转入账户 / 借还对方」三列，
+            // 支撑模板页独立录入（不落流水）与模板卡金额/账户摘要展示。
+            await _addColumnIfMissing(m, recordTemplates, recordTemplates.amountMinor);
+            await _addColumnIfMissing(m, recordTemplates, recordTemplates.toAccountId);
+            await _addColumnIfMissing(m, recordTemplates, recordTemplates.counterparty);
+          }
+
+          if (from < 13) {
+            // v13：模板新增「示例优惠」列，保存/回填记一笔的优惠金额。
+            await _addColumnIfMissing(m, recordTemplates, recordTemplates.discountMinor);
+          }
+
+          if (from < 14) {
+            // v14：流水新增「报销账户」列（报销支出关联的报销类型账户，
+            // 未选择为 null）。历史数据为 null，详情页报销账户行显示「无」。
+            await _addColumnIfMissing(
+              m,
+              transactions,
+              transactions.reimbursementAccountId,
+            );
+          }
+
+          if (from < 15) {
+            // v15：报销状态简化为两态（待报销 / 已报销），移除「已提交」「已收款」。
+            // 旧索引：0=待报销 1=已提交 2=已报销 3=已收款
+            // 新索引：0=待报销 1=已报销
+            // 已提交视为尚未收回 → 归为待报销；已报销 / 已收款都算已结 → 归为已报销。
+            await customStatement(
+              'UPDATE reimbursements SET status = 0 WHERE status = 1',
+            );
+            await customStatement(
+              'UPDATE reimbursements SET status = 1 WHERE status IN (2, 3)',
+            );
+          }
+
+          if (from < 16) {
+            // v16：报销新增「收款流水」列——被报销收入抵扣时落账的 income
+            // 流水 ID，账单明细弹窗据此反向展示「关联账单」。历史数据 null。
+            await _addColumnIfMissing(
+              m,
+              reimbursements,
+              reimbursements.incomeTransactionId,
+            );
           }
 
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等

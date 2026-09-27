@@ -27,7 +27,11 @@ class RecordTemplateRepository {
     required String bookId,
     required String name,
     required int tabIndex,
+    int amountMinor = 0,
+    int discountMinor = 0,
     String? accountId,
+    String? toAccountId,
+    String? counterparty,
     String? categoryId,
     String? note,
     String? tags,
@@ -48,7 +52,11 @@ class RecordTemplateRepository {
             bookId: Value<String>(bookId),
             name: Value<String>(name.trim()),
             tabIndex: Value<int>(tabIndex),
+            amountMinor: Value<int>(amountMinor),
+            discountMinor: Value<int>(discountMinor),
             accountId: Value<String?>(accountId),
+            toAccountId: Value<String?>(toAccountId),
+            counterparty: Value<String?>(counterparty),
             categoryId: Value<String?>(categoryId),
             note: Value<String?>(note),
             tags: Value<String?>(tags),
@@ -65,5 +73,46 @@ class RecordTemplateRepository {
     return (_db.delete(_db.recordTemplates)
           ..where((RecordTemplates t) => t.id.equals(id)))
         .go();
+  }
+
+  /// 更新模板内容（保留 id / bookId / createdAt 不变）。
+  Future<void> updateContent({
+    required String id,
+    required String name,
+    required int tabIndex,
+    int amountMinor = 0,
+    int discountMinor = 0,
+    String? accountId,
+    String? toAccountId,
+    String? counterparty,
+    String? categoryId,
+    String? note,
+    String? tags,
+    bool excludeFromStats = false,
+    bool excludeFromBudget = false,
+    bool isReimbursable = false,
+  }) {
+    if (name.trim().isEmpty) {
+      throw const FormatException('模板名称不能为空');
+    }
+    return (_db.update(_db.recordTemplates)
+          ..where((RecordTemplates t) => t.id.equals(id)))
+        .write(
+      RecordTemplatesCompanion(
+        name: Value<String>(name.trim()),
+        tabIndex: Value<int>(tabIndex),
+        amountMinor: Value<int>(amountMinor),
+        discountMinor: Value<int>(discountMinor),
+        accountId: Value<String?>(accountId),
+        toAccountId: Value<String?>(toAccountId),
+        counterparty: Value<String?>(counterparty),
+        categoryId: Value<String?>(categoryId),
+        note: Value<String?>(note),
+        tags: Value<String?>(tags),
+        excludeFromStats: Value<bool>(excludeFromStats),
+        excludeFromBudget: Value<bool>(excludeFromBudget),
+        isReimbursable: Value<bool>(isReimbursable),
+      ),
+    );
   }
 }

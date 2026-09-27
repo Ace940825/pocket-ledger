@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
+import '../../../../core/theme/forest_design_tokens.dart';
 
 /// 底部弹出的年份选择器。
 ///
@@ -55,6 +55,7 @@ class _YearPickerSheetState extends State<YearPickerSheet> {
               textAlign: TextAlign.center,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
+                color: ForestNeutral.deepInk,
               ),
             ),
             const SizedBox(height: AppDimens.spaceSm),
@@ -62,7 +63,7 @@ class _YearPickerSheetState extends State<YearPickerSheet> {
               '$min年-$max年',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
+                color: ForestNeutral.textSecondary,
               ),
             ),
             const SizedBox(height: AppDimens.spaceLg),
@@ -122,12 +123,9 @@ class _YearChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final Color bg = selected
-        ? AppColors.primary
-        : (theme.brightness == Brightness.dark
-            ? const Color(0xFF2A2E33)
-            : const Color(0xFFF2F1EC));
-    final Color fg = selected ? Colors.white : theme.colorScheme.onSurface;
+    final Color unselectedBg = theme.brightness == Brightness.dark
+        ? const Color(0xFF2A2E33)
+        : ForestBg.sunken;
 
     return InkWell(
       onTap: onTap,
@@ -139,15 +137,16 @@ class _YearChip extends StatelessWidget {
           vertical: AppDimens.spaceSm,
         ),
         decoration: BoxDecoration(
-          color: bg,
+          gradient: selected ? ForestGradients.sage : null,
+          color: selected ? null : unselectedBg,
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
         alignment: Alignment.center,
         child: Text(
           '$year年',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: fg,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            color: selected ? Colors.white : ForestNeutral.textPrimary,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.normal,
           ),
         ),
       ),

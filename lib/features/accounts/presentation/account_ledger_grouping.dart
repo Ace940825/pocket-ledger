@@ -81,6 +81,11 @@ MonthStats computeMonthStats(
   int transferUnknown = 0;
 
   for (final Transaction t in transactions) {
+    // 「不计收支」的账单仍显示在列表里，但不参与月收支统计
+    // （与首页/报表的 watchTotalInRange 口径一致）。
+    if (t.excludeFromStats) {
+      continue;
+    }
     switch (t.type) {
       case TxnType.expense:
         // 实付口径：amount 存优惠前原价，优惠部分不计入支出

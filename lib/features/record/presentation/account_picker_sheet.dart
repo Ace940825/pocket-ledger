@@ -3,6 +3,8 @@
 /// 数据来源：森林手账 / 鼠尾草绿 A 模板，已按本项目配色与 Account 模型适配。
 /// 支持网格卡片 + 列表切换、不选择具体账户、资产管理、重新加载、添加账户。
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -69,6 +71,11 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
   /// 账户必选的场景传 false 隐藏。
   final bool showNoneRow;
 
+  /// 冲突账户 id（如转账另一端已选账户）：点到该账户时不确认、不关弹窗，
+  /// 在弹窗内以提示条展示 [conflictMessage]（约 2.4s 自动消退）。
+  final String? conflictId;
+  final String conflictMessage;
+
   const AccountPickerSheet({
     super.key,
     required this.accounts,
@@ -82,6 +89,8 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
     this.onReload,
     this.showSettings = true,
     this.showNoneRow = true,
+    this.conflictId,
+    this.conflictMessage = '不能选择相同账户',
     required this.onConfirm,
   });
 
@@ -92,6 +101,10 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
 class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
   String? _selected;
 
+  /// 弹窗内提示条文案（如点到了冲突账户）；null = 不显示。
+  String? _hint;
+  Timer? _hintTimer;
+
   /// 当前视图是否为列表（记忆在 recordingSettingsProvider，重开弹窗不丢）。
   bool get _listView =>
       ref.watch(recordingSettingsProvider).accountPickerListView;
@@ -100,6 +113,12 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
     ref
         .read(recordingSettingsProvider.notifier)
         .setAccountPickerListView(!_listView);
+  }
+
+  @override
+  void dispose() {
+    _hintTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -130,7 +149,19 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
 
   void _pick(String? name) {
     final String? value = name?.isEmpty == true ? null : name;
-    widget.onConfirm(_accountOf(value));
+    final Account? acc = _accountOf(value);
+    // 冲突账户（如转账另一端已选）：不确认、不关弹窗，弹窗内就地提示。
+    if (acc != null &&
+        widget.conflictId != null &&
+        acc.id == widget.conflictId) {
+      _hintTimer?.cancel();
+      setState(() => _hint = widget.conflictMessage);
+      _hintTimer = Timer(const Duration(milliseconds: 2400), () {
+        if (mounted) setState(() => _hint = null);
+      });
+      return;
+    }
+    widget.onConfirm(acc);
   }
 
   @override
@@ -162,6 +193,48 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                 ),
               ),
               _buildHeader(),
+              // 弹窗内提示条（冲突提示等），出现时把主体轻轻下推。
+              AnimatedSize(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                alignment: Alignment.topCenter,
+                child: _hint == null
+                    ? const SizedBox(width: double.infinity)
+                    : Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFAEDE3),
+                            border: Border.all(color: const Color(0xFFE4C4A8)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              const Icon(
+                                Icons.info_outline,
+                                size: 15,
+                                color: Color(0xFF9C5B33),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _hint!,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF9C5B33),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+              ),
               _buildBody(),
               if (widget.showNoneRow) _buildNoneRow(),
               _buildOps(),

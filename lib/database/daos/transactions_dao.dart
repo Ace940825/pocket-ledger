@@ -117,6 +117,33 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// 实时监听「报销收入」流水，按发生时间倒序。
+  ///
+  /// 收录两类收入：
+  /// 1. 报销模块产生的收入（`sourceModule == SourceModule.reimbursement`，
+  ///    即「记一笔报销收入」落账的那笔 income）；
+  /// 2. 报销类型账户内的全部收入流水（[reimbAccountIds]）。
+  Stream<List<Transaction>> watchReimbursementIncomes({
+    required String bookId,
+    List<String> reimbAccountIds = const <String>[],
+  }) {
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.deleted.equals(false) &
+                tbl.type.equals(TxnType.income.index) &
+                (tbl.sourceModule.equals(SourceModule.reimbursement.index) |
+                    (reimbAccountIds.isNotEmpty
+                        ? tbl.accountId.isIn(reimbAccountIds)
+                        : const Constant<bool>(false))),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch();
+  }
+
   /// 实时监听某个账户的全部流水。
   ///
   /// 查询条件用 `accountId = A OR toAccountId = A` 是为了兼容「只写了一条腿」的
@@ -267,6 +294,8 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           ..where(
             t.bookId.equals(bookId) &
                 t.deleted.equals(false) &
+                // 与 watchTotalInRange 口径一致：不计收支的账单不进趋势
+                t.excludeFromStats.equals(false) &
                 t.occurredAt.isBiggerOrEqualValue(startAt) &
                 t.occurredAt.isSmallerThanValue(endAt),
           )

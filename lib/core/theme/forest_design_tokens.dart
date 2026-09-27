@@ -81,6 +81,8 @@ class ForestNeutral {
   static const Color hairlineStrong = Color(0xFFDDD0B8);
   static const Color hairlineOnSage =
       Color(0x2E5B3929); // 绿卡内深绿发丝线 rgba(46,91,57,.16)
+  static const Color deepInk =
+      Color(0xFF3E443A); // 钢笔线稿图标色（A3 设计稿 .chip .ci / 深墨）
 }
 
 /// 点缀（editorial 标签 / 进度 / 能量）
@@ -190,6 +192,15 @@ class ForestLayer {
 
 /// 鼠尾草绿主卡渐变（150° 左上→右下），直接给 Container.decoration 用
 class ForestGradients {
+  /// 设计稿 --sageGrad：linear-gradient(135deg,#93BF9A,#5F9A6E)。
+  /// 选中态专用（Tab 指示器/分类选中卡），白字对比达标；三档浅粉彩渐变
+  /// （sageLight/Mid/Deep）压白字会发糊，勿用于选中态。
+  static const LinearGradient sage = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: <Color>[Color(0xFF93BF9A), Color(0xFF5F9A6E)],
+  );
+
   static const LinearGradient sageLight = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

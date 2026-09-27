@@ -44,6 +44,7 @@ class TransactionRepository {
     bool excludeFromStats = false,
     bool excludeFromBudget = false,
     bool isReimbursable = false,
+    String? reimbursementAccountId,
     List<String>? attachmentUrls,
   }) {
     if (amountMinor <= 0) {
@@ -52,6 +53,15 @@ class TransactionRepository {
     if (type == TxnType.transfer && toAccountId == null) {
       throw const ValidationFailure('转账必须指定转入账户');
     }
+
+    // 防御性钳制：非转账流水优惠不允许超过金额，
+    // 否则「实付 = amount - discount」为负，统计/余额都会算反。
+    // 转账的实付 = amount + fee - discount，由调用方校验扣款 > 0。
+    final int rawDiscount = discountMinor ?? 0;
+    final int safeDiscount =
+        type == TxnType.transfer || rawDiscount <= amountMinor
+            ? rawDiscount
+            : amountMinor;
 
     final String id = const Uuid().v7();
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -76,12 +86,13 @@ class TransactionRepository {
           relatedId: Value<String?>(relatedId),
           transferGroupId: Value<String?>(transferGroupId),
           feeMinor: Value<int>(feeMinor ?? 0),
-          discountMinor: Value<int>(discountMinor ?? 0),
+          discountMinor: Value<int>(safeDiscount),
           tags: Value<String?>(tagsJson),
           attachmentUrls: Value<String?>(attachmentUrlsJson),
           excludeFromStats: Value<bool>(excludeFromStats),
           excludeFromBudget: Value<bool>(excludeFromBudget),
           isReimbursable: Value<bool>(isReimbursable),
+          reimbursementAccountId: Value<String?>(reimbursementAccountId),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -94,7 +105,8 @@ class TransactionRepository {
         amountMinor,
         now,
         fromAmountMinor: fromAmountMinor,
-        discountMinor: discountMinor ?? 0,
+        discountMinor: safeDiscount,
+        reimbursementAccountId: reimbursementAccountId,
       );
       final Map<String, Object?> payload = <String, Object?>{
         'bookId': bookId,
@@ -111,6 +123,7 @@ class TransactionRepository {
         'excludeFromStats': excludeFromStats,
         'excludeFromBudget': excludeFromBudget,
         'isReimbursable': isReimbursable,
+        'reimbursementAccountId': reimbursementAccountId,
         'attachmentUrls': attachmentUrlsJson,
       };
       if (fromAmountMinor != null) {
@@ -165,7 +178,13 @@ class TransactionRepository {
     final int newAmount = amountMinor ?? original.amountMinor;
     final String newAccountId = accountId ?? original.accountId;
     final int newFee = feeMinor ?? original.feeMinor;
-    final int newDiscount = discountMinor ?? original.discountMinor;
+    final int rawDiscount = discountMinor ?? original.discountMinor;
+    // 防御性钳制：非转账流水优惠不允许超过金额（实付 ≥ 0）；
+    // 转账的实付 = amount + fee - discount，由下方「扣款金额必须大于 0」校验兜底。
+    final int newDiscount =
+        newType == TxnType.transfer || rawDiscount <= newAmount
+            ? rawDiscount
+            : newAmount;
     final List<String>? newAttachmentList =
         attachmentUrls ?? _decodeAttachmentUrls(original.attachmentUrls);
     final String? newAttachmentUrls = _encodeAttachmentUrls(newAttachmentList);
@@ -207,6 +226,7 @@ class TransactionRepository {
         now,
         fromAmountMinor: oldFromAmountMinor,
         discountMinor: original.discountMinor,
+        reimbursementAccountId: original.reimbursementAccountId,
       );
 
       // 2. 写入新值。
@@ -237,6 +257,8 @@ class TransactionRepository {
           excludeFromStats: Value<bool>(original.excludeFromStats),
           excludeFromBudget: Value<bool>(original.excludeFromBudget),
           isReimbursable: Value<bool>(original.isReimbursable),
+          reimbursementAccountId:
+              Value<String?>(original.reimbursementAccountId),
           deleted: Value<bool>(original.deleted),
           updatedAt: Value<int>(now),
           syncedAt: Value<int?>(original.syncedAt),
@@ -253,6 +275,7 @@ class TransactionRepository {
         now,
         fromAmountMinor: newFromAmountMinor,
         discountMinor: newDiscount,
+        reimbursementAccountId: original.reimbursementAccountId,
       );
 
       await _enqueue(
@@ -276,6 +299,7 @@ class TransactionRepository {
           'excludeFromStats': original.excludeFromStats,
           'excludeFromBudget': original.excludeFromBudget,
           'isReimbursable': original.isReimbursable,
+          'reimbursementAccountId': original.reimbursementAccountId,
           'attachmentUrls': newAttachmentUrls,
           'feeMinor': newFee,
           'discountMinor': newDiscount,
@@ -284,12 +308,29 @@ class TransactionRepository {
     });
   }
 
+  /// 按 ID 批量取流水（保持传入顺序，跳过不存在 / 已删除的 ID）。
+  /// 报销收款抵扣按用户勾选顺序分摊账单时使用。
+  Future<List<Transaction>> getByIds(List<String> ids) async {
+    if (ids.isEmpty) return const <Transaction>[];
+    final List<Transaction> rows = await (_db.select(_db.transactions)
+          ..where(
+            (Transactions t) => t.id.isIn(ids) & t.deleted.equals(false),
+          ))
+        .get();
+    final Map<String, Transaction> byId = <String, Transaction>{
+      for (final Transaction t in rows) t.id: t,
+    };
+    return <Transaction>[
+      for (final String id in ids)
+        if (byId[id] != null) byId[id]!,
+    ];
+  }
+
   /// 账单迁移：把使用 [fromId] 分类的全部流水改挂到 [toId] 分类。
   ///
   /// 仅修改 categoryId，不影响金额与账户余额，因此无需调整余额 delta。
   /// 返回被迁移的流水笔数。
-  Future<int> reassignCategory(String fromId, String toId) async {
-    final List<String> ids =
+  Future<int> reassignCategory(String fromId, String toId) async {    final List<String> ids =
         await _db.transactionsDao.findIdsByCategory(fromId);
     if (ids.isEmpty) return 0;
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -309,6 +350,10 @@ class TransactionRepository {
   }
 
   /// 软删除。物理删除无法同步，必须标记后随同步推送。
+  ///
+  /// 同时级联软删关联的报销记录：报销是这笔流水的另一视图，
+  /// 删流水时必须一并移除，否则「报销账户页」会残留游离的待报销记录
+  /// （删除报销记录也走本方法，双向保持同步）。
   Future<void> remove(String id) async {
     final Transaction? txn = await _db.transactionsDao.getById(id);
     if (txn == null) {
@@ -329,6 +374,7 @@ class TransactionRepository {
         now,
         fromAmountMinor: fromAmountMinor,
         discountMinor: txn.discountMinor,
+        reimbursementAccountId: txn.reimbursementAccountId,
       );
       await _db.transactionsDao.softDelete(id, now);
       await _enqueue(
@@ -337,6 +383,32 @@ class TransactionRepository {
         opType: SyncOpType.delete,
         updatedAt: now,
       );
+
+      // 级联软删关联报销记录（bill.detail「是否报销」随之消失）。
+      final List<Reimbursement> linked =
+          await (_db.select(_db.reimbursements)
+                ..where((Reimbursements t) => t.transactionId.equals(id))
+                ..where((Reimbursements t) => t.deleted.equals(false)))
+              .get();
+      if (linked.isNotEmpty) {
+        await (_db.update(_db.reimbursements)
+              ..where((Reimbursements t) => t.transactionId.equals(id))
+              ..where((Reimbursements t) => t.deleted.equals(false)))
+            .write(
+          const ReimbursementsCompanion(
+            deleted: Value<bool>(true),
+            dirty: Value<bool>(true),
+          ),
+        );
+        for (final Reimbursement r in linked) {
+          await _enqueue(
+            tableName: 'reimbursements',
+            recordId: r.id,
+            opType: SyncOpType.delete,
+            updatedAt: now,
+          );
+        }
+      }
     });
   }
 
@@ -422,6 +494,9 @@ class TransactionRepository {
   /// 支出按**实付金额**（`amountMinor - discountMinor`）扣减余额：
   /// `amountMinor` 存的是优惠前原价，优惠部分并不实际支出
   /// （对齐小青账：¥85 消费优惠 ¥45，实际只扣 ¥40）。
+  ///
+  /// 可报销支出（[reimbursementAccountId] 非空）同时把实付金额**挂到报销账户**
+  /// （应收桶）：垫付发生时 +实付，报销收款核销时再转出，增删改均可回滚。
   Future<void> _applyBalanceDelta(
     TxnType type,
     String accountId,
@@ -430,6 +505,7 @@ class TransactionRepository {
     int now, {
     int? fromAmountMinor,
     int discountMinor = 0,
+    String? reimbursementAccountId,
   }) async {
     switch (type) {
       case TxnType.income:
@@ -438,6 +514,10 @@ class TransactionRepository {
         final int actual = amountMinor - discountMinor;
         await _db.accountsDao.adjustBalance(
             accountId, actual > 0 ? -actual : 0, now);
+        if (reimbursementAccountId != null && actual > 0) {
+          await _db.accountsDao.adjustBalance(
+              reimbursementAccountId, actual, now);
+        }
       case TxnType.transfer:
         final int debit = fromAmountMinor ?? amountMinor;
         await _db.accountsDao.adjustBalance(accountId, -debit, now);
@@ -456,6 +536,7 @@ class TransactionRepository {
     int now, {
     int? fromAmountMinor,
     int discountMinor = 0,
+    String? reimbursementAccountId,
   }) async {
     switch (type) {
       case TxnType.income:
@@ -464,6 +545,10 @@ class TransactionRepository {
         final int actual = amountMinor - discountMinor;
         await _db.accountsDao.adjustBalance(
             accountId, actual > 0 ? actual : 0, now);
+        if (reimbursementAccountId != null && actual > 0) {
+          await _db.accountsDao.adjustBalance(
+              reimbursementAccountId, -actual, now);
+        }
       case TxnType.transfer:
         final int debit = fromAmountMinor ?? amountMinor;
         await _db.accountsDao.adjustBalance(accountId, debit, now);

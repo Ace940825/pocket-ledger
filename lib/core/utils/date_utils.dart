@@ -3,6 +3,19 @@ library;
 
 import 'package:intl/intl.dart';
 
+/// 当前本地时间（中国用户视角的「现在」）。
+///
+/// 设备/WebView 时区上报为 UTC（offset == 0）时，`DateTime.now()` 会给出
+/// 比北京时间早 8 小时的墙钟（如 12:52 vs 20:52）。此处统一兜底 +8，
+/// 所有「默认记账时间 / 今天边界」一律用本函数，避免页面间时间不同步。
+DateTime localNow() {
+  final DateTime now = DateTime.now();
+  if (now.timeZoneOffset == Duration.zero) {
+    return now.add(const Duration(hours: 8));
+  }
+  return now;
+}
+
 /// 在 [from] 上增加 [months] 个月，并做月末夹取。
 ///
 /// 为什么不用 `DateTime(y, m + n, d)`：Dart 会把 2 月 31 日自动溢出成 3 月 3 日，

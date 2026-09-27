@@ -9,11 +9,13 @@ import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
+import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/date_picker_sheet.dart';
 import '../../../shared/widgets/repeat_picker_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../record/presentation/account_picker_sheet.dart';
 import '../domain/installment_dates.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
@@ -712,49 +714,37 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
 
   Future<void> _showAccountPicker(List<Account> accounts) async {
     FocusManager.instance.primaryFocus?.unfocus();
+    // 统一 A 模板网格账户选择弹窗（与记一笔页各账户键同源）。
     final String? result = await showModalBottomSheet<String>(
       context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusLg),
-        ),
-      ),
-      builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(AppDimens.spaceMd),
-              child: Text(
-                '选择负债账户',
-                style: Theme.of(ctx).textTheme.titleSmall,
-              ),
-            ),
-            const Divider(height: 1),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: accounts.length,
-                itemBuilder: (BuildContext ctx, int index) {
-                  final Account account = accounts[index];
-                  return ListTile(
-                    title: Text(account.name),
-                    trailing: account.id == _accountId
-                        ? const Icon(Icons.check, color: AppColors.primary)
-                        : null,
-                    onTap: () => Navigator.of(ctx).pop(account.id),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: AppDimens.spaceMd),
-          ],
-        ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => AccountPickerSheet(
+        accounts: accounts,
+        selectedId: _accountId,
+        title: '选择负债账户',
+        // 负债账户可不选（addPlan.accountId 可空）：仅建分期计划，不关联账户。
+        showNoneRow: true,
+        noneSubtitle: '暂不关联负债账户',
+        onReload: () => ref.invalidate(accountsProvider),
+        // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面。
+        onAdd: () {
+          if (mounted) context.push(Routes.accountAdd);
+        },
+        onManage: () {
+          if (mounted) context.push(Routes.accountManage);
+        },
+        // 点「不选择具体账户」时 onConfirm 收到 null，以空串区分
+        // 「明确清空」（''）与「下滑关闭」（null）。
+        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
       ),
     );
     FocusManager.instance.primaryFocus?.unfocus();
     if (result != null && mounted) {
-      setState(() => _accountId = result);
+      // 「不选择具体账户」（空串）：清除已选负债账户。
+      setState(() => _accountId = result.isEmpty ? null : result);
     }
   }
 

@@ -201,18 +201,14 @@ enum LendStatus {
       };
 }
 
-/// 报销状态
+/// 报销状态（两态）：待报销 = 已垫付尚未收回；已报销 = 已收回。
 enum ReimbursementStatus {
   pending,
-  submitted,
-  reimbursed,
-  received;
+  reimbursed;
 
   String get label => switch (this) {
         ReimbursementStatus.pending => '待报销',
-        ReimbursementStatus.submitted => '已提交',
         ReimbursementStatus.reimbursed => '已报销',
-        ReimbursementStatus.received => '已收款',
       };
 }
 

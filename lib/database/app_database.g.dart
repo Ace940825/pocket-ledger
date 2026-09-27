@@ -2260,6 +2260,12 @@ class $TransactionsTable extends Transactions
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("is_reimbursable" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _reimbursementAccountIdMeta =
+      const VerificationMeta('reimbursementAccountId');
+  @override
+  late final GeneratedColumn<String> reimbursementAccountId =
+      GeneratedColumn<String>('reimbursement_account_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         updatedAt,
@@ -2285,7 +2291,8 @@ class $TransactionsTable extends Transactions
         discountMinor,
         excludeFromStats,
         excludeFromBudget,
-        isReimbursable
+        isReimbursable,
+        reimbursementAccountId
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2416,6 +2423,13 @@ class $TransactionsTable extends Transactions
           isReimbursable.isAcceptableOrUnknown(
               data['is_reimbursable']!, _isReimbursableMeta));
     }
+    if (data.containsKey('reimbursement_account_id')) {
+      context.handle(
+          _reimbursementAccountIdMeta,
+          reimbursementAccountId.isAcceptableOrUnknown(
+              data['reimbursement_account_id']!,
+              _reimbursementAccountIdMeta));
+    }
     return context;
   }
 
@@ -2475,6 +2489,9 @@ class $TransactionsTable extends Transactions
           DriftSqlType.bool, data['${effectivePrefix}exclude_from_budget'])!,
       isReimbursable: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_reimbursable'])!,
+      reimbursementAccountId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}reimbursement_account_id']),
     );
   }
 
@@ -2543,6 +2560,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
 
   /// 报销标记：为 true 表示该笔支出可/已用于报销。
   final bool isReimbursable;
+
+  /// 报销账户：报销支出关联的「报销」类型账户；未选择时为 null。
+  final String? reimbursementAccountId;
   const Transaction(
       {required this.updatedAt,
       required this.deleted,
@@ -2567,7 +2587,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       required this.discountMinor,
       required this.excludeFromStats,
       required this.excludeFromBudget,
-      required this.isReimbursable});
+      required this.isReimbursable,
+      this.reimbursementAccountId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2617,6 +2638,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     map['exclude_from_stats'] = Variable<bool>(excludeFromStats);
     map['exclude_from_budget'] = Variable<bool>(excludeFromBudget);
     map['is_reimbursable'] = Variable<bool>(isReimbursable);
+    if (!nullToAbsent || reimbursementAccountId != null) {
+      map['reimbursement_account_id'] =
+          Variable<String>(reimbursementAccountId);
+    }
     return map;
   }
 
@@ -2658,6 +2683,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       excludeFromStats: Value(excludeFromStats),
       excludeFromBudget: Value(excludeFromBudget),
       isReimbursable: Value(isReimbursable),
+      reimbursementAccountId: reimbursementAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reimbursementAccountId),
     );
   }
 
@@ -2691,6 +2719,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       excludeFromStats: serializer.fromJson<bool>(json['excludeFromStats']),
       excludeFromBudget: serializer.fromJson<bool>(json['excludeFromBudget']),
       isReimbursable: serializer.fromJson<bool>(json['isReimbursable']),
+      reimbursementAccountId:
+          serializer.fromJson<String?>(json['reimbursementAccountId']),
     );
   }
   @override
@@ -2723,6 +2753,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'excludeFromStats': serializer.toJson<bool>(excludeFromStats),
       'excludeFromBudget': serializer.toJson<bool>(excludeFromBudget),
       'isReimbursable': serializer.toJson<bool>(isReimbursable),
+      'reimbursementAccountId':
+          serializer.toJson<String?>(reimbursementAccountId),
     };
   }
 
@@ -2750,7 +2782,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           int? discountMinor,
           bool? excludeFromStats,
           bool? excludeFromBudget,
-          bool? isReimbursable}) =>
+          bool? isReimbursable,
+          Value<String?> reimbursementAccountId = const Value.absent()}) =>
       Transaction(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -2779,6 +2812,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         excludeFromStats: excludeFromStats ?? this.excludeFromStats,
         excludeFromBudget: excludeFromBudget ?? this.excludeFromBudget,
         isReimbursable: isReimbursable ?? this.isReimbursable,
+        reimbursementAccountId: reimbursementAccountId.present
+            ? reimbursementAccountId.value
+            : this.reimbursementAccountId,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -2824,6 +2860,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       isReimbursable: data.isReimbursable.present
           ? data.isReimbursable.value
           : this.isReimbursable,
+      reimbursementAccountId: data.reimbursementAccountId.present
+          ? data.reimbursementAccountId.value
+          : this.reimbursementAccountId,
     );
   }
 
@@ -2853,7 +2892,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('discountMinor: $discountMinor, ')
           ..write('excludeFromStats: $excludeFromStats, ')
           ..write('excludeFromBudget: $excludeFromBudget, ')
-          ..write('isReimbursable: $isReimbursable')
+          ..write('isReimbursable: $isReimbursable, ')
+          ..write('reimbursementAccountId: $reimbursementAccountId')
           ..write(')'))
         .toString();
   }
@@ -2883,7 +2923,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         discountMinor,
         excludeFromStats,
         excludeFromBudget,
-        isReimbursable
+        isReimbursable,
+        reimbursementAccountId
       ]);
   @override
   bool operator ==(Object other) =>
@@ -2912,7 +2953,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.discountMinor == this.discountMinor &&
           other.excludeFromStats == this.excludeFromStats &&
           other.excludeFromBudget == this.excludeFromBudget &&
-          other.isReimbursable == this.isReimbursable);
+          other.isReimbursable == this.isReimbursable &&
+          other.reimbursementAccountId == this.reimbursementAccountId);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -2940,6 +2982,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<bool> excludeFromStats;
   final Value<bool> excludeFromBudget;
   final Value<bool> isReimbursable;
+  final Value<String?> reimbursementAccountId;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.updatedAt = const Value.absent(),
@@ -2966,6 +3009,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.excludeFromStats = const Value.absent(),
     this.excludeFromBudget = const Value.absent(),
     this.isReimbursable = const Value.absent(),
+    this.reimbursementAccountId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -2993,6 +3037,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.excludeFromStats = const Value.absent(),
     this.excludeFromBudget = const Value.absent(),
     this.isReimbursable = const Value.absent(),
+    this.reimbursementAccountId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -3027,6 +3072,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<bool>? excludeFromStats,
     Expression<bool>? excludeFromBudget,
     Expression<bool>? isReimbursable,
+    Expression<String>? reimbursementAccountId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3054,6 +3100,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (excludeFromStats != null) 'exclude_from_stats': excludeFromStats,
       if (excludeFromBudget != null) 'exclude_from_budget': excludeFromBudget,
       if (isReimbursable != null) 'is_reimbursable': isReimbursable,
+      if (reimbursementAccountId != null)
+        'reimbursement_account_id': reimbursementAccountId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3083,6 +3131,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<bool>? excludeFromStats,
       Value<bool>? excludeFromBudget,
       Value<bool>? isReimbursable,
+      Value<String?>? reimbursementAccountId,
       Value<int>? rowid}) {
     return TransactionsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -3109,6 +3158,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       excludeFromStats: excludeFromStats ?? this.excludeFromStats,
       excludeFromBudget: excludeFromBudget ?? this.excludeFromBudget,
       isReimbursable: isReimbursable ?? this.isReimbursable,
+      reimbursementAccountId:
+          reimbursementAccountId ?? this.reimbursementAccountId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3190,6 +3241,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (isReimbursable.present) {
       map['is_reimbursable'] = Variable<bool>(isReimbursable.value);
     }
+    if (reimbursementAccountId.present) {
+      map['reimbursement_account_id'] =
+          Variable<String>(reimbursementAccountId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3223,6 +3278,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('excludeFromStats: $excludeFromStats, ')
           ..write('excludeFromBudget: $excludeFromBudget, ')
           ..write('isReimbursable: $isReimbursable, ')
+          ..write('reimbursementAccountId: $reimbursementAccountId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4236,6 +4292,12 @@ class $ReimbursementsTable extends Reimbursements
   late final GeneratedColumn<String> transactionId = GeneratedColumn<String>(
       'transaction_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _incomeTransactionIdMeta =
+      const VerificationMeta('incomeTransactionId');
+  @override
+  late final GeneratedColumn<String> incomeTransactionId =
+      GeneratedColumn<String>('income_transaction_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _accountIdMeta =
       const VerificationMeta('accountId');
   @override
@@ -4277,6 +4339,7 @@ class $ReimbursementsTable extends Reimbursements
         note,
         attachmentUrls,
         transactionId,
+        incomeTransactionId,
         accountId,
         toAccountId,
         excludeFromStats
@@ -4378,6 +4441,12 @@ class $ReimbursementsTable extends Reimbursements
           transactionId.isAcceptableOrUnknown(
               data['transaction_id']!, _transactionIdMeta));
     }
+    if (data.containsKey('income_transaction_id')) {
+      context.handle(
+          _incomeTransactionIdMeta,
+          incomeTransactionId.isAcceptableOrUnknown(
+              data['income_transaction_id']!, _incomeTransactionIdMeta));
+    }
     if (data.containsKey('account_id')) {
       context.handle(_accountIdMeta,
           accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
@@ -4438,6 +4507,8 @@ class $ReimbursementsTable extends Reimbursements
           .read(DriftSqlType.string, data['${effectivePrefix}attachment_urls']),
       transactionId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}transaction_id']),
+      incomeTransactionId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}income_transaction_id']),
       accountId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}account_id']),
       toAccountId: attachedDatabase.typeMapping
@@ -4476,6 +4547,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
   final String? note;
   final String? attachmentUrls;
   final String? transactionId;
+  final String? incomeTransactionId;
 
   /// 报销账户：产生原始支出的资产账户。
   final String? accountId;
@@ -4504,6 +4576,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       this.note,
       this.attachmentUrls,
       this.transactionId,
+      this.incomeTransactionId,
       this.accountId,
       this.toAccountId,
       required this.excludeFromStats});
@@ -4541,6 +4614,9 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
     }
     if (!nullToAbsent || transactionId != null) {
       map['transaction_id'] = Variable<String>(transactionId);
+    }
+    if (!nullToAbsent || incomeTransactionId != null) {
+      map['income_transaction_id'] = Variable<String>(incomeTransactionId);
     }
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<String>(accountId);
@@ -4580,6 +4656,9 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       transactionId: transactionId == null && nullToAbsent
           ? const Value.absent()
           : Value(transactionId),
+      incomeTransactionId: incomeTransactionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(incomeTransactionId),
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
           : Value(accountId),
@@ -4612,6 +4691,8 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       note: serializer.fromJson<String?>(json['note']),
       attachmentUrls: serializer.fromJson<String?>(json['attachmentUrls']),
       transactionId: serializer.fromJson<String?>(json['transactionId']),
+      incomeTransactionId:
+          serializer.fromJson<String?>(json['incomeTransactionId']),
       accountId: serializer.fromJson<String?>(json['accountId']),
       toAccountId: serializer.fromJson<String?>(json['toAccountId']),
       excludeFromStats: serializer.fromJson<bool>(json['excludeFromStats']),
@@ -4639,6 +4720,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       'note': serializer.toJson<String?>(note),
       'attachmentUrls': serializer.toJson<String?>(attachmentUrls),
       'transactionId': serializer.toJson<String?>(transactionId),
+      'incomeTransactionId': serializer.toJson<String?>(incomeTransactionId),
       'accountId': serializer.toJson<String?>(accountId),
       'toAccountId': serializer.toJson<String?>(toAccountId),
       'excludeFromStats': serializer.toJson<bool>(excludeFromStats),
@@ -4663,6 +4745,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           Value<String?> note = const Value.absent(),
           Value<String?> attachmentUrls = const Value.absent(),
           Value<String?> transactionId = const Value.absent(),
+          Value<String?> incomeTransactionId = const Value.absent(),
           Value<String?> accountId = const Value.absent(),
           Value<String?> toAccountId = const Value.absent(),
           bool? excludeFromStats}) =>
@@ -4686,6 +4769,9 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
             attachmentUrls.present ? attachmentUrls.value : this.attachmentUrls,
         transactionId:
             transactionId.present ? transactionId.value : this.transactionId,
+        incomeTransactionId: incomeTransactionId.present
+            ? incomeTransactionId.value
+            : this.incomeTransactionId,
         accountId: accountId.present ? accountId.value : this.accountId,
         toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
         excludeFromStats: excludeFromStats ?? this.excludeFromStats,
@@ -4716,6 +4802,9 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
       transactionId: data.transactionId.present
           ? data.transactionId.value
           : this.transactionId,
+      incomeTransactionId: data.incomeTransactionId.present
+          ? data.incomeTransactionId.value
+          : this.incomeTransactionId,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       toAccountId:
           data.toAccountId.present ? data.toAccountId.value : this.toAccountId,
@@ -4745,6 +4834,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
           ..write('transactionId: $transactionId, ')
+          ..write('incomeTransactionId: $incomeTransactionId, ')
           ..write('accountId: $accountId, ')
           ..write('toAccountId: $toAccountId, ')
           ..write('excludeFromStats: $excludeFromStats')
@@ -4753,27 +4843,29 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      updatedAt,
-      deleted,
-      dirty,
-      syncedAt,
-      id,
-      bookId,
-      title,
-      status,
-      amountMinor,
-      currency,
-      payer,
-      target,
-      occurredAt,
-      receivedAt,
-      note,
-      attachmentUrls,
-      transactionId,
-      accountId,
-      toAccountId,
-      excludeFromStats);
+  int get hashCode => Object.hashAll(<Object?>[
+        updatedAt,
+        deleted,
+        dirty,
+        syncedAt,
+        id,
+        bookId,
+        title,
+        status,
+        amountMinor,
+        currency,
+        payer,
+        target,
+        occurredAt,
+        receivedAt,
+        note,
+        attachmentUrls,
+        transactionId,
+        incomeTransactionId,
+        accountId,
+        toAccountId,
+        excludeFromStats
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4795,6 +4887,7 @@ class Reimbursement extends DataClass implements Insertable<Reimbursement> {
           other.note == this.note &&
           other.attachmentUrls == this.attachmentUrls &&
           other.transactionId == this.transactionId &&
+          other.incomeTransactionId == this.incomeTransactionId &&
           other.accountId == this.accountId &&
           other.toAccountId == this.toAccountId &&
           other.excludeFromStats == this.excludeFromStats);
@@ -4818,6 +4911,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
   final Value<String?> note;
   final Value<String?> attachmentUrls;
   final Value<String?> transactionId;
+  final Value<String?> incomeTransactionId;
   final Value<String?> accountId;
   final Value<String?> toAccountId;
   final Value<bool> excludeFromStats;
@@ -4840,6 +4934,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
     this.transactionId = const Value.absent(),
+    this.incomeTransactionId = const Value.absent(),
     this.accountId = const Value.absent(),
     this.toAccountId = const Value.absent(),
     this.excludeFromStats = const Value.absent(),
@@ -4863,6 +4958,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
     this.transactionId = const Value.absent(),
+    this.incomeTransactionId = const Value.absent(),
     this.accountId = const Value.absent(),
     this.toAccountId = const Value.absent(),
     this.excludeFromStats = const Value.absent(),
@@ -4893,6 +4989,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     Expression<String>? note,
     Expression<String>? attachmentUrls,
     Expression<String>? transactionId,
+    Expression<String>? incomeTransactionId,
     Expression<String>? accountId,
     Expression<String>? toAccountId,
     Expression<bool>? excludeFromStats,
@@ -4916,6 +5013,8 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       if (note != null) 'note': note,
       if (attachmentUrls != null) 'attachment_urls': attachmentUrls,
       if (transactionId != null) 'transaction_id': transactionId,
+      if (incomeTransactionId != null)
+        'income_transaction_id': incomeTransactionId,
       if (accountId != null) 'account_id': accountId,
       if (toAccountId != null) 'to_account_id': toAccountId,
       if (excludeFromStats != null) 'exclude_from_stats': excludeFromStats,
@@ -4941,6 +5040,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       Value<String?>? note,
       Value<String?>? attachmentUrls,
       Value<String?>? transactionId,
+      Value<String?>? incomeTransactionId,
       Value<String?>? accountId,
       Value<String?>? toAccountId,
       Value<bool>? excludeFromStats,
@@ -4963,6 +5063,7 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
       note: note ?? this.note,
       attachmentUrls: attachmentUrls ?? this.attachmentUrls,
       transactionId: transactionId ?? this.transactionId,
+      incomeTransactionId: incomeTransactionId ?? this.incomeTransactionId,
       accountId: accountId ?? this.accountId,
       toAccountId: toAccountId ?? this.toAccountId,
       excludeFromStats: excludeFromStats ?? this.excludeFromStats,
@@ -5024,6 +5125,9 @@ class ReimbursementsCompanion extends UpdateCompanion<Reimbursement> {
     }
     if (transactionId.present) {
       map['transaction_id'] = Variable<String>(transactionId.value);
+    }
+    if (incomeTransactionId.present) {
+      map['income_transaction_id'] = Variable<String>(incomeTransactionId.value);
     }
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
@@ -9522,11 +9626,39 @@ class $RecordTemplatesTable extends RecordTemplates
   late final GeneratedColumn<int> tabIndex = GeneratedColumn<int>(
       'tab_index', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _amountMinorMeta =
+      const VerificationMeta('amountMinor');
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+      'amount_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _discountMinorMeta =
+      const VerificationMeta('discountMinor');
+  @override
+  late final GeneratedColumn<int> discountMinor = GeneratedColumn<int>(
+      'discount_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _accountIdMeta =
       const VerificationMeta('accountId');
   @override
   late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
       'account_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _toAccountIdMeta =
+      const VerificationMeta('toAccountId');
+  @override
+  late final GeneratedColumn<String> toAccountId = GeneratedColumn<String>(
+      'to_account_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _counterpartyMeta =
+      const VerificationMeta('counterparty');
+  @override
+  late final GeneratedColumn<String> counterparty = GeneratedColumn<String>(
+      'counterparty', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _categoryIdMeta =
       const VerificationMeta('categoryId');
@@ -9586,7 +9718,11 @@ class $RecordTemplatesTable extends RecordTemplates
         bookId,
         name,
         tabIndex,
+        amountMinor,
+        discountMinor,
         accountId,
+        toAccountId,
+        counterparty,
         categoryId,
         note,
         tags,
@@ -9628,9 +9764,29 @@ class $RecordTemplatesTable extends RecordTemplates
     } else if (isInserting) {
       context.missing(_tabIndexMeta);
     }
+    if (data.containsKey('amount_minor')) {
+      context.handle(_amountMinorMeta,
+          amountMinor.isAcceptableOrUnknown(
+              data['amount_minor']!, _amountMinorMeta));
+    }
+    if (data.containsKey('discount_minor')) {
+      context.handle(_discountMinorMeta,
+          discountMinor.isAcceptableOrUnknown(
+              data['discount_minor']!, _discountMinorMeta));
+    }
     if (data.containsKey('account_id')) {
       context.handle(_accountIdMeta,
           accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
+    }
+    if (data.containsKey('to_account_id')) {
+      context.handle(_toAccountIdMeta,
+          toAccountId.isAcceptableOrUnknown(
+              data['to_account_id']!, _toAccountIdMeta));
+    }
+    if (data.containsKey('counterparty')) {
+      context.handle(_counterpartyMeta,
+          counterparty.isAcceptableOrUnknown(
+              data['counterparty']!, _counterpartyMeta));
     }
     if (data.containsKey('category_id')) {
       context.handle(
@@ -9687,8 +9843,16 @@ class $RecordTemplatesTable extends RecordTemplates
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       tabIndex: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}tab_index'])!,
+      amountMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}amount_minor'])!,
+      discountMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}discount_minor'])!,
       accountId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}account_id']),
+      toAccountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}to_account_id']),
+      counterparty: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}counterparty']),
       categoryId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category_id']),
       note: attachedDatabase.typeMapping
@@ -9722,8 +9886,20 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
   /// 适用 Tab：[RecordTab] 的 index（支出/收入/转账/借还/退款/报销）。
   final int tabIndex;
 
+  /// 示例金额（分）。仅用于模板卡展示，套用时仍会带入可改。
+  final int amountMinor;
+
+  /// 示例优惠（分）。支出/转账模板可带，套用时仍会带入可改。
+  final int discountMinor;
+
   /// 默认账户（可选）。
   final String? accountId;
+
+  /// 转账模板的转入账户（可选）。
+  final String? toAccountId;
+
+  /// 借还模板的对方（可选），如「小米」。
+  final String? counterparty;
 
   /// 默认分类（可选）。
   final String? categoryId;
@@ -9744,7 +9920,11 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
       required this.bookId,
       required this.name,
       required this.tabIndex,
+      this.amountMinor = 0,
+      this.discountMinor = 0,
       this.accountId,
+      this.toAccountId,
+      this.counterparty,
       this.categoryId,
       this.note,
       this.tags,
@@ -9759,8 +9939,16 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
     map['book_id'] = Variable<String>(bookId);
     map['name'] = Variable<String>(name);
     map['tab_index'] = Variable<int>(tabIndex);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['discount_minor'] = Variable<int>(discountMinor);
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<String>(accountId);
+    }
+    if (!nullToAbsent || toAccountId != null) {
+      map['to_account_id'] = Variable<String>(toAccountId);
+    }
+    if (!nullToAbsent || counterparty != null) {
+      map['counterparty'] = Variable<String>(counterparty);
     }
     if (!nullToAbsent || categoryId != null) {
       map['category_id'] = Variable<String>(categoryId);
@@ -9784,9 +9972,17 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
       bookId: Value(bookId),
       name: Value(name),
       tabIndex: Value(tabIndex),
+      amountMinor: Value(amountMinor),
+      discountMinor: Value(discountMinor),
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
           : Value(accountId),
+      toAccountId: toAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toAccountId),
+      counterparty: counterparty == null && nullToAbsent
+          ? const Value.absent()
+          : Value(counterparty),
       categoryId: categoryId == null && nullToAbsent
           ? const Value.absent()
           : Value(categoryId),
@@ -9807,7 +10003,11 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
       bookId: serializer.fromJson<String>(json['bookId']),
       name: serializer.fromJson<String>(json['name']),
       tabIndex: serializer.fromJson<int>(json['tabIndex']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      discountMinor: serializer.fromJson<int>(json['discountMinor']),
       accountId: serializer.fromJson<String?>(json['accountId']),
+      toAccountId: serializer.fromJson<String?>(json['toAccountId']),
+      counterparty: serializer.fromJson<String?>(json['counterparty']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
       note: serializer.fromJson<String?>(json['note']),
       tags: serializer.fromJson<String?>(json['tags']),
@@ -9825,7 +10025,11 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
       'bookId': serializer.toJson<String>(bookId),
       'name': serializer.toJson<String>(name),
       'tabIndex': serializer.toJson<int>(tabIndex),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'discountMinor': serializer.toJson<int>(discountMinor),
       'accountId': serializer.toJson<String?>(accountId),
+      'toAccountId': serializer.toJson<String?>(toAccountId),
+      'counterparty': serializer.toJson<String?>(counterparty),
       'categoryId': serializer.toJson<String?>(categoryId),
       'note': serializer.toJson<String?>(note),
       'tags': serializer.toJson<String?>(tags),
@@ -9841,7 +10045,11 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
           String? bookId,
           String? name,
           int? tabIndex,
+          int? amountMinor,
+          int? discountMinor,
           Value<String?> accountId = const Value.absent(),
+          Value<String?> toAccountId = const Value.absent(),
+          Value<String?> counterparty = const Value.absent(),
           Value<String?> categoryId = const Value.absent(),
           Value<String?> note = const Value.absent(),
           Value<String?> tags = const Value.absent(),
@@ -9854,7 +10062,13 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
         bookId: bookId ?? this.bookId,
         name: name ?? this.name,
         tabIndex: tabIndex ?? this.tabIndex,
+        amountMinor: amountMinor ?? this.amountMinor,
+        discountMinor: discountMinor ?? this.discountMinor,
         accountId: accountId.present ? accountId.value : this.accountId,
+        toAccountId:
+            toAccountId.present ? toAccountId.value : this.toAccountId,
+        counterparty:
+            counterparty.present ? counterparty.value : this.counterparty,
         categoryId: categoryId.present ? categoryId.value : this.categoryId,
         note: note.present ? note.value : this.note,
         tags: tags.present ? tags.value : this.tags,
@@ -9869,7 +10083,17 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
       bookId: data.bookId.present ? data.bookId.value : this.bookId,
       name: data.name.present ? data.name.value : this.name,
       tabIndex: data.tabIndex.present ? data.tabIndex.value : this.tabIndex,
+      amountMinor:
+          data.amountMinor.present ? data.amountMinor.value : this.amountMinor,
+      discountMinor: data.discountMinor.present
+          ? data.discountMinor.value
+          : this.discountMinor,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      toAccountId:
+          data.toAccountId.present ? data.toAccountId.value : this.toAccountId,
+      counterparty: data.counterparty.present
+          ? data.counterparty.value
+          : this.counterparty,
       categoryId:
           data.categoryId.present ? data.categoryId.value : this.categoryId,
       note: data.note.present ? data.note.value : this.note,
@@ -9894,7 +10118,11 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
           ..write('bookId: $bookId, ')
           ..write('name: $name, ')
           ..write('tabIndex: $tabIndex, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('discountMinor: $discountMinor, ')
           ..write('accountId: $accountId, ')
+          ..write('toAccountId: $toAccountId, ')
+          ..write('counterparty: $counterparty, ')
           ..write('categoryId: $categoryId, ')
           ..write('note: $note, ')
           ..write('tags: $tags, ')
@@ -9912,7 +10140,11 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
       bookId,
       name,
       tabIndex,
+      amountMinor,
+      discountMinor,
       accountId,
+      toAccountId,
+      counterparty,
       categoryId,
       note,
       tags,
@@ -9928,7 +10160,11 @@ class RecordTemplate extends DataClass implements Insertable<RecordTemplate> {
           other.bookId == this.bookId &&
           other.name == this.name &&
           other.tabIndex == this.tabIndex &&
+          other.amountMinor == this.amountMinor &&
+          other.discountMinor == this.discountMinor &&
           other.accountId == this.accountId &&
+          other.toAccountId == this.toAccountId &&
+          other.counterparty == this.counterparty &&
           other.categoryId == this.categoryId &&
           other.note == this.note &&
           other.tags == this.tags &&
@@ -9943,7 +10179,11 @@ class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
   final Value<String> bookId;
   final Value<String> name;
   final Value<int> tabIndex;
+  final Value<int> amountMinor;
+  final Value<int> discountMinor;
   final Value<String?> accountId;
+  final Value<String?> toAccountId;
+  final Value<String?> counterparty;
   final Value<String?> categoryId;
   final Value<String?> note;
   final Value<String?> tags;
@@ -9957,7 +10197,11 @@ class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
     this.bookId = const Value.absent(),
     this.name = const Value.absent(),
     this.tabIndex = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.discountMinor = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.toAccountId = const Value.absent(),
+    this.counterparty = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.note = const Value.absent(),
     this.tags = const Value.absent(),
@@ -9972,7 +10216,11 @@ class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
     required String bookId,
     required String name,
     required int tabIndex,
+    this.amountMinor = const Value.absent(),
+    this.discountMinor = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.toAccountId = const Value.absent(),
+    this.counterparty = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.note = const Value.absent(),
     this.tags = const Value.absent(),
@@ -9991,7 +10239,11 @@ class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
     Expression<String>? bookId,
     Expression<String>? name,
     Expression<int>? tabIndex,
+    Expression<int>? amountMinor,
+    Expression<int>? discountMinor,
     Expression<String>? accountId,
+    Expression<String>? toAccountId,
+    Expression<String>? counterparty,
     Expression<String>? categoryId,
     Expression<String>? note,
     Expression<String>? tags,
@@ -10006,7 +10258,11 @@ class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
       if (bookId != null) 'book_id': bookId,
       if (name != null) 'name': name,
       if (tabIndex != null) 'tab_index': tabIndex,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (discountMinor != null) 'discount_minor': discountMinor,
       if (accountId != null) 'account_id': accountId,
+      if (toAccountId != null) 'to_account_id': toAccountId,
+      if (counterparty != null) 'counterparty': counterparty,
       if (categoryId != null) 'category_id': categoryId,
       if (note != null) 'note': note,
       if (tags != null) 'tags': tags,
@@ -10023,7 +10279,11 @@ class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
       Value<String>? bookId,
       Value<String>? name,
       Value<int>? tabIndex,
+      Value<int>? amountMinor,
+      Value<int>? discountMinor,
       Value<String?>? accountId,
+      Value<String?>? toAccountId,
+      Value<String?>? counterparty,
       Value<String?>? categoryId,
       Value<String?>? note,
       Value<String?>? tags,
@@ -10037,7 +10297,11 @@ class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
       bookId: bookId ?? this.bookId,
       name: name ?? this.name,
       tabIndex: tabIndex ?? this.tabIndex,
+      amountMinor: amountMinor ?? this.amountMinor,
+      discountMinor: discountMinor ?? this.discountMinor,
       accountId: accountId ?? this.accountId,
+      toAccountId: toAccountId ?? this.toAccountId,
+      counterparty: counterparty ?? this.counterparty,
       categoryId: categoryId ?? this.categoryId,
       note: note ?? this.note,
       tags: tags ?? this.tags,
@@ -10064,8 +10328,20 @@ class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
     if (tabIndex.present) {
       map['tab_index'] = Variable<int>(tabIndex.value);
     }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (discountMinor.present) {
+      map['discount_minor'] = Variable<int>(discountMinor.value);
+    }
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (toAccountId.present) {
+      map['to_account_id'] = Variable<String>(toAccountId.value);
+    }
+    if (counterparty.present) {
+      map['counterparty'] = Variable<String>(counterparty.value);
     }
     if (categoryId.present) {
       map['category_id'] = Variable<String>(categoryId.value);
@@ -10101,7 +10377,11 @@ class RecordTemplatesCompanion extends UpdateCompanion<RecordTemplate> {
           ..write('bookId: $bookId, ')
           ..write('name: $name, ')
           ..write('tabIndex: $tabIndex, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('discountMinor: $discountMinor, ')
           ..write('accountId: $accountId, ')
+          ..write('toAccountId: $toAccountId, ')
+          ..write('counterparty: $counterparty, ')
           ..write('categoryId: $categoryId, ')
           ..write('note: $note, ')
           ..write('tags: $tags, ')
@@ -11556,6 +11836,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<bool> excludeFromStats,
   Value<bool> excludeFromBudget,
   Value<bool> isReimbursable,
+  Value<String?> reimbursementAccountId,
   Value<int> rowid,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
@@ -11584,6 +11865,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<bool> excludeFromStats,
   Value<bool> excludeFromBudget,
   Value<bool> isReimbursable,
+  Value<String?> reimbursementAccountId,
   Value<int> rowid,
 });
 
@@ -11676,6 +11958,10 @@ class $$TransactionsTableFilterComposer
   ColumnFilters<bool> get isReimbursable => $composableBuilder(
       column: $table.isReimbursable,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get reimbursementAccountId => $composableBuilder(
+      column: $table.reimbursementAccountId,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$TransactionsTableOrderingComposer
@@ -11765,6 +12051,10 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<bool> get isReimbursable => $composableBuilder(
       column: $table.isReimbursable,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get reimbursementAccountId => $composableBuilder(
+      column: $table.reimbursementAccountId,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -11848,6 +12138,9 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<bool> get isReimbursable => $composableBuilder(
       column: $table.isReimbursable, builder: (column) => column);
+
+  GeneratedColumn<String> get reimbursementAccountId => $composableBuilder(
+      column: $table.reimbursementAccountId, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -11900,6 +12193,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<bool> excludeFromStats = const Value.absent(),
             Value<bool> excludeFromBudget = const Value.absent(),
             Value<bool> isReimbursable = const Value.absent(),
+            Value<String?> reimbursementAccountId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion(
@@ -11927,6 +12221,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             excludeFromStats: excludeFromStats,
             excludeFromBudget: excludeFromBudget,
             isReimbursable: isReimbursable,
+            reimbursementAccountId: reimbursementAccountId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -11954,6 +12249,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<bool> excludeFromStats = const Value.absent(),
             Value<bool> excludeFromBudget = const Value.absent(),
             Value<bool> isReimbursable = const Value.absent(),
+            Value<String?> reimbursementAccountId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
@@ -11981,6 +12277,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             excludeFromStats: excludeFromStats,
             excludeFromBudget: excludeFromBudget,
             isReimbursable: isReimbursable,
+            reimbursementAccountId: reimbursementAccountId,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

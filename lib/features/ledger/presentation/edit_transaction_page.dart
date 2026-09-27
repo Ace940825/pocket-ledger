@@ -7,14 +7,17 @@ import '../../../../core/config/env.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/date_utils.dart';
 import '../../../../domain/enums.dart';
 import '../../../../features/settings/providers/sync_settings_providers.dart';
 import '../../../../providers/app_providers.dart';
 import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/attachment_viewer.dart';
+import '../../../routing/app_router.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/widgets/date_picker_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../record/presentation/account_picker_sheet.dart';
 import '../data/transaction_repository.dart';
 import '../providers/ledger_providers.dart';
 
@@ -50,7 +53,7 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
   String? _categoryId;
   String? _accountId;
   String? _toAccountId;
-  DateTime _occurredAt = DateTime.now();
+  DateTime _occurredAt = localNow();
   int _feeMinor = 0;
   int _discountMinor = 0;
   bool _initialized = false;
@@ -181,6 +184,8 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
               label: _type == TxnType.transfer ? '转出账户' : '账户',
               accounts: accounts,
               value: _accountId,
+              // 支出/收入可「不选择具体账户」；转账转出端仍必选。
+              allowNone: _type != TxnType.transfer,
               onChanged: (String? v) => setState(() => _accountId = v),
             ),
 
@@ -629,13 +634,14 @@ class _CategoryPicker extends StatelessWidget {
 }
 
 /// 账户选择行。
-class _AccountPicker extends StatelessWidget {
+class _AccountPicker extends ConsumerWidget {
   const _AccountPicker({
     required this.label,
     required this.accounts,
     required this.value,
     required this.onChanged,
     this.excludeId,
+    this.allowNone = false,
   });
 
   final String label;
@@ -644,13 +650,20 @@ class _AccountPicker extends StatelessWidget {
   final ValueChanged<String?> onChanged;
   final String? excludeId;
 
+  /// 是否显示「不选择具体账户」行（支出/收入编辑可清空账户；
+  /// 转账的转出/转入两端仍必选，传 false 隐藏）。
+  final bool allowNone;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return accounts.when(
       data: (List<Account> list) {
-        final List<Account> shown = (excludeId != null && list.length > 1)
-            ? list.where((Account a) => a.id != excludeId).toList()
-            : list;
+        // 与记一笔页账户键同口径：仅资金类账户（排除应收 / 应付虚拟账户）；
+        // 转账转入账户再排除转出账户（互斥）。
+        List<Account> shown = fundAccountsOnly(list);
+        if (excludeId != null && shown.length > 1) {
+          shown = shown.where((Account a) => a.id != excludeId).toList();
+        }
         final String? safeValue =
             shown.any((Account a) => a.id == value) ? value : null;
         final Account? selected = safeValue == null
@@ -672,15 +685,41 @@ class _AccountPicker extends StatelessWidget {
           value: selected?.name,
           placeholder: '请选择账户',
           onTap: () async {
+            // 统一 A 模板网格账户选择弹窗（与记一笔页各账户键同源）。
             final String? picked = await showModalBottomSheet<String>(
               context: context,
               isScrollControlled: true,
-              builder: (BuildContext context) => _AccountPickerSheet(
+              useSafeArea: true,
+              useRootNavigator: true,
+              backgroundColor: Colors.transparent,
+              builder: (BuildContext sheetContext) => AccountPickerSheet(
                 accounts: shown,
                 selectedId: safeValue,
+                title: '选择$label',
+                // 支出/收入可「不选择具体账户」（仅计入收支账单，不计入资产）；
+                // 转账转出/转入保持必选（保存校验兜底）。
+                showNoneRow: allowNone,
+                noneSubtitle: allowNone ? '仅计入收支账单，不计入资产' : null,
+                // 转账另一端已选账户：弹窗内就地提示（不关弹窗）。
+                conflictId: excludeId,
+                conflictMessage: '转出与转入账户不能相同',
+                onReload: () => ref.invalidate(accountsProvider),
+                // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面。
+                onAdd: () {
+                  if (context.mounted) context.push(Routes.accountAdd);
+                },
+                onManage: () {
+                  if (context.mounted) context.push(Routes.accountManage);
+                },
+                // 点「不选择具体账户」时 onConfirm 收到 null，以空串区分
+                // 「明确清空」（''）与「下滑关闭」（null）。
+                onConfirm: (Account? acc) =>
+                    Navigator.of(sheetContext).pop(acc?.id ?? ''),
               ),
             );
-            if (picked != null) onChanged(picked);
+            if (picked == null) return;
+            // 「不选择具体账户」（空串）：清空账户（onChanged 收到 null）。
+            onChanged(picked.isEmpty ? null : picked);
           },
         );
       },
@@ -884,93 +923,6 @@ class _CategoryPickerSheet extends StatelessWidget {
       'investment' => Icons.trending_up,
       'gift' => Icons.card_giftcard,
       _ => Icons.category,
-    };
-  }
-}
-
-/// 账户选择底部弹窗。
-class _AccountPickerSheet extends StatelessWidget {
-  const _AccountPickerSheet({
-    required this.accounts,
-    this.selectedId,
-  });
-
-  final List<Account> accounts;
-  final String? selectedId;
-
-  @override
-  Widget build(BuildContext context) {
-    // 桌面端默认会给可滚动区域挂系统滚动条，这里关掉
-    final ScrollBehavior behavior =
-        ScrollConfiguration.of(context).copyWith(scrollbars: false);
-    return ScrollConfiguration(
-      behavior: behavior,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceMd),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.spaceLg,
-                  vertical: AppDimens.spaceSm,
-                ),
-                child: Text(
-                  '选择账户',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ),
-              const Divider(height: 1),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: accounts.length,
-                  itemBuilder: (BuildContext context, int index) {
-                    final Account account = accounts[index];
-                    final bool selected = account.id == selectedId;
-                    return ListTile(
-                      leading: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: account.colorValue != null
-                            ? Color(account.colorValue!)
-                            : AppColors.primary,
-                        child: Icon(
-                          _mapIcon(account.iconKey),
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                      title: Text(account.name),
-                      trailing: selected
-                          ? const Icon(Icons.check, color: AppColors.primary)
-                          : null,
-                      onTap: () => Navigator.of(context).pop(account.id),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  IconData _mapIcon(String? key) {
-    return switch (key) {
-      'cash' => Icons.payments,
-      'bank' => Icons.account_balance,
-      'credit_card' => Icons.credit_card,
-      'wallet' => Icons.account_balance_wallet,
-      'wechat' => Icons.chat_bubble,
-      'alipay' => Icons.payment,
-      'fund' => Icons.pie_chart,
-      'stock' => Icons.show_chart,
-      _ => Icons.account_balance_wallet,
     };
   }
 }

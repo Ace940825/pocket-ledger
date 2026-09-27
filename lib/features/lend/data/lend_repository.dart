@@ -251,7 +251,7 @@ class LendRepository {
   }
 
   /// 债务削减 / 减免：按 [counterparty] 找到该方向下所有未结清记录并冲减，
-  /// 不影响资产账户余额（虚拟的债务减免，没有真实资金流动）。不新增记录。
+  /// 不影响资产账户余额（借出方向为坏账计提、借入方向为债务削减，均无真实资金流动）。不新增记录。
   Future<void> debtReduction({
     required String bookId,
     required LendDirection direction,

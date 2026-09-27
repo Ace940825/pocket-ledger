@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/date_utils.dart';
 import '../../../../providers/app_providers.dart';
 import '../../../../shared/widgets/form_fields.dart';
 import '../../../database/app_database.dart';
@@ -28,7 +29,7 @@ class _TransferPageState extends ConsumerState<TransferPage> {
 
   String? _fromAccountId;
   String? _toAccountId;
-  DateTime _occurredAt = DateTime.now();
+  DateTime _occurredAt = localNow();
   bool _saving = false;
 
   @override

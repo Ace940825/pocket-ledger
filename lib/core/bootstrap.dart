@@ -12,35 +12,59 @@ class _DefaultCategory {
   final int colorValue;
 }
 
-/// 默认支出分类（一级）
+/// 默认支出分类（一级）。
+/// 色板为 ForestSage 调和色：中饱和、整体偏暖，与暖纸底 #FBF6EA /
+/// 黄绿渐变 #AED494 同调（旧 Material 300 粉彩偏冷，已弃用，见
+/// [_legacyCategoryPalette] 迁移）。
 const List<_DefaultCategory> _defaultExpenseCategories = <_DefaultCategory>[
-  _DefaultCategory('餐饮', 'restaurant', 0xFFE57373),
-  _DefaultCategory('交通', 'transport', 0xFFF06292),
-  _DefaultCategory('购物', 'shopping', 0xFFBA68C8),
-  _DefaultCategory('居住', 'home', 0xFF9575CD),
-  _DefaultCategory('娱乐', 'entertainment', 0xFF7986CB),
-  _DefaultCategory('医疗', 'medical', 0xFF64B5F6),
-  _DefaultCategory('教育', 'education', 0xFF4FC3F7),
-  _DefaultCategory('通讯', 'phone', 0xFF4DB6AC),
-  _DefaultCategory('人情', 'heart', 0xFF81C784),
-  _DefaultCategory('其他', 'settings', 0xFFFFB74D),
+  _DefaultCategory('餐饮', 'restaurant', 0xFFD96F52), // 陶土红
+  _DefaultCategory('交通', 'transport', 0xFF5C82B8), // 雾蓝
+  _DefaultCategory('购物', 'shopping', 0xFFB86A9E), // 玫紫
+  _DefaultCategory('居住', 'home', 0xFFA97742), // 木质棕
+  _DefaultCategory('娱乐', 'entertainment', 0xFF8F6FBF), // 葡萄紫
+  _DefaultCategory('医疗', 'medical', 0xFF4A96A6), // 青瓷蓝
+  _DefaultCategory('教育', 'education', 0xFF6470C2), // 靛蓝紫
+  _DefaultCategory('通讯', 'phone', 0xFF4C9E74), // 鼠尾草绿
+  _DefaultCategory('人情', 'heart', 0xFFCE6478), // 玫红
+  _DefaultCategory('其他', 'settings', 0xFFC7A24A), // 赭金
 ];
 
 /// 默认收入分类（一级）
 const List<_DefaultCategory> _defaultIncomeCategories = <_DefaultCategory>[
-  _DefaultCategory('工资', 'salary', 0xFF12B886),
-  _DefaultCategory('奖金', 'bonus', 0xFFEF9F27),
-  _DefaultCategory('投资收益', 'investment', 0xFFE5484D),
-  _DefaultCategory('兼职', 'work', 0xFF378ADD),
-  _DefaultCategory('红包', 'red_envelope', 0xFFD4537E),
-  _DefaultCategory('退款', 'refund', 0xFF888780),
-  _DefaultCategory('其他', 'settings', 0xFFFFB74D),
+  _DefaultCategory('工资', 'salary', 0xFF45936A), // 深鼠尾草
+  _DefaultCategory('奖金', 'bonus', 0xFFD69E3C), // 金黄
+  _DefaultCategory('投资收益', 'investment', 0xFF4E93A6), // 石青
+  _DefaultCategory('兼职', 'work', 0xFF6B87C9), // 长春花蓝
+  _DefaultCategory('红包', 'red_envelope', 0xFFC7564E), // 枣红
+  _DefaultCategory('退款', 'refund', 0xFF8E8A7E), // 暖灰
+  _DefaultCategory('其他', 'settings', 0xFFC7A24A), // 赭金
 ];
+
+/// 旧版 Material 300 粉彩色板（旧种子 + 分类编辑器预设的并集）。
+/// 启动时命中该集合的默认分类颜色会被静默迁移为新调和色板，
+/// 真正自定义的其它颜色不受影响。
+const Set<int> _legacyCategoryPalette = <int>{
+  0xFFE57373, 0xFFF06292, 0xFFBA68C8, 0xFF9575CD,
+  0xFF7986CB, 0xFF64B5F6, 0xFF4FC3F7, 0xFF4DB6AC,
+  0xFF81C784, 0xFFFFB74D, 0xFFA1887F, 0xFF90A4AE,
+  0xFF12B886, 0xFFEF9F27, 0xFFE5484D, 0xFF378ADD,
+  0xFFD4537E, 0xFF888780,
+};
 
 /// 默认预设的分类查询表（name -> 预设图标/配色）。
 final Map<String, _DefaultCategory> _defaultCategoryLookup =
     <String, _DefaultCategory>{
   for (final _DefaultCategory c in _defaultExpenseCategories) c.name: c,
+  for (final _DefaultCategory c in _defaultIncomeCategories) c.name: c,
+};
+
+/// 按类型区分的查询表（支出/收入各一份，「其他」等同名分类配色不同）。
+final Map<String, _DefaultCategory> _expenseCategoryLookup =
+    <String, _DefaultCategory>{
+  for (final _DefaultCategory c in _defaultExpenseCategories) c.name: c,
+};
+final Map<String, _DefaultCategory> _incomeCategoryLookup =
+    <String, _DefaultCategory>{
   for (final _DefaultCategory c in _defaultIncomeCategories) c.name: c,
 };
 
@@ -55,6 +79,42 @@ Future<void> bootstrapData(AppDatabase db) async {
   }
   // 已存在账本：兜底修复老版本默认分类缺少图标/颜色的问题（只补空白值）。
   await _repairDefaultCategoryIcons(db);
+  // 色调迁移：旧 Material 粉彩 → ForestSage 调和色板（幂等，每次启动运行）。
+  await _harmonizeDefaultCategoryColors(db);
+}
+
+/// 色调迁移：一级默认分类若仍持有旧版 Material 粉彩色（见
+/// [_legacyCategoryPalette]），改写为当前调和色板对应色。
+///
+/// 仅命中旧色板的颜色会被替换，用户选的其它自定义颜色不动；
+/// 函数幂等，可安全在每次启动时运行。
+Future<void> _harmonizeDefaultCategoryColors(AppDatabase db) async {
+  final List<Book> books = await db.booksDao.watchAll().first;
+  final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+
+  for (final Book book in books) {
+    final List<Category> categories =
+        await db.categoriesDao.watchAll(book.id).first;
+    for (final Category cat in categories) {
+      if (cat.parentId != null) continue;
+      final int? color = cat.colorValue;
+      if (color == null || !_legacyCategoryPalette.contains(color)) continue;
+      final Map<String, _DefaultCategory> lookup =
+          cat.type == CategoryType.expense
+              ? _expenseCategoryLookup
+              : _incomeCategoryLookup;
+      final _DefaultCategory? def = lookup[cat.name];
+      if (def == null || def.colorValue == color) continue;
+      await (db.update(db.categories)..where((tbl) => tbl.id.equals(cat.id)))
+          .write(
+        CategoriesCompanion(
+          colorValue: Value<int?>(def.colorValue),
+          updatedAt: Value<int>(now),
+          dirty: const Value<bool>(true),
+        ),
+      );
+    }
+  }
 }
 
 /// 写入默认账本、账户与一级分类。

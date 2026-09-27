@@ -285,18 +285,18 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
 
 /// 预设分类配色。
 const List<int> _palette = <int>[
-  0xFFE57373,
-  0xFFF06292,
-  0xFFBA68C8,
-  0xFF9575CD,
-  0xFF7986CB,
-  0xFF64B5F6,
-  0xFF4FC3F7,
-  0xFF4DB6AC,
-  0xFF81C784,
-  0xFFFFB74D,
-  0xFFA1887F,
-  0xFF90A4AE,
+  0xFFD96F52,
+  0xFF5C82B8,
+  0xFFB86A9E,
+  0xFF8F6FBF,
+  0xFF4A96A6,
+  0xFF6470C2,
+  0xFF4C9E74,
+  0xFFCE6478,
+  0xFFA97742,
+  0xFFC7A24A,
+  0xFF8E8A7E,
+  0xFF45936A,
 ];
 
 class _ColorChip extends StatelessWidget {

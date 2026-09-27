@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../features/accounts/providers/accounts_providers.dart';
+import '../../../features/ledger/providers/ledger_providers.dart';
 import '../../../providers/app_providers.dart';
 import '../../../features/tags/presentation/tag_empty_illustration.dart';
+import '../../../shared/models/money.dart';
+import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/money_text.dart';
 import '../providers/record_template_providers.dart';
 import '../record_tab.dart';
+import 'record_sheet.dart';
 import 'record_template_sheet.dart' show RecordTemplateDraft;
 
 /// 「账单模板」独立管理页（方案 C1 · 晕染延续）：
-/// 晕染带（✕ 钮 + 头卡/帮助 + 虚线说明卡）→ 搜索 + 类型筛选 → 奶油卡列表（可删除）
-/// → 底部渐变「添加」长钮。
+/// 晕染带（✕ 钮 + 头卡/帮助 + 虚线说明卡）→ 搜索 + 类型筛选 → 条目列表
+/// （左滑露出「编辑 / 删除」）→ 底部渐变「添加」长钮（进入模板模式记一笔页，
+/// 保存后回本页自动命名入库，不产生流水）。
 class RecordTemplatePage extends ConsumerStatefulWidget {
-  const RecordTemplatePage({super.key, required this.draft});
-
-  /// 从记一笔面板带入的当前填写，用于「添加」保存。
-  final RecordTemplateDraft draft;
+  const RecordTemplatePage({super.key});
 
   @override
   ConsumerState<RecordTemplatePage> createState() => _RecordTemplatePageState();
@@ -67,72 +72,28 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
         _ => true,
       };
 
-  Future<void> _saveDraft() async {
-    final String? name = await showDialog<String>(
-      context: context,
-      builder: (BuildContext ctx) {
-        final TextEditingController ctl = TextEditingController();
-        return AlertDialog(
-          backgroundColor: ForestSurface.card,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          title: const Text(
-            '模板名称',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: ForestNeutral.textPrimary,
-            ),
-          ),
-          content: TextField(
-            controller: ctl,
-            autofocus: true,
-            cursorColor: ForestGreen.deep,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: ForestBg.sunken,
-              hintText: '如「滴滴通勤」「午饭」',
-              hintStyle: const TextStyle(
-                fontSize: 14,
-                color: ForestNeutral.textTertiary,
-              ),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              isCollapsed: false,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text(
-                '取消',
-                style: TextStyle(color: ForestNeutral.textSecondary),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(ctl.text.trim()),
-              child: const Text(
-                '保存',
-                style: TextStyle(
-                  color: ForestGreen.deep,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+  /// 「添加」：进入模板模式记一笔页填写（支出/收入/转账/借还四 Tab），
+  /// 保存后携带草稿返回 → **自动命名入库**（备注 > 对方 > 分类名 > 类型），
+  /// 仅存模板、**不产生任何流水**。
+  Future<void> _addFromEntry() async {
+    final RecordTemplateDraft? d = await Navigator.of(context)
+        .push<RecordTemplateDraft>(
+      MaterialPageRoute<RecordTemplateDraft>(
+        builder: (BuildContext ctx) => const RecordSheet(templateMode: true),
+      ),
     );
-    if (name == null || name.isEmpty) return;
-    final RecordTemplateDraft d = widget.draft;
+    if (d == null || !mounted) return;
+
+    final String name = _suggestName(d);
     await ref.read(recordTemplateRepositoryProvider).add(
           bookId: ref.read(currentBookIdProvider),
           name: name,
           tabIndex: d.tabIndex,
+          amountMinor: d.amountMinor,
+          discountMinor: d.discountMinor,
           accountId: d.accountId,
+          toAccountId: d.toAccountId,
+          counterparty: d.counterparty,
           categoryId: d.categoryId,
           note: d.note,
           tags: d.tags,
@@ -144,6 +105,68 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已保存模板「$name」')),
     );
+  }
+
+  /// 左滑「编辑」：进入模板模式记一笔页并预填模板内容，
+  /// 保存后以草稿更新原模板（保留 id / 创建时间，不产生流水）。
+  Future<void> _editTemplate(RecordTemplate t) async {
+    final RecordTemplateDraft? d = await Navigator.of(context)
+        .push<RecordTemplateDraft>(
+      MaterialPageRoute<RecordTemplateDraft>(
+        builder: (BuildContext ctx) =>
+            RecordSheet(templateMode: true, initialTemplate: t),
+      ),
+    );
+    if (d == null || !mounted) return;
+
+    final String name = _suggestName(d);
+    await ref.read(recordTemplateRepositoryProvider).updateContent(
+          id: t.id,
+          name: name,
+          tabIndex: d.tabIndex,
+          amountMinor: d.amountMinor,
+          discountMinor: d.discountMinor,
+          accountId: d.accountId,
+          toAccountId: d.toAccountId,
+          counterparty: d.counterparty,
+          categoryId: d.categoryId,
+          note: d.note,
+          tags: d.tags,
+          excludeFromStats: d.excludeFromStats,
+          excludeFromBudget: d.excludeFromBudget,
+          isReimbursable: d.isReimbursable,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已更新模板「$name」')),
+    );
+  }
+
+  /// 建议名：备注 > 借还对方 > 分类名 > Tab 类型。
+  String _suggestName(RecordTemplateDraft d) {
+    final String note = (d.note ?? '').trim();
+    if (note.isNotEmpty) return note;
+    final String counterparty = (d.counterparty ?? '').trim();
+    if (counterparty.isNotEmpty) return counterparty;
+    final RecordTab tab = RecordTab.values[d.tabIndex];
+    if (d.categoryId != null) {
+      final AsyncValue<List<Category>> cats =
+          tab == RecordTab.income
+              ? ref.read(incomeCategoriesProvider)
+              : ref.read(expenseCategoriesProvider);
+      final String? cn = cats.maybeWhen(
+        data: (List<Category> l) {
+          final Category? c = l.cast<Category?>().firstWhere(
+                (Category? x) => x?.id == d.categoryId,
+                orElse: () => null,
+              );
+          return c?.name;
+        },
+        orElse: () => null,
+      );
+      if (cn != null && cn.isNotEmpty) return cn;
+    }
+    return tab.label;
   }
 
   void _showHelp() {
@@ -594,21 +617,56 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                           ),
                         ),
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                        itemCount: filtered.length,
-                        separatorBuilder: (BuildContext ctx, int i) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (BuildContext ctx, int i) {
-                          final RecordTemplate t = filtered[i];
-                          return RecordTemplateCard(
-                            template: t,
-                            radius: 18,
-                            iconEdge: 42,
-                            iconRadius: 14,
-                            onDelete: () => _remove(t),
-                          );
-                        },
+                    : SlidableAutoCloseBehavior(
+                        child: ListView.separated(
+                          padding:
+                              const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                          itemCount: filtered.length,
+                          separatorBuilder: (BuildContext ctx, int i) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (BuildContext ctx, int i) {
+                            final RecordTemplate t = filtered[i];
+                            return Slidable(
+                              key: ValueKey<String>(t.id),
+                              // 左滑露出「编辑 / 删除」操作块（滑出式，占 34%）。
+                              endActionPane: ActionPane(
+                                motion: const BehindMotion(),
+                                extentRatio: 0.34,
+                                children: <Widget>[
+                                  SlidableAction(
+                                    onPressed: (BuildContext _) =>
+                                        _editTemplate(t),
+                                    backgroundColor: const Color(0xFF4C8D6B),
+                                    foregroundColor: Colors.white,
+                                    icon: Icons.edit_outlined,
+                                    label: '编辑',
+                                    spacing: 2,
+                                  ),
+                                  SlidableAction(
+                                    onPressed: (BuildContext _) =>
+                                        _remove(t),
+                                    backgroundColor: ForestSemantic.expense,
+                                    foregroundColor: Colors.white,
+                                    icon: Icons.delete_outline,
+                                    label: '删除',
+                                    spacing: 2,
+                                  ),
+                                ],
+                              ),
+                              // 卡片未选中为透明底，包一层纸底避免
+                              // 左滑时操作块从透明区透出。
+                              child: Container(
+                                color: ForestBg.paper,
+                                child: RecordTemplateCard(
+                                  template: t,
+                                  radius: 18,
+                                  iconEdge: 42,
+                                  iconRadius: 14,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
               ),
               // 底部渐变「添加」长钮
@@ -625,7 +683,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                       width: double.infinity,
                       height: 50,
                       child: InkWell(
-                        onTap: _saveDraft,
+                        onTap: _addFromEntry,
                         borderRadius: BorderRadius.circular(999),
                         child: Container(
                           alignment: Alignment.center,
@@ -703,18 +761,18 @@ class _NoteDashedBorderPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// 模板卡（弹窗与管理页共用）：
-/// 未选 = 奶油卡 + 发丝线；选中 = 鼠尾草渐变卡 + 白字（方案 C 选中卡）。
+/// 模板卡（弹窗与管理页共用），对齐流水条目布局：
+/// 分类色图标块 + 名称 + 「账户摘要 · MM-dd HH:mm · 备注」副行 → 右侧着色金额。
+/// 未选 = 流水条目样式（透明底 + 底部发丝线）；选中 = 鼠尾草渐变卡 + 白字。
 class RecordTemplateCard extends ConsumerWidget {
   const RecordTemplateCard({
     super.key,
     required this.template,
     this.selected = false,
     this.radius = 16,
-    this.iconEdge = 40,
-    this.iconRadius = 13,
+    this.iconEdge = 38,
+    this.iconRadius = 12,
     this.onTap,
-    this.onDelete,
   });
 
   final RecordTemplate template;
@@ -723,83 +781,199 @@ class RecordTemplateCard extends ConsumerWidget {
   /// 卡片圆角：弹窗 16 / 独立页 18（对齐设计稿）。
   final double radius;
 
-  /// 图标块边长/圆角：弹窗（方案 C）40/13 · 独立页（C1）42/14。
+  /// 图标块边长/圆角。
   final double iconEdge;
   final double iconRadius;
   final VoidCallback? onTap;
-  final VoidCallback? onDelete;
 
-  IconData get _icon => switch (RecordTab.values[template.tabIndex]) {
-        RecordTab.expense => Icons.shopping_bag_outlined,
-        RecordTab.income => Icons.savings_outlined,
-        RecordTab.transfer => Icons.swap_horiz,
-        RecordTab.lend => Icons.handshake_outlined,
-        RecordTab.reimbursement => Icons.receipt_long_outlined,
-        RecordTab.refund => Icons.assignment_return_outlined,
-        RecordTab.savings => Icons.account_balance_outlined,
-        RecordTab.installment => Icons.event_repeat_outlined,
-      };
+  /// 选中态（渐变卡）用的白色金额文案：支出 − / 收入 + / 其余 ¥。
+  String _signedAmountText() {
+    final RecordTab tab = RecordTab.values[template.tabIndex];
+    if (template.amountMinor <= 0) return tab.label;
+    final String money =
+        Money.fromMinor(template.amountMinor).format(showSymbol: false);
+    return switch (tab) {
+      RecordTab.expense => '−$money',
+      RecordTab.income => '+$money',
+      _ => '¥$money',
+    };
+  }
 
-  Color get _tabColor => switch (RecordTab.values[template.tabIndex]) {
-        RecordTab.expense => ForestSemantic.expense,
-        RecordTab.income => ForestSemantic.income,
-        _ => ForestNeutral.textSecondary,
-      };
+  /// 金额组件（对齐流水条目）：支出 −红 / 收入 +绿（MoneyText signed），
+  /// 转账·借还 中性墨；旧模板金额为 0 时退化为类型文案。
+  Widget _amountWidget() {
+    final RecordTab tab = RecordTab.values[template.tabIndex];
+    if (template.amountMinor <= 0) {
+      return Text(
+        tab.label,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: ForestNeutral.textSecondary,
+        ),
+      );
+    }
+    final Money money = Money.fromMinor(template.amountMinor);
+    return switch (tab) {
+      RecordTab.expense =>
+        MoneyText(Money.fromMinor(-template.amountMinor),
+            signed: true, style: const TextStyle(fontSize: 15)),
+      RecordTab.income => MoneyText(money,
+          signed: true, style: const TextStyle(fontSize: 15)),
+      _ => Text(
+          '¥${money.format(showSymbol: false)}',
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: ForestNeutral.textPrimary,
+          ),
+        ),
+    };
+  }
+
+  /// 图标与着色（对齐流水条目）：有分类用分类色 + 分类图标，否则按类型兜底。
+  (IconData, Color) _iconStyle(Map<String, Category> categories) {
+    final RecordTab tab = RecordTab.values[template.tabIndex];
+    final Category? c =
+        template.categoryId == null ? null : categories[template.categoryId];
+    final (IconData, Color) fallback = switch (tab) {
+      RecordTab.income => (Icons.south_west, ForestSemantic.income),
+      RecordTab.transfer => (Icons.swap_horiz, ForestGreen.deep),
+      RecordTab.lend => (Icons.handshake_outlined, ForestGreen.deep),
+      _ => (Icons.shopping_bag_outlined, ForestSemantic.expense),
+    };
+    if (c == null) return fallback;
+    final IconData icon = c.iconKey != null && c.iconKey!.isNotEmpty
+        ? categoryIconData(c.iconKey)
+        : fallback.$1;
+    final Color tint =
+        c.colorValue != null ? Color(c.colorValue!) : fallback.$2;
+    return (icon, tint);
+  }
+
+  /// 账户摘要行：支出/收入 = 账户；转账 = 「A → B」；借还 = 对方（缺则账户）。
+  String _accountSummary(List<Account> accounts) {
+    String? nameOf(String? id) {
+      if (id == null) return null;
+      for (final Account a in accounts) {
+        if (a.id == id) return a.name;
+      }
+      return null;
+    }
+
+    final RecordTab tab = RecordTab.values[template.tabIndex];
+    switch (tab) {
+      case RecordTab.transfer:
+        final String from = nameOf(template.accountId) ?? '转出账户';
+        final String to = nameOf(template.toAccountId) ?? '转入账户';
+        return '$from → $to';
+      case RecordTab.lend:
+        final String cp = (template.counterparty ?? '').trim();
+        if (cp.isNotEmpty) return cp;
+        return nameOf(template.accountId) ?? '借还';
+      case RecordTab.expense:
+      case RecordTab.income:
+      case RecordTab.reimbursement:
+      case RecordTab.refund:
+      case RecordTab.savings:
+      case RecordTab.installment:
+        return nameOf(template.accountId) ?? tab.label;
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final RecordTab tab = RecordTab.values[template.tabIndex];
+    final List<Account> accounts =
+        ref.watch(accountsProvider).value ?? const <Account>[];
+    final Map<String, Category> categories =
+        ref.watch(categoryMapProvider).valueOrNull ?? const <String, Category>{};
+    final (IconData icon, Color tint) = _iconStyle(categories);
+    final Color onCard = selected ? Colors.white : ForestNeutral.textPrimary;
+    final Color faintOnCard = selected
+        ? Colors.white.withValues(alpha: 0.8)
+        : ForestNeutral.textTertiary;
 
-    // 副标题：分类 · 类型 · 备注/开关（弹窗卡片与管理页共用口径）。
-    String? categoryName;
-    if (template.categoryId != null &&
-        (tab == RecordTab.expense || tab == RecordTab.income)) {
-      final AsyncValue<List<Category>> cats = ref.watch(
-        tab == RecordTab.income
-            ? incomeCategoriesProvider
-            : expenseCategoriesProvider,
-      );
-      categoryName = cats.maybeWhen(
-        data: (List<Category> l) {
-          final Category? c = l.cast<Category?>().firstWhere(
-                (Category? x) => x?.id == template.categoryId,
-                orElse: () => null,
-              );
-          return c?.name;
-        },
-        orElse: () => null,
-      );
-    }
-    final List<String> sw = <String>[
-      if (template.excludeFromStats) '不计收支',
-      if (template.excludeFromBudget) '不计预算',
-      if (template.isReimbursable) '可报销',
-    ];
-    final String subtitle = <String>[
-      if (categoryName != null && categoryName.isNotEmpty) categoryName,
-      tab.label,
-      if (template.note != null && template.note!.isNotEmpty) template.note!,
-      if (sw.isNotEmpty) sw.join('/'),
-    ].join(' · ');
+    // 副行与流水条目同构：「账户（或摘要）  MM-dd HH:mm  备注」。
+    final DateTime created = DateTime.fromMillisecondsSinceEpoch(
+      template.createdAt,
+    );
+    final String noteSuffix = (template.note ?? '').isEmpty
+        ? ''
+        : '  ${template.note}';
 
-    final Color titleColor =
-        selected ? Colors.white : ForestNeutral.textPrimary;
-    final Color subColor = selected
-        ? Colors.white.withValues(alpha: 0.85)
-        : ForestNeutral.textSecondary;
+    final Widget content = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        // 分类图标块（分类色 12% 底 · 与流水条目一致）
+        Container(
+          width: iconEdge,
+          height: iconEdge,
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.white.withValues(alpha: 0.22)
+                : tint.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(iconRadius),
+          ),
+          child: Icon(
+            icon,
+            size: 22,
+            color: selected ? Colors.white : tint,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                template.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: onCard,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${_accountSummary(accounts)}  ${DateFormat('MM-dd HH:mm').format(created)}'
+                '$noteSuffix',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: faintOnCard),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        selected
+            ? Text(
+                _signedAmountText(),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              )
+            : _amountWidget(),
+      ],
+    );
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(radius),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
         decoration: BoxDecoration(
+          // 未选中 = 流水条目样式（透明底 + 底部发丝线）；选中 = 鼠尾草渐变卡。
           gradient: selected ? ForestGradients.sageMid : null,
-          color: selected ? null : ForestSurface.card,
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(
-            color: selected ? Colors.transparent : ForestNeutral.hairline,
-          ),
+          border: selected
+              ? Border.all(color: Colors.transparent)
+              : const Border(
+                  bottom: BorderSide(color: ForestNeutral.hairline),
+                ),
           boxShadow: selected
               ? const <BoxShadow>[
                   BoxShadow(
@@ -810,88 +984,7 @@ class RecordTemplateCard extends ConsumerWidget {
                 ]
               : null,
         ),
-        child: Row(
-          children: <Widget>[
-            // 图标块（沙底圆角方 / 选中时半透明白）
-            Container(
-              width: iconEdge,
-              height: iconEdge,
-              decoration: BoxDecoration(
-                color: selected
-                    ? Colors.white.withValues(alpha: 0.22)
-                    : ForestBg.sunken,
-                borderRadius: BorderRadius.circular(iconRadius),
-              ),
-              child: Icon(
-                _icon,
-                size: 19,
-                color: selected ? Colors.white : ForestGreen.deep,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    template.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: titleColor,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11.5, color: subColor),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            // 右侧：类型标签（数据模型无金额，用类型色标签代替）
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Text(
-                  tab.label,
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                    color: selected ? Colors.white : _tabColor,
-                  ),
-                ),
-                if (sw.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Text(
-                      sw.join('/'),
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: selected
-                            ? Colors.white.withValues(alpha: 0.8)
-                            : ForestNeutral.textTertiary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            if (onDelete != null)
-              IconButton(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline),
-                iconSize: 20,
-                color: selected ? Colors.white70 : ForestNeutral.textTertiary,
-                padding: const EdgeInsets.only(left: 6),
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              ),
-          ],
-        ),
+        child: content,
       ),
     );
   }

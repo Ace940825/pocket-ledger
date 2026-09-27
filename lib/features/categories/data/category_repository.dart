@@ -16,6 +16,34 @@ class CategoryRepository {
 
   final AppDatabase _db;
 
+  /// 查找或创建指定名称的分类，返回分类 ID（系统落账用，如「报销收入」）。
+  ///
+  /// 同账本同类型下按名称精确匹配（含未删除的），命中即复用；
+  /// 未命中则用 [add] 创建，保证多次落账只会有一枚系统类目。
+  Future<String> ensureNamed({
+    required String bookId,
+    required String name,
+    required CategoryType type,
+    String? iconKey,
+    int? colorValue,
+  }) async {
+    final String trimmed = name.trim();
+    final List<Category> all =
+        await _db.categoriesDao.watchAll(bookId).first;
+    for (final Category c in all) {
+      if (c.type == type && c.name == trimmed) {
+        return c.id;
+      }
+    }
+    return add(
+      bookId: bookId,
+      name: trimmed,
+      type: type,
+      iconKey: iconKey,
+      colorValue: colorValue,
+    );
+  }
+
   /// 新增分类。返回新记录 ID。
   Future<String> add({
     required String bookId,

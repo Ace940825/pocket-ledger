@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/constants/app_colors.dart';
 import 'date_picker_sheet.dart';
+import 'line_icons.dart';
 
 /// 轻量日期选择行（可选清除）。多个模块表单复用。
 class DateField extends StatelessWidget {
@@ -28,6 +30,11 @@ class DateField extends StatelessWidget {
         Expanded(
           child: ListTile(
             contentPadding: EdgeInsets.zero,
+            leading: LineIcon(
+              LineIconKind.calendar,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
             title: Text(label),
             subtitle: Text(
               value == null ? '未设置' : DateFormat(formatPattern).format(value!),

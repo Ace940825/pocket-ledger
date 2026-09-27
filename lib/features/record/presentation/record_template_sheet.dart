@@ -9,11 +9,17 @@ import '../providers/record_template_providers.dart';
 import '../record_tab.dart';
 import 'record_template_page.dart';
 
-/// 记一笔模板草稿：从当前记一笔面板抓取的可复用字段（金额除外，金额每次仍需手填）。
+/// 模板草稿：模板模式记一笔页「保存」时打包返回的可入库字段。
+///
+/// 金额为「示例金额」：模板卡展示用，套用时同样带入、可再改。
 class RecordTemplateDraft {
   const RecordTemplateDraft({
     required this.tabIndex,
+    this.amountMinor = 0,
+    this.discountMinor = 0,
     this.accountId,
+    this.toAccountId,
+    this.counterparty,
     this.categoryId,
     this.note,
     this.tags,
@@ -23,7 +29,13 @@ class RecordTemplateDraft {
   });
 
   final int tabIndex;
+  final int amountMinor;
+
+  /// 示例优惠（分）：支出/转账模板可带，套用与编辑时回填。
+  final int discountMinor;
   final String? accountId;
+  final String? toAccountId;
+  final String? counterparty;
   final String? categoryId;
   final String? note;
   final String? tags;
@@ -38,17 +50,14 @@ class RecordTemplateDraft {
 class RecordTemplateSheet extends ConsumerStatefulWidget {
   const RecordTemplateSheet({
     super.key,
-    required this.draft,
     required this.onApply,
   });
 
-  final RecordTemplateDraft draft;
   final ValueChanged<RecordTemplate> onApply;
 
   /// 统一入口：透明底弹窗，圆角由内容自绘。
-  static Future<void> show(
-    BuildContext context, {
-    required RecordTemplateDraft draft,
+  static Future<void> show({
+    required BuildContext context,
     required ValueChanged<RecordTemplate> onApply,
   }) {
     return showModalBottomSheet<void>(
@@ -56,7 +65,6 @@ class RecordTemplateSheet extends ConsumerStatefulWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => RecordTemplateSheet(
-        draft: draft,
         onApply: onApply,
       ),
     );
@@ -219,9 +227,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                 onTap: () async {
                   await Navigator.of(context).push<void>(
                     MaterialPageRoute<void>(
-                      builder: (BuildContext ctx) => RecordTemplatePage(
-                        draft: widget.draft,
-                      ),
+                      builder: (BuildContext ctx) => const RecordTemplatePage(),
                     ),
                   );
                   if (mounted) setState(() {});

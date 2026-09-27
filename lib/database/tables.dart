@@ -150,6 +150,9 @@ class Transactions extends Table with SyncColumns {
   BoolColumn get isReimbursable =>
       boolean().withDefault(const Constant(false))();
 
+  /// 报销账户：报销支出关联的「报销」类型账户；未选择时为 null。
+  TextColumn get reimbursementAccountId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => <Column>{id};
 }
@@ -203,6 +206,10 @@ class Reimbursements extends Table with SyncColumns {
   TextColumn get note => text().nullable()();
   TextColumn get attachmentUrls => text().nullable()();
   TextColumn get transactionId => text().nullable()();
+
+  /// 收款流水：这笔报销被「记一笔报销收入」抵扣时落账的收入流水 ID。
+  /// 用于账单明细弹窗反向展示「关联账单」（报销收入 → 垫付账单）。
+  TextColumn get incomeTransactionId => text().nullable()();
 
   /// 报销账户：产生原始支出的资产账户。
   TextColumn get accountId => text().nullable()();
@@ -389,8 +396,8 @@ class PendingOps extends Table {
 
 /// 记一笔模板（本地，不参与云端同步）。
 ///
-/// 用户把常用的「账户 + 分类 + 备注 + 标签 + 开关」存为模板，
-/// 下次记一笔时点一下即可一键填充。金额不存——每次使用仍需手填。
+/// 用户把常用的「账户 + 分类 + 备注 + 标签 + 开关 + 金额」存为模板，
+/// 下次记一笔时点一下即可一键填充。模板页保存时不写入 Transactions（不产生流水）。
 /// 刻意不混入 [SyncColumns]：模板是纯本地偏好，跨设备同步意义不大，
 /// 也避免触动同步编解码白名单与 self_check 的「12 张业务表」断言。
 class RecordTemplates extends Table {
@@ -403,8 +410,20 @@ class RecordTemplates extends Table {
   /// 适用 Tab：[RecordTab] 的 index（支出/收入/转账/借还/退款/报销）。
   IntColumn get tabIndex => integer()();
 
+  /// 示例金额（分）。仅用于模板卡展示，套用时仍会带入可改。
+  IntColumn get amountMinor => integer().withDefault(const Constant(0))();
+
+  /// 示例优惠（分）。支出/转账模板可带，套用时仍会带入可改。
+  IntColumn get discountMinor => integer().withDefault(const Constant(0))();
+
   /// 默认账户（可选）。
   TextColumn get accountId => text().nullable()();
+
+  /// 转账模板的转入账户（可选）。
+  TextColumn get toAccountId => text().nullable()();
+
+  /// 借还模板的对方（可选），如「小米」。
+  TextColumn get counterparty => text().nullable()();
 
   /// 默认分类（可选）。
   TextColumn get categoryId => text().nullable()();

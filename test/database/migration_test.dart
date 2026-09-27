@@ -101,7 +101,7 @@ void main() {
     await expectLater(db.booksDao.watchAll().first, completes);
     await db.close();
 
-    expect(userVersion(), 10, reason: '迁移成功后 user_version 必须推进到 10');
+    expect(userVersion(), 15, reason: '迁移成功后 user_version 必须推进到 15');
   });
 
   test('升级路径也必须补齐索引（且幂等）', () async {
@@ -147,7 +147,7 @@ void main() {
     expect(transactionColumns(), contains('exclude_from_stats'));
     expect(transactionColumns(), contains('exclude_from_budget'));
     expect(transactionColumns(), contains('is_reimbursable'));
-    expect(userVersion(), 10, reason: 'v6→v10 升级后 user_version 必须推进到 10');
+    expect(userVersion(), 15, reason: 'v6→v15 升级后 user_version 必须推进到 15');
     // v8 迁移同时补齐本地模板表。
     expect(tableExists('record_templates'), isTrue);
   });
@@ -157,7 +157,7 @@ void main() {
     await db.booksDao.watchAll().first;
     await db.close();
 
-    expect(userVersion(), 10);
+    expect(userVersion(), 15);
     expect(reimbursementColumns(), contains('exclude_from_stats'));
     expect(transactionColumns(), contains('exclude_from_stats'));
     expect(transactionColumns(), contains('exclude_from_budget'));
@@ -186,7 +186,7 @@ void main() {
     await db.booksDao.watchAll().first; // 走 v8→v9 onUpgrade
     await db.close();
 
-    expect(userVersion(), 10);
+    expect(userVersion(), 15);
     expect(
       columnsOf('installment_plans'),
       contains('fee_by_period_minor'),
@@ -215,11 +215,46 @@ void main() {
     await db.booksDao.watchAll().first; // 走 v9→v10 onUpgrade
     await db.close();
 
-    expect(userVersion(), 10);
+    expect(userVersion(), 15);
     expect(
       columnsOf('installment_plans'),
       contains('repeat_rule'),
       reason: 'v10 迁移必须补齐重复周期规则列',
     );
+  });
+
+  test('v15 把旧四态（已提交/已收款）归并到两态（待报销/已报销）', () async {
+    await createCurrentSchema();
+    forceUserVersion(14);
+
+    // 插入 4 条覆盖旧索引 0=待报销 1=已提交 2=已报销 3=已收款。
+    final raw.Database rawDb = raw.sqlite3.open(dbPath());
+    for (final int st in <int>[0, 1, 2, 3]) {
+      rawDb.execute(
+        'INSERT INTO reimbursements '
+        '(id, book_id, title, status, amount_minor, payer, occurred_at, updated_at) '
+        "VALUES ('r$st', 'bk', 't$st', $st, 100, 'me', 0, 0)",
+      );
+    }
+    rawDb.dispose();
+
+    final AppDatabase db = AppDatabase(NativeDatabase(File(dbPath())));
+    await db.booksDao.watchAll().first; // 触发 v14→v15 升级（含状态归并）
+    await db.close();
+
+    final raw.Database rawDb2 = raw.sqlite3.open(dbPath());
+    final Map<int, int> byId = <int, int>{
+      for (final raw.Row r in rawDb2.select(
+        'SELECT id, status FROM reimbursements',
+      ))
+        int.parse(r['id'] as String): r['status'] as int,
+    };
+    rawDb2.dispose();
+
+    expect(userVersion(), 15);
+    expect(byId[0], 0, reason: '旧待报销保持待报销');
+    expect(byId[1], 0, reason: '旧已提交归为待报销');
+    expect(byId[2], 1, reason: '旧已报销保持已报销');
+    expect(byId[3], 1, reason: '旧已收款归为已报销');
   });
 }
