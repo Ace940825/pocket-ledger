@@ -27,6 +27,7 @@ import '../features/lend/presentation/lend_page.dart';
 import '../features/more/presentation/more_page.dart';
 import '../features/record/presentation/record_sheet.dart';
 import '../features/record/record_tab.dart';
+import '../features/reimbursement/presentation/reimbursement_bill_picker_page.dart';
 import '../features/reimbursement/presentation/reimbursement_page.dart';
 import '../features/report/presentation/report_page.dart';
 import '../features/savings/presentation/savings_page.dart';
@@ -59,6 +60,7 @@ abstract final class Routes {
   static const String transfer = '/transfer';
   static const String lend = '/lend';
   static const String reimbursement = '/reimbursement';
+  static const String reimbursementBillPicker = '/reimbursement/bill-picker';
   static const String savings = '/savings';
   static const String installment = '/installment';
   static const String installmentAdd = '/installment/add';
@@ -207,6 +209,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: Routes.reimbursement,
         builder: (_, __) => const ReimbursementPage(),
+      ),
+      GoRoute(
+        path: Routes.reimbursementBillPicker,
+        builder: (_, GoRouterState state) => ReimbursementBillPickerPage(
+          args: state.extra! as ReimbBillPickerArgs,
+        ),
       ),
       GoRoute(
         path: Routes.savings,
