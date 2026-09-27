@@ -4429,16 +4429,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// ① 所选报销分支账户下的账单；② 未选取报销账户的账单。
   /// 归属其他报销分支账户的账单不显示，避免跨账户重复提取。
   Future<void> _showRbHistoryPicker() async {
-    if (_rbAccountId == null) {
-      _toast('请先选择报销账户，才能提取历史账单');
-      return;
-    }
-    // 独立整页选择（替代原底部弹层）：标题与全选同层不再重叠，
-    // 确认后 pop 返回选中 ID 集合。
+    // 未选报销账户也可进入：页内只列「未指定报销账户」的账单；
+    // 选了账户则同时列出该账户分支账单。保存时仍要求先选报销账户。
     final Set<String>? result = await context.push<Set<String>>(
       Routes.reimbursementBillPicker,
       extra: ReimbBillPickerArgs(
-        accountId: _rbAccountId!,
+        accountId: _rbAccountId,
         initialSelected: Set<String>.from(_rbHistIds),
       ),
     );

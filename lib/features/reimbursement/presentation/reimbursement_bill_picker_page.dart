@@ -13,22 +13,23 @@ import '../../ledger/providers/ledger_providers.dart';
 import '../data/reimbursement_repository.dart';
 import '../providers/reimbursement_providers.dart';
 
-/// 「选择账单」独立页参数：报销账户 ID + 已勾选集合。
+/// 「选择账单」独立页参数：报销账户 ID（未选账户时为 null，
+/// 页内只列未指定报销账户的账单）+ 已勾选集合。
 class ReimbBillPickerArgs {
   const ReimbBillPickerArgs({
-    required this.accountId,
+    this.accountId,
     this.initialSelected = const <String>{},
   });
 
-  final String accountId;
+  final String? accountId;
   final Set<String> initialSelected;
 }
 
 /// 报销 · 从历史账单选择（独立整页，替代原底部弹层）。
 ///
 /// 头部：返回 + 居中标题「选择账单」+「全选 / 取消全选」（AppBar actions，
-/// 与标题同层不重叠）；列表分「分支账单 / 未选取报销账户」两组；底部渐变
-/// 「确认」胶囊，pop 返回 Set<String>（选中流水 ID）。
+/// 与标题同层不重叠）；列表分「分支账单 / 未指定报销账户」两组（未选
+/// 报销账户进入时只有后一组）；底部渐变「确认」胶囊，pop 返回 Set<String>。
 class ReimbursementBillPickerPage extends ConsumerStatefulWidget {
   const ReimbursementBillPickerPage({super.key, required this.args});
 
@@ -165,7 +166,7 @@ class _ReimbursementBillPickerPageState
                         _row(t, categories, receivedMap[t.id] ?? 0),
                     ],
                     if (loose.isNotEmpty) ...<Widget>[
-                      _sectionHeader('未选取报销账户', loose.length),
+                      _sectionHeader('未指定报销账户', loose.length),
                       for (final Transaction t in loose)
                         _row(t, categories, receivedMap[t.id] ?? 0),
                     ],
@@ -184,7 +185,8 @@ class _ReimbursementBillPickerPageState
     );
   }
 
-  /// 可提取账单两组：分支账单（指向当前报销账户）/ 未选取报销账户。
+  /// 可提取账单两组：分支账单（指向当前报销账户，未选账户时无此组）/
+  /// 未指定报销账户（reimbursementAccountId == null）。
   /// 已全额报销的账单屏蔽，与保存路径「已报销跳过抵扣」同口径。
   (List<Transaction>, List<Transaction>) _split(List<Transaction> list) {
     final List<Reimbursement> records =
@@ -196,12 +198,14 @@ class _ReimbursementBillPickerPageState
             r.transactionId != null)
           r.transactionId!,
     };
+    final String? branchAccountId = widget.args.accountId;
     final List<Transaction> branch = <Transaction>[];
     final List<Transaction> loose = <Transaction>[];
     for (final Transaction t in list) {
       if (t.type != TxnType.expense || !t.isReimbursable) continue;
       if (reimbursedBillIds.contains(t.id)) continue;
-      if (t.reimbursementAccountId == widget.args.accountId) {
+      if (t.reimbursementAccountId != null &&
+          t.reimbursementAccountId == branchAccountId) {
         branch.add(t);
       } else if (t.reimbursementAccountId == null) {
         loose.add(t);
