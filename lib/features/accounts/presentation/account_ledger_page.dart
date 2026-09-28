@@ -14,6 +14,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../data/account_icon.dart';
 import '../../../providers/asset_stats_settings.dart';
+import '../../record/presentation/record_sheet.dart';
 import '../providers/accounts_providers.dart';
 import 'account_ledger_grouping.dart';
 import 'widgets/account_transaction_tile.dart';
@@ -413,7 +414,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
           AppDimens.spaceLg,
         ),
         child: FilledButton(
-          onPressed: () => context.push(Routes.ledgerAdd),
+          onPressed: () => openRecordSheet(context),
           child: const Padding(
             padding: EdgeInsets.symmetric(vertical: AppDimens.spaceMd),
             child: Text('记一笔'),

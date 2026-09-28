@@ -16,6 +16,7 @@ import '../../../shared/widgets/line_icons.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/providers/ledger_providers.dart';
+import '../../record/presentation/record_sheet.dart';
 import '../../../providers/asset_stats_settings.dart';
 import '../data/reimbursement_repository.dart';
 import '../providers/reimbursement_providers.dart';
@@ -979,7 +980,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
           children: <Widget>[
             Expanded(
               child: _PillButton(
-                onPressed: () => context.push(Routes.ledgerAdd),
+                onPressed: () => openRecordSheet(context),
                 backgroundColor: ghostBg,
                 border: Border.all(color: ghostBorder),
                 textColor:

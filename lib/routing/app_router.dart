@@ -21,7 +21,6 @@ import '../features/installment/presentation/installment_page.dart';
 import '../features/inventory/presentation/inventory_page.dart';
 import '../features/investment/presentation/investment_page.dart';
 import '../features/ledger/presentation/category_transactions_page.dart';
-import '../features/ledger/presentation/edit_transaction_page.dart';
 import '../features/ledger/presentation/ledger_page.dart';
 import '../features/lend/presentation/lend_page.dart';
 import '../features/more/presentation/more_page.dart';
@@ -46,7 +45,6 @@ abstract final class Routes {
   static const String budget = '/budget';
   static const String report = '/report';
 
-  static const String ledgerAdd = '/ledger/add';
   static const String ledgerEdit = '/ledger/edit/:id';
 
   static const String more = '/more';
@@ -129,14 +127,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
 
       // 全屏页面（不显示底部导航）
-      GoRoute(
-        path: Routes.ledgerAdd,
-        builder: (_, __) => const EditTransactionPage(),
-      ),
+      // 编辑流水：统一进「记一笔」页（编辑模式，回填原流水）。
       GoRoute(
         path: Routes.ledgerEdit,
-        builder: (_, GoRouterState state) => EditTransactionPage(
-          transactionId: state.pathParameters['id'],
+        builder: (_, GoRouterState state) => RecordSheet(
+          editTxnId: state.pathParameters['id'],
         ),
       ),
       GoRoute(

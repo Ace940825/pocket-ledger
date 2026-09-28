@@ -8,6 +8,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../database/app_database.dart';
 import '../../../routing/app_router.dart';
+import '../../record/presentation/record_sheet.dart';
 import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/transaction_tile.dart';
@@ -79,7 +80,7 @@ class LedgerPage extends ConsumerWidget {
         error: (Object e, StackTrace? s) => Center(child: Text('加载失败：$e')),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push(Routes.ledgerAdd),
+        onPressed: () => openRecordSheet(context),
         child: const Icon(Icons.add),
       ),
     );

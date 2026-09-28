@@ -163,12 +163,19 @@ class RecordSheet extends ConsumerStatefulWidget {
     this.initialTab = RecordTab.expense,
     this.templateMode = false,
     this.initialTemplate,
+    this.editTxnId,
   });
 
   final RecordTab initialTab;
 
   /// 模板页「编辑」入口：带入模板内容预填表单（含初始 Tab / 金额 / 账户等）。
   final RecordTemplate? initialTemplate;
+
+  /// 编辑模式：待编辑流水的 ID（`/ledger/edit/:id` 入口）。
+  ///
+  /// 非空时 Tab 收窄为 支出 / 收入 / 转账 三个（流水表只存这三类），
+  /// 加载原流水回填表单，保存走 [TransactionRepository.updateTransaction]。
+  final String? editTxnId;
 
   /// 模板模式（账单模板页「添加」入口）：
   /// - Tab 收窄为 支出 / 收入 / 转账 / 借还 四个；
@@ -186,7 +193,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   RecordTab _tab = RecordTab.expense;
   late TabController _tabController;
 
-  /// 当前模式可用的 Tab 列表：普通记账为全部 8 个，模板模式仅 4 个。
+  /// 当前模式可用的 Tab 列表：普通记账为全部 8 个，模板模式仅 4 个；
+  /// 编辑模式仅 支出 / 收入 / 转账 三个（Transactions 表只存这三类）。
   List<RecordTab> get _tabs => widget.templateMode
       ? const <RecordTab>[
           RecordTab.expense,
@@ -194,7 +202,19 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           RecordTab.transfer,
           RecordTab.lend,
         ]
-      : RecordTab.values;
+      : widget.editTxnId != null
+          ? const <RecordTab>[
+              RecordTab.expense,
+              RecordTab.income,
+              RecordTab.transfer,
+            ]
+          : RecordTab.values;
+
+  /// 是否编辑模式（`/ledger/edit/:id` 入口）。
+  bool get _isEdit => widget.editTxnId != null;
+
+  /// 编辑模式：被编辑的原始流水（保存时作为 updateTransaction 的 original）。
+  Transaction? _editingTxn;
 
   /// 与 [TabBar] 联动的页面控制器；使用 [PageView.builder] 替代 [TabBarView]，
   /// 只构建当前页和相邻页，避免首帧同时创建 8 套完整表单导致的超长帧。
@@ -343,6 +363,57 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     if (widget.initialTemplate != null) {
       _applyTemplateFields(widget.initialTemplate!);
     }
+    // 编辑模式：异步加载原流水并回填。
+    if (widget.editTxnId != null) {
+      _loadEditingTxn();
+    }
+  }
+
+  /// 编辑模式：加载原流水并回填表单（金额 / 账户 / 分类 / 日期 / 备注 / 附件），
+  /// Tab 定位到原类型对应页。加载失败（已删除）直接退出。
+  Future<void> _loadEditingTxn() async {
+    final Transaction? txn =
+        await ref.read(transactionsDaoProvider).getById(widget.editTxnId!);
+    if (!mounted) return;
+    if (txn == null) {
+      _toast('流水不存在或已被删除');
+      context.pop();
+      return;
+    }
+    final RecordTab tab = switch (txn.type) {
+      TxnType.expense => RecordTab.expense,
+      TxnType.income => RecordTab.income,
+      TxnType.transfer => RecordTab.transfer,
+    };
+    final int index = _tabs.indexOf(tab).clamp(0, _tabs.length - 1);
+    setState(() {
+      _editingTxn = txn;
+      _tab = _tabs[index];
+      _tabController.index = index;
+      _amount = Money.fromMinor(txn.amountMinor).decimal.toStringAsFixed(2);
+      _accountId = txn.accountId;
+      _toAccountId = txn.toAccountId;
+      _categoryId = txn.categoryId;
+      _occurredAt = DateTime.fromMillisecondsSinceEpoch(
+        txn.occurredAt,
+        isUtc: true,
+      ).toLocal();
+      _noteController.text = txn.note ?? '';
+      _attachmentPaths.addAll(
+        parseAttachmentUrls(txn.attachmentUrls) ?? const <String>[],
+      );
+      // 手续费 / 优惠回填：状态串与输入控制器同步（转账 / 支出优惠输入框读取控制器文本）。
+      if (txn.feeMinor > 0) {
+        _feeAmount = Money.fromMinor(txn.feeMinor).decimal.toStringAsFixed(2);
+        _feeInputController.text = _feeAmount!;
+      }
+      if (txn.discountMinor > 0) {
+        _discountAmount =
+            Money.fromMinor(txn.discountMinor).decimal.toStringAsFixed(2);
+        _discountInputController.text = _discountAmount!;
+      }
+    });
+    _pageController.jumpToPage(index);
   }
 
   /// [TabController] 的 index 变化（点击 Tab 或页面拖拽越过中点）时更新表单逻辑状态。
@@ -353,7 +424,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     if (index == _tab.index) return;
     _tab = _tabs[index];
     _categoryId = null;
-    _attachmentPaths.clear();
+    // 编辑模式：附件属于被编辑的流水本身，切 Tab（改类型）不能清掉原附件。
+    if (!_isEdit) {
+      _attachmentPaths.clear();
+    }
     _clearFeeKeyboardTarget();
     FocusManager.instance.primaryFocus?.unfocus();
     if (mounted) setState(() {});
@@ -543,6 +617,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       await _saveAsTemplate();
       return;
     }
+    // 编辑模式：保存即返回，无「再记」。
+    if (_isEdit) {
+      andMore = false;
+    }
     final int minor =
         _tab == RecordTab.reimbursement ? _rbAmountMinor : _amountMinor;
     if (minor <= 0) {
@@ -561,6 +639,26 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           if (_accountId == null) {
             _toast('请选择账户');
             return;
+          }
+          if (_isEdit) {
+            // 编辑：走 updateTransaction（回滚旧余额 → 写新值 → 应用新余额）。
+            // sourceModule / 标签 / 不计收支等标记由仓储按规则保留原值；
+            // 手续费 / 优惠已从原流水回填，用户清空即归零。
+            await ref.read(transactionRepositoryProvider).updateTransaction(
+                  original: _editingTxn!,
+                  type: _tab == RecordTab.expense
+                      ? TxnType.expense
+                      : TxnType.income,
+                  amountMinor: minor,
+                  accountId: _accountId,
+                  categoryId: _categoryId,
+                  note: _noteController.text.trim(),
+                  occurredAt: occurredAt,
+                  discountMinor: _discountMinor,
+                  attachmentUrls: List<String>.of(_attachmentPaths),
+                );
+            savedId = _editingTxn!.id;
+            break;
           }
           savedId = await ref.read(transactionRepositoryProvider).add(
                 bookId: bookId,
@@ -617,6 +715,23 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           if (_accountId == _toAccountId) {
             _toast('转出与转入账户不能相同');
             return;
+          }
+          if (_isEdit) {
+            // 编辑：手续费 / 优惠已从原流水回填，用户清空即归零。
+            await ref.read(transactionRepositoryProvider).updateTransaction(
+                  original: _editingTxn!,
+                  type: TxnType.transfer,
+                  amountMinor: minor,
+                  accountId: _accountId,
+                  toAccountId: _toAccountId,
+                  note: _noteController.text.trim(),
+                  occurredAt: occurredAt,
+                  feeMinor: _feeMinor,
+                  discountMinor: _discountMinor,
+                  attachmentUrls: List<String>.of(_attachmentPaths),
+                );
+            savedId = _editingTxn!.id;
+            break;
           }
           savedId = await ref.read(transactionRepositoryProvider).transfer(
                 bookId: bookId,
@@ -5464,7 +5579,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           onTap: _onSelectAccount,
           active: _accountId != null,
         ),
-      if (isExpense)
+      // 编辑模式：updateTransaction 不支持改报销挂账，隐藏报销相关键，
+      // 防止「改了却不落库」的假开关。
+      if (isExpense && !_isEdit)
         _FunctionItem(
           label: '报销',
           icon: LineIconKind.reimbursement,
@@ -5484,7 +5601,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         ),
       // 报销账户：平时隐藏；勾选「报销」后出现在报销键右侧。
       // 已选时对齐账户键口径：chip 显示账户名并高亮。
-      if (isExpense && _isReimbursable)
+      if (isExpense && _isReimbursable && !_isEdit)
         _FunctionItem(
           label: _reimbAccountId == null
               ? '报销账户'
@@ -5510,11 +5627,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         onTap: _onAddImage,
         active: _attachmentPaths.isNotEmpty,
       ),
-      _FunctionItem(
-        label: _tags.isEmpty ? '标签' : '标签 ${_tags.length}',
-        icon: LineIconKind.tag,
-        onTap: _onAddTag,
-      ),
+      // 标签 / 不计收支 / 不计预算：编辑模式不支持改写（updateTransaction
+      // 保留原值），隐藏避免假开关；新增模式正常显示。
+      if (!_isEdit)
+        _FunctionItem(
+          label: _tags.isEmpty ? '标签' : '标签 ${_tags.length}',
+          icon: LineIconKind.tag,
+          onTap: _onAddTag,
+        ),
       _FunctionItem(
         // 账本占位：展示当前账本名；多账本切换功能待接入（点击暂不响应）。
         label: ref.watch(currentBookProvider).value?.name ?? '账本',
@@ -5522,22 +5642,22 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         onTap: () {},
       ),
       // 不计收支 / 不计预算：两颗常驻显示，各自独立切换，互不干涉。
-      if (showAccountStats)
+      if (showAccountStats && !_isEdit)
         _FunctionItem(
           label: '不计收支',
           icon: LineIconKind.excludeStats,
           onTap: () => setState(() => _excludeFromStats = !_excludeFromStats),
           active: _excludeFromStats,
         ),
-      if (showAccountStats)
+      if (showAccountStats && !_isEdit)
         _FunctionItem(
           label: '不计预算',
           icon: LineIconKind.excludeBudget,
           onTap: () => setState(() => _excludeFromBudget = !_excludeFromBudget),
           active: _excludeFromBudget,
         ),
-      // 模板模式：自身就是「新建模板」入口，不再提供「存为模板」键。
-      if (!widget.templateMode)
+      // 模板模式：自身就是「新建模板」入口，不再提供「存为模板」键；编辑模式同理隐藏。
+      if (!widget.templateMode && !_isEdit)
         _FunctionItem(
           label: '模板',
           icon: LineIconKind.template,
@@ -6424,9 +6544,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         // 优惠 / 手续费不支持 + - 表达式，运算符与跨字段回退均忽略。
         onOperator: feeMode ? (_) {} : _onOperator,
         onBackspace: feeMode ? () {} : _onBackspace,
-        // 模板模式保存即返回，「再记」无意义 → 置 null 置灰。
+        // 模板模式保存即返回、「再记」无意义 → 置 null 置灰；编辑模式同理。
         onSave: () => _save(),
-        onSaveAndMore: widget.templateMode ? null : () => _save(andMore: true),
+        onSaveAndMore:
+            widget.templateMode || _isEdit ? null : () => _save(andMore: true),
       ),
     );
   }
