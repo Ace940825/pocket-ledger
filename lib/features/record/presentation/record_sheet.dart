@@ -1739,9 +1739,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             // 左侧：账户栏卡片。
             Expanded(
               child: InkWell(
-                onTap: shown.isEmpty
-                    ? null
-                    : () => _showTransferAccountPicker(
+                // 空列表也打开选择器（弹窗内「＋添加」兜底），不禁用点击。
+                onTap: () => _showTransferAccountPicker(
                           label: label,
                           // 可选项已由 shown 处理：资金类（默认）或限定大类（报销账户=应收 / 应付）
                           accounts: shown,
@@ -2636,9 +2635,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         final bool picked = selected != null;
         final bool isAsset = label == '资产账户';
         return InkWell(
-          onTap: shown.isEmpty
-              ? null
-              : () => _showTransferAccountPicker(
+          // 空列表也允许打开选择器：弹窗内有「暂无账户，点击右上角添加」
+          // 兜底（＋添加可创建借入/借出账户），禁用点击会卡死无账户场景。
+          onTap: () => _showTransferAccountPicker(
                     label: label,
                     accounts: shown,
                     selectedId: safe,
@@ -2730,7 +2729,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              selected?.name ?? placeholder,
+                              selected?.name ??
+                                  (shown.isEmpty
+                                      ? '暂无账户，点击创建'
+                                      : placeholder),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: picked ? _Sage.greenDeep : _Sage.ink3,
