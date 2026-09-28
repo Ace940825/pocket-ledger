@@ -73,14 +73,17 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     context.push(target);
   }
 
-  // 左滑「编辑」：应收（借出）/ 应付（借入）/ 资金类（现金、微信、支付宝、
-  // 借记卡等）/ 负债（信用卡、花呗等）账户进独立编辑页（参照小青账：借还 =
-  // 借款给谁/向谁借 + 只读金额；资金类 = 资产类型卡 + 用户名/余额；借记卡 =
-  // 资产类型卡 + 备注/卡号 + 可校正余额；负债 = 额度/欠款/剩余额度 + 账单
-  // 还款日；共用资产状态三态 + 计入总资产）；投资类、报销维持进资产详情页。
+  // 左滑「编辑」：应收（借出）/ 应付（借入）/ 投资类（基金、股票、期货、
+  // 现货等）/ 资金类（现金、微信、支付宝、借记卡等）/ 负债（信用卡、花呗等）
+  // 账户进独立编辑页（参照小青账：借还 = 借款给谁/向谁借 + 只读金额；投资 =
+  // 账户名称 + 随持仓自动更新的投资余额（只读）；资金类 = 资产类型卡 +
+  // 用户名/余额；借记卡 = 资产类型卡 + 备注/卡号 + 可校正余额；负债 =
+  // 额度/欠款/剩余额度 + 账单还款日；共用资产状态三态 + 计入总资产）；
+  // 报销维持进资产详情页（其「资产详情」即报销页）。
   void _editAccount(Account a) {
     if (a.type == AccountType.lend ||
         a.type == AccountType.borrow ||
+        a.type.category == AccountCategory.investment ||
         a.type.isDebt ||
         a.type.category == AccountCategory.capital) {
       context.push('/accounts/${a.id}/edit');
@@ -967,8 +970,8 @@ class _NetAssetsHeader extends StatelessWidget {
           Text(
             Money.fromMinor(value.valueOrNull ?? 0).format(),
             style: theme.textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontWeight: FontWeight.w600,
             ),
           ),
         ],
