@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../lend/data/lend_flow_restore.dart';
 import '../../lend/data/lend_repository.dart';
 import '../../ledger/data/transaction_repository.dart';
 
@@ -152,19 +153,27 @@ class AccountRepository {
 
   /// 编辑账户（名称 / 类型 / 余额 / 备注 / 卡号 / 状态 / 是否计入总资产）。
   /// 余额直接设为权威值，用于手动校正。
+  ///
+  /// 可选字段传 null 时保留库中现值——快速编辑对话框只回传名称 / 类型 /
+  /// 余额，不能把备注 / 卡号 / 额度等用参数默认值清空。
+  ///
+  /// 派生余额保护：借出 / 借入账户余额 = 名下未结清借还记录合计、
+  /// 报销账户余额 = 名下待报销账单合计，均不是用户可编辑的权威值。
+  /// 借还账户写库后在同一事务内按记录重算余额（覆盖编辑器旧快照的
+  /// 过期回写）；报销账户直接保留库中现值。
   Future<void> update({
     required String id,
     required String name,
     required AccountType type,
     required int balanceMinor,
-    String currency = 'CNY',
+    String? currency,
     int? creditLimitMinor,
     int? billingDay,
     int? dueDay,
     String? note,
     String? cardNumber,
-    AccountStatus status = AccountStatus.active,
-    bool includeInTotal = true,
+    AccountStatus? status,
+    bool? includeInTotal,
   }) {
     if (name.trim().isEmpty) {
       throw const ValidationFailure('账户名称不能为空');
@@ -173,25 +182,50 @@ class AccountRepository {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
 
     return _db.transaction<void>(() async {
+      final Account? before = await (_db.select(_db.accounts)
+            ..where((Accounts t) => t.id.equals(id)))
+          .getSingleOrNull();
+      final AccountStatus effectiveStatus =
+          status ?? before?.status ?? AccountStatus.active;
+
+      // 报销账户余额为派生值（待报销合计），保留库中现值；
+      // 借还账户先按入参写入，随后由对账重算覆盖。
+      int effectiveBalance = balanceMinor;
+      if (type == AccountType.reimbursement) {
+        effectiveBalance = before?.balanceMinor ?? balanceMinor;
+      }
+
       await _db.accountsDao.updateAccount(
         AccountsCompanion(
           id: Value<String>(id),
           name: Value<String>(name.trim()),
           type: Value<AccountType>(type),
-          balanceMinor: Value<int>(balanceMinor),
-          currency: Value<String>(currency),
-          creditLimitMinor: Value<int?>(creditLimitMinor),
-          billingDay: Value<int?>(billingDay),
-          dueDay: Value<int?>(dueDay),
-          note: Value<String?>(note),
-          cardNumber: Value<String?>(cardNumber),
-          status: Value<AccountStatus>(status),
-          includeInTotal: Value<bool>(includeInTotal),
-          isArchived: Value<bool>(!status.isVisible),
+          balanceMinor: Value<int>(effectiveBalance),
+          currency: Value<String>(currency ?? before?.currency ?? 'CNY'),
+          creditLimitMinor:
+              Value<int?>(creditLimitMinor ?? before?.creditLimitMinor),
+          billingDay: Value<int?>(billingDay ?? before?.billingDay),
+          dueDay: Value<int?>(dueDay ?? before?.dueDay),
+          note: Value<String?>(note ?? before?.note),
+          cardNumber: Value<String?>(cardNumber ?? before?.cardNumber),
+          status: Value<AccountStatus>(effectiveStatus),
+          includeInTotal:
+              Value<bool>(includeInTotal ?? before?.includeInTotal ?? true),
+          isArchived: Value<bool>(!effectiveStatus.isVisible),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
       );
+
+      // 借还账户：余额是派生不变量，写库后立即按名下未结清记录重算，
+      // 防止编辑器旧快照回写把不变量覆盖成过期值（同事务内自愈）。
+      if (type == AccountType.lend || type == AccountType.borrow) {
+        await reconcileDesignatedLendBalance(_db, id);
+        final Account? after = await (_db.select(_db.accounts)
+              ..where((Accounts t) => t.id.equals(id)))
+            .getSingleOrNull();
+        effectiveBalance = after?.balanceMinor ?? effectiveBalance;
+      }
 
       await _db.pendingOpsDao.enqueue(
         PendingOpsCompanion(
@@ -202,15 +236,17 @@ class AccountRepository {
             jsonEncode(<String, Object?>{
               'name': name.trim(),
               'type': type.index,
-              'balanceMinor': balanceMinor,
-              'currency': currency,
-              'creditLimitMinor': creditLimitMinor,
-              'billingDay': billingDay,
-              'dueDay': dueDay,
-              'note': note,
-              'cardNumber': cardNumber,
-              'status': status.index,
-              'includeInTotal': includeInTotal,
+              'balanceMinor': effectiveBalance,
+              'currency': currency ?? before?.currency ?? 'CNY',
+              'creditLimitMinor':
+                  creditLimitMinor ?? before?.creditLimitMinor,
+              'billingDay': billingDay ?? before?.billingDay,
+              'dueDay': dueDay ?? before?.dueDay,
+              'note': note ?? before?.note,
+              'cardNumber': cardNumber ?? before?.cardNumber,
+              'status': effectiveStatus.index,
+              'includeInTotal':
+                  includeInTotal ?? before?.includeInTotal ?? true,
             }),
           ),
           updatedAt: Value<int>(now),

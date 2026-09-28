@@ -84,6 +84,14 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     WidgetRef ref,
     Account account,
   ) async {
+    // 借出 / 借入 / 报销账户的余额是派生不变量（未结清借还合计 /
+    // 待报销合计），不允许手改余额、不允许改类型——编辑只开放账户名。
+    // 与资产详情页编辑器（account_ledger_page._showEditor）同口径：
+    // 此前这里的通用编辑器会把打开时的旧余额快照回写，把派生余额
+    // 覆盖成过期值（如借入后余额被改回 0）。
+    final bool isDerivedBalance = account.type == AccountType.lend ||
+        account.type == AccountType.borrow ||
+        account.type == AccountType.reimbursement;
     final TextEditingController nameController =
         TextEditingController(text: account.name);
     final TextEditingController balanceController = TextEditingController(
@@ -103,32 +111,45 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 controller: nameController,
                 decoration: const InputDecoration(labelText: '账户名称'),
               ),
-              const SizedBox(height: AppDimens.spaceMd),
-              TextField(
-                controller: balanceController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: '余额',
-                  prefixText: '¥ ',
-                ),
-              ),
-              const SizedBox(height: AppDimens.spaceMd),
-              DropdownButtonFormField<AccountType>(
-                initialValue: type,
-                decoration: const InputDecoration(labelText: '账户类型'),
-                items: AccountType.values
-                    .map(
-                      (AccountType t) => DropdownMenuItem<AccountType>(
-                        value: t,
-                        child: Text(t.label),
+              if (isDerivedBalance) ...<Widget>[
+                const SizedBox(height: AppDimens.spaceMd),
+                Text(
+                  account.type == AccountType.reimbursement
+                      ? '该账户余额由待报销账单自动计算，暂不支持手动修改。'
+                      : '该账户余额由借还记录自动计算，暂不支持手动修改。',
+                  style: Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
                       ),
-                    )
-                    .toList(growable: false),
-                onChanged: (AccountType? v) {
-                  if (v != null) setState(() => type = v);
-                },
-              ),
+                ),
+              ] else ...<Widget>[
+                const SizedBox(height: AppDimens.spaceMd),
+                TextField(
+                  controller: balanceController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: '余额',
+                    prefixText: '¥ ',
+                  ),
+                ),
+                const SizedBox(height: AppDimens.spaceMd),
+                DropdownButtonFormField<AccountType>(
+                  initialValue: type,
+                  decoration: const InputDecoration(labelText: '账户类型'),
+                  items: AccountType.values
+                      .where((AccountType t) => t != AccountType.borrow)
+                      .map(
+                        (AccountType t) => DropdownMenuItem<AccountType>(
+                          value: t,
+                          child: Text(t.label),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: (AccountType? v) {
+                    if (v != null) setState(() => type = v);
+                  },
+                ),
+              ],
             ],
           ),
           actions: <Widget>[
@@ -148,11 +169,14 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     if (saved != true) return;
 
     try {
+      // 其余字段（备注 / 卡号 / 额度 / 状态等）不传即由仓储保留现值。
       await ref.read(accountRepositoryProvider).update(
             id: account.id,
             name: nameController.text,
-            type: type,
-            balanceMinor: Money.tryParse(balanceController.text).minor,
+            type: isDerivedBalance ? account.type : type,
+            balanceMinor: isDerivedBalance
+                ? account.balanceMinor
+                : Money.tryParse(balanceController.text).minor,
           );
     } on AppFailure catch (e) {
       if (context.mounted) {
