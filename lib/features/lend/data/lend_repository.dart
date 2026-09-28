@@ -327,7 +327,7 @@ class LendRepository {
   ///
   /// - 本金：借入 → 「借入」(income) / 借出 → 「借出」(expense)；
   /// - 还款：还债 → 「还债」(expense) / 收债 → 「收债」(income)；
-  /// - 冲减备忘：债务消减 → 「债务消减」(income) / 坏账计提 → 「坏账计提」(expense)。
+  /// - 冲减备忘：债务消减 / 坏账计提 → 均为「支出」(expense)。
   Future<String> _flowCategoryId({
     required String bookId,
     required LendDirection direction,
@@ -345,7 +345,9 @@ class LendRepository {
         type = borrowIn ? CategoryType.expense : CategoryType.income;
       case _LendFlowKind.reduction:
         name = borrowIn ? '债务消减' : '坏账计提';
-        type = borrowIn ? CategoryType.income : CategoryType.expense;
+        // 债务消减 / 坏账计提均按支出类型展示（无真实资金流动，仅记账备忘，
+        // 不计入收支统计与预算；统一支出口径便于用户识别）。
+        type = CategoryType.expense;
     }
     return _catRepo.ensureNamed(bookId: bookId, name: name, type: type);
   }
@@ -560,11 +562,9 @@ class LendRepository {
     final String verb = direction == LendDirection.borrowIn
         ? '债务消减'
         : '坏账计提';
-    // 债务消减（借入被减免）= 应付减少（收益）→ income；坏账计提（应收
-    // 损失）= 资产减少（费用）→ expense。仅影响展示用图标 / 配色，不计入统计。
-    final TxnType txnType = direction == LendDirection.borrowIn
-        ? TxnType.income
-        : TxnType.expense;
+    // 债务消减 / 坏账计提均无真实资金流动，仅作记账备忘展示；按用户口径
+    // 统一为支出类型（影响列表箭头 / 配色），不计入收支统计与预算。
+    final TxnType txnType = TxnType.expense;
     return _db.transaction<void>(() async {
       final List<String> affected = await _offsetDebts(
         bookId: bookId,

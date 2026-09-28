@@ -345,12 +345,15 @@ Future<void> _backfillRepayRelatedIds(AppDatabase db) async {
 /// 自带分类，这里只兜底**分类为空的历史行**：按备注首行「动词-对方」的
 /// 动词（借入/借出/还债/收债/债务消减/坏账计提）确定类目名与类型，
 /// 用 [CategoryRepository.ensureNamed] 查找或创建。备注缺失或动词无法
-/// 识别的行保持未分类。幂等：仅 categoryId 为空的行会被处理。
+/// 识别的行保持未分类。
+///
+/// 幂等：仅当某行当前 categoryId 与「动词推导出的正确类目」不一致时才
+/// 改写（避免每次启动都刷 updatedAt）。据此也能把历史上错归为 income 的
+/// 「债务消减」流水重新翻成 expense 版类目。
 Future<void> _backfillLendFlowCategories(AppDatabase db) async {
   final List<Transaction> txns = await (db.select(db.transactions)
         ..where((Transactions t) =>
             t.sourceModule.equals(SourceModule.lend.index) &
-            t.categoryId.isNull() &
             t.deleted.equals(false)))
       .get();
   if (txns.isEmpty) return;
@@ -377,8 +380,8 @@ Future<void> _backfillLendFlowCategories(AppDatabase db) async {
         name = '收债';
         type = CategoryType.income;
       case '债务消减':
+        // 统一为支出类型（修正历史上错归 income 的版本）。
         name = '债务消减';
-        type = CategoryType.income;
       case '坏账计提':
         name = '坏账计提';
     }
@@ -390,6 +393,9 @@ Future<void> _backfillLendFlowCategories(AppDatabase db) async {
         await catRepo.ensureNamed(bookId: txn.bookId, name: name, type: type);
     cache[cacheKey] = categoryId;
 
+    // 已是正确类目则跳过（幂等）。
+    if (txn.categoryId == categoryId) continue;
+
     await (db.update(db.transactions)
           ..where((Transactions t) => t.id.equals(txn.id)))
         .write(
@@ -399,6 +405,26 @@ Future<void> _backfillLendFlowCategories(AppDatabase db) async {
         dirty: const Value<bool>(true),
       ),
     );
+  }
+
+  // 清理历史「债务消减」income 类目：已无流水引用（上面的改写已全部改指
+  // expense 版），软删之避免分类列表出现重复 / 孤儿类目。
+  final List<Book> books = await db.booksDao.watchAll().first;
+  for (final Book book in books) {
+    final List<Category> cats = await db.categoriesDao.watchAll(book.id).first;
+    for (final Category c in cats) {
+      if (c.name != '债务消减' ||
+          c.type != CategoryType.income ||
+          c.deleted) {
+        continue;
+      }
+      final int refCount = (await (db.select(db.transactions)
+            ..where((Transactions t) =>
+                t.categoryId.equals(c.id) & t.deleted.equals(false)))
+          .get())
+          .length;
+      if (refCount == 0) await catRepo.remove(c.id);
+    }
   }
 }
 
