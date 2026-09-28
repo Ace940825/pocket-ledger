@@ -89,6 +89,20 @@ class LendRepository {
           'discountMinor': discountMinor,
         },
       );
+      // 本金落流水：借入钱进资产账户（收入）、借出钱出资产账户（支出），
+      // 余额随流水增量联动。只选了对方虚拟账户（纯债务跟踪）时不落流水。
+      if (toAccountId != null && toAccountId.isNotEmpty) {
+        await _createFlowTxn(
+          bookId: bookId,
+          lendId: id,
+          direction: direction,
+          counterparty: counterparty.trim(),
+          amountMinor: amountMinor,
+          accountId: toAccountId,
+          occurredAt: occurredAt,
+          note: note,
+        );
+      }
       return id;
     });
   }
@@ -156,6 +170,42 @@ class LendRepository {
           'discountMinor': discountMinor,
         },
       );
+      // 流水联动：本金流水与借还记录保持同步——
+      // 编辑改了金额 / 资产账户 / 日期 / 备注 / 方向 → 更新流水（余额增减
+      // 由 updateTransaction 先回滚旧影响再应用新值）；清空资产账户 →
+      // 撤掉流水；旧记录缺流水且已选资产账户 → 补建。
+      final Transaction? flow = await _findFlowTxn(id);
+      final bool hasAssetAccount =
+          toAccountId != null && toAccountId.isNotEmpty;
+      if (flow != null && !hasAssetAccount) {
+        await _txnRepo.remove(flow.id);
+      } else if (flow != null) {
+        await _txnRepo.updateTransaction(
+          original: flow,
+          type: direction == LendDirection.borrowIn
+              ? TxnType.income
+              : TxnType.expense,
+          amountMinor: amountMinor,
+          accountId: toAccountId!,
+          note: _flowNote(direction, counterparty.trim(), note),
+          occurredAt: occurredAt,
+        );
+      } else if (hasAssetAccount) {
+        // 旧记录补建：bookId 以库里原记录为准（update 入参不含 bookId）。
+        final LendRecord? current = await getById(id);
+        if (current != null) {
+          await _createFlowTxn(
+            bookId: current.bookId,
+            lendId: id,
+            direction: direction,
+            counterparty: counterparty.trim(),
+            amountMinor: amountMinor,
+            accountId: toAccountId,
+            occurredAt: occurredAt,
+            note: note,
+          );
+        }
+      }
     });
   }
 
@@ -164,6 +214,92 @@ class LendRepository {
     return (_db.select(_db.lendRecords)
           ..where((LendRecords t) => t.id.equals(id)))
         .getSingleOrNull();
+  }
+
+  /// 借还本金流水的备注（与还债/收债流水同款式：'借入-小明'）。
+  String _flowNote(LendDirection direction, String counterparty, String? note) {
+    final String verb = direction == LendDirection.borrowIn ? '借入' : '借出';
+    final String? userNote = note?.trim();
+    return userNote == null || userNote.isEmpty
+        ? '$verb-$counterparty'
+        : '$verb-$counterparty\n$userNote';
+  }
+
+  /// 借还本金流水反查：relatedId 指向借还记录、来源为借还模块的流水。
+  ///
+  /// [includeDeleted] 为真时连同已软删的行一起查（启动补建用：
+  /// 用户主动删过流水的记录不再重建，尊重删除意图）。
+  Future<Transaction?> _findFlowTxn(
+    String lendId, {
+    bool includeDeleted = false,
+  }) {
+    return (_db.select(_db.transactions)
+          ..where((Transactions t) =>
+              t.relatedId.equals(lendId) &
+              t.sourceModule.equals(SourceModule.lend.index) &
+              (includeDeleted ? const Constant(true) : t.deleted.equals(false)))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  /// 本金落流水：借入 = 收入（资产账户余额增加）、借出 = 支出（减少）。
+  /// 余额增量由 [TransactionRepository.add] 内部联动；excludeFromStats /
+  /// excludeFromBudget 置真——借款不是收支，不污染收支统计与预算
+  /// （还债 / 收债流水同口径，见 [repay]）。
+  Future<void> _createFlowTxn({
+    required String bookId,
+    required String lendId,
+    required LendDirection direction,
+    required String counterparty,
+    required int amountMinor,
+    required String accountId,
+    required int occurredAt,
+    String? note,
+  }) {
+    return _txnRepo.add(
+      bookId: bookId,
+      type: direction == LendDirection.borrowIn
+          ? TxnType.income
+          : TxnType.expense,
+      amountMinor: amountMinor,
+      accountId: accountId,
+      occurredAt: occurredAt,
+      note: _flowNote(direction, counterparty, note),
+      sourceModule: SourceModule.lend,
+      relatedId: lendId,
+      excludeFromStats: true,
+      excludeFromBudget: true,
+    );
+  }
+
+  /// 存量借还记录补落流水（启动对账，幂等）：
+  /// 选了资产账户但没有任何本金流水（含已删）的借还记录，补建一条。
+  /// 用户主动删过流水的记录不再重建。返回补建笔数。
+  Future<int> backfillFlowTransactions() async {
+    final List<LendRecord> records = await (_db.select(_db.lendRecords)
+          ..where((LendRecords t) =>
+              t.deleted.equals(false) & t.toAccountId.isNotNull()))
+        .get();
+    int created = 0;
+    for (final LendRecord r in records) {
+      final String? asset = r.toAccountId;
+      if (asset == null || asset.isEmpty) continue;
+      final Transaction? existing =
+          await _findFlowTxn(r.id, includeDeleted: true);
+      if (existing != null) continue;
+      await _createFlowTxn(
+        bookId: r.bookId,
+        lendId: r.id,
+        direction: r.direction,
+        counterparty: r.counterparty,
+        amountMinor: r.amountMinor,
+        accountId: asset,
+        occurredAt: r.occurredAt,
+        note: r.note,
+      );
+      created++;
+    }
+    return created;
   }
 
   /// 核心冲销逻辑（**不开启事务**，必须由调用方包在事务里）：
@@ -330,6 +466,10 @@ class LendRepository {
           occurredAt: occurredAt,
           note: txnNote,
           sourceModule: SourceModule.lend,
+          // 还债 / 收债同样不是收支：与借入 / 借出本金流水同口径，
+          // 排除收支统计与预算（否则借款周期会在统计里虚增一笔）。
+          excludeFromStats: true,
+          excludeFromBudget: true,
         );
       }
     });
@@ -353,6 +493,11 @@ class LendRepository {
         opType: SyncOpType.delete,
         updatedAt: now,
       );
+      // 级联撤掉本金流水（余额回滚由 TransactionRepository.remove 内部完成）。
+      final Transaction? flow = await _findFlowTxn(id);
+      if (flow != null) {
+        await _txnRepo.remove(flow.id);
+      }
     });
   }
 }

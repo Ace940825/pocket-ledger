@@ -409,6 +409,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       context.pop();
       return;
     }
+    // 借还本金流水（sourceModule=lend 且关联借还记录）：编辑应落到借还
+    // 记录编辑（金额 / 账户改动经 lendRepository.update 联动本金流水与
+    // 余额），而不是按普通收支编辑造成两边数据脱钩。
+    if (txn.sourceModule == SourceModule.lend && txn.relatedId != null) {
+      final LendRecord? rec = await ref
+          .read(lendRepositoryProvider)
+          .getById(txn.relatedId!);
+      if (!mounted) return;
+      if (rec != null) {
+        await _applyLendEdit(rec);
+        return;
+      }
+      // 借还记录已被删：退化为普通收支流水编辑（下方逻辑兜底）。
+    }
     final RecordTab tab = switch (txn.type) {
       TxnType.expense => RecordTab.expense,
       TxnType.transfer => RecordTab.transfer,
@@ -482,6 +496,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       context.pop();
       return;
     }
+    await _applyLendEdit(rec);
+  }
+
+  /// 把借还记录回填进借还 Tab（编辑模式核心）。
+  /// 两个入口共用：借还页 [RecordSheet.editLendId] 直达、
+  /// 流水列表点编辑借还本金流水转跳（见 [_loadEditingTxn]）。
+  Future<void> _applyLendEdit(LendRecord rec) async {
     final int index = _tabs.indexOf(RecordTab.lend).clamp(0, _tabs.length - 1);
     setState(() {
       _editingLend = rec;
@@ -966,6 +987,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     occurredAt: occurredAt,
                     note: userNote.isEmpty ? verb : '$verb\n$userNote',
                     sourceModule: SourceModule.lend,
+                    // 还债 / 收债不是收支：与借还本金流水同口径排除统计与预算。
+                    excludeFromStats: true,
+                    excludeFromBudget: true,
                   );
             } else {
               await ref.read(lendRepositoryProvider).repay(

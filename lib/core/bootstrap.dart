@@ -3,6 +3,8 @@ import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../domain/enums.dart';
+import '../features/lend/data/lend_repository.dart';
+import '../features/ledger/data/transaction_repository.dart';
 
 /// 默认分类的图标与配色预设。
 class _DefaultCategory {
@@ -76,6 +78,10 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 修复历史版本挂账/核销链路缺失导致的 100 vs 30 类不一致。
   await _reconcileReimbursementBalances(db);
   await _reconcileReimbursedAmounts(db);
+  // 借还落流水对账（幂等，每次启动运行）：有资产账户但缺本金流水的
+  // 借还记录补建流水；借还模块流水统一排除收支统计与预算。
+  await _backfillLendFlowTransactions(db);
+  await _excludeLendFromStatsAndBudget(db);
   final List<Book> books = await db.booksDao.watchAll().first;
   if (books.isEmpty) {
     await _seedDefaults(db);
@@ -163,6 +169,33 @@ Future<void> _reconcileReimbursedAmounts(AppDatabase db) async {
       ),
     );
   }
+}
+
+/// 借还落流水对账：历史版本借入/借出只记 LendRecords、不落流水，
+/// 资产账户余额与流水列表都看不到这笔钱。启动时对「选了资产账户但
+/// 没有任何本金流水（含已删）」的借还记录补建，幂等可重复运行。
+Future<void> _backfillLendFlowTransactions(AppDatabase db) async {
+  final LendRepository lendRepo = LendRepository(db, TransactionRepository(db));
+  await lendRepo.backfillFlowTransactions();
+}
+
+/// 借还模块流水排除收支统计 / 预算：借款不是收支（借入不是收入、
+/// 借出不是支出），否则借款周期会在统计里虚增。历史版本还债/收债
+/// 流水计入统计，这里统一翻标记；只动统计开关，不影响余额，幂等。
+Future<void> _excludeLendFromStatsAndBudget(AppDatabase db) async {
+  await (db.update(db.transactions)
+        ..where((Transactions t) =>
+            t.sourceModule.equals(SourceModule.lend.index) &
+            t.deleted.equals(false) &
+            (t.excludeFromStats.equals(false) |
+                t.excludeFromBudget.equals(false))))
+      .write(
+    const TransactionsCompanion(
+      excludeFromStats: Value<bool>(true),
+      excludeFromBudget: Value<bool>(true),
+      dirty: Value<bool>(true),
+    ),
+  );
 }
 
 /// 色调迁移：一级默认分类若仍持有旧版 Material 粉彩色（见
