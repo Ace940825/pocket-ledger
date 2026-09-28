@@ -20,6 +20,8 @@ import '../providers/accounts_providers.dart';
 ///   自动计算，保存时仓储层同事务重算，不可手改）；
 /// - **借记卡（银行账户）**：「资产类型」卡（银行图标 + 银行名，点击改名）+
 ///   基本信息（备注信息 / 银行卡号）+ **资金**（账户余额可手动校正）；
+/// - **资金账户（现金 / 微信 / 支付宝等，借记卡除外）**：「资产类型」卡
+///   （类型图标 + 类型名）+ 基本信息（用户名 / 账户余额可编辑）；
 /// - **负债（信用卡 / 花呗等）**：资产类型卡 + 基本信息 + **资金**
 ///   （信用额度 / 当前欠款可编辑，剩余额度 = 额度 − 欠款自动计算）+
 ///   **账单/还款日期**（每月 X 日）；
@@ -62,6 +64,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     final bool isLend = account.type == AccountType.lend;
     final bool isDebit = account.type == AccountType.bankCard;
     final bool isDebt = account.type.isDebt;
+    // 资金账户（现金 / 微信 / 支付宝 / 公积金等，借记卡单独布局）。
+    final bool isFund = !isDebit &&
+        !isDebt &&
+        account.type.category == AccountCategory.capital;
 
     return Scaffold(
       appBar: AppBar(
@@ -80,7 +86,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   ? _debtSections(account)
                   : isDebit
                       ? _debitSections(account)
-                      : _lendSections(account, isLend),
+                      : isFund
+                          ? _fundSections(account)
+                          : _lendSections(account, isLend),
             ),
           ),
           _saveButton(account),
@@ -139,6 +147,51 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                _fieldLabel('账户余额'),
+                TextField(
+                  controller: _balanceController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.done,
+                  decoration: _filledDecoration().copyWith(
+                    suffixIcon: Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 20,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppDimens.spaceLg),
+        _otherSection(),
+      ];
+
+  // ---- 资金账户（现金 / 微信 / 支付宝等，借记卡除外）布局，参照小青账截图 ----
+  //
+  // 「资产类型」卡固定展示类型名（现金 / 微信钱包…），点击改名即改账户名；
+  // 基本信息「用户名」= 账户名、「账户余额」为真实值可手动校正。
+
+  List<Widget> _fundSections(Account account) => <Widget>[
+        _sectionLabel('资产类型'),
+        _assetTypeCard(account, name: account.type.label),
+        const SizedBox(height: AppDimens.spaceLg),
+        _sectionLabel('基本信息'),
+        _Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                _fieldLabel('用户名'),
+                TextField(
+                  controller: _nameController,
+                  textInputAction: TextInputAction.next,
+                  decoration: _filledDecoration(),
+                ),
+                const SizedBox(height: AppDimens.spaceMd),
                 _fieldLabel('账户余额'),
                 TextField(
                   controller: _balanceController,
@@ -292,8 +345,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     return limit - debt;
   }
 
-  /// 「资产类型」卡：银行图标 + 银行名（账户名）+ chevron，点击改名。
-  Widget _assetTypeCard(Account account) => _Card(
+  /// 「资产类型」卡：类型图标 + 名称 + chevron，点击改名。
+  /// [name] 覆盖显示文本（资金模式展示类型名而非账户名）。
+  Widget _assetTypeCard(Account account, {String? name}) => _Card(
         child: InkWell(
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           onTap: () => _renameDialog(account),
@@ -317,7 +371,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 const SizedBox(width: AppDimens.spaceMd),
                 Expanded(
                   child: Text(
-                    account.name,
+                    name ?? account.name,
                     style: Theme.of(context)
                         .textTheme
                         .bodyLarge
@@ -598,6 +652,17 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               balanceMinor: Money.tryParse(_balanceController.text).minor,
               note: _noteController.text.trim(),
               cardNumber: _cardNumberController.text.trim(),
+              status: _status,
+              includeInTotal: _includeInTotal,
+            );
+      } else if (account.type.category == AccountCategory.capital) {
+        // 资金账户（现金 / 微信 / 支付宝 / 公积金等）：余额为真实值
+        // （允许手动校正）；备注 / 卡号不在表单内，不传即保留现值。
+        await ref.read(accountRepositoryProvider).update(
+              id: account.id,
+              name: name,
+              type: account.type,
+              balanceMinor: Money.tryParse(_balanceController.text).minor,
               status: _status,
               includeInTotal: _includeInTotal,
             );
