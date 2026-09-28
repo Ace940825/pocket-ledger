@@ -36,6 +36,9 @@ enum LineIconKind {
   trash, // 删除（垃圾桶）
   pencil, // 编辑（铅笔）
   chevronRight, // 右箭头（跳转指示）
+  close, // 关闭（×）
+  info, // 信息（圆圈 i）
+  person, // 人数（头像 + 肩线，表示「人/收款对象」）
 }
 
 /// 分类 iconKey → 线稿图标映射（对齐 A3 线稿设计稿的分类简笔画）。
@@ -181,6 +184,12 @@ class _LineIconPainter extends CustomPainter {
         _pencil(path);
       case LineIconKind.chevronRight:
         _chevronRight(path);
+      case LineIconKind.close:
+        _close(path);
+      case LineIconKind.info:
+        _info(path);
+      case LineIconKind.person:
+        _person(path);
     }
     canvas.drawPath(path, paint);
     // 优惠票券的虚线中缝（SVG dasharray 原生不支持，单独描边）
@@ -495,6 +504,26 @@ class _LineIconPainter extends CustomPainter {
   void _chevronRight(Path p) {
     _line(p, 9, 5, 16, 12);
     _line(p, 16, 12, 9, 19);
+  }
+
+  /// 关闭：两条对角线交叉成 ×。
+  void _close(Path p) {
+    _line(p, 6.5, 6.5, 17.5, 17.5);
+    _line(p, 17.5, 6.5, 6.5, 17.5);
+  }
+
+  /// 信息：圆圈 + 顶部小圆点 + 下方竖杠（i）。
+  void _info(Path p) {
+    p.addOval(Rect.fromCircle(center: const Offset(12, 12), radius: 8));
+    p.addOval(Rect.fromCircle(center: const Offset(12, 8.4), radius: 0.95));
+    _line(p, 12, 10.6, 12, 16);
+  }
+
+  /// 人数：圆形头像 + 肩线，表示「人 / 收款对象」。
+  void _person(Path p) {
+    p.addOval(Rect.fromCircle(center: const Offset(12, 8.5), radius: 3.5));
+    _line(p, 5.5, 19, 12, 14.5);
+    _line(p, 12, 14.5, 18.5, 19);
   }
 
   @override
