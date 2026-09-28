@@ -54,12 +54,14 @@ final AutoDisposeStreamProvider<List<ModuleTotal>> moduleTotalsProvider =
 /// 资产负债总览。
 ///
 /// 口径说明（避免重复计算）：
-/// - **资产** = 各账户余额 + 投资市值 + 物品现值。
+/// - **资产** = 非负债方向账户余额 + 投资市值 + 物品现值。
 ///   账户余额本身已包含买股票/买物品花出去的钱的「剩余部分」，
 ///   而投资市值与物品现值是**独立于账户余额**的资产形态，
 ///   所以三者相加；若某笔投资资金来自某个已记账账户，用户应把该账户
 ///   余额视为「现金类」，不会重复计入。
-/// - **负债** = 未结清的借入（borrowIn）金额。
+/// - **负债** = 负债方向账户（debt + payable）正余额合计 + 未结清的借入
+///   （borrowIn）净额（本金 − 优惠 − 已还）。信用卡正余额=欠款，必须计入
+///   负债而不是资产；多还形成的负余额（溢缴款）计回资产。
 /// - **净资产** = 资产 - 负债。
 typedef NetWorth = ({
   int assetsMinor,
@@ -86,9 +88,18 @@ final AutoDisposeProvider<NetWorth> netWorthProvider =
       ref.watch(lendListProvider).valueOrNull ?? const <LendRecord>[];
 
   int accountMinor = 0;
+  int debtAccountMinor = 0;
   for (final Account a in accounts) {
-    // 信用卡额度是负债方向，余额为负时自然体现，这里不做特殊处理。
-    accountMinor += a.balanceMinor;
+    if (a.type.isLiabilitySide) {
+      // 约定：负债方向账户正余额=欠款，计入负债；负余额（多还/溢缴款）计回资产。
+      if (a.balanceMinor > 0) {
+        debtAccountMinor += a.balanceMinor;
+      } else {
+        accountMinor -= a.balanceMinor;
+      }
+    } else {
+      accountMinor += a.balanceMinor;
+    }
   }
 
   int investmentMinor = 0;
@@ -101,7 +112,7 @@ final AutoDisposeProvider<NetWorth> netWorthProvider =
     inventoryMinor += i.currentValueMinor;
   }
 
-  int liabilitiesMinor = 0;
+  int liabilitiesMinor = debtAccountMinor;
   for (final LendRecord l in lends) {
     if (l.direction == LendDirection.borrowIn &&
         l.status == LendStatus.ongoing) {

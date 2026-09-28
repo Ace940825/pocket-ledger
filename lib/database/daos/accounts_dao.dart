@@ -38,7 +38,12 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
     return watchByBook(bookId).map(_sumTotalAssets);
   }
 
-  /// 实时监听总负债（所有信用卡账户余额之和，正数）。
+  /// 实时监听总负债（负债方向账户的正余额之和）。
+  ///
+  /// 覆盖 debt（信用卡/花呗等）与 payable（私人借款）两类；负余额
+  /// （多还/溢缴款）不计负债，由 [_sumNetAssets] 计回资产。
+  /// 注意：借还模块的借入未还净额存在 [LendRecord] 而不是账户余额里，
+  /// 由首页单独叠加，这里只管账户维度。
   Stream<int> watchTotalLiabilities(String bookId) {
     return watchByBook(bookId).map(_sumTotalLiabilities);
   }
@@ -46,8 +51,8 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   static int _sumNetAssets(List<Account> list) {
     int net = 0;
     for (final Account a in list) {
-      if (a.type.isDebt) {
-        net -= a.balanceMinor; // 负债正余额=欠款，从净资产里扣
+      if (a.type.isLiabilitySide) {
+        net -= a.balanceMinor; // 正余额=欠款，从净资产里扣；负余额(多还)自然加回
       } else {
         net += a.balanceMinor;
       }
@@ -58,8 +63,8 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   static int _sumTotalAssets(List<Account> list) {
     int total = 0;
     for (final Account a in list) {
-      // 只算非负债账户的正余额。
-      if (!a.type.isDebt && a.balanceMinor > 0) {
+      // 只算非负债方向账户的正余额（借入类账户正余额是欠款不是资产）。
+      if (!a.type.isLiabilitySide && a.balanceMinor > 0) {
         total += a.balanceMinor;
       }
     }
@@ -69,7 +74,7 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   static int _sumTotalLiabilities(List<Account> list) {
     int total = 0;
     for (final Account a in list) {
-      if (a.type.isDebt) {
+      if (a.type.isLiabilitySide && a.balanceMinor > 0) {
         total += a.balanceMinor; // 正余额即欠款金额
       }
     }

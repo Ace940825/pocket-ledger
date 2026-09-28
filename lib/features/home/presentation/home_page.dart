@@ -16,6 +16,7 @@ import '../../budget/providers/budget_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
 import '../../ledger/providers/ledger_providers.dart';
+import '../../lend/providers/lend_providers.dart';
 import '../../record/presentation/record_sheet.dart';
 import '../../record/record_tab.dart';
 
@@ -130,9 +131,14 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
     // 不再依赖外层 HomePage 重新挂载（修了"数据变化没反应"那一项）。
     final int netMinor = ref.watch(netAssetsProvider).valueOrNull ?? 0;
     final int assetsMinor = ref.watch(totalAssetsProvider).valueOrNull ?? 0;
-    // 信用卡正余额=欠款；直接读负债 provider 避免再用「资产-净资产」反推。
-    final int liabilitiesMinor =
+    // 负债两个来源（避免口径漏算）：
+    // ① 负债方向账户（信用卡/花呗等 debt + 私人借款 payable）正余额=欠款；
+    // ② 借还模块的借入未还净额（存在 LendRecord，不落任何账户余额）。
+    final int accountLiabilities =
         ref.watch(totalLiabilitiesProvider).valueOrNull ?? 0;
+    final int borrowInOngoing =
+        ref.watch(borrowInOngoingProvider).valueOrNull ?? 0;
+    final int liabilitiesMinor = accountLiabilities + borrowInOngoing;
     final BudgetSummary budget = ref.watch(currentMonthBudgetSummaryProvider);
     final int income = ref.watch(monthIncomeProvider).valueOrNull ?? 0;
     final int expense = ref.watch(monthExpenseProvider).valueOrNull ?? 0;
@@ -157,7 +163,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
               _AssetsCard(
                 totalAssets: assetsMinor,
                 totalLiabilities: liabilitiesMinor,
-                netAssets: netMinor,
+                netAssets: netMinor - borrowInOngoing,
                 onTap: () => context.push(Routes.accounts),
               ),
             ],

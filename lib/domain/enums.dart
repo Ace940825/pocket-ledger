@@ -143,6 +143,14 @@ enum AccountType {
 
   /// 该类型是否属于负债（余额表示欠款）。
   bool get isDebt => category == AccountCategory.debt;
+
+  /// 该类型是否属于「负债方向」：正余额即代表欠款。
+  ///
+  /// 覆盖 [AccountCategory.debt]（信用卡/花呗等）与 [AccountCategory.payable]
+  /// （私人借款）。净资产 / 总资产 / 总负债的统计一律用本属性，
+  /// 不要只用 [isDebt]——否则借入类（borrow）账户的欠款会被漏进总资产。
+  bool get isLiabilitySide =>
+      category == AccountCategory.debt || category == AccountCategory.payable;
 }
 
 /// 资产状态：使用中 / 隐藏 / 封存。
