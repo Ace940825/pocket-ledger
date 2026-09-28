@@ -405,7 +405,9 @@ class LendRepository {
   /// 外层事务整体回滚。
   ///
   /// [notFoundHint] / [overHint] 用于区分「减免」与「还款」两套报错文案。
-  Future<void> _offsetDebts({
+  /// 返回本次被冲销（已改动）的借还记录 ID 列表，供上层（如 [repay]）
+  /// 把流水关联到具体借还记录、让详情页能显示「借还账户」行。
+  Future<List<String>> _offsetDebts({
     required String bookId,
     required LendDirection direction,
     required String counterparty,
@@ -420,6 +422,7 @@ class LendRepository {
 
     final String trimmed = counterparty.trim();
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final List<String> affected = <String>[];
 
     final List<LendRecord> records = await (_db.select(_db.lendRecords)
           ..where(
@@ -482,6 +485,7 @@ class LendRepository {
           'discountMinor': r.discountMinor,
         },
       );
+      affected.add(r.id);
       remaining -= apply;
     }
 
@@ -498,10 +502,14 @@ class LendRepository {
     for (final String accId in designatedAccounts) {
       await _reconcileDesignatedBalance(accId);
     }
+    return affected;
   }
 
   /// 债务削减 / 减免：按 [counterparty] 找到该方向下所有未结清记录并冲减，
-  /// 不影响资产账户余额（借出方向为坏账计提、借入方向为债务削减，均无真实资金流动）。不新增记录。
+  /// 不影响资产账户余额（借出方向为坏账计提、借入方向为债务削减，均无真实
+  /// 资金流动）。同时生成一笔「记账备忘」流水（关联借还记录、不计入收支 /
+  /// 预算），使详情页能显示「借还账户」行——仅在被冲销记录已指定借还账户
+  /// 时生成（纯文字债务无账户可挂，跳过；与还款 / 收债同口径）。
   Future<void> debtReduction({
     required String bookId,
     required LendDirection direction,
@@ -511,8 +519,16 @@ class LendRepository {
     String? note,
   }) {
     final String dirLabel = direction == LendDirection.borrowIn ? '借入' : '借出';
+    final String verb = direction == LendDirection.borrowIn
+        ? '债务消减'
+        : '坏账计提';
+    // 债务消减（借入被减免）= 应付减少（收益）→ income；坏账计提（应收
+    // 损失）= 资产减少（费用）→ expense。仅影响展示用图标 / 配色，不计入统计。
+    final TxnType txnType = direction == LendDirection.borrowIn
+        ? TxnType.income
+        : TxnType.expense;
     return _db.transaction<void>(() async {
-      await _offsetDebts(
+      final List<String> affected = await _offsetDebts(
         bookId: bookId,
         direction: direction,
         counterparty: counterparty,
@@ -520,6 +536,31 @@ class LendRepository {
         notFoundHint: '未找到$dirLabel给「${counterparty.trim()}」的未结清记录',
         overHint: '减免金额超过剩余债务',
       );
+      // 生成记账备忘流水：关联借还记录、不计入收支 / 余额，详情页据此显示
+      // 「借还账户」行。仅当被冲销记录已指定借还账户时生成（纯文字债务跳过）。
+      if (affected.isNotEmpty) {
+        final LendRecord? record = await getById(affected.first);
+        final String? designated = record?.accountId;
+        if (designated != null && designated.isNotEmpty) {
+          final String trimmed = counterparty.trim();
+          final String? userNote = note?.trim();
+          final String txnNote = userNote == null || userNote.isEmpty
+              ? '$verb-$trimmed'
+              : '$verb-$trimmed\n$userNote';
+          await _txnRepo.add(
+            bookId: bookId,
+            type: txnType,
+            amountMinor: amountMinor,
+            accountId: designated,
+            occurredAt: occurredAt,
+            note: txnNote,
+            sourceModule: SourceModule.lend,
+            relatedId: affected.first,
+            excludeFromStats: true,
+            excludeFromBudget: true,
+          );
+        }
+      }
     });
   }
 
@@ -546,7 +587,7 @@ class LendRepository {
         direction == LendDirection.borrowIn ? TxnType.expense : TxnType.income;
 
     return _db.transaction<void>(() async {
-      await _offsetDebts(
+      final List<String> affected = await _offsetDebts(
         bookId: bookId,
         direction: direction,
         counterparty: counterparty,
@@ -569,6 +610,10 @@ class LendRepository {
           occurredAt: occurredAt,
           note: txnNote,
           sourceModule: SourceModule.lend,
+          // 关联被冲销的借还记录（取首条被冲销记录）：详情页据此解析出
+          // 「借还账户」行（与借入 / 借出本金流水同口径）。多记录冲销时
+          // 取最早一条作为代表，足够定位对方借还账户。
+          relatedId: affected.isNotEmpty ? affected.first : null,
           // 还债 / 收债同样不是收支：与借入 / 借出本金流水同口径，
           // 排除收支统计与预算（否则借款周期会在统计里虚增一笔）。
           excludeFromStats: true,

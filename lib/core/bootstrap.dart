@@ -82,6 +82,10 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 名称与同方向账户名一致的，回填 accountId——必须在流水补建**之前**，
   // 归户后的记录才能按「资产账户优先 → 指定账户兜底」口径补建本金流水。
   await _backfillLendDesignatedAccounts(db);
+  // 历史还债/收债流水补关联借还记录（幂等）：旧版本还债/收债流水未写
+  // relatedId，详情无法显示「借还账户」行；按备注「动词-对方」反查同方向
+  // 借还记录回填 relatedId。必须在归户**之后**（对方名已与账户对齐）。
+  await _backfillRepayRelatedIds(db);
   // 借还落流水对账（幂等，每次启动运行）：有可挂账户（资产账户优先，
   // 其次指定借入/借出账户）但缺本金流水的借还记录补建流水；借还模块
   // 流水统一排除收支统计与预算。补建必须在余额对账**之前**——补建的
@@ -266,6 +270,63 @@ Future<void> _reconcileReimbursedAmounts(AppDatabase db) async {
         .write(
       ReimbursementsCompanion(
         amountMinor: Value<int>(want),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+  }
+}
+
+/// 历史还债/收债流水补关联借还记录：旧版本还债/收债流水（sourceModule=lend、
+/// 排除收支统计）未写 relatedId，详情无法显示「借还账户」行。按备注里的
+/// 「动词-对方」反查同方向（还债=borrowIn / 收债=lendOut）的未删借还记录，
+/// 优先未结清，回填 relatedId——仅当该记录已指定借还账户（否则行本就不显示）。
+/// 幂等：每次启动运行，仅在有匹配且尚未关联时写库（dirty 置真走同步）。
+Future<void> _backfillRepayRelatedIds(AppDatabase db) async {
+  final List<Transaction> txns = await (db.select(db.transactions)
+        ..where((Transactions t) =>
+            t.sourceModule.equals(SourceModule.lend.index) &
+            t.relatedId.isNull() &
+            t.excludeFromStats.equals(true) &
+            t.deleted.equals(false)))
+      .get();
+  if (txns.isEmpty) return;
+
+  final List<LendRecord> records = await (db.select(db.lendRecords)
+        ..where((LendRecords t) => t.deleted.equals(false)))
+      .get();
+  final Map<String, List<LendRecord>> byKey = <String, List<LendRecord>>{};
+  for (final LendRecord r in records) {
+    final String key = '${r.direction.index}:${r.counterparty.trim()}';
+    (byKey[key] ??= <LendRecord>[]).add(r);
+  }
+
+  final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+  for (final Transaction txn in txns) {
+    final String? note = txn.note;
+    if (note == null || !note.contains('-')) continue;
+    final String counterparty = note.split('-')[1].split('\n')[0].trim();
+    if (counterparty.isEmpty) continue;
+    final LendDirection dir = txn.type == TxnType.expense
+        ? LendDirection.borrowIn
+        : LendDirection.lendOut;
+    final List<LendRecord>? matches = byKey['${dir.index}:$counterparty'];
+    if (matches == null || matches.isEmpty) continue;
+    // 优先未结清记录
+    LendRecord? pick;
+    for (final LendRecord r in matches) {
+      if (r.status == LendStatus.ongoing) {
+        pick = r;
+        break;
+      }
+    }
+    pick ??= matches.first;
+    if (pick.accountId == null || pick.accountId!.isEmpty) continue;
+    await (db.update(db.transactions)
+          ..where((Transactions t) => t.id.equals(txn.id)))
+        .write(
+      TransactionsCompanion(
+        relatedId: Value<String?>(pick.id),
         updatedAt: Value<int>(now),
         dirty: const Value<bool>(true),
       ),
