@@ -14,6 +14,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../data/account_icon.dart';
 import '../../../providers/asset_stats_settings.dart';
+import '../../record/record_tab.dart';
 import '../../record/presentation/record_sheet.dart';
 import '../providers/accounts_providers.dart';
 import 'account_ledger_grouping.dart';
@@ -105,7 +106,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
         categories,
         settings,
       ),
-      bottomNavigationBar: _bottomButton(context),
+      bottomNavigationBar: _bottomButton(context, account),
     );
   }
 
@@ -254,6 +255,10 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
   }
 
   Future<void> _showEditor(Account account) async {
+    // 借出/借入账户的余额由名下未结清借还记录自动计算（启动对账兜底），
+    // 不允许手改余额、不允许改类型——编辑只开放账户名。
+    final bool isLendAccount =
+        account.type == AccountType.lend || account.type == AccountType.borrow;
     final TextEditingController nameController =
         TextEditingController(text: account.name);
     final TextEditingController balanceController = TextEditingController(
@@ -273,33 +278,43 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
                 controller: nameController,
                 decoration: const InputDecoration(labelText: '账户名称'),
               ),
-              const SizedBox(height: AppDimens.spaceMd),
-              TextField(
-                controller: balanceController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: type.isDebt ? '当前欠款' : '余额',
-                  prefixText: '¥ ',
-                ),
-              ),
-              const SizedBox(height: AppDimens.spaceMd),
-              DropdownButtonFormField<AccountType>(
-                initialValue: type,
-                decoration: const InputDecoration(labelText: '账户类型'),
-                items: AccountType.values
-                    .where((AccountType t) => t != AccountType.borrow)
-                    .map(
-                      (AccountType t) => DropdownMenuItem<AccountType>(
-                        value: t,
-                        child: Text(t.label),
+              if (isLendAccount) ...<Widget>[
+                const SizedBox(height: AppDimens.spaceMd),
+                Text(
+                  '该账户余额由借还记录自动计算，暂不支持手动修改。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
                       ),
-                    )
-                    .toList(growable: false),
-                onChanged: (AccountType? v) {
-                  if (v != null) setState(() => type = v);
-                },
-              ),
+                ),
+              ] else ...<Widget>[
+                const SizedBox(height: AppDimens.spaceMd),
+                TextField(
+                  controller: balanceController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: type.isDebt ? '当前欠款' : '余额',
+                    prefixText: '¥ ',
+                  ),
+                ),
+                const SizedBox(height: AppDimens.spaceMd),
+                DropdownButtonFormField<AccountType>(
+                  initialValue: type,
+                  decoration: const InputDecoration(labelText: '账户类型'),
+                  items: AccountType.values
+                      .where((AccountType t) => t != AccountType.borrow)
+                      .map(
+                        (AccountType t) => DropdownMenuItem<AccountType>(
+                          value: t,
+                          child: Text(t.label),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: (AccountType? v) {
+                    if (v != null) setState(() => type = v);
+                  },
+                ),
+              ],
             ],
           ),
           actions: <Widget>[
@@ -322,8 +337,10 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
       await ref.read(accountRepositoryProvider).update(
             id: account.id,
             name: nameController.text,
-            type: type,
-            balanceMinor: Money.tryParse(balanceController.text).minor,
+            type: isLendAccount ? account.type : type,
+            balanceMinor: isLendAccount
+                ? account.balanceMinor
+                : Money.tryParse(balanceController.text).minor,
           );
     } on AppFailure catch (e) {
       if (mounted) {
@@ -402,7 +419,11 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
     }
   }
 
-  Widget _bottomButton(BuildContext context) {
+  Widget _bottomButton(BuildContext context, Account? account) {
+    // 借出/借入账户详情页的「记一笔」直接进借还 Tab，与页面语境一致。
+    final bool isLendAccount = account != null &&
+        (account.type == AccountType.lend ||
+            account.type == AccountType.borrow);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -412,7 +433,10 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
           AppDimens.spaceLg,
         ),
         child: FilledButton(
-          onPressed: () => openRecordSheet(context),
+          onPressed: () => openRecordSheet(
+            context,
+            initialTab: isLendAccount ? RecordTab.lend : RecordTab.expense,
+          ),
           child: const Padding(
             padding: EdgeInsets.symmetric(vertical: AppDimens.spaceMd),
             child: Text('记一笔'),
@@ -520,7 +544,12 @@ class _AccountCardHeader extends StatelessWidget {
               ),
               const SizedBox(height: AppDimens.spaceLg),
               Text(
-                isDebt ? '当前欠款(元)' : '当前余额(元)',
+                switch (account.type) {
+                  // 借出/借入账户按小青账口径展示本金净额（= 名下未结清合计）
+                  AccountType.borrow => '未还本金(元)',
+                  AccountType.lend => '未收本金(元)',
+                  _ => isDebt ? '当前欠款(元)' : '当前余额(元)',
+                },
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),

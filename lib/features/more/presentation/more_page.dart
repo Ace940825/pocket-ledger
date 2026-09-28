@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../routing/app_router.dart';
 
-/// 更多功能入口：收纳转账、借还、报销、储蓄、分期、投资、物品七大模块。
+/// 更多功能入口：收纳转账、报销、储蓄、分期、投资、物品与分类管理。
+/// 借还不再设独立入口——借出/借入账户在账户页管理，点击进资产详情页，
+/// 借还总览可从账户页「应收/应付」汇总行进入。
 class MorePage extends StatelessWidget {
   const MorePage({super.key});
 
@@ -25,12 +27,6 @@ class MorePage extends StatelessWidget {
       description: '账户间资金划转',
       icon: Icons.swap_horiz,
       route: Routes.transfer,
-    ),
-    (
-      title: '借还',
-      description: '借出借入与还款',
-      icon: Icons.handshake_outlined,
-      route: Routes.lend,
     ),
     (
       title: '退款 / 报销',
