@@ -1,7 +1,11 @@
 /// 账户选择 Bottom Sheet（A 模板落地）
 ///
 /// 数据来源：森林手账 / 鼠尾草绿 A 模板，已按本项目配色与 Account 模型适配。
-/// 支持网格卡片 + 列表切换、不选择具体账户、资产管理、重新加载、添加账户。
+/// 支持网格卡片 + 列表切换、不选择具体账户、资产管理、添加账户。
+/// 账户列表实时 watch 账户流（accountsProvider）：在弹窗内新建 / 改名 / 删除
+/// 账户后列表即时刷新，无需「重新加载」或重开弹窗。
+/// 调用方通过 [AccountPickerSheet.filter] 声明可选项口径（资金类 / 应收应付 /
+/// 报销账户等），过滤在每次流推送后重新套用。
 
 import 'dart:async';
 
@@ -13,6 +17,7 @@ import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import '../../accounts/providers/accounts_providers.dart';
 import '../providers/recording_settings_provider.dart';
 import 'default_asset_settings_sheet.dart';
 
@@ -46,8 +51,13 @@ class _SheetA {
 
 // ───────────────────── Bottom Sheet 组件 ─────────────────────
 
+/// 账户列表过滤器：入参为账户流全量（未删除、未归档），返回该弹窗的可选项。
+/// 过滤在每次账户流推送后重新套用——弹窗内新建的账户只要符合口径立即出现。
+typedef AccountListFilter = List<Account> Function(List<Account> all);
+
 class AccountPickerSheet extends ConsumerStatefulWidget {
-  final List<Account> accounts;
+  /// 可选项过滤口径；null = 展示全部未删除账户。
+  final AccountListFilter? filter;
 
   /// 选中态可二选一传入：资金账户按 [selectedId] 记忆（各 tab 通用），
   /// 对方账户（应付/应收）按名称输入框记忆，传 [selectedName]。
@@ -58,7 +68,6 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
   final String? noneSubtitle;
   final VoidCallback? onManage;
   final VoidCallback? onAdd;
-  final VoidCallback? onReload;
 
   /// 确认回调：带回完整账户对象；「不选择具体账户」回 null。
   final ValueChanged<Account?> onConfirm;
@@ -78,7 +87,7 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
 
   const AccountPickerSheet({
     super.key,
-    required this.accounts,
+    this.filter,
     this.selectedName,
     this.selectedId,
     this.title = '选择账户',
@@ -86,7 +95,6 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
     this.noneSubtitle,
     this.onManage,
     this.onAdd,
-    this.onReload,
     this.showSettings = true,
     this.showNoneRow = true,
     this.conflictId,
@@ -99,8 +107,6 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
 }
 
 class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
-  String? _selected;
-
   /// 弹窗内提示条文案（如点到了冲突账户）；null = 不显示。
   String? _hint;
   Timer? _hintTimer;
@@ -121,27 +127,34 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
     super.dispose();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    // 优先按 id 定位选中态（各 tab 资金账户按 id 记忆），
-    // 其次按名称（应付/应收对方账户按名称记忆）。
-    String? initial = widget.selectedName;
+  /// 实时账户列表：订阅账户流（watch 账户流），弹窗内新建 / 改名 / 删除
+  /// 账户即时反映；先滤掉已删除账户，再套用调用方的 [AccountPickerSheet.filter]。
+  List<Account> get _items {
+    final List<Account> all =
+        ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
+    final List<Account> alive =
+        all.where((Account a) => !a.deleted).toList(growable: false);
+    final AccountListFilter? f = widget.filter;
+    return f == null ? alive : f(alive);
+  }
+
+  /// 当前高亮账户名（账户按名称记忆，兼容对方账户按名称匹配）：
+  /// 优先按 [AccountPickerSheet.selectedId] 从实时列表解析（资金账户按 id 记忆），
+  /// 找不到或未传时回退 [AccountPickerSheet.selectedName]（应付/应收对方账户）。
+  String? get _selected {
+    final List<Account> items = _items;
     if (widget.selectedId != null) {
-      for (final Account a in widget.accounts) {
-        if (a.id == widget.selectedId) {
-          initial = a.name;
-          break;
-        }
+      for (final Account a in items) {
+        if (a.id == widget.selectedId) return a.name;
       }
     }
-    _selected = initial;
+    return widget.selectedName;
   }
 
   /// 把内部选中的名称解析回账户对象；空 / 找不到时回 null（= 不选择）。
   Account? _accountOf(String? name) {
     if (name == null || name.isEmpty) return null;
-    for (final Account a in widget.accounts) {
+    for (final Account a in _items) {
       if (a.name == name) return a;
     }
     return null;
@@ -294,7 +307,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
 
   // ── 账户主体（网格或列表） ──
   Widget _buildBody() {
-    final List<Account> items = widget.accounts;
+    final List<Account> items = _items;
     if (items.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppDimens.spaceLg),
@@ -447,24 +460,14 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
     );
   }
 
-  // ── 操作区：重新加载 / 资产管理 ──
+  // ── 操作区：资产管理（账户列表实时刷新，无需手动重新加载） ──
   Widget _buildOps() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Row(
-        children: <Widget>[
-          _OpBtn(
-            label: '重新加载',
-            primary: false,
-            onTap: widget.onReload,
-          ),
-          const SizedBox(width: 10),
-          _OpBtn(
-            label: '资产管理',
-            primary: false,
-            onTap: widget.onManage,
-          ),
-        ],
+      child: _OpBtn(
+        label: '资产管理',
+        primary: false,
+        onTap: widget.onManage,
       ),
     );
   }

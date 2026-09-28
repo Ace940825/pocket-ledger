@@ -1711,25 +1711,31 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
     return accounts.when(
       data: (List<Account> list) {
-        // 资金类（默认）排除应收 / 应付；allowedTypes 按具体类型过滤，
-        // allowedCategories 按大类过滤，二选一（allowedTypes 优先）。
-        List<Account> shown;
-        if (allowedTypes != null) {
-          shown = list
-              .where((Account a) => allowedTypes.contains(a.type))
-              .toList(growable: false);
-        } else if (allowedCategories == null) {
-          shown = fundAccountsOnly(list);
-        } else {
-          shown = list
-              .where(
-                (Account a) => allowedCategories.contains(a.type.category),
-              )
-              .toList(growable: false);
+        // 过滤口径（展示与选择器共用）：资金类（默认）排除应收 / 应付；
+        // allowedTypes 按具体类型过滤，allowedCategories 按大类过滤，
+        // 二选一（allowedTypes 优先）。
+        List<Account> match(List<Account> src) {
+          List<Account> s;
+          if (allowedTypes != null) {
+            s = src
+                .where((Account a) => allowedTypes!.contains(a.type))
+                .toList(growable: false);
+          } else if (allowedCategories == null) {
+            s = fundAccountsOnly(src);
+          } else {
+            s = src
+                .where(
+                  (Account a) => allowedCategories!.contains(a.type.category),
+                )
+                .toList(growable: false);
+          }
+          if (excludeId != null && s.length > 1) {
+            s = s.where((Account a) => a.id != excludeId).toList();
+          }
+          return s;
         }
-        if (excludeId != null && shown.length > 1) {
-          shown = shown.where((Account a) => a.id != excludeId).toList();
-        }
+
+        final List<Account> shown = match(list);
         final String? safe =
             shown.any((Account a) => a.id == value) ? value : null;
         final Account? selected =
@@ -1742,8 +1748,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 // 空列表也打开选择器（弹窗内「＋添加」兜底），不禁用点击。
                 onTap: () => _showTransferAccountPicker(
                           label: label,
-                          // 可选项已由 shown 处理：资金类（默认）或限定大类（报销账户=应收 / 应付）
-                          accounts: shown,
+                          // 选择器实时 watch 账户流并套用同一过滤口径
+                          filter: match,
                           selectedId: safe,
                           onChanged: onChanged,
                         ),
@@ -1819,7 +1825,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// （仅借还等数据层允许无账户的场景传入）。
   Future<void> _showTransferAccountPicker({
     required String label,
-    required List<Account> accounts,
+
+    /// 可选项过滤口径：弹窗内部实时 watch 账户流并套用该过滤，
+    /// 弹窗内新建的账户只要符合口径立即出现在列表里。
+    required AccountListFilter filter,
     required String? selectedId,
     required ValueChanged<String?> onChanged,
     String? conflictId,
@@ -1831,7 +1840,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => AccountPickerSheet(
-        accounts: accounts,
+        filter: filter,
         selectedId: selectedId,
         title: '选择$label',
         showNoneRow: allowNone,
@@ -1839,7 +1848,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         // 同账户不能互转：冲突校验在弹窗内就地提示（不关弹窗）。
         conflictId: conflictId,
         conflictMessage: '转出与转入账户不能相同',
-        onReload: () => ref.invalidate(accountsProvider),
         // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面；
         // 页面返回后弹窗仍原位（回到「选择账户」这个入口界面）。
         onAdd: () {
@@ -1891,7 +1899,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               ],
             ),
             const SizedBox(height: 8),
-            _buildTransferFlowBody(shown: shown, outAcc: outAcc, inAcc: inAcc),
+            _buildTransferFlowBody(outAcc: outAcc, inAcc: inAcc),
           ],
         );
       },
@@ -1905,7 +1913,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 几何与设计稿对齐：卡高 74、缝高 10（总高 158）；光带位于 y 66→92 的
   /// 26px 横带内（与 HTML 稿 1:1），互换按钮居中于 y 79。
   Widget _buildTransferFlowBody({
-    required List<Account> shown,
     required Account? outAcc,
     required Account? inAcc,
   }) {
@@ -1922,7 +1929,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 child: _buildFlowAccountCard(
                   account: outAcc,
                   isOut: true,
-                  shown: shown,
                   height: cardH,
                 ),
               ),
@@ -1936,7 +1942,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 child: _buildFlowAccountCard(
                   account: inAcc,
                   isOut: false,
-                  shown: shown,
                   height: cardH,
                 ),
               ),
@@ -1970,7 +1975,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   Widget _buildFlowAccountCard({
     required Account? account,
     required bool isOut,
-    required List<Account> shown,
     required double height,
   }) {
     final String placeholder = isOut ? '转出账户' : '转入账户';
@@ -2021,22 +2025,22 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       ),
     );
     return InkWell(
-      onTap: shown.isEmpty
-          ? null
-          : () => _showTransferAccountPicker(
-                label: label,
-                accounts: shown,
-                selectedId: account?.id,
-                // 同账户不能互转：把对方当前所选账户作为冲突项传入。
-                conflictId: isOut ? _toAccountId : _accountId,
-                onChanged: (String? v) => setState(() {
-                  if (isOut) {
-                    _accountId = v;
-                  } else {
-                    _toAccountId = v;
-                  }
-                }),
-              ),
+      // 空列表也打开选择器：弹窗内有「暂无账户，点击右上角添加」兜底。
+      onTap: () => _showTransferAccountPicker(
+            label: label,
+            // 选择器实时 watch 账户流：资金类账户（排除应收 / 应付）
+            filter: fundAccountsOnly,
+            selectedId: account?.id,
+            // 同账户不能互转：把对方当前所选账户作为冲突项传入。
+            conflictId: isOut ? _toAccountId : _accountId,
+            onChanged: (String? v) => setState(() {
+              if (isOut) {
+                _accountId = v;
+              } else {
+                _toAccountId = v;
+              }
+            }),
+          ),
       borderRadius: BorderRadius.circular(ForestRadius.md),
       child: Container(
         height: height,
@@ -2615,19 +2619,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         // allowedTypes 非空（借入/借出账户）：只展示对应类型（报销同款
         // 「指定账户」口径，借出→lend、借入→borrow）；allowedCategories
         // 非空按分类过滤；其余（资产账户、还款/收款账户）是资金类，
-        // 排除应收应付对方虚拟账户。
-        final List<Account> shown =
+        // 排除应收应付对方虚拟账户。展示与选择器共用同一过滤口径。
+        List<Account> match(List<Account> src) =>
             allowedCategories == null && allowedTypes == null
-                ? fundAccountsOnly(list)
-                : list
+                ? fundAccountsOnly(src)
+                : src
                     .where(
                       (Account a) =>
                           (allowedCategories == null ||
-                              allowedCategories.contains(a.type.category)) &&
+                              allowedCategories!.contains(a.type.category)) &&
                           (allowedTypes == null ||
-                              allowedTypes.contains(a.type)),
+                              allowedTypes!.contains(a.type)),
                     )
                     .toList(growable: false);
+        final List<Account> shown = match(list);
         final String? safe =
             shown.any((Account a) => a.id == value) ? value : null;
         final Account? selected =
@@ -2639,7 +2644,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           // 兜底（＋添加可创建借入/借出账户），禁用点击会卡死无账户场景。
           onTap: () => _showTransferAccountPicker(
                     label: label,
-                    accounts: shown,
+                    // 选择器实时 watch 账户流并套用同一过滤口径
+                    filter: match,
                     selectedId: safe,
                     // 借入/借出账户可不选（对方已填时仅建债务不动资金）；
                     // 「资产账户」是还债/收债的资金通道，保存必选。
@@ -2908,62 +2914,34 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => Consumer(
-        builder: (_, WidgetRef sheetRef, __) {
-          final AsyncValue<List<Account>> accountsValue = sheetRef.watch(
-            lendAccountsProvider(_lendDir),
-          );
-          return accountsValue.when(
-            data: (List<Account> items) => AccountPickerSheet(
-              accounts: items,
-              selectedName: _counterpartyController.text.trim(),
-              title: '选择${_lendDir == LendDirection.lendOut ? '应收' : '应付'}账户',
-              noneTitle: '不选择具体账户',
-              noneSubtitle: '仅计入收支账单，不计入资产',
-              onReload: () => sheetRef.invalidate(
-                lendAccountsProvider(_lendDir),
-              ),
-              // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面；
-              // 页面返回后弹窗仍原位（回到「选择账户」这个入口界面）。
-              onAdd: () {
-                if (mounted) context.push(Routes.accountAdd);
-              },
-              onManage: () {
-                if (mounted) context.push(Routes.accountManage);
-              },
-              // 点「不选择具体账户」时 onConfirm 收到 null，用空字符串区分
-              // 「明确选择不选择」（''）与「下滑关闭」（null）。
-              onConfirm: (Account? acc) =>
-                  Navigator.of(ctx).pop(acc?.name ?? ''),
-            ),
-            loading: () => Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: const SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 220,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ),
-            ),
-            error: (Object e, _) => Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 220,
-                  child: Center(child: Text('加载失败：$e')),
-                ),
-              ),
-            ),
-          );
+      builder: (BuildContext ctx) => AccountPickerSheet(
+        // 实时 watch 账户流：仅当前方向的应收 / 应付真实账户
+        // （弹窗内过滤已删除账户，与 lendAccountsProvider 口径一致）
+        filter: (List<Account> all) => all
+            .where(
+              (Account a) =>
+                  a.type.category ==
+                  (_lendDir == LendDirection.lendOut
+                      ? AccountCategory.receivable
+                      : AccountCategory.payable),
+            )
+            .toList(growable: false),
+        selectedName: _counterpartyController.text.trim(),
+        title: '选择${_lendDir == LendDirection.lendOut ? '应收' : '应付'}账户',
+        noneTitle: '不选择具体账户',
+        noneSubtitle: '仅计入收支账单，不计入资产',
+        // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面；
+        // 页面返回后弹窗仍原位（回到「选择账户」这个入口界面）。
+        onAdd: () {
+          if (mounted) context.push(Routes.accountAdd);
         },
+        onManage: () {
+          if (mounted) context.push(Routes.accountManage);
+        },
+        // 点「不选择具体账户」时 onConfirm 收到 null，用空字符串区分
+        // 「明确选择不选择」（''）与「下滑关闭」（null）。
+        onConfirm: (Account? acc) =>
+            Navigator.of(ctx).pop(acc?.name ?? ''),
       ),
     );
 
@@ -4149,16 +4127,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     required ValueChanged<String?> onChanged,
     List<AccountType>? allowedTypes,
   }) async {
-    final List<Account> list =
-        ref.read(accountsProvider).valueOrNull ?? const <Account>[];
-    final List<Account> shown = allowedTypes != null
-        ? list
-            .where((Account a) => allowedTypes.contains(a.type))
-            .toList(growable: false)
-        : fundAccountsOnly(list);
     await _showTransferAccountPicker(
       label: label,
-      accounts: shown,
+      // 选择器实时 watch 账户流并套用同一过滤口径（指定类型 / 资金类）
+      filter: (List<Account> all) {
+        if (allowedTypes != null) {
+          return all
+              .where((Account a) => allowedTypes!.contains(a.type))
+              .toList(growable: false);
+        }
+        return fundAccountsOnly(all);
+      },
       selectedId: value,
       onChanged: onChanged,
     );
@@ -5084,7 +5063,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         void pick() {
           _showTransferAccountPicker(
             label: '入款账户',
-            accounts: shown,
+            // 选择器实时 watch 账户流：资金类账户（排除应收 / 应付）
+            filter: fundAccountsOnly,
             selectedId: safe,
             onChanged: (String? v) => setState(() => _accountId = v),
           );
@@ -5103,7 +5083,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: shown.isEmpty ? null : pick,
+                    // 空列表也打开选择器：弹窗内「＋添加」兜底
+                    onTap: pick,
                     borderRadius: BorderRadius.circular(13),
                     child: Container(
                       height: 42,
@@ -5136,7 +5117,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: shown.isEmpty ? null : pick,
+                  // 空列表也打开选择器：弹窗内「＋添加」兜底
+                  onTap: pick,
                   borderRadius: BorderRadius.circular(13),
                   child: Container(
                     height: 42,
@@ -5958,56 +5940,22 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       useSafeArea: true,
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => Consumer(
-        builder: (_, WidgetRef sheetRef, __) {
-          final AsyncValue<List<Account>> accountsValue =
-              sheetRef.watch(accountsProvider);
-          return accountsValue.when(
-            data: (List<Account> items) => AccountPickerSheet(
-              accounts: fundAccountsOnly(items),
-              selectedId: _accountId,
-              title: isExpense ? '选择支出账户' : '选择收入账户',
-              noneTitle: '不选择具体账户',
-              noneSubtitle: '仅计入收支账单，不计入资产',
-              onReload: () => sheetRef.invalidate(accountsProvider),
-              // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面；
-              // 页面返回后弹窗仍原位（回到「选择账户」这个入口界面）。
-              onAdd: () {
-                if (mounted) context.push(Routes.accountAdd);
-              },
-              onManage: () {
-                if (mounted) context.push(Routes.accountManage);
-              },
-              onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
-            ),
-            loading: () => Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: const SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 220,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ),
-            ),
-            error: (Object e, _) => Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 220,
-                  child: Center(child: Text('加载失败：$e')),
-                ),
-              ),
-            ),
-          );
+      builder: (BuildContext ctx) => AccountPickerSheet(
+        // 实时 watch 账户流：资金类账户（排除应收 / 应付对方虚拟账户）
+        filter: fundAccountsOnly,
+        selectedId: _accountId,
+        title: isExpense ? '选择支出账户' : '选择收入账户',
+        noneTitle: '不选择具体账户',
+        noneSubtitle: '仅计入收支账单，不计入资产',
+        // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面；
+        // 页面返回后弹窗仍原位（回到「选择账户」这个入口界面）。
+        onAdd: () {
+          if (mounted) context.push(Routes.accountAdd);
         },
+        onManage: () {
+          if (mounted) context.push(Routes.accountManage);
+        },
+        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
       ),
     );
     if (selected == null || !mounted) return;
@@ -6028,57 +5976,23 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       useSafeArea: true,
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => Consumer(
-        builder: (_, WidgetRef sheetRef, __) {
-          final AsyncValue<List<Account>> accountsValue =
-              sheetRef.watch(accountsProvider);
-          return accountsValue.when(
-            data: (List<Account> items) => AccountPickerSheet(
-              accounts: items
-                  .where((Account a) => a.type == AccountType.reimbursement)
-                  .toList(),
-              selectedId: _reimbAccountId,
-              title: '选择报销账户',
-              noneSubtitle: '暂不关联报销账户',
-              onReload: () => sheetRef.invalidate(accountsProvider),
-              onAdd: () {
-                if (mounted) context.push(Routes.accountAdd);
-              },
-              onManage: () {
-                if (mounted) context.push(Routes.accountManage);
-              },
-              // 点「不选择具体账户」时 onConfirm 收到 null，以空串区分
-              // 「明确清空」（''）与「下滑关闭」（null）。
-              onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
-            ),
-            loading: () => Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: const SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 220,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ),
-            ),
-            error: (Object e, _) => Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 220,
-                  child: Center(child: Text('加载失败：$e')),
-                ),
-              ),
-            ),
-          );
+      builder: (BuildContext ctx) => AccountPickerSheet(
+        // 实时 watch 账户流：仅「报销」类型账户（与报销页表单同口径）
+        filter: (List<Account> all) => all
+            .where((Account a) => a.type == AccountType.reimbursement)
+            .toList(growable: false),
+        selectedId: _reimbAccountId,
+        title: '选择报销账户',
+        noneSubtitle: '暂不关联报销账户',
+        onAdd: () {
+          if (mounted) context.push(Routes.accountAdd);
         },
+        onManage: () {
+          if (mounted) context.push(Routes.accountManage);
+        },
+        // 点「不选择具体账户」时 onConfirm 收到 null，以空串区分
+        // 「明确清空」（''）与「下滑关闭」（null）。
+        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
       ),
     );
     if (selected == null || !mounted) return;

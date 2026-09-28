@@ -685,7 +685,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         final Account? selected =
             list.where((Account a) => a.id == _accountId).firstOrNull;
         return _buildOutlinedSelector(
-          onTap: list.isEmpty ? null : () => _showAccountPicker(list),
+          // 空列表也打开选择器：弹窗内「暂无账户，点击右上角添加」兜底
+          onTap: () => _showAccountPicker(),
           child: Row(
             children: <Widget>[
               Icon(
@@ -713,9 +714,10 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     );
   }
 
-  Future<void> _showAccountPicker(List<Account> accounts) async {
+  Future<void> _showAccountPicker() async {
     FocusManager.instance.primaryFocus?.unfocus();
     // 统一 A 模板网格账户选择弹窗（与记一笔页各账户键同源）。
+    // 账户列表由弹窗内部实时 watch 账户流，弹窗内新建账户即时出现。
     final String? result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -723,13 +725,11 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => AccountPickerSheet(
-        accounts: accounts,
         selectedId: _accountId,
         title: '选择负债账户',
         // 负债账户可不选（addPlan.accountId 可空）：仅建分期计划，不关联账户。
         showNoneRow: true,
         noneSubtitle: '暂不关联负债账户',
-        onReload: () => ref.invalidate(accountsProvider),
         // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面。
         onAdd: () {
           if (mounted) context.push(Routes.accountAdd);

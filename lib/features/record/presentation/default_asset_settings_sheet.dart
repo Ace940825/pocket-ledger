@@ -13,7 +13,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
-import '../../../features/accounts/providers/accounts_providers.dart';
 import '../../../routing/app_router.dart';
 import '../providers/recording_settings_provider.dart';
 import 'account_picker_sheet.dart';
@@ -186,56 +185,22 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => Consumer(
-        builder: (_, WidgetRef sheetRef, __) {
-          final AsyncValue<List<Account>> accountsValue =
-              sheetRef.watch(accountsProvider);
-          return accountsValue.when(
-            data: (List<Account> items) => AccountPickerSheet(
-              // 默认资产账户是真实资产账户，排除应收 / 应付对方虚拟账户
-              accounts: fundAccountsOnly(items),
-              showSettings: false, // 二级弹窗不显示齿轮键
-              onReload: () => sheetRef.invalidate(accountsProvider),
-              // 不关闭当前「选择账户」弹窗，把目标页压在上面；
-              // 页面返回后弹窗仍原位（回到进入添加/管理的入口界面）。
-              onAdd: () {
-                if (context.mounted) context.push(Routes.accountAdd);
-              },
-              onManage: () {
-                if (context.mounted) context.push(Routes.accountManage);
-              },
-              // 点「不选择具体账户」时 onConfirm 收到 null，用空字符串区分
-              // 「明确选择不选择」（''）与「下滑关闭」（null）。
-              onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.name ?? ''),
-            ),
-            loading: () => Container(
-              decoration: const BoxDecoration(
-                color: ForestBg.paper,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: const SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 220,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ),
-            ),
-            error: (Object e, _) => Container(
-              decoration: const BoxDecoration(
-                color: ForestBg.paper,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('账户加载失败：$e'),
-                ),
-              ),
-            ),
-          );
+      builder: (BuildContext ctx) => AccountPickerSheet(
+        // 实时 watch 账户流：默认资产账户是真实资产账户，
+        // 排除应收 / 应付对方虚拟账户
+        filter: fundAccountsOnly,
+        showSettings: false, // 二级弹窗不显示齿轮键
+        // 不关闭当前「选择账户」弹窗，把目标页压在上面；
+        // 页面返回后弹窗仍原位（回到进入添加/管理的入口界面）。
+        onAdd: () {
+          if (context.mounted) context.push(Routes.accountAdd);
         },
+        onManage: () {
+          if (context.mounted) context.push(Routes.accountManage);
+        },
+        // 点「不选择具体账户」时 onConfirm 收到 null，用空字符串区分
+        // 「明确选择不选择」（''）与「下滑关闭」（null）。
+        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.name ?? ''),
       ),
     );
     // 下拉关闭（null）不改动既有设置；空字符串 = 明确选了「不选择具体账户」，

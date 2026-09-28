@@ -111,7 +111,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
       _toast('还没有可用账户');
       return;
     }
-    final String? targetId = await _pickAccount(accounts);
+    final String? targetId = await _pickAccount();
     if (targetId == null || !mounted) return;
     try {
       await ref.read(reimbursementRepositoryProvider).update(
@@ -134,12 +134,12 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
     }
   }
 
-  Future<String?> _pickAccount(List<Account> accounts) async {
+  Future<String?> _pickAccount() async {
     return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => _AccountPickerSheet(accounts: accounts),
+      builder: (BuildContext ctx) => const _AccountPickerSheet(),
     );
   }
 
@@ -2382,15 +2382,18 @@ class _ActionRow extends StatelessWidget {
 
 // ── 账户选择器 ─────────────────────────────────────────
 
-class _AccountPickerSheet extends StatelessWidget {
-  const _AccountPickerSheet({required this.accounts});
-
-  final List<Account> accounts;
+class _AccountPickerSheet extends ConsumerWidget {
+  const _AccountPickerSheet();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final bool isDark = theme.brightness == Brightness.dark;
+    // 实时 watch 账户流：迁移目标账户即时刷新（过滤已删除账户）
+    final List<Account> accounts =
+        (ref.watch(accountsProvider).valueOrNull ?? const <Account>[])
+            .where((Account a) => !a.deleted)
+            .toList(growable: false);
     return _SheetScaffold(
       isDark: isDark,
       child: Column(
