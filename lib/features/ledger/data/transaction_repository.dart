@@ -7,6 +7,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import '../../lend/data/lend_flow_restore.dart';
 import '../../reimbursement/data/reimbursement_repository.dart';
 import 'transaction_edit_rules.dart';
 
@@ -487,6 +488,14 @@ class TransactionRepository {
           }
         }
       }
+
+      // 级联恢复被这笔借还冲销流水（还债/收债/债务消减/坏账计提）抵掉的
+      // 债务：按冲销台账（lend_flow_offsets）逐条反向恢复各借还记录的
+      // repaidMinor（已结清 → 重新进行中），涉及借还账户余额随之重算。
+      // 与上面「报销收入反向抵扣」同模式——否则用户删掉还债流水想撤销
+      // 还款时，债务仍停留在已结清、账户未还本金不变（数据不一致）。
+      // 本金流水（借入/借出）不受影响：无台账且备注非冲销动词，直接跳过。
+      await restoreLendOffsetOnFlowRemoved(_db, txn);
     });
   }
 

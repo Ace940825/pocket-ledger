@@ -124,7 +124,11 @@ class TransactionDetailSheet extends ConsumerWidget {
                     // 卡片二 · 附件
                     _buildAttachmentCard(attachments),
                   ],
-                  if (transaction.type == TxnType.expense) ...<Widget>[
+                  // 借还模块流水（借出本金 / 还债 / 债务消减 / 坏账计提）
+                  // 不显示报销 / 退款卡：债务备忘没有报销与退款语义。
+                  if (transaction.type == TxnType.expense &&
+                      transaction.sourceModule != SourceModule.lend)
+                    ...<Widget>[
                     const SizedBox(height: 14),
                     // 卡片三 · 报销 / 退款
                     _buildReimbRefundCard(
