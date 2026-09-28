@@ -313,12 +313,17 @@ class TransactionDetailSheet extends ConsumerWidget {
         _kvTap(
           '资产账户',
           account?.name ?? '未知账户',
-          // 报销账户统一跳报销页，与账户页点击口径一致
+          // 报销账户跳报销页、借出/借入账户跳借还页，与账户页点击口径一致
           onTap: account == null
               ? null
-              : account.type == AccountType.reimbursement
-                  ? () => context.push(Routes.reimbursement)
-                  : () => context.push('/accounts/${account.id}/transactions'),
+              : switch (account.type) {
+                  AccountType.reimbursement => () =>
+                      context.push(Routes.reimbursement),
+                  AccountType.lend ||
+                  AccountType.borrow =>
+                    () => context.push(Routes.lend),
+                  _ => () => context.push('/accounts/${account.id}/transactions'),
+                },
         ),
     );
     if (tags.isNotEmpty) {

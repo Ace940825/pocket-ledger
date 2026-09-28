@@ -78,10 +78,15 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 修复历史版本挂账/核销链路缺失导致的 100 vs 30 类不一致。
   await _reconcileReimbursementBalances(db);
   await _reconcileReimbursedAmounts(db);
-  // 借还落流水对账（幂等，每次启动运行）：有资产账户但缺本金流水的
-  // 借还记录补建流水；借还模块流水统一排除收支统计与预算。
+  // 借还落流水对账（幂等，每次启动运行）：有可挂账户（资产账户优先，
+  // 其次指定借入/借出账户）但缺本金流水的借还记录补建流水；借还模块
+  // 流水统一排除收支统计与预算。补建必须在余额对账**之前**——补建的
+  // 流水挂在指定账户上会带错向余额增量，随后由对账覆盖修复。
   await _backfillLendFlowTransactions(db);
   await _excludeLendFromStatsAndBudget(db);
+  // 借还指定账户余额对账（幂等）：借出/借入类型账户余额 =
+  // 名下未结清借还记录合计（报销账户同款不变量）。
+  await _reconcileLendAccountBalances(db);
   final List<Book> books = await db.booksDao.watchAll().first;
   if (books.isEmpty) {
     await _seedDefaults(db);
@@ -121,6 +126,51 @@ Future<void> _reconcileReimbursementBalances(AppDatabase db) async {
   final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
   for (final Account a in reimbAccounts) {
     final int want = expected[a.id] ?? 0;
+    if (a.balanceMinor == want) continue;
+    await (db.update(db.accounts)..where((Accounts t) => t.id.equals(a.id)))
+        .write(
+      AccountsCompanion(
+        balanceMinor: Value<int>(want),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+  }
+}
+
+/// 借还指定账户余额对账：借出(lend)/借入(borrow)类型账户的余额重算为
+/// 名下未结清借还记录合计（本金 − 优惠 − 已还；报销账户同款不变量）。
+///
+/// 借还模块流水挂在这些账户上的余额增量是错向的（借出记支出做减法），
+/// 余额一律以记录合计为准；历史漂移启动时一次性修复，仅在有偏差时写库。
+Future<void> _reconcileLendAccountBalances(AppDatabase db) async {
+  final List<Account> lendAccounts = await (db.select(db.accounts)
+        ..where((Accounts t) =>
+            (t.type.equals(AccountType.lend.index) |
+                t.type.equals(AccountType.borrow.index)) &
+            t.deleted.equals(false)))
+      .get();
+  if (lendAccounts.isEmpty) return;
+
+  final List<LendRecord> records = await (db.select(db.lendRecords)
+        ..where((LendRecords t) =>
+            t.status.equals(LendStatus.ongoing.index) &
+            t.deleted.equals(false) &
+            t.accountId.isNotNull()))
+      .get();
+
+  final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+  for (final Account a in lendAccounts) {
+    final LendDirection dir = a.type == AccountType.lend.index
+        ? LendDirection.lendOut
+        : LendDirection.borrowIn;
+    final int want = records
+        .where((LendRecord r) => r.accountId == a.id && r.direction == dir)
+        .fold<int>(
+          0,
+          (int sum, LendRecord r) =>
+              sum + r.amountMinor - r.discountMinor - r.repaidMinor,
+        );
     if (a.balanceMinor == want) continue;
     await (db.update(db.accounts)..where((Accounts t) => t.id.equals(a.id)))
         .write(

@@ -63,12 +63,16 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     );
   }
 
-  /// 报销账户统一跳报销页（即其「资产详情」），其余类型进资产详情页。
-  void _openDetail(Account a) => context.push(
-        a.type == AccountType.reimbursement
-            ? Routes.reimbursement
-            : '/accounts/${a.id}/transactions',
-      );
+  /// 报销账户统一跳报销页、借出/借入账户统一跳借还页（即其「资产详情」），
+  /// 其余类型进资产详情页。
+  void _openDetail(Account a) {
+    final String target = switch (a.type) {
+      AccountType.reimbursement => Routes.reimbursement,
+      AccountType.lend || AccountType.borrow => Routes.lend,
+      _ => '/accounts/${a.id}/transactions',
+    };
+    context.push(target);
+  }
 
   void _editAccount(Account a) => _showEditor(context, ref, a);
 

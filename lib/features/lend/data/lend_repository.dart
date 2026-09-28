@@ -89,20 +89,24 @@ class LendRepository {
           'discountMinor': discountMinor,
         },
       );
-      // 本金落流水：借入钱进资产账户（收入）、借出钱出资产账户（支出），
-      // 余额随流水增量联动。只选了对方虚拟账户（纯债务跟踪）时不落流水。
-      if (toAccountId != null && toAccountId.isNotEmpty) {
+      // 本金落流水（报销同款「指定 / 非指定」口径）：挂账账户 =
+      // 资产账户优先（真实资金进出，余额增量联动）；未选资产账户时挂
+      // 指定的借入/借出账户（应收 / 应付，余额由对账保持不变量）；
+      // 两者皆无（纯文字对方的非指定债务跟踪）不落流水。
+      final String? flowAccount = _flowAccountOf(toAccountId, accountId);
+      if (flowAccount != null) {
         await _createFlowTxn(
           bookId: bookId,
           lendId: id,
           direction: direction,
           counterparty: counterparty.trim(),
           amountMinor: amountMinor,
-          accountId: toAccountId,
+          accountId: flowAccount,
           occurredAt: occurredAt,
           note: note,
         );
       }
+      await _reconcileDesignatedBalance(accountId);
       return id;
     });
   }
@@ -171,13 +175,14 @@ class LendRepository {
         },
       );
       // 流水联动：本金流水与借还记录保持同步——
-      // 编辑改了金额 / 资产账户 / 日期 / 备注 / 方向 → 更新流水（余额增减
-      // 由 updateTransaction 先回滚旧影响再应用新值）；清空资产账户 →
-      // 撤掉流水；旧记录缺流水且已选资产账户 → 补建。
+      // 挂账账户 = 资产账户优先，未选资产账户时挂指定借入/借出账户；
+      // 编辑改了金额 / 账户 / 日期 / 备注 / 方向 → 更新流水；两个账户
+      // 都清空 → 撤掉流水；缺流水且有可挂账户 → 补建。
+      final LendRecord? current = await getById(id);
+      final String? oldDesignated = current?.accountId;
+      final String? flowAccount = _flowAccountOf(toAccountId, accountId);
       final Transaction? flow = await _findFlowTxn(id);
-      final bool hasAssetAccount =
-          toAccountId != null && toAccountId.isNotEmpty;
-      if (flow != null && !hasAssetAccount) {
+      if (flow != null && flowAccount == null) {
         await _txnRepo.remove(flow.id);
       } else if (flow != null) {
         await _txnRepo.updateTransaction(
@@ -186,26 +191,24 @@ class LendRepository {
               ? TxnType.income
               : TxnType.expense,
           amountMinor: amountMinor,
-          accountId: toAccountId!,
+          accountId: flowAccount,
           note: _flowNote(direction, counterparty.trim(), note),
           occurredAt: occurredAt,
         );
-      } else if (hasAssetAccount) {
-        // 旧记录补建：bookId 以库里原记录为准（update 入参不含 bookId）。
-        final LendRecord? current = await getById(id);
-        if (current != null) {
-          await _createFlowTxn(
-            bookId: current.bookId,
-            lendId: id,
-            direction: direction,
-            counterparty: counterparty.trim(),
-            amountMinor: amountMinor,
-            accountId: toAccountId,
-            occurredAt: occurredAt,
-            note: note,
-          );
-        }
+      } else if (flowAccount != null && current != null) {
+        await _createFlowTxn(
+          bookId: current.bookId,
+          lendId: id,
+          direction: direction,
+          counterparty: counterparty.trim(),
+          amountMinor: amountMinor,
+          accountId: flowAccount,
+          occurredAt: occurredAt,
+          note: note,
+        );
       }
+      await _reconcileDesignatedBalance(accountId);
+      await _reconcileDesignatedBalance(oldDesignated);
     });
   }
 
@@ -214,6 +217,59 @@ class LendRepository {
     return (_db.select(_db.lendRecords)
           ..where((LendRecords t) => t.id.equals(id)))
         .getSingleOrNull();
+  }
+
+  /// 本金流水的挂账账户：资产账户优先；未选资产账户时挂指定的
+  /// 借入/借出账户；两者皆无返回 null（纯债务跟踪，不落流水）。
+  String? _flowAccountOf(String? assetAccount, String? designatedAccount) {
+    if (assetAccount != null && assetAccount.isNotEmpty) return assetAccount;
+    if (designatedAccount != null && designatedAccount.isNotEmpty) {
+      return designatedAccount;
+    }
+    return null;
+  }
+
+  /// 指定借入/借出账户余额对账（报销账户同款不变量，幂等）：
+  /// 余额 = 名下未结清借还记录合计（本金 − 优惠 − 已还）。
+  ///
+  /// 仅对 [AccountType.lend] / [AccountType.borrow] 类型账户生效——
+  /// 其他应收 / 应付类型（如报销账户）的余额归各自模块管辖；
+  /// 流水挂在这些账户上的增量是错向的（借出记支出会做减法），
+  /// 因此每次借还变动后立即重算覆盖，无偏差不写库（避免脏同步）。
+  Future<void> _reconcileDesignatedBalance(String? accountId) async {
+    if (accountId == null || accountId.isEmpty) return;
+    final Account? acc = await (_db.select(_db.accounts)
+          ..where((Accounts t) => t.id.equals(accountId)))
+        .getSingleOrNull();
+    if (acc == null || acc.deleted) return;
+    if (acc.type != AccountType.lend.index &&
+        acc.type != AccountType.borrow.index) {
+      return;
+    }
+    final LendDirection dir = acc.type == AccountType.lend.index
+        ? LendDirection.lendOut
+        : LendDirection.borrowIn;
+    final List<LendRecord> records = await (_db.select(_db.lendRecords)
+          ..where((LendRecords t) =>
+              t.accountId.equals(acc.id) &
+              t.direction.equals(dir.index) &
+              t.status.equals(LendStatus.ongoing.index) &
+              t.deleted.equals(false)))
+        .get();
+    final int want = records.fold<int>(
+      0,
+      (int sum, LendRecord r) =>
+          sum + r.amountMinor - r.discountMinor - r.repaidMinor,
+    );
+    if (acc.balanceMinor == want) return;
+    await (_db.update(_db.accounts)..where((Accounts t) => t.id.equals(acc.id)))
+        .write(
+      AccountsCompanion(
+        balanceMinor: Value<int>(want),
+        updatedAt: Value<int>(DateTime.now().toUtc().millisecondsSinceEpoch),
+        dirty: const Value<bool>(true),
+      ),
+    );
   }
 
   /// 借还本金流水的备注（与还债/收债流水同款式：'借入-小明'）。
@@ -273,17 +329,18 @@ class LendRepository {
   }
 
   /// 存量借还记录补落流水（启动对账，幂等）：
-  /// 选了资产账户但没有任何本金流水（含已删）的借还记录，补建一条。
-  /// 用户主动删过流水的记录不再重建。返回补建笔数。
+  /// 有可挂账户（资产账户优先，其次指定借入/借出账户）但没有任何本金
+  /// 流水（含已删）的借还记录，补建一条。用户主动删过流水的记录不再
+  /// 重建。返回补建笔数。
   Future<int> backfillFlowTransactions() async {
     final List<LendRecord> records = await (_db.select(_db.lendRecords)
-          ..where((LendRecords t) =>
-              t.deleted.equals(false) & t.toAccountId.isNotNull()))
+          ..where((LendRecords t) => t.deleted.equals(false)))
         .get();
     int created = 0;
     for (final LendRecord r in records) {
-      final String? asset = r.toAccountId;
-      if (asset == null || asset.isEmpty) continue;
+      final String? flowAccount =
+          _flowAccountOf(r.toAccountId, r.accountId);
+      if (flowAccount == null) continue;
       final Transaction? existing =
           await _findFlowTxn(r.id, includeDeleted: true);
       if (existing != null) continue;
@@ -293,7 +350,7 @@ class LendRepository {
         direction: r.direction,
         counterparty: r.counterparty,
         amountMinor: r.amountMinor,
-        accountId: asset,
+        accountId: flowAccount,
         occurredAt: r.occurredAt,
         note: r.note,
       );
@@ -395,6 +452,16 @@ class LendRepository {
     if (remaining > 0) {
       throw ValidationFailure(overHint);
     }
+
+    // 冲销改变了名下记录的已还 / 状态，受影响指定账户的余额重算
+    //（写在同一事务里，失败整体回滚）。
+    final Set<String> designatedAccounts = <String>{
+      for (final LendRecord r in records)
+        if (r.accountId != null && r.accountId!.isNotEmpty) r.accountId!,
+    };
+    for (final String accId in designatedAccounts) {
+      await _reconcileDesignatedBalance(accId);
+    }
   }
 
   /// 债务削减 / 减免：按 [counterparty] 找到该方向下所有未结清记录并冲减，
@@ -478,6 +545,7 @@ class LendRepository {
   Future<void> remove(String id) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     await _db.transaction<void>(() async {
+      final LendRecord? current = await getById(id);
       await (_db.update(_db.lendRecords)
             ..where((LendRecords t) => t.id.equals(id)))
           .write(
@@ -498,6 +566,8 @@ class LendRepository {
       if (flow != null) {
         await _txnRepo.remove(flow.id);
       }
+      // 删除后该账户名下未结清合计变化，重算指定账户余额。
+      await _reconcileDesignatedBalance(current?.accountId);
     });
   }
 }

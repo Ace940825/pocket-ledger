@@ -2607,20 +2607,28 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     required String placeholder,
     bool autoFillCounterparty = true,
     List<AccountCategory>? allowedCategories,
+    List<AccountType>? allowedTypes,
     String? hint,
   }) {
     final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
     return accounts.when(
       data: (List<Account> list) {
-        // allowedCategories 非空（借入/借出账户）：只展示 payable / receivable；
-        // 其余（资产账户、还款/收款账户）是资金类，排除应收应付对方虚拟账户。
-        final List<Account> shown = allowedCategories == null
-            ? fundAccountsOnly(list)
-            : list
-                .where(
-                  (Account a) => allowedCategories.contains(a.type.category),
-                )
-                .toList(growable: false);
+        // allowedTypes 非空（借入/借出账户）：只展示对应类型（报销同款
+        // 「指定账户」口径，借出→lend、借入→borrow）；allowedCategories
+        // 非空按分类过滤；其余（资产账户、还款/收款账户）是资金类，
+        // 排除应收应付对方虚拟账户。
+        final List<Account> shown =
+            allowedCategories == null && allowedTypes == null
+                ? fundAccountsOnly(list)
+                : list
+                    .where(
+                      (Account a) =>
+                          (allowedCategories == null ||
+                              allowedCategories.contains(a.type.category)) &&
+                          (allowedTypes == null ||
+                              allowedTypes.contains(a.type)),
+                    )
+                    .toList(growable: false);
         final String? safe =
             shown.any((Account a) => a.id == value) ? value : null;
         final Account? selected =
@@ -3548,10 +3556,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               value: _accountId,
               placeholder: _lendDir == LendDirection.borrowIn ? '借入账户' : '借出账户',
               onChanged: (String? v) => setState(() => _accountId = v),
-              allowedCategories: <AccountCategory>[
+              // 指定借入/借出账户（报销「指定报销账户」同款）：
+              // 只列借入(borrow)/借出(lend)类型账户，可选（不选=非指定）。
+              allowedTypes: <AccountType>[
                 _lendDir == LendDirection.borrowIn
-                    ? AccountCategory.payable
-                    : AccountCategory.receivable,
+                    ? AccountType.borrow
+                    : AccountType.lend,
               ],
               hint: virtualHint,
             ),
