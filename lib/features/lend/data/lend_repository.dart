@@ -447,7 +447,7 @@ class LendRepository {
   /// [notFoundHint] / [overHint] 用于区分「减免」与「还款」两套报错文案。
   /// 返回本次被冲销（已改动）的借还记录 ID 列表，供上层（如 [repay]）
   /// 把流水关联到具体借还记录、让详情页能显示「借还账户」行。
-  Future<List<String>> _offsetDebts({
+  Future<List<_OffsetHit>> _offsetDebts({
     required String bookId,
     required LendDirection direction,
     required String counterparty,
@@ -462,7 +462,7 @@ class LendRepository {
 
     final String trimmed = counterparty.trim();
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final List<String> affected = <String>[];
+    final List<_OffsetHit> affected = <_OffsetHit>[];
 
     final List<LendRecord> records = await (_db.select(_db.lendRecords)
           ..where(
@@ -525,7 +525,7 @@ class LendRepository {
           'discountMinor': r.discountMinor,
         },
       );
-      affected.add(r.id);
+      affected.add(_OffsetHit(id: r.id, amount: apply));
       remaining -= apply;
     }
 
@@ -566,7 +566,7 @@ class LendRepository {
     // 统一为支出类型（影响列表箭头 / 配色），不计入收支统计与预算。
     final TxnType txnType = TxnType.expense;
     return _db.transaction<void>(() async {
-      final List<String> affected = await _offsetDebts(
+      final List<_OffsetHit> affected = await _offsetDebts(
         bookId: bookId,
         direction: direction,
         counterparty: counterparty,
@@ -577,7 +577,7 @@ class LendRepository {
       // 生成记账备忘流水：关联借还记录、不计入收支 / 余额，详情页据此显示
       // 「借还账户」行。仅当被冲销记录已指定借还账户时生成（纯文字债务跳过）。
       if (affected.isNotEmpty) {
-        final LendRecord? record = await getById(affected.first);
+        final LendRecord? record = await getById(affected.first.id);
         final String? designated = record?.accountId;
         if (designated != null && designated.isNotEmpty) {
           final String trimmed = counterparty.trim();
@@ -585,7 +585,7 @@ class LendRepository {
           final String txnNote = userNote == null || userNote.isEmpty
               ? '$verb-$trimmed'
               : '$verb-$trimmed\n$userNote';
-          await _txnRepo.add(
+          final String flowId = await _txnRepo.add(
             bookId: bookId,
             type: txnType,
             amountMinor: amountMinor,
@@ -598,10 +598,12 @@ class LendRepository {
             ),
             note: txnNote,
             sourceModule: SourceModule.lend,
-            relatedId: affected.first,
+            relatedId: affected.first.id,
             excludeFromStats: true,
             excludeFromBudget: true,
           );
+          // 记冲销台账（同还债 / 收债），供跨账户删除时反向恢复其余账户。
+          await _writeLendOffsets(flowId, affected);
         }
       }
     });
@@ -630,7 +632,7 @@ class LendRepository {
         direction == LendDirection.borrowIn ? TxnType.expense : TxnType.income;
 
     return _db.transaction<void>(() async {
-      final List<String> affected = await _offsetDebts(
+      final List<_OffsetHit> affected = await _offsetDebts(
         bookId: bookId,
         direction: direction,
         counterparty: counterparty,
@@ -645,7 +647,7 @@ class LendRepository {
         final String txnNote = userNote == null || userNote.isEmpty
             ? '$verb-$trimmed'
             : '$verb-$trimmed\n$userNote';
-        await _txnRepo.add(
+        final String flowId = await _txnRepo.add(
           bookId: bookId,
           type: txnType,
           amountMinor: amountMinor,
@@ -661,12 +663,17 @@ class LendRepository {
           // 关联被冲销的借还记录（取首条被冲销记录）：详情页据此解析出
           // 「借还账户」行（与借入 / 借出本金流水同口径）。多记录冲销时
           // 取最早一条作为代表，足够定位对方借还账户。
-          relatedId: affected.isNotEmpty ? affected.first : null,
+          relatedId: affected.isNotEmpty ? affected.first.id : null,
           // 还债 / 收债同样不是收支：与借入 / 借出本金流水同口径，
           // 排除收支统计与预算（否则借款周期会在统计里虚增一笔）。
           excludeFromStats: true,
           excludeFromBudget: true,
         );
+        // 记录冲销台账：本笔还债 / 收债分别冲销了哪些借还记录、各多少，
+        // 供删除借还账户时跨账户反向恢复其余账户（见 purgeByDesignatedAccount）。
+        if (affected.isNotEmpty) {
+          await _writeLendOffsets(flowId, affected);
+        }
       }
     });
   }
@@ -695,6 +702,8 @@ class LendRepository {
       if (flow != null) {
         await _txnRepo.remove(flow.id);
       }
+      // 清理指向本记录的冲销台账（其余账户的反向恢复不再引用它）。
+      await _deleteLendOffsetsForRecord(id);
       // 删除后该账户名下未结清合计变化，重算指定账户余额。
       await _reconcileDesignatedBalance(current?.accountId);
     });
@@ -703,9 +712,19 @@ class LendRepository {
   /// 清空指定借入/借出账户名下的全部借还记录及其关联流水（删除账户时级联）。
   ///
   /// 借还账户是「对方」的虚拟化：账户删除意味着这本债务账随之销户——
-  /// 名下所有借还记录（含已结清）软删，关联流水（本金 + relatedId 指向
-  /// 名下记录的还债/收债/债务消减/坏账计提备忘）一并撤销，真实资金
-  /// 账户的余额增量由 [TransactionRepository.remove] 内部回滚。
+  /// 名下所有借还记录（含已结清）软删，关联流水（本金 + 关联借还记录
+  /// 的还债/收债/债务消减/坏账计提备忘）一并撤销，真实资金账户（现金）
+  /// 的余额增量由 [TransactionRepository.remove] 内部回滚。
+  ///
+  /// **跨账户冲销处理**：一笔还债/收债/备忘可能同时冲销挂在多个借还账户
+  /// 下的记录（同对方、手动指定不同账户）。该流水被本账户删除「触及」时，
+  /// 撤销它不仅要回滚现金，还要把**其余账户**下被它冲销记录的 [repaidMinor]
+  /// 反向恢复（这些记录不删、债务重新生效），最后按记录重建对应借还账户的
+  /// 余额不变量（[ _reconcileDesignatedBalance]）。冲销明细存于
+  /// `lend_flow_offsets` 台账（[ _writeLendOffsets]）；历史无台账的流水按
+  /// 「relatedId 是否指向本账户记录」兜底——指向则视为单账户撤销流水，否则
+  /// 为跨账户历史数据保守保留流水，避免误伤其余账户（已知边界，新数据有台账）。
+  ///
   /// 返回清除的记录数；幂等，无记录时为空操作。
   Future<int> purgeByDesignatedAccount(String accountId) async {
     if (accountId.isEmpty) return 0;
@@ -714,20 +733,72 @@ class LendRepository {
               t.accountId.equals(accountId) & t.deleted.equals(false)))
         .get();
     if (records.isEmpty) return 0;
+    final Set<String> recordIds = <String>{for (final LendRecord r in records) r.id};
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final Set<String> keptAccounts = <String>{};
+
     await _db.transaction<void>(() async {
-      for (final LendRecord r in records) {
-        // 撤销全部关联流水：_findFlowTxn 只取一笔本金流水，这里须覆盖
-        // relatedId 指向本记录的所有流水（还债/收债/备忘可能有多笔）。
-        final List<Transaction> flows = await (_db.select(_db.transactions)
-              ..where((Transactions t) =>
-                  t.sourceModule.equals(SourceModule.lend.index) &
-                  t.relatedId.equals(r.id) &
-                  t.deleted.equals(false)))
-            .get();
-        for (final Transaction f in flows) {
-          await _txnRepo.remove(f.id);
+      // 1) 取本账户记录在冲销台账中涉及的流水（跨账户冲销会引用它们）
+      final Map<String, List<_OffsetHit>> offsetByTxn =
+          <String, List<_OffsetHit>>{};
+      if (recordIds.isNotEmpty) {
+        // 本账户记录 ID 均为系统生成的 UUID，无引号/SQL 元字符，安全插值。
+        final String inClause =
+            recordIds.map((String id) => "'$id'").join(', ');
+        final List<QueryRow> rows = await _db.customSelect(
+          'SELECT txn_id, lend_record_id, amount_minor '
+          'FROM lend_flow_offsets '
+          'WHERE lend_record_id IN ($inClause)',
+        ).get();
+        for (final QueryRow row in rows) {
+          final String txnId = row.read<String>('txn_id');
+          final String recId = row.read<String>('lend_record_id');
+          final int amt = row.read<int>('amount_minor');
+          offsetByTxn
+              .putIfAbsent(txnId, () => <_OffsetHit>[])
+              .add(_OffsetHit(id: recId, amount: amt));
         }
+      }
+
+      // 2) 遍历本账本全部借还模块流水，处理「触及」本账户的
+      final List<Transaction> flows = await (_db.select(_db.transactions)
+            ..where((Transactions t) =>
+                t.sourceModule.equals(SourceModule.lend.index) &
+                t.deleted.equals(false)))
+          .get();
+      for (final Transaction flow in flows) {
+        final bool touches =
+            recordIds.contains(flow.relatedId) || offsetByTxn.containsKey(flow.id);
+        if (!touches) continue;
+
+        final List<_OffsetHit> hits =
+            offsetByTxn[flow.id] ?? const <_OffsetHit>[];
+        if (hits.isNotEmpty) {
+          // 有台账：逐条冲销明细——本账户即将删除的记录忽略；
+          // 其余（保留）账户下的记录反向恢复 repaidMinor（债务重新生效）。
+          for (final _OffsetHit h in hits) {
+            if (recordIds.contains(h.id)) continue;
+            final LendRecord? kept = await getById(h.id);
+            if (kept == null) continue;
+            await _revertRepaidOnRecord(kept, h.amount);
+            if (kept.accountId != null && kept.accountId!.isNotEmpty) {
+              keptAccounts.add(kept.accountId!);
+            }
+          }
+          await _deleteLendOffsets(flow.id);
+          // 现金整体回滚（与重新生效的债务口径一致）
+          await _txnRepo.remove(flow.id);
+        } else {
+          // 历史无台账：relatedId 指向本账户记录即视为单账户，撤销流水；
+          // 否则为跨账户历史数据，保守保留流水（不误伤其余账户）。
+          if (recordIds.contains(flow.relatedId)) {
+            await _txnRepo.remove(flow.id);
+          }
+        }
+      }
+
+      // 3) 软删本账户全部借还记录
+      for (final LendRecord r in records) {
         await (_db.update(_db.lendRecords)
               ..where((LendRecords t) => t.id.equals(r.id)))
             .write(
@@ -744,10 +815,94 @@ class LendRepository {
           updatedAt: now,
         );
       }
+
+      // 4) 重建被跨账户冲销波及的借还账户余额不变量
+      for (final String acc in keptAccounts) {
+        await _reconcileDesignatedBalance(acc);
+      }
     });
     return records.length;
+  }
+
+  /// 反向恢复某借还记录的已还金额（冲销流水被撤销时调用）。
+  /// 将 [amount] 从 [record.repaidMinor] 扣减（下限 0）；若因此低于本金，
+  /// 状态从「已结清」回退为「进行中」，并逐条入队同步。
+  Future<void> _revertRepaidOnRecord(LendRecord record, int amount) async {
+    final int newRepaid =
+        (record.repaidMinor - amount) < 0 ? 0 : record.repaidMinor - amount;
+    final LendStatus newStatus =
+        newRepaid + record.discountMinor >= record.amountMinor
+            ? LendStatus.settled
+            : LendStatus.ongoing;
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await (_db.update(_db.lendRecords)
+          ..where((LendRecords t) => t.id.equals(record.id)))
+        .write(
+      LendRecordsCompanion(
+        repaidMinor: Value<int>(newRepaid),
+        status: Value<LendStatus>(newStatus),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+    await enqueueSyncOp(
+      _db,
+      table: 'lend_records',
+      recordId: record.id,
+      opType: SyncOpType.update,
+      updatedAt: now,
+      payload: <String, Object?>{
+        'direction': record.direction.index,
+        'status': newStatus.index,
+        'counterparty': record.counterparty,
+        'amountMinor': record.amountMinor,
+        'repaidMinor': newRepaid,
+        'occurredAt': record.occurredAt,
+        'dueAt': record.dueAt,
+        'note': record.note,
+        'accountId': record.accountId,
+        'toAccountId': record.toAccountId,
+        'feeMinor': record.feeMinor,
+        'discountMinor': record.discountMinor,
+      },
+    );
+  }
+
+  /// 写入一笔借还流水的冲销台账（[ _OffsetHit] 列表）：记录它分别冲销了
+  /// 哪些借还记录、各多少。供删除借还账户时跨账户反向恢复其余账户。
+  Future<void> _writeLendOffsets(String txnId, List<_OffsetHit> hits) async {
+    for (final _OffsetHit h in hits) {
+      await _db.customStatement(
+        'INSERT INTO lend_flow_offsets (txn_id, lend_record_id, amount_minor) '
+        'VALUES (?, ?, ?)',
+        [txnId, h.id, h.amount],
+      );
+    }
+  }
+
+  /// 删除某笔流水的全部冲销台账。
+  Future<void> _deleteLendOffsets(String txnId) async {
+    await _db.customStatement(
+      'DELETE FROM lend_flow_offsets WHERE txn_id = ?',
+      [txnId],
+    );
+  }
+
+  /// 删除指向某借还记录的冲销台账（该记录被单独删除时清理）。
+  Future<void> _deleteLendOffsetsForRecord(String recordId) async {
+    await _db.customStatement(
+      'DELETE FROM lend_flow_offsets WHERE lend_record_id = ?',
+      [recordId],
+    );
   }
 }
 
 /// 借还流水的三类操作，决定固定分类（借入/借出、还债/收债、债务消减/坏账计提）。
 enum _LendFlowKind { principal, repay, reduction }
+
+/// 一笔借还流水冲销的某条借还记录及其金额（用于跨账户冲销反向恢复）。
+class _OffsetHit {
+  const _OffsetHit({required this.id, required this.amount});
+  final String id;
+  final int amount;
+}

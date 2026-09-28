@@ -67,13 +67,15 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) async {
           await m.createAll();
           await _createIndexes();
+          // 借还流水冲销台账（原始 SQL 建表，不参与 drift 代码生成）。
+          await _ensureLendFlowOffsetsTable();
         },
         onUpgrade: (Migrator m, int from, int to) async {
           // 每个版本必须在此追加 step-by-step 迁移。
@@ -256,6 +258,13 @@ class AppDatabase extends _$AppDatabase {
             );
           }
 
+          if (from < 18) {
+            // v18：借还流水冲销台账（原始 SQL 建表，见 _ensureLendFlowOffsetsTable）。
+            // 记录每笔还债/收债/备忘分别冲销了哪些借还记录、各多少，供删除
+            // 借还账户时跨账户反向恢复其余账户（与 drift 代码生成解耦）。
+            await _ensureLendFlowOffsetsTable();
+          }
+
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
           // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
           await _createIndexes();
@@ -286,6 +295,22 @@ class AppDatabase extends _$AppDatabase {
     if (!exists) {
       await m.addColumn(table, column);
     }
+  }
+
+  /// 幂等建表：借还流水冲销台账（[LendRepository] 用于跨账户冲销反向恢复）。
+  ///
+  /// 用原始 SQL 建表、不参与 drift 代码生成（本沙箱 `build_runner` 因系统
+  /// 管道耗尽不可用，避免改 schema 后必须重跑代码生成）。表极小，仅三列
+  /// 复合主键，承载「某笔借还流水 txn_id 冲销了某借还记录 lend_record_id
+  /// 多少金额」，供删除借还账户时精确反向恢复其余账户。
+  Future<void> _ensureLendFlowOffsetsTable() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS lend_flow_offsets ('
+      'txn_id TEXT NOT NULL, '
+      'lend_record_id TEXT NOT NULL, '
+      'amount_minor INTEGER NOT NULL, '
+      'PRIMARY KEY (txn_id, lend_record_id))',
+    );
   }
 
   /// 幂等建表：先探测表是否已存在，不存在才 `CREATE TABLE`。
