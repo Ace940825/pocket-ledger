@@ -191,6 +191,47 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         );
   }
 
+  /// 实时监听指定账户的流水（资产详情页用），**并入借还关联流水**。
+  ///
+  /// 借还本金 / 还债 / 收债流水的资金侧挂在资金账户上（「资产账户优先」
+  /// 口径），但其 [Transactions.relatedId] 指向的借还记录若指定了本账户
+  /// （应收 / 应付），也应在本账户详情可见——否则借还账户会「有余额、
+  /// 无流水」（余额由对账维持为名下记录合计，流水却落在资金账户里）。
+  ///
+  /// 实现：在 [watchByAccount] 的条件上追加「sourceModule = lend 且
+  /// relatedId 属于名下借还记录」的子查询，单条 SQL 同时监听两张表变化。
+  Stream<List<Transaction>> watchByAccountWithLendLinks({
+    required String bookId,
+    required String accountId,
+  }) {
+    final $LendRecordsTable lendTable = attachedDatabase.lendRecords;
+    final JoinedSelectStatement<LendRecords, LendRecord> relatedIds =
+        attachedDatabase.selectOnly(lendTable)
+          ..addColumns(<Expression<Object>>[lendTable.id])
+          ..where(
+            lendTable.accountId.equals(accountId) &
+                lendTable.deleted.equals(false) &
+                lendTable.bookId.equals(bookId),
+          );
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.deleted.equals(false) &
+                (tbl.accountId.equals(accountId) |
+                    tbl.toAccountId.equals(accountId) |
+                    (tbl.sourceModule.equals(SourceModule.lend.index) &
+                        tbl.relatedId.isInQuery(relatedIds))),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch()
+        .map(
+          (List<Transaction> list) => dedupeAccountTransfers(list, accountId),
+        );
+  }
+
   Stream<Transaction?> watchById(String id) {
     return (select(transactions)
           ..where(($TransactionsTable tbl) => tbl.id.equals(id)))

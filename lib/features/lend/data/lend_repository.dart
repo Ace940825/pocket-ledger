@@ -5,6 +5,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../database/sync_enqueue.dart';
 import '../../../domain/enums.dart';
+import '../../categories/data/category_repository.dart';
 import '../../ledger/data/transaction_repository.dart';
 
 /// 借还仓储。借出 / 借入与还款进度跟踪，复用统一同步入队。
@@ -13,6 +14,10 @@ class LendRepository {
 
   final AppDatabase _db;
   final TransactionRepository _txnRepo;
+
+  /// 系统类目（借入 / 借出 / 还债 / 收债 / 坏账计提 / 债务消减）的
+  /// 查找或创建，落账时给借还流水挂分类用。
+  CategoryRepository get _catRepo => CategoryRepository(_db);
 
   Stream<List<LendRecord>> watch(String bookId) {
     return (_db.select(_db.lendRecords)
@@ -317,6 +322,34 @@ class LendRepository {
         : '$verb-$counterparty\n$userNote';
   }
 
+  /// 借还流水的固定分类（无则自动创建）——「借入记借入、还债记还债、
+  /// 借出记借出」：按操作类型落系统类目，分类类型与流水收支方向一致。
+  ///
+  /// - 本金：借入 → 「借入」(income) / 借出 → 「借出」(expense)；
+  /// - 还款：还债 → 「还债」(expense) / 收债 → 「收债」(income)；
+  /// - 冲减备忘：债务消减 → 「债务消减」(income) / 坏账计提 → 「坏账计提」(expense)。
+  Future<String> _flowCategoryId({
+    required String bookId,
+    required LendDirection direction,
+    required _LendFlowKind kind,
+  }) {
+    final bool borrowIn = direction == LendDirection.borrowIn;
+    final String name;
+    final CategoryType type;
+    switch (kind) {
+      case _LendFlowKind.principal:
+        name = borrowIn ? '借入' : '借出';
+        type = borrowIn ? CategoryType.income : CategoryType.expense;
+      case _LendFlowKind.repay:
+        name = borrowIn ? '还债' : '收债';
+        type = borrowIn ? CategoryType.expense : CategoryType.income;
+      case _LendFlowKind.reduction:
+        name = borrowIn ? '债务消减' : '坏账计提';
+        type = borrowIn ? CategoryType.income : CategoryType.expense;
+    }
+    return _catRepo.ensureNamed(bookId: bookId, name: name, type: type);
+  }
+
   /// 借还本金流水反查：relatedId 指向借还记录、来源为借还模块的流水。
   ///
   /// [includeDeleted] 为真时连同已软删的行一起查（启动补建用：
@@ -347,8 +380,8 @@ class LendRepository {
     required String accountId,
     required int occurredAt,
     String? note,
-  }) {
-    return _txnRepo.add(
+  }) async {
+    await _txnRepo.add(
       bookId: bookId,
       type: direction == LendDirection.borrowIn
           ? TxnType.income
@@ -356,6 +389,11 @@ class LendRepository {
       amountMinor: amountMinor,
       accountId: accountId,
       occurredAt: occurredAt,
+      categoryId: await _flowCategoryId(
+        bookId: bookId,
+        direction: direction,
+        kind: _LendFlowKind.principal,
+      ),
       note: _flowNote(direction, counterparty, note),
       sourceModule: SourceModule.lend,
       relatedId: lendId,
@@ -553,6 +591,11 @@ class LendRepository {
             amountMinor: amountMinor,
             accountId: designated,
             occurredAt: occurredAt,
+            categoryId: await _flowCategoryId(
+              bookId: bookId,
+              direction: direction,
+              kind: _LendFlowKind.reduction,
+            ),
             note: txnNote,
             sourceModule: SourceModule.lend,
             relatedId: affected.first,
@@ -608,6 +651,11 @@ class LendRepository {
           amountMinor: amountMinor,
           accountId: accountId,
           occurredAt: occurredAt,
+          categoryId: await _flowCategoryId(
+            bookId: bookId,
+            direction: direction,
+            kind: _LendFlowKind.repay,
+          ),
           note: txnNote,
           sourceModule: SourceModule.lend,
           // 关联被冲销的借还记录（取首条被冲销记录）：详情页据此解析出
@@ -652,3 +700,6 @@ class LendRepository {
     });
   }
 }
+
+/// 借还流水的三类操作，决定固定分类（借入/借出、还债/收债、债务消减/坏账计提）。
+enum _LendFlowKind { principal, repay, reduction }

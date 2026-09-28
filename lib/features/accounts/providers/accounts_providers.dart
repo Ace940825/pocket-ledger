@@ -17,11 +17,13 @@ final AutoDisposeStreamProviderFamily<Account?, String> accountByIdProvider =
   (Ref ref, String id) => ref.watch(accountsDaoProvider).watchById(id),
 );
 
-/// 指定账户在某一年内的流水（含转账的转入侧）。
+/// 指定账户在某一年内的流水（含转账的转入侧、借还关联流水）。
 ///
-/// 复用 [TransactionsDao.watchByAccount] 监听该账户**全部**流水，
-/// 然后在 Dart 层按本地年份过滤。这样切换年份时无需重新订阅数据库，
-/// 同时仍能在流水变化时自动刷新。
+/// 复用 [TransactionsDao.watchByAccountWithLendLinks] 监听该账户**全部**
+/// 流水并**并入借还关联流水**（借还本金 / 还债 / 收债的资金侧挂在资金
+/// 账户上，但其关联借还记录指定了本账户时，本账户详情也应可见——否则
+/// 借还账户「有余额、无流水」）。然后在 Dart 层按本地年份过滤：切换
+/// 年份时无需重新订阅数据库，流水变化时仍自动刷新。
 final AutoDisposeStreamProviderFamily<List<Transaction>,
         ({String accountId, int year})> accountTransactionsByYearProvider =
     StreamProvider.autoDispose
@@ -35,7 +37,7 @@ final AutoDisposeStreamProviderFamily<List<Transaction>,
 
     return ref
         .watch(transactionsDaoProvider)
-        .watchByAccount(bookId: bookId, accountId: params.accountId)
+        .watchByAccountWithLendLinks(bookId: bookId, accountId: params.accountId)
         .map(
           (List<Transaction> list) => list
               .where(

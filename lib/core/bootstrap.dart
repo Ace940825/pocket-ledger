@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../domain/enums.dart';
+import '../features/categories/data/category_repository.dart';
 import '../features/lend/data/lend_repository.dart';
 import '../features/ledger/data/transaction_repository.dart';
 
@@ -92,6 +93,11 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 流水挂在指定账户上会带错向余额增量，随后由对账覆盖修复。
   await _backfillLendFlowTransactions(db);
   await _excludeLendFromStatsAndBudget(db);
+  // 历史借还流水补分类（幂等）：借还模块流水按操作类型落固定类目
+  // （借入/借出、还债/收债、债务消减/坏账计提），旧流水分类为空时
+  // 按备注「动词-对方」的动词回填——须在流水补建**之后**（补建的
+  // 新流水已自带分类，这里只兜底更早的历史行）。
+  await _backfillLendFlowCategories(db);
   // 借还指定账户余额对账（幂等）：借出/借入类型账户余额 =
   // 名下未结清借还记录合计（报销账户同款不变量）。
   await _reconcileLendAccountBalances(db);
@@ -334,8 +340,69 @@ Future<void> _backfillRepayRelatedIds(AppDatabase db) async {
   }
 }
 
-/// 借还落流水对账：历史版本借入/借出只记 LendRecords、不落流水，
-/// 资产账户余额与流水列表都看不到这笔钱。启动时对「选了资产账户但
+/// 历史借还流水补分类：借还模块流水（sourceModule=lend）按操作类型落
+/// 固定类目——「借入记借入、还债记还债、借出记借出」。新流水落账时已
+/// 自带分类，这里只兜底**分类为空的历史行**：按备注首行「动词-对方」的
+/// 动词（借入/借出/还债/收债/债务消减/坏账计提）确定类目名与类型，
+/// 用 [CategoryRepository.ensureNamed] 查找或创建。备注缺失或动词无法
+/// 识别的行保持未分类。幂等：仅 categoryId 为空的行会被处理。
+Future<void> _backfillLendFlowCategories(AppDatabase db) async {
+  final List<Transaction> txns = await (db.select(db.transactions)
+        ..where((Transactions t) =>
+            t.sourceModule.equals(SourceModule.lend.index) &
+            t.categoryId.isNull() &
+            t.deleted.equals(false)))
+      .get();
+  if (txns.isEmpty) return;
+
+  final CategoryRepository catRepo = CategoryRepository(db);
+  // 类目缓存：(bookId, 类目名+类型) → 分类 ID，避免逐行查库。
+  final Map<String, String> cache = <String, String>{};
+
+  for (final Transaction txn in txns) {
+    final String? note = txn.note;
+    if (note == null || note.isEmpty) continue;
+    final String verb = note.split('-').first.trim();
+    String? name;
+    CategoryType type = CategoryType.expense;
+    switch (verb) {
+      case '借入':
+        name = '借入';
+        type = CategoryType.income;
+      case '借出':
+        name = '借出';
+      case '还债':
+        name = '还债';
+      case '收债':
+        name = '收债';
+        type = CategoryType.income;
+      case '债务消减':
+        name = '债务消减';
+        type = CategoryType.income;
+      case '坏账计提':
+        name = '坏账计提';
+    }
+    if (name == null) continue;
+
+    final String cacheKey = '${txn.bookId}:$name:${type.index}';
+    final String? cached = cache[cacheKey];
+    final String categoryId = cached ??
+        await catRepo.ensureNamed(bookId: txn.bookId, name: name, type: type);
+    cache[cacheKey] = categoryId;
+
+    await (db.update(db.transactions)
+          ..where((Transactions t) => t.id.equals(txn.id)))
+        .write(
+      TransactionsCompanion(
+        categoryId: Value<String?>(categoryId),
+        updatedAt: Value<int>(DateTime.now().toUtc().millisecondsSinceEpoch),
+        dirty: const Value<bool>(true),
+      ),
+    );
+  }
+}
+
+/// 借还落流水对账：历史版本借入/借出只记 LendRecords、不落流水，/// 资产账户余额与流水列表都看不到这笔钱。启动时对「选了资产账户但
 /// 没有任何本金流水（含已删）」的借还记录补建，幂等可重复运行。
 Future<void> _backfillLendFlowTransactions(AppDatabase db) async {
   final LendRepository lendRepo = LendRepository(db, TransactionRepository(db));

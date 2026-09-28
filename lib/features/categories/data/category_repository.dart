@@ -20,6 +20,9 @@ class CategoryRepository {
   ///
   /// 同账本同类型下按名称精确匹配（含未删除的），命中即复用；
   /// 未命中则用 [add] 创建，保证多次落账只会有一枚系统类目。
+  ///
+  /// 实现为一次性 `get()` 查询而非流查询：调用方可能在 DB 事务内
+  /// （借还落账等），事务内创建流查询不可靠。
   Future<String> ensureNamed({
     required String bookId,
     required String name,
@@ -28,8 +31,12 @@ class CategoryRepository {
     int? colorValue,
   }) async {
     final String trimmed = name.trim();
-    final List<Category> all =
-        await _db.categoriesDao.watchAll(bookId).first;
+    final List<Category> all = await (_db.select(_db.categories)
+          ..where(
+            ($CategoriesTable tbl) =>
+                tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
+          ))
+        .get();
     for (final Category c in all) {
       if (c.type == type && c.name == trimmed) {
         return c.id;
