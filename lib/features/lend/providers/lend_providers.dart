@@ -20,8 +20,10 @@ final AutoDisposeStreamProvider<List<LendRecord>> lendListProvider =
   return ref.watch(lendRepositoryProvider).watch(bookId);
 });
 
-/// 借出（应收）进行中合计：别人欠我的、还没收回来的金额
+/// 借出（应收）进行中合计：**未指定借出账户**的未结清金额
 /// （本金 − 优惠 − 已还；优惠在借出时已减免部分应收）。
+/// 指定了借出账户的记录已含在该账户余额里（账户页同组展示），
+/// 这里不再重复统计，避免组内双计（报销「待收回报销」同款口径）。
 final AutoDisposeStreamProvider<int> lendOutOngoingProvider =
     StreamProvider.autoDispose<int>((Ref ref) {
   final String bookId = ref.watch(currentBookIdProvider);
@@ -29,7 +31,8 @@ final AutoDisposeStreamProvider<int> lendOutOngoingProvider =
         (List<LendRecord> records) => records
             .where((LendRecord r) =>
                 r.direction == LendDirection.lendOut &&
-                r.status == LendStatus.ongoing)
+                r.status == LendStatus.ongoing &&
+                (r.accountId == null || r.accountId!.isEmpty))
             .fold<int>(
               0,
               (int sum, LendRecord r) =>
@@ -38,8 +41,9 @@ final AutoDisposeStreamProvider<int> lendOutOngoingProvider =
       );
 });
 
-/// 借入（应付）进行中合计：我欠别人的、还没还上的金额
+/// 借入（应付）进行中合计：**未指定借入账户**的未结清金额
 /// （本金 − 优惠 − 已还；优惠在借入时已减免部分应付）。
+/// 指定了借入账户的记录已含在该账户余额里，不再重复统计。
 final AutoDisposeStreamProvider<int> borrowInOngoingProvider =
     StreamProvider.autoDispose<int>((Ref ref) {
   final String bookId = ref.watch(currentBookIdProvider);
@@ -47,7 +51,8 @@ final AutoDisposeStreamProvider<int> borrowInOngoingProvider =
         (List<LendRecord> records) => records
             .where((LendRecord r) =>
                 r.direction == LendDirection.borrowIn &&
-                r.status == LendStatus.ongoing)
+                r.status == LendStatus.ongoing &&
+                (r.accountId == null || r.accountId!.isEmpty))
             .fold<int>(
               0,
               (int sum, LendRecord r) =>
@@ -75,9 +80,10 @@ final AutoDisposeStreamProviderFamily<List<Account>, LendDirection>
       );
 });
 
-/// 指定方向下，按对方账户聚合的未结清金额。
-/// - [LendDirection.lendOut]：各应收账户余额。
-/// - [LendDirection.borrowIn]：各应付账户余额。
+/// 指定方向下，**未指定借入/借出账户**的记录按对方账户聚合的未结清金额
+/// （指定了账户的记录已在账户余额里，账户页不再重复展示，避免双计）。
+/// - [LendDirection.lendOut]：未指定账户的各应收余额。
+/// - [LendDirection.borrowIn]：未指定账户的各应付余额。
 /// Key 为对方账户名，Value 为剩余未结清金额（分），按金额降序排列。
 final AutoDisposeStreamProviderFamily<Map<String, int>, LendDirection>
     lendCounterpartyBalancesProvider = StreamProvider.autoDispose
@@ -89,6 +95,10 @@ final AutoDisposeStreamProviderFamily<Map<String, int>, LendDirection>
       final Map<String, int> result = <String, int>{};
       for (final LendRecord r in records) {
         if (r.direction != direction || r.status != LendStatus.ongoing) {
+          continue;
+        }
+        // 未指定借入/借出账户的记录才进汇总（指定账户的已在账户余额里）。
+        if (r.accountId != null && r.accountId!.isNotEmpty) {
           continue;
         }
         final String trimmed = r.counterparty.trim();

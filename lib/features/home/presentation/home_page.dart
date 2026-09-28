@@ -132,8 +132,10 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
     final int netMinor = ref.watch(netAssetsProvider).valueOrNull ?? 0;
     final int assetsMinor = ref.watch(totalAssetsProvider).valueOrNull ?? 0;
     // 负债两个来源（避免口径漏算）：
-    // ① 负债方向账户（信用卡/花呗等 debt + 私人借款 payable）正余额=欠款；
-    // ② 借还模块的借入未还净额（存在 LendRecord，不落任何账户余额）。
+    // ① 负债方向账户（信用卡/花呗等 debt + 私人借款 payable，含指定借入
+    //    账户）正余额=欠款；
+    // ② 借还模块**未指定账户**的借入未还净额（指定了借入账户的记录已在
+    //    ①的账户余额里，provider 口径已排除，不会双计）。
     final int accountLiabilities =
         ref.watch(totalLiabilitiesProvider).valueOrNull ?? 0;
     final int borrowInOngoing =

@@ -78,6 +78,10 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 修复历史版本挂账/核销链路缺失导致的 100 vs 30 类不一致。
   await _reconcileReimbursementBalances(db);
   await _reconcileReimbursedAmounts(db);
+  // 借还指定账户存量归户（幂等）：旧记录未指定借入/借出账户、但对方
+  // 名称与同方向账户名一致的，回填 accountId——必须在流水补建**之前**，
+  // 归户后的记录才能按「资产账户优先 → 指定账户兜底」口径补建本金流水。
+  await _backfillLendDesignatedAccounts(db);
   // 借还落流水对账（幂等，每次启动运行）：有可挂账户（资产账户优先，
   // 其次指定借入/借出账户）但缺本金流水的借还记录补建流水；借还模块
   // 流水统一排除收支统计与预算。补建必须在余额对账**之前**——补建的
@@ -176,6 +180,54 @@ Future<void> _reconcileLendAccountBalances(AppDatabase db) async {
         .write(
       AccountsCompanion(
         balanceMinor: Value<int>(want),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+  }
+}
+
+/// 借还指定账户存量归户：未指定借入/借出账户（accountId 为空）的借还
+/// 记录，若对方名称与同方向类型（借入→borrow / 借出→lend）的未删账户名
+/// 一致，自动回填 accountId——借还账户本就是「对方」的虚拟化，名称一致
+/// 视为同一对象。历史版本没有指定账户概念，此类记录只出现在借入/借出
+/// 汇总里、不进任何账户余额，出现「借入汇总 ¥100 vs 账户 ¥0」类不一致。
+/// 幂等：每次启动运行，仅在有匹配时写库（dirty 置真走同步）。
+Future<void> _backfillLendDesignatedAccounts(AppDatabase db) async {
+  final List<LendRecord> undesignated =
+      await (db.select(db.lendRecords)
+            ..where((LendRecords t) =>
+                t.accountId.isNull() & t.deleted.equals(false)))
+          .get();
+  if (undesignated.isEmpty) return;
+
+  final List<Account> lendAccounts = await (db.select(db.accounts)
+        ..where((Accounts t) =>
+            (t.type.equals(AccountType.lend.index) |
+                t.type.equals(AccountType.borrow.index)) &
+            t.deleted.equals(false)))
+      .get();
+  if (lendAccounts.isEmpty) return;
+
+  final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+  for (final LendRecord r in undesignated) {
+    final String name = r.counterparty.trim();
+    if (name.isEmpty) continue;
+    final AccountType type = r.direction == LendDirection.borrowIn
+        ? AccountType.borrow
+        : AccountType.lend;
+    Account? match;
+    for (final Account a in lendAccounts) {
+      if (a.type == type && a.name.trim() == name) {
+        match = a;
+        break;
+      }
+    }
+    if (match == null) continue;
+    await (db.update(db.lendRecords)..where((LendRecords t) => t.id.equals(r.id)))
+        .write(
+      LendRecordsCompanion(
+        accountId: Value<String?>(match.id),
         updatedAt: Value<int>(now),
         dirty: const Value<bool>(true),
       ),

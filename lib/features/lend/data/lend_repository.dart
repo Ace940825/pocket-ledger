@@ -38,7 +38,7 @@ class LendRepository {
     String? toAccountId,
     int feeMinor = 0,
     int discountMinor = 0,
-  }) {
+  }) async {
     if (counterparty.trim().isEmpty) {
       throw const ValidationFailure('对方不能为空');
     }
@@ -46,6 +46,9 @@ class LendRepository {
 
     final String id = const Uuid().v7();
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    // 未指定借入/借出账户时按对方名称自动归户（见 _resolveDesignatedAccount）。
+    final String? designated =
+        await _resolveDesignatedAccount(direction, accountId, counterparty);
 
     return _db.transaction<String>(() async {
       await _db.into(_db.lendRecords).insert(
@@ -60,7 +63,7 @@ class LendRepository {
               occurredAt: Value<int>(occurredAt),
               dueAt: Value<int?>(dueAt),
               note: Value<String?>(note),
-              accountId: Value<String?>(accountId),
+              accountId: Value<String?>(designated),
               toAccountId: Value<String?>(toAccountId),
               feeMinor: Value<int>(feeMinor),
               discountMinor: Value<int>(discountMinor),
@@ -83,7 +86,7 @@ class LendRepository {
           'occurredAt': occurredAt,
           'dueAt': dueAt,
           'note': note,
-          'accountId': accountId,
+          'accountId': designated,
           'toAccountId': toAccountId,
           'feeMinor': feeMinor,
           'discountMinor': discountMinor,
@@ -93,7 +96,7 @@ class LendRepository {
       // 资产账户优先（真实资金进出，余额增量联动）；未选资产账户时挂
       // 指定的借入/借出账户（应收 / 应付，余额由对账保持不变量）；
       // 两者皆无（纯文字对方的非指定债务跟踪）不落流水。
-      final String? flowAccount = _flowAccountOf(toAccountId, accountId);
+      final String? flowAccount = _flowAccountOf(toAccountId, designated);
       if (flowAccount != null) {
         await _createFlowTxn(
           bookId: bookId,
@@ -106,7 +109,7 @@ class LendRepository {
           note: note,
         );
       }
-      await _reconcileDesignatedBalance(accountId);
+      await _reconcileDesignatedBalance(designated);
       return id;
     });
   }
@@ -125,13 +128,20 @@ class LendRepository {
     String? toAccountId,
     int feeMinor = 0,
     int discountMinor = 0,
-  }) {
+  }) async {
     if (counterparty.trim().isEmpty) {
       throw const ValidationFailure('对方不能为空');
     }
     if (amountMinor <= 0) throw const ValidationFailure('金额必须大于 0');
 
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    // 写入前先取旧记录：旧指定账户要在写入后参与对账（改挂账户时旧
+    // 账户余额才能退回；此前在写入后才读，读到的是新值，改挂账户时
+    // 旧账户不会重算——一并修复）。
+    final LendRecord? before = await getById(id);
+    // 未指定借入/借出账户时按对方名称自动归户（新增同款口径）。
+    final String? designated =
+        await _resolveDesignatedAccount(direction, accountId, counterparty);
     return _db.transaction<void>(() async {
       await (_db.update(_db.lendRecords)
             ..where((LendRecords t) => t.id.equals(id)))
@@ -145,7 +155,7 @@ class LendRepository {
           occurredAt: Value<int>(occurredAt),
           dueAt: Value<int?>(dueAt),
           note: Value<String?>(note),
-          accountId: Value<String?>(accountId),
+          accountId: Value<String?>(designated),
           toAccountId: Value<String?>(toAccountId),
           feeMinor: Value<int>(feeMinor),
           discountMinor: Value<int>(discountMinor),
@@ -168,7 +178,7 @@ class LendRepository {
           'occurredAt': occurredAt,
           'dueAt': dueAt,
           'note': note,
-          'accountId': accountId,
+          'accountId': designated,
           'toAccountId': toAccountId,
           'feeMinor': feeMinor,
           'discountMinor': discountMinor,
@@ -179,8 +189,8 @@ class LendRepository {
       // 编辑改了金额 / 账户 / 日期 / 备注 / 方向 → 更新流水；两个账户
       // 都清空 → 撤掉流水；缺流水且有可挂账户 → 补建。
       final LendRecord? current = await getById(id);
-      final String? oldDesignated = current?.accountId;
-      final String? flowAccount = _flowAccountOf(toAccountId, accountId);
+      final String? oldDesignated = before?.accountId;
+      final String? flowAccount = _flowAccountOf(toAccountId, designated);
       final Transaction? flow = await _findFlowTxn(id);
       if (flow != null && flowAccount == null) {
         await _txnRepo.remove(flow.id);
@@ -207,7 +217,7 @@ class LendRepository {
           note: note,
         );
       }
-      await _reconcileDesignatedBalance(accountId);
+      await _reconcileDesignatedBalance(designated);
       await _reconcileDesignatedBalance(oldDesignated);
     });
   }
@@ -227,6 +237,32 @@ class LendRepository {
       return designatedAccount;
     }
     return null;
+  }
+
+  /// 按对方名称自动归户：未指定借入/借出账户时，若对方名称与同方向
+  /// 类型账户名一致（如借入对方「小明」、存在借入(borrow)类型账户
+  /// 「小明」），自动指定该账户——借还账户本就是「对方」的虚拟化
+  /// （记一笔同款提示文案），名称一致视为同一对象，账单落入该账户。
+  /// 已指定 / 对方为空 / 无同名账户时原样返回。
+  Future<String?> _resolveDesignatedAccount(
+    LendDirection direction,
+    String? accountId,
+    String counterparty,
+  ) async {
+    if (accountId != null && accountId.isNotEmpty) return accountId;
+    final String name = counterparty.trim();
+    if (name.isEmpty) return null;
+    final AccountType type = direction == LendDirection.borrowIn
+        ? AccountType.borrow
+        : AccountType.lend;
+    final Account? acc = await (_db.select(_db.accounts)
+          ..where((Accounts t) =>
+              t.name.equals(name) &
+              t.type.equals(type.index) &
+              t.deleted.equals(false))
+          ..limit(1))
+        .getSingleOrNull();
+    return acc?.id;
   }
 
   /// 指定借入/借出账户余额对账（报销账户同款不变量，幂等）：
