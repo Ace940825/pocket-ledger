@@ -567,11 +567,42 @@ class TransactionRepository {
     return '$meta\n$trimmed';
   }
 
+  /// 按账户方向落余额变动（正数 [magnitude]，方向由 [inflow] 与账户类型共同决定）。
+  ///
+  /// 资产账户：流入 `+`、流出 `−`；
+  /// 负债方向账户（信用卡/花呗/私人借款等，**正余额=欠款**，见
+  /// [AccountType.isLiabilitySide]）：刷卡消费（流出）欠款**增加** → `+`，
+  /// 还款/退款（流入）欠款**减少** → `−`。
+  ///
+  /// 账户不存在（已删除）时直接跳过，等价于旧行为（UPDATE 影响不到行）。
+  Future<void> _adjustAccountDelta(
+    String accountId,
+    int magnitude,
+    int now, {
+    required bool inflow,
+  }) async {
+    if (magnitude <= 0) {
+      return;
+    }
+    final Account? account = await _db.accountsDao.getById(accountId);
+    if (account == null) {
+      return;
+    }
+    final bool liability = account.type.isLiabilitySide;
+    // 资产+流入 / 负债+流出 → 正；资产+流出 / 负债+流入 → 负。
+    final int delta = (inflow != liability) ? magnitude : -magnitude;
+    await _db.accountsDao.adjustBalance(accountId, delta, now);
+  }
+
   /// 应用余额变动。转账只调整两个账户，不改变净资产。
   ///
-  /// 支出按**实付金额**（`amountMinor - discountMinor`）扣减余额：
+  /// 支出按**实付金额**（`amountMinor - discountMinor`）调整余额：
   /// `amountMinor` 存的是优惠前原价，优惠部分并不实际支出
   /// （对齐小青账：¥85 消费优惠 ¥45，实际只扣 ¥40）。
+  ///
+  /// **负债方向语义**：信用卡等负债账户正余额=欠款，刷卡消费应使欠款
+  /// **增加**、还款/退款使欠款**减少**（方向与资产账户相反），
+  /// 由 [_adjustAccountDelta] 统一处理。
   ///
   /// 可报销支出（[reimbursementAccountId] 非空）同时把实付金额**挂到报销账户**
   /// （应收桶）：垫付发生时 +实付，报销收款核销时再转出，增删改均可回滚。
@@ -587,25 +618,29 @@ class TransactionRepository {
   }) async {
     switch (type) {
       case TxnType.income:
-        await _db.accountsDao.adjustBalance(accountId, amountMinor, now);
+        await _adjustAccountDelta(accountId, amountMinor, now, inflow: true);
       case TxnType.expense:
         final int actual = amountMinor - discountMinor;
-        await _db.accountsDao.adjustBalance(
-            accountId, actual > 0 ? -actual : 0, now);
-        if (reimbursementAccountId != null && actual > 0) {
-          await _db.accountsDao.adjustBalance(
-              reimbursementAccountId, actual, now);
+        if (actual > 0) {
+          await _adjustAccountDelta(accountId, actual, now, inflow: false);
+          // 报销账户（应收桶）恒为资产方向：+实付。
+          if (reimbursementAccountId != null) {
+            await _db.accountsDao.adjustBalance(
+                reimbursementAccountId, actual, now);
+          }
         }
       case TxnType.transfer:
         final int debit = fromAmountMinor ?? amountMinor;
-        await _db.accountsDao.adjustBalance(accountId, -debit, now);
+        await _adjustAccountDelta(accountId, debit, now, inflow: false);
         if (toAccountId != null) {
-          await _db.accountsDao.adjustBalance(toAccountId, amountMinor, now);
+          await _adjustAccountDelta(toAccountId, amountMinor, now,
+              inflow: true);
         }
     }
   }
 
-  /// 回滚余额变动（更新与删除时调用）
+  /// 回滚余额变动（更新与删除时调用），与 [_applyBalanceDelta] 严格互逆：
+  /// 流入/流出方向翻转，报销应收桶同样取反。
   Future<void> _revertBalanceDelta(
     TxnType type,
     String accountId,
@@ -618,20 +653,22 @@ class TransactionRepository {
   }) async {
     switch (type) {
       case TxnType.income:
-        await _db.accountsDao.adjustBalance(accountId, -amountMinor, now);
+        await _adjustAccountDelta(accountId, amountMinor, now, inflow: false);
       case TxnType.expense:
         final int actual = amountMinor - discountMinor;
-        await _db.accountsDao.adjustBalance(
-            accountId, actual > 0 ? actual : 0, now);
-        if (reimbursementAccountId != null && actual > 0) {
-          await _db.accountsDao.adjustBalance(
-              reimbursementAccountId, -actual, now);
+        if (actual > 0) {
+          await _adjustAccountDelta(accountId, actual, now, inflow: true);
+          if (reimbursementAccountId != null) {
+            await _db.accountsDao.adjustBalance(
+                reimbursementAccountId, -actual, now);
+          }
         }
       case TxnType.transfer:
         final int debit = fromAmountMinor ?? amountMinor;
-        await _db.accountsDao.adjustBalance(accountId, debit, now);
+        await _adjustAccountDelta(accountId, debit, now, inflow: true);
         if (toAccountId != null) {
-          await _db.accountsDao.adjustBalance(toAccountId, -amountMinor, now);
+          await _adjustAccountDelta(toAccountId, amountMinor, now,
+              inflow: false);
         }
     }
   }
