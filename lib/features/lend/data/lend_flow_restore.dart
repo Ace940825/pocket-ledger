@@ -30,11 +30,13 @@ Future<void> reconcileDesignatedLendBalance(
         ..where((Accounts t) => t.id.equals(accountId)))
       .getSingleOrNull();
   if (acc == null || acc.deleted) return;
-  if (acc.type != AccountType.lend.index &&
-      acc.type != AccountType.borrow.index) {
+  // ⚠️ acc.type 是 drift 生成的 Dart 枚举，不能与 `.index`（int）比较——
+  // 枚举与 int 用 == / != 恒为 false / true，曾导致守卫永远提前 return、
+  // 共享对账从未生效（借入账户余额恒 0 的真凶）。
+  if (acc.type != AccountType.lend && acc.type != AccountType.borrow) {
     return;
   }
-  final LendDirection dir = acc.type == AccountType.lend.index
+  final LendDirection dir = acc.type == AccountType.lend
       ? LendDirection.lendOut
       : LendDirection.borrowIn;
   final List<LendRecord> records = await (db.select(db.lendRecords)

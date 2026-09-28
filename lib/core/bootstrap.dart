@@ -181,7 +181,10 @@ Future<void> _reconcileLendAccountBalances(AppDatabase db) async {
 
   final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
   for (final Account a in lendAccounts) {
-    final LendDirection dir = a.type == AccountType.lend.index
+    // ⚠️ a.type 是 Dart 枚举，与 `.index`（int）比较恒 false——曾导致
+    // 借出账户方向恒判为 borrowIn、名下记录合计为 0，启动对账把借出
+    // 账户余额清零。
+    final LendDirection dir = a.type == AccountType.lend
         ? LendDirection.lendOut
         : LendDirection.borrowIn;
     final int want = records

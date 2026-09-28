@@ -574,6 +574,10 @@ class LendRepository {
           );
           // 记冲销台账（同还债 / 收债），供跨账户删除时反向恢复其余账户。
           await _writeLendOffsets(flowId, affected);
+          // 备忘流水挂在本借还账户上，其余额增量是错向的——必须在
+          // 流水落库**之后**重算覆盖（_offsetDebts 内的对账发生在
+          // 流水创建之前，盖不住这笔增量）。
+          await _reconcileDesignatedBalance(designated);
         }
       }
     });
@@ -644,6 +648,9 @@ class LendRepository {
         if (affected.isNotEmpty) {
           await _writeLendOffsets(flowId, affected);
         }
+        // 还款 / 收款账户若也是借还类型（余额错向增量），流水落库后
+        // 重算覆盖；非借还类型（现金等）由 reconcile 自动跳过。
+        await _reconcileDesignatedBalance(accountId);
       }
     });
   }
