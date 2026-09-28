@@ -11,6 +11,7 @@ import '../data/account_icon.dart';
 import '../data/bank_data.dart';
 import '../providers/accounts_providers.dart';
 import 'bank_select_page.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 账户表单页。
 ///
@@ -134,8 +135,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
       if (mounted) Navigator.of(context).pop();
     } on AppFailure catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showAppToast(context, e.message);
       }
     } finally {
       if (mounted) setState(() => _saving = false);

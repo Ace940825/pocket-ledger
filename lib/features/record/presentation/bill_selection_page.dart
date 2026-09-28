@@ -9,6 +9,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 账单选择页面返回的结果：用户确认后返回选中的流水列表。
 ///
@@ -237,9 +238,7 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
   }
 
   void _showFilterHint() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('筛选功能开发中')),
-    );
+    showAppToast(context, '筛选功能开发中');
   }
 
   /// 底部确认栏：展示已选笔数 / 合计金额，点击确认返回选中列表。

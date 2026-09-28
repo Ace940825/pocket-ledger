@@ -16,6 +16,7 @@ import '../providers/record_template_providers.dart';
 import '../record_tab.dart';
 import 'record_sheet.dart';
 import 'record_template_sheet.dart' show RecordTemplateDraft;
+import '../../../shared/widgets/app_toast.dart';
 
 /// 「账单模板」独立管理页（方案 C1 · 晕染延续）：
 /// 晕染带（✕ 钮 + 头卡/帮助 + 虚线说明卡）→ 搜索 + 类型筛选 → 条目列表
@@ -102,9 +103,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
           isReimbursable: d.isReimbursable,
         );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已保存模板「$name」')),
-    );
+    showAppToast(context, '已保存模板「$name」');
   }
 
   /// 左滑「编辑」：进入模板模式记一笔页并预填模板内容，
@@ -137,9 +136,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
           isReimbursable: d.isReimbursable,
         );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已更新模板「$name」')),
-    );
+    showAppToast(context, '已更新模板「$name」');
   }
 
   /// 建议名：备注 > 借还对方 > 分类名 > Tab 类型。
@@ -723,9 +720,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
   Future<void> _remove(RecordTemplate t) async {
     await ref.read(recordTemplateRepositoryProvider).remove(t.id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已删除模板「${t.name}」')),
-    );
+    showAppToast(context, '已删除模板「${t.name}」');
   }
 }
 

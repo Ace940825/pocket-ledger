@@ -19,6 +19,7 @@ import '../../record/presentation/account_picker_sheet.dart';
 import '../domain/installment_dates.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 添加分期页（小青账模板）。
 ///
@@ -1032,8 +1033,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   }
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showAppToast(context, message);
   }
 }
 

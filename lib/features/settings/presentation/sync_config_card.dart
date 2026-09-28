@@ -6,6 +6,7 @@ import '../../../../core/constants/app_dimens.dart';
 import '../../../../providers/app_providers.dart';
 import '../data/sync_settings.dart';
 import '../providers/sync_settings_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 云同步配置卡片：开关 + Workers 端点 + 访问令牌。
 ///
@@ -56,9 +57,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
       // 适配器与状态卡片都依赖配置，配置变了必须让它们重算
       ref.invalidate(syncControllerProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已保存到本机钥匙串')),
-      );
+      showAppToast(context, '已保存到本机钥匙串');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

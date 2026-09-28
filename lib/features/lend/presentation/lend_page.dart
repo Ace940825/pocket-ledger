@@ -10,6 +10,7 @@ import '../../../shared/models/money.dart';
 import '../providers/lend_providers.dart';
 import '../../record/record_tab.dart';
 import '../../record/presentation/record_sheet.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 借还页：借出 / 借入记录与状态跟踪。
 class LendPage extends ConsumerStatefulWidget {
@@ -115,8 +116,7 @@ class _LendPageState extends ConsumerState<LendPage> {
 
 
   void _toast(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showAppToast(context, message);
   }
 }
 

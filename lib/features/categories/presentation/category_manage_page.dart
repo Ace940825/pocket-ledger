@@ -10,6 +10,7 @@ import '../../../../domain/enums.dart';
 import '../../../../shared/widgets/category_icons.dart';
 import '../../../routing/app_router.dart';
 import '../providers/categories_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 分类管理页：按小青账模板重构。
 ///
@@ -1090,5 +1091,5 @@ Future<void> _showChildSortSheet(
 }
 
 void _toast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  showAppToast(context, message);
 }

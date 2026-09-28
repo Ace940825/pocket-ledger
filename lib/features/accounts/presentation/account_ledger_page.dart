@@ -20,6 +20,7 @@ import 'account_ledger_grouping.dart';
 import 'widgets/account_transaction_tile.dart';
 import 'widgets/asset_stats_settings_sheet.dart';
 import 'widgets/year_picker_sheet.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 单个账户的资产详情页（小青账「资产详情」复刻）。
 ///
@@ -326,8 +327,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
           );
     } on AppFailure catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showAppToast(context, e.message);
       }
     }
   }
@@ -361,8 +361,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
       }
     } on AppFailure catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showAppToast(context, e.message);
       }
     }
   }
@@ -398,8 +397,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
       }
     } on AppFailure catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showAppToast(context, e.message);
       }
     }
   }

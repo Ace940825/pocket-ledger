@@ -9,6 +9,7 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
@@ -52,15 +53,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(bottom: 96, left: 16, right: 16),
-        backgroundColor: ForestNeutral.deepInk,
-        duration: const Duration(seconds: 1, milliseconds: 600),
-      ),
-    );
+    showAppToast(context, message);
   }
 
   Future<bool> _confirm(

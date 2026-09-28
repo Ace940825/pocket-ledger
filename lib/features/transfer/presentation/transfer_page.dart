@@ -13,6 +13,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/date_picker_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 转账页：在两个账户间划转资金，不影响净资产。
 class TransferPage extends ConsumerStatefulWidget {
@@ -153,8 +154,7 @@ class _TransferPageState extends ConsumerState<TransferPage> {
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showAppToast(context, message);
   }
 }
 

@@ -20,6 +20,7 @@ import '../../reimbursement/data/reimbursement_repository.dart';
 import '../../reimbursement/presentation/reimbursement_record_sheet.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../providers/ledger_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 流水详情底部弹窗 · B1「Hero 聚焦查看」落地版（ForestSage 暖纸皮肤）。
 ///
@@ -1085,13 +1086,11 @@ class TransactionDetailSheet extends ConsumerWidget {
       await ref.read(transactionRepositoryProvider).remove(transaction.id);
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('已删除')));
+        showAppToast(context, '已删除');
       }
     } on AppFailure catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showAppToast(context, e.message);
       }
     }
   }
@@ -1099,9 +1098,7 @@ class TransactionDetailSheet extends ConsumerWidget {
   Future<void> _onRefund(BuildContext context, WidgetRef ref) async {
     // TODO: 接入「选择原账单创建退款收入」流程与 /refund 路由。
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('退款功能将在后续版本接入')),
-      );
+      showAppToast(context, '退款功能将在后续版本接入');
     }
   }
 }

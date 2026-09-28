@@ -12,6 +12,7 @@ import '../../record/presentation/record_sheet.dart';
 import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/transaction_tile.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 流水列表页。按日期分组，支持侧滑删除。
 class LedgerPage extends ConsumerWidget {
@@ -29,9 +30,7 @@ class LedgerPage extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('搜索功能将在后续版本提供')),
-              );
+              showAppToast(context, '搜索功能将在后续版本提供');
             },
           ),
         ],
@@ -103,13 +102,11 @@ class LedgerPage extends ConsumerWidget {
       await ref.read(transactionRepositoryProvider).remove(txn.id);
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('已删除')));
+        showAppToast(context, '已删除');
       }
     } on AppFailure catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showAppToast(context, e.message);
       }
     }
   }

@@ -56,6 +56,7 @@ import '../../../core/theme/forest_design_tokens.dart';
 import '../../tags/presentation/tag_sheet.dart';
 import 'recording_settings_sheet.dart';
 import 'record_template_sheet.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 退款模式：全额退回 / AA 付款分摊。
 enum RefundMode { full, aa }
@@ -1287,8 +1288,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showAppToast(context, message);
   }
 
   /// 处理小青账键盘的「+」「-」运算符。
@@ -9429,9 +9429,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
   void _confirm() {
     final int collect = _collect;
     if (collect <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('本次收款金额需大于 0')),
-      );
+      showAppToast(context, '本次收款金额需大于 0');
       return;
     }
     Navigator.of(context).pop(

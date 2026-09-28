@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app_toast.dart';
+
 /// 各业务模块通用的「列表 + 新增 FAB」页面骨架。
 ///
 /// 把 AsyncValue 的三态处理（加载 / 失败 / 空列表）收敛到一处，
@@ -130,9 +132,7 @@ Future<bool> confirmDelete(
   return confirmed ?? false;
 }
 
-/// 统一的轻提示。
+/// 统一的轻提示（短时长、替换式，见 [showAppToast]）。
 void showToast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
-  );
+  showAppToast(context, message);
 }

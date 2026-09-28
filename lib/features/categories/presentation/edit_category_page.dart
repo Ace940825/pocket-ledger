@@ -8,6 +8,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../providers/categories_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 编辑一级分类页。
 ///
@@ -280,8 +281,7 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
   }
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showAppToast(context, message);
   }
 }
 

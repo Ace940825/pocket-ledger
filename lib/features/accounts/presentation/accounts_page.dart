@@ -18,6 +18,7 @@ import '../data/account_group_collapse.dart';
 import '../data/account_group_order.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 账户列表页（分组卡片布局）。
 ///
@@ -152,8 +153,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           );
     } on AppFailure catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showAppToast(context, e.message);
       }
     }
   }
@@ -188,8 +188,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       await ref.read(accountRepositoryProvider).archive(account.id);
     } on AppFailure catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showAppToast(context, e.message);
       }
     }
   }
@@ -225,8 +224,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       await ref.read(accountRepositoryProvider).remove(account.id);
     } on AppFailure catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showAppToast(context, e.message);
       }
     }
   }

@@ -9,6 +9,7 @@ import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../providers/categories_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 添加一级分类页。
 ///
@@ -278,8 +279,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
   }
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showAppToast(context, message);
   }
 }
 

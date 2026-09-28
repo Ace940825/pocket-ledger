@@ -9,6 +9,7 @@ import '../../../domain/enums.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../providers/categories_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 
 /// 账单迁移页：把源分类下的全部流水改挂到目标分类。
 ///
@@ -375,5 +376,5 @@ class _MigrateChildTile extends StatelessWidget {
 }
 
 void _toast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  showAppToast(context, message);
 }
