@@ -73,14 +73,16 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     context.push(target);
   }
 
-  // 左滑「编辑」：应收（借出）/ 应付（借入）账户与借记卡进独立编辑页
-  //（参照小青账：借还 = 借款给谁/向谁借 + 只读金额；借记卡 = 资产类型卡
-  // + 备注/卡号 + 可校正余额；共用资产状态三态 + 计入总资产）；
-  // 其余类型维持进资产详情页。
+  // 左滑「编辑」：应收（借出）/ 应付（借入）/ 借记卡 / 负债（信用卡、
+  // 花呗等）账户进独立编辑页（参照小青账：借还 = 借款给谁/向谁借 + 只读
+  // 金额；借记卡 = 资产类型卡 + 备注/卡号 + 可校正余额；负债 = 资产类型卡
+  // + 备注/卡号 + 信用额度/当前欠款/剩余额度自动计算 + 账单还款日；共用
+  // 资产状态三态 + 计入总资产）；其余类型维持进资产详情页。
   void _editAccount(Account a) {
     if (a.type == AccountType.lend ||
         a.type == AccountType.borrow ||
-        a.type == AccountType.bankCard) {
+        a.type == AccountType.bankCard ||
+        a.type.isDebt) {
       context.push('/accounts/${a.id}/edit');
     } else {
       _openDetail(a);

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,13 +13,16 @@ import '../../../shared/widgets/app_toast.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
 
-/// 编辑账户页（参照小青账编辑逻辑），按账户类型分流两种布局：
+/// 编辑账户页（参照小青账编辑逻辑），按账户类型分流三种布局：
 ///
 /// - **借出 / 借入（应收 / 应付）**：基本信息「借款给谁 / 向谁借」+
 ///   **借出 / 借入金额**（派生余额，只读展示——由名下未结清借还记录
 ///   自动计算，保存时仓储层同事务重算，不可手改）；
 /// - **借记卡（银行账户）**：「资产类型」卡（银行图标 + 银行名，点击改名）+
 ///   基本信息（备注信息 / 银行卡号）+ **资金**（账户余额可手动校正）；
+/// - **负债（信用卡 / 花呗等）**：资产类型卡 + 基本信息 + **资金**
+///   （信用额度 / 当前欠款可编辑，剩余额度 = 额度 − 欠款自动计算）+
+///   **账单/还款日期**（每月 X 日）；
 /// - 共用「其他」：**资产状态** 三态胶囊（使用中 / 隐藏 / 封存）+
 ///   **计入总资产** 开关；底部整宽「保存」按钮。
 class AccountEditPage extends ConsumerStatefulWidget {
@@ -36,6 +40,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   late final TextEditingController _noteController;
   late final TextEditingController _cardNumberController;
   late final TextEditingController _balanceController;
+  // 负债模式专用：信用额度 + 账单日 / 还款日（当前欠款复用 _balanceController，
+  // 负债方向账户约定正余额=欠款）。
+  late final TextEditingController _creditLimitController;
+  late final TextEditingController _billingDayController;
+  late final TextEditingController _dueDayController;
   late AccountStatus _status;
   late bool _includeInTotal;
   bool _initialized = false;
@@ -52,6 +61,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _ensureInitialized(account);
     final bool isLend = account.type == AccountType.lend;
     final bool isDebit = account.type == AccountType.bankCard;
+    final bool isDebt = account.type.isDebt;
 
     return Scaffold(
       appBar: AppBar(
@@ -66,9 +76,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(AppDimens.spaceLg),
-              children: isDebit
-                  ? _debitSections(account)
-                  : _lendSections(account, isLend),
+              children: isDebt
+                  ? _debtSections(account)
+                  : isDebit
+                      ? _debitSections(account)
+                      : _lendSections(account, isLend),
             ),
           ),
           _saveButton(account),
@@ -118,30 +130,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         _assetTypeCard(account),
         const SizedBox(height: AppDimens.spaceLg),
         _sectionLabel('基本信息'),
-        _Card(
-          child: Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceMd),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                _fieldLabel('备注信息'),
-                TextField(
-                  controller: _noteController,
-                  textInputAction: TextInputAction.next,
-                  decoration: _filledDecoration(),
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                _fieldLabel('银行卡号'),
-                TextField(
-                  controller: _cardNumberController,
-                  keyboardType: const TextInputType.numberWithOptions(),
-                  textInputAction: TextInputAction.done,
-                  decoration: _filledDecoration(),
-                ),
-              ],
-            ),
-          ),
-        ),
+        _basicInfoCard(),
         const SizedBox(height: AppDimens.spaceLg),
         _sectionLabel('资金'),
         _Card(
@@ -171,6 +160,137 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         const SizedBox(height: AppDimens.spaceLg),
         _otherSection(),
       ];
+
+  // ---- 负债（信用卡 / 花呗等）布局，参照小青账截图 ----
+  //
+  // 资金口径：负债方向账户**正余额 = 当前欠款**（余额为负即多还/溢缴款）；
+  // 剩余额度 = 信用额度 − 当前欠款，输入任一可编辑项即自动重算。
+
+  List<Widget> _debtSections(Account account) => <Widget>[
+        _sectionLabel('资产类型'),
+        _assetTypeCard(account),
+        const SizedBox(height: AppDimens.spaceLg),
+        _sectionLabel('基本信息'),
+        _basicInfoCard(),
+        const SizedBox(height: AppDimens.spaceLg),
+        _sectionLabel('资金'),
+        _Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                _fieldLabel('信用额度'),
+                TextField(
+                  controller: _creditLimitController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.next,
+                  decoration: _filledDecoration(),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: AppDimens.spaceMd),
+                _fieldLabel('当前欠款'),
+                TextField(
+                  controller: _balanceController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.done,
+                  decoration: _filledDecoration(),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: AppDimens.spaceMd),
+                _fieldLabel('剩余额度'),
+                _readOnlyAmount(_remainingLimitMinor),
+                const SizedBox(height: AppDimens.spaceXs),
+                Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: AppColors.textTertiary,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        '当前欠款 和 信用额度 输入一个即可自动识别计算',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppDimens.spaceLg),
+        _sectionLabel('账单/还款日期'),
+        _Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                _fieldLabel('账单日期'),
+                TextField(
+                  controller: _billingDayController,
+                  keyboardType: const TextInputType.numberWithOptions(),
+                  textInputAction: TextInputAction.next,
+                  decoration: _dayDecoration(),
+                ),
+                const SizedBox(height: AppDimens.spaceMd),
+                _fieldLabel('还款日期'),
+                TextField(
+                  controller: _dueDayController,
+                  keyboardType: const TextInputType.numberWithOptions(),
+                  textInputAction: TextInputAction.done,
+                  decoration: _dayDecoration(),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppDimens.spaceLg),
+        _otherSection(),
+      ];
+
+  /// 基本信息（备注 / 银行卡号），借记卡与负债模式共用。
+  Widget _basicInfoCard() => _Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimens.spaceMd),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _fieldLabel('备注信息'),
+              TextField(
+                controller: _noteController,
+                textInputAction: TextInputAction.next,
+                decoration: _filledDecoration(),
+              ),
+              const SizedBox(height: AppDimens.spaceMd),
+              _fieldLabel('银行卡号'),
+              TextField(
+                controller: _cardNumberController,
+                keyboardType: const TextInputType.numberWithOptions(),
+                textInputAction: TextInputAction.done,
+                decoration: _filledDecoration(),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  /// 剩余额度（minor）= 信用额度 − 当前欠款；两项都为空时返回 null（显示 —）。
+  int? get _remainingLimitMinor {
+    final bool limitEmpty = _creditLimitController.text.trim().isEmpty;
+    final bool debtEmpty = _balanceController.text.trim().isEmpty;
+    if (limitEmpty && debtEmpty) return null;
+    final int limit = Money.tryParse(_creditLimitController.text).minor;
+    final int debt = Money.tryParse(_balanceController.text).minor;
+    return limit - debt;
+  }
 
   /// 「资产类型」卡：银行图标 + 银行名（账户名）+ chevron，点击改名。
   Widget _assetTypeCard(Account account) => _Card(
@@ -277,6 +397,17 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _balanceController = TextEditingController(
       text: Money.fromMinor(account.balanceMinor).decimal.toStringAsFixed(2),
     );
+    _creditLimitController = TextEditingController(
+      text: account.creditLimitMinor == null
+          ? ''
+          : Money.fromMinor(account.creditLimitMinor!)
+              .decimal
+              .toStringAsFixed(2),
+    );
+    _billingDayController =
+        TextEditingController(text: account.billingDay?.toString() ?? '');
+    _dueDayController =
+        TextEditingController(text: account.dueDay?.toString() ?? '');
     _status = account.status;
     _includeInTotal = account.includeInTotal;
     _initialized = true;
@@ -318,8 +449,15 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         ),
       );
 
-  /// 借出 / 借入金额：派生余额，只读展示（灰底、不可编辑）。
-  Widget _readOnlyAmount(int balanceMinor) => Container(
+  /// 账单日 / 还款日输入框装饰：「每月 X 日」。
+  InputDecoration _dayDecoration() => _filledDecoration().copyWith(
+        prefixText: '每月',
+        suffixText: '日',
+      );
+
+  /// 借出 / 借入金额 / 剩余额度：派生值，只读展示（灰底、不可编辑）。
+  /// null 显示「—」（如剩余额度在额度与欠款均为空时）。
+  Widget _readOnlyAmount(int? balanceMinor) => Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(
           horizontal: AppDimens.spaceMd,
@@ -330,7 +468,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
         child: Text(
-          Money.fromMinor(balanceMinor).format(),
+          balanceMinor == null
+              ? '—'
+              : Money.fromMinor(balanceMinor).format(),
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -423,8 +563,32 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       showAppToast(context, '账户名称不能为空');
       return;
     }
+    // 账单日 / 还款日：空 = 清除，非法或超出 1-31 视为未填。
+    final int? billingDay = _parseDay(_billingDayController.text);
+    final int? dueDay = _parseDay(_dueDayController.text);
     try {
-      if (account.type == AccountType.bankCard) {
+      if (account.type.isDebt) {
+        // 负债：正余额 = 当前欠款（输入负数即多还/溢缴款）；额度/日期
+        // 输入框为空 = 清空（Value(null)），有值 = 设置（Value(x)）。
+        final String limitText = _creditLimitController.text.trim();
+        await ref.read(accountRepositoryProvider).update(
+              id: account.id,
+              name: name,
+              type: account.type,
+              balanceMinor: Money.tryParse(_balanceController.text).minor,
+              creditLimitMinor: Value<int?>(
+                limitText.isEmpty
+                    ? null
+                    : Money.tryParse(limitText).minor,
+              ),
+              billingDay: Value<int?>(billingDay),
+              dueDay: Value<int?>(dueDay),
+              note: _noteController.text.trim(),
+              cardNumber: _cardNumberController.text.trim(),
+              status: _status,
+              includeInTotal: _includeInTotal,
+            );
+      } else if (account.type == AccountType.bankCard) {
         // 借记卡：余额为真实值（允许手动校正）；备注 / 卡号传空串即清空
         // （仓储层 `?? before` 仅在 null 时保留现值，空串会正常写入）。
         await ref.read(accountRepositoryProvider).update(
@@ -457,6 +621,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         showAppToast(context, e.message);
       }
     }
+  }
+
+  /// 解析「每月 X 日」的天数输入：空 = null（清除），1-31 有效，
+  /// 其余视为未填（null）。
+  int? _parseDay(String text) {
+    final int? day = int.tryParse(text.trim());
+    if (day == null || day < 1 || day > 31) return null;
+    return day;
   }
 }
 

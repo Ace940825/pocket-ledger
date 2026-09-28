@@ -167,9 +167,11 @@ class AccountRepository {
     required AccountType type,
     required int balanceMinor,
     String? currency,
-    int? creditLimitMinor,
-    int? billingDay,
-    int? dueDay,
+    // 信用卡/负债三字段用 drift Value 哨兵语义：
+    // Value.absent()=保留现值、Value(null)=清空、Value(x)=设置。
+    Value<int?> creditLimitMinor = const Value.absent(),
+    Value<int?> billingDay = const Value.absent(),
+    Value<int?> dueDay = const Value.absent(),
     String? note,
     String? cardNumber,
     AccountStatus? status,
@@ -195,6 +197,13 @@ class AccountRepository {
         effectiveBalance = before?.balanceMinor ?? balanceMinor;
       }
 
+      // 信用卡/负债三字段：absent=保留现值，否则按显式值（可为 null 清空）。
+      final int? effectiveLimit =
+          creditLimitMinor.present ? creditLimitMinor.value : before?.creditLimitMinor;
+      final int? effectiveBilling =
+          billingDay.present ? billingDay.value : before?.billingDay;
+      final int? effectiveDue = dueDay.present ? dueDay.value : before?.dueDay;
+
       await _db.accountsDao.updateAccount(
         AccountsCompanion(
           id: Value<String>(id),
@@ -202,10 +211,9 @@ class AccountRepository {
           type: Value<AccountType>(type),
           balanceMinor: Value<int>(effectiveBalance),
           currency: Value<String>(currency ?? before?.currency ?? 'CNY'),
-          creditLimitMinor:
-              Value<int?>(creditLimitMinor ?? before?.creditLimitMinor),
-          billingDay: Value<int?>(billingDay ?? before?.billingDay),
-          dueDay: Value<int?>(dueDay ?? before?.dueDay),
+          creditLimitMinor: Value<int?>(effectiveLimit),
+          billingDay: Value<int?>(effectiveBilling),
+          dueDay: Value<int?>(effectiveDue),
           note: Value<String?>(note ?? before?.note),
           cardNumber: Value<String?>(cardNumber ?? before?.cardNumber),
           status: Value<AccountStatus>(effectiveStatus),
@@ -238,10 +246,9 @@ class AccountRepository {
               'type': type.index,
               'balanceMinor': effectiveBalance,
               'currency': currency ?? before?.currency ?? 'CNY',
-              'creditLimitMinor':
-                  creditLimitMinor ?? before?.creditLimitMinor,
-              'billingDay': billingDay ?? before?.billingDay,
-              'dueDay': dueDay ?? before?.dueDay,
+              'creditLimitMinor': effectiveLimit,
+              'billingDay': effectiveBilling,
+              'dueDay': effectiveDue,
               'note': note ?? before?.note,
               'cardNumber': cardNumber ?? before?.cardNumber,
               'status': effectiveStatus.index,
