@@ -6,6 +6,8 @@ import 'package:uuid/uuid.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../lend/data/lend_repository.dart';
+import '../../ledger/data/transaction_repository.dart';
 
 /// 账户仓储
 class AccountRepository {
@@ -89,6 +91,12 @@ class AccountRepository {
   Future<void> remove(String id) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     await _db.transaction<void>(() async {
+      // 借还账户（借出/借入）销户即清账：名下借还记录及其关联流水
+      // （本金/还债/收债/备忘）一并移除，真实资金账户余额随流水撤销
+      // 回滚——流水页不再残留已销户借还账户的账目。其他类型账户名下
+      // 无借还记录，此调用为空操作。
+      await LendRepository(_db, TransactionRepository(_db))
+          .purgeByDesignatedAccount(id);
       await _db.accountsDao.softDelete(id, now);
       await _db.pendingOpsDao.enqueue(
         PendingOpsCompanion(

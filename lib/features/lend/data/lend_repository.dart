@@ -699,6 +699,54 @@ class LendRepository {
       await _reconcileDesignatedBalance(current?.accountId);
     });
   }
+
+  /// 清空指定借入/借出账户名下的全部借还记录及其关联流水（删除账户时级联）。
+  ///
+  /// 借还账户是「对方」的虚拟化：账户删除意味着这本债务账随之销户——
+  /// 名下所有借还记录（含已结清）软删，关联流水（本金 + relatedId 指向
+  /// 名下记录的还债/收债/债务消减/坏账计提备忘）一并撤销，真实资金
+  /// 账户的余额增量由 [TransactionRepository.remove] 内部回滚。
+  /// 返回清除的记录数；幂等，无记录时为空操作。
+  Future<int> purgeByDesignatedAccount(String accountId) async {
+    if (accountId.isEmpty) return 0;
+    final List<LendRecord> records = await (_db.select(_db.lendRecords)
+          ..where((LendRecords t) =>
+              t.accountId.equals(accountId) & t.deleted.equals(false)))
+        .get();
+    if (records.isEmpty) return 0;
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      for (final LendRecord r in records) {
+        // 撤销全部关联流水：_findFlowTxn 只取一笔本金流水，这里须覆盖
+        // relatedId 指向本记录的所有流水（还债/收债/备忘可能有多笔）。
+        final List<Transaction> flows = await (_db.select(_db.transactions)
+              ..where((Transactions t) =>
+                  t.sourceModule.equals(SourceModule.lend.index) &
+                  t.relatedId.equals(r.id) &
+                  t.deleted.equals(false)))
+            .get();
+        for (final Transaction f in flows) {
+          await _txnRepo.remove(f.id);
+        }
+        await (_db.update(_db.lendRecords)
+              ..where((LendRecords t) => t.id.equals(r.id)))
+            .write(
+          const LendRecordsCompanion(
+            deleted: Value<bool>(true),
+            dirty: Value<bool>(true),
+          ),
+        );
+        await enqueueSyncOp(
+          _db,
+          table: 'lend_records',
+          recordId: r.id,
+          opType: SyncOpType.delete,
+          updatedAt: now,
+        );
+      }
+    });
+    return records.length;
+  }
 }
 
 /// 借还流水的三类操作，决定固定分类（借入/借出、还债/收债、债务消减/坏账计提）。

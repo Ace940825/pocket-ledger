@@ -79,6 +79,12 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 修复历史版本挂账/核销链路缺失导致的 100 vs 30 类不一致。
   await _reconcileReimbursementBalances(db);
   await _reconcileReimbursedAmounts(db);
+  // 借还账户销户清账兜底（幂等，每次启动运行）：历史版本删除借出/借入
+  // 账户时未级联清理，名下借还记录成为孤儿（accountId 指向已删/不存在
+  // 账户，汇总不显示但流水残留在流水页）。启动时把指向已删账户的记录
+  // 及其关联流水一并清除。必须在归户**之前**，避免孤儿记录被后续链路
+  // 误处理。
+  await _purgeLendRecordsOfDeletedAccounts(db);
   // 借还指定账户存量归户（幂等）：旧记录未指定借入/借出账户、但对方
   // 名称与同方向账户名一致的，回填 accountId——必须在流水补建**之前**，
   // 归户后的记录才能按「资产账户优先 → 指定账户兜底」口径补建本金流水。
@@ -425,6 +431,30 @@ Future<void> _backfillLendFlowCategories(AppDatabase db) async {
           .length;
       if (refCount == 0) await catRepo.remove(c.id);
     }
+  }
+}
+
+/// 借还账户销户清账兜底：把 accountId 指向已软删 / 不存在账户的借还
+/// 记录及其关联流水清除（复用 [LendRepository.purgeByDesignatedAccount]，
+/// 流水撤销会回滚真实资金账户余额）。幂等：无孤儿记录时空操作。
+Future<void> _purgeLendRecordsOfDeletedAccounts(AppDatabase db) async {
+  final List<LendRecord> records = await (db.select(db.lendRecords)
+        ..where((LendRecords t) =>
+            t.deleted.equals(false) & t.accountId.isNotNull()))
+      .get();
+  if (records.isEmpty) return;
+  final Set<String> aliveAccounts = (await (db.select(db.accounts)
+        ..where((Accounts t) => t.deleted.equals(false)))
+      .get())
+      .map((Account a) => a.id)
+      .toSet();
+  final LendRepository lendRepo = LendRepository(db, TransactionRepository(db));
+  for (final LendRecord r in records) {
+    final String? accId = r.accountId;
+    if (accId == null || accId.isEmpty || aliveAccounts.contains(accId)) {
+      continue;
+    }
+    await lendRepo.purgeByDesignatedAccount(accId);
   }
 }
 
