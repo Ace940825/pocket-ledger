@@ -243,10 +243,20 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: Routes.record,
         builder: (_, GoRouterState state) {
-          final RecordTab initialTab = state.extra is RecordTab
-              ? state.extra! as RecordTab
-              : RecordTab.expense;
-          return RecordSheet(initialTab: initialTab);
+          final Object? extra = state.extra;
+          final RecordTab initialTab;
+          final String? editLendId;
+          if (extra is RecordSheetLaunchArgs) {
+            initialTab = extra.initialTab;
+            editLendId = extra.editLendId;
+          } else if (extra is RecordTab) {
+            initialTab = extra;
+            editLendId = null;
+          } else {
+            initialTab = RecordTab.expense;
+            editLendId = null;
+          }
+          return RecordSheet(initialTab: initialTab, editLendId: editLendId);
         },
       ),
     ],

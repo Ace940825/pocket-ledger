@@ -159,6 +159,13 @@ class LendRepository {
     });
   }
 
+  /// 按 ID 取单条借还记录（编辑入口用）。
+  Future<LendRecord?> getById(String id) async {
+    return (_db.select(_db.lendRecords)
+          ..where((LendRecords t) => t.id.equals(id)))
+        .getSingleOrNull();
+  }
+
   /// 核心冲销逻辑（**不开启事务**，必须由调用方包在事务里）：
   /// 把 [amountMinor] 按发生时间从早到晚，分摊到 [direction]+[counterparty] 名下
   /// 所有「进行中(ongoing)」债务记录的剩余本金上，更新每条的

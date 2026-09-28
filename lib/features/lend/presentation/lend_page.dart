@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/date_field.dart';
-import '../../../shared/widgets/form_fields.dart';
-import '../data/lend_repository.dart';
 import '../providers/lend_providers.dart';
+import '../../record/record_tab.dart';
+import '../../record/presentation/record_sheet.dart';
 
 /// 借还页：借出 / 借入记录与状态跟踪。
 class LendPage extends ConsumerStatefulWidget {
@@ -70,7 +68,7 @@ class _LendPageState extends ConsumerState<LendPage> {
                     ),
                   ],
                 ),
-                onTap: () => _showEditor(context, ref, r),
+                onTap: () => openRecordSheet(context, editLendId: r.id),
               );
             },
           );
@@ -79,7 +77,7 @@ class _LendPageState extends ConsumerState<LendPage> {
         error: (Object e, _) => Center(child: Text('加载失败：$e')),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showEditor(context, ref),
+        onPressed: () => openRecordSheet(context, initialTab: RecordTab.lend),
         child: const Icon(Icons.add),
       ),
     );
@@ -115,162 +113,6 @@ class _LendPageState extends ConsumerState<LendPage> {
     }
   }
 
-  Future<void> _showEditor(
-    BuildContext context,
-    WidgetRef ref, [
-    LendRecord? record,
-  ]) async {
-    final TextEditingController counterpartyController =
-        TextEditingController(text: record?.counterparty ?? '');
-    final TextEditingController amountController = TextEditingController(
-      text: record != null
-          ? Money.fromMinor(record.amountMinor).decimal.toStringAsFixed(2)
-          : '',
-    );
-    final TextEditingController noteController =
-        TextEditingController(text: record?.note ?? '');
-
-    LendDirection direction = record?.direction ?? LendDirection.lendOut;
-    LendStatus status = record?.status ?? LendStatus.ongoing;
-    DateTime occurredAt = record != null
-        ? DateTime.fromMillisecondsSinceEpoch(record.occurredAt, isUtc: true)
-            .toLocal()
-        : DateTime.now();
-    int? dueAt = record?.dueAt;
-
-    final bool? saved = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setState) => AlertDialog(
-          title: Text(record == null ? '新增借还' : '编辑借还'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                TextField(
-                  controller: counterpartyController,
-                  decoration: const InputDecoration(labelText: '对方（人/单位）'),
-                  autofocus: true,
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                DropdownButtonFormField<LendDirection>(
-                  initialValue: direction,
-                  decoration: const InputDecoration(labelText: '方向'),
-                  items: <DropdownMenuItem<LendDirection>>[
-                    for (final LendDirection d in LendDirection.values)
-                      DropdownMenuItem<LendDirection>(
-                        value: d,
-                        child: Text(d.label),
-                      ),
-                  ],
-                  onChanged: (LendDirection? v) {
-                    if (v != null) setState(() => direction = v);
-                  },
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                DropdownButtonFormField<LendStatus>(
-                  initialValue: status,
-                  decoration: const InputDecoration(labelText: '状态'),
-                  items: <DropdownMenuItem<LendStatus>>[
-                    for (final LendStatus s in LendStatus.values)
-                      DropdownMenuItem<LendStatus>(
-                        value: s,
-                        child: Text(s.label),
-                      ),
-                  ],
-                  onChanged: (LendStatus? v) {
-                    if (v != null) setState(() => status = v);
-                  },
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                AmountField(
-                  controller: amountController,
-                  label: '金额',
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                DateField(
-                  label: '发生日期',
-                  value: occurredAt,
-                  onChanged: (DateTime? v) {
-                    if (v != null) setState(() => occurredAt = v);
-                  },
-                ),
-                DateField(
-                  label: '到期日（可选）',
-                  value: dueAt == null
-                      ? null
-                      : DateTime.fromMillisecondsSinceEpoch(dueAt!, isUtc: true)
-                          .toLocal(),
-                  onChanged: (DateTime? v) =>
-                      setState(() => dueAt = v?.toUtc().millisecondsSinceEpoch),
-                  allowClear: true,
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                TextField(
-                  controller: noteController,
-                  decoration: const InputDecoration(labelText: '备注'),
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialog).pop(false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialog).pop(true),
-              child: const Text('保存'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (saved != true || !context.mounted) return;
-
-    final String cp = counterpartyController.text.trim();
-    if (cp.isEmpty) {
-      _toast(context, '对方不能为空');
-      return;
-    }
-    final double? amt = double.tryParse(amountController.text.trim());
-    if (amt == null || amt <= 0) {
-      _toast(context, '金额必须大于 0');
-      return;
-    }
-    final int amountMinor = Money.fromDecimal(amt).minor;
-    final int occurredMs = occurredAt.toUtc().millisecondsSinceEpoch;
-
-    try {
-      final LendRepository repo = ref.read(lendRepositoryProvider);
-      if (record == null) {
-        await repo.add(
-          bookId: ref.read(currentBookIdProvider),
-          direction: direction,
-          status: status,
-          counterparty: cp,
-          amountMinor: amountMinor,
-          occurredAt: occurredMs,
-          dueAt: dueAt,
-          note: noteController.text.trim(),
-        );
-      } else {
-        await repo.update(
-          id: record.id,
-          direction: direction,
-          status: status,
-          counterparty: cp,
-          amountMinor: amountMinor,
-          occurredAt: occurredMs,
-          dueAt: dueAt,
-          note: noteController.text.trim(),
-        );
-      }
-    } on AppFailure catch (e) {
-      if (context.mounted) _toast(context, e.message);
-    }
-  }
 
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)

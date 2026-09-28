@@ -147,13 +147,22 @@ class _Sage {
 ///   避免触发 tables.dart 注释警告的迁移灾难。
 /// - 仅「退款」用到新追加的 [SourceModule.refund]（append-only 安全）。
 /// - 金额统一走自定义键盘，落库时用 [Money.fromDecimal] 转「分」整数。
+/// 记一笔页启动参数容器：同时携带初始 Tab 与可选的借还编辑 ID，
+/// 经 [Routes.record] 的 extra 透传给 [RecordSheet]。
+class RecordSheetLaunchArgs {
+  const RecordSheetLaunchArgs(this.initialTab, this.editLendId);
+  final RecordTab initialTab;
+  final String? editLendId;
+}
+
 Future<void> openRecordSheet(
   BuildContext context, {
   RecordTab initialTab = RecordTab.expense,
+  String? editLendId,
 }) async {
   await context.push<void>(
     Routes.record,
-    extra: initialTab,
+    extra: RecordSheetLaunchArgs(initialTab, editLendId),
   );
 }
 
@@ -164,6 +173,7 @@ class RecordSheet extends ConsumerStatefulWidget {
     this.templateMode = false,
     this.initialTemplate,
     this.editTxnId,
+    this.editLendId,
   });
 
   final RecordTab initialTab;
@@ -173,9 +183,15 @@ class RecordSheet extends ConsumerStatefulWidget {
 
   /// 编辑模式：待编辑流水的 ID（`/ledger/edit/:id` 入口）。
   ///
-  /// 非空时 Tab 收窄为 支出 / 收入 / 转账 三个（流水表只存这三类），
-  /// 加载原流水回填表单，保存走 [TransactionRepository.updateTransaction]。
+  /// 非空时 Tab 收窄为 支出 / 收入 / 转账 / 借还 / 退款 / 报销 六个可编辑类型，
+  /// 加载原流水回填表单，保存走对应仓储的更新方法。
   final String? editTxnId;
+
+  /// 编辑模式：待编辑借还记录的 ID（借还页入口）。
+  ///
+  /// 非空时进入借还 Tab，加载 [LendRecord] 回填借还表单，
+  /// 保存走 [LendRepository.update]。
+  final String? editLendId;
 
   /// 模板模式（账单模板页「添加」入口）：
   /// - Tab 收窄为 支出 / 收入 / 转账 / 借还 四个；
@@ -202,19 +218,27 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           RecordTab.transfer,
           RecordTab.lend,
         ]
-      : widget.editTxnId != null
+      : widget.editTxnId != null || widget.editLendId != null
           ? const <RecordTab>[
               RecordTab.expense,
               RecordTab.income,
               RecordTab.transfer,
+              RecordTab.lend,
+              RecordTab.refund,
+              RecordTab.reimbursement,
             ]
           : RecordTab.values;
 
-  /// 是否编辑模式（`/ledger/edit/:id` 入口）。
-  bool get _isEdit => widget.editTxnId != null;
+  /// 是否编辑模式（流水 / 借还二选一入口）。
+  bool get _isEdit => widget.editTxnId != null || widget.editLendId != null;
 
   /// 编辑模式：被编辑的原始流水（保存时作为 updateTransaction 的 original）。
   Transaction? _editingTxn;
+
+  /// 编辑模式：被编辑的原始借还记录（保存时作为 lendRepository.update 的入参）。
+  LendRecord? _editingLend;
+  // 编辑借还记录时保留原到期日（借还 Tab 表单无到期日字段，不能因编辑而清空）。
+  int? _dueAt;
 
   /// 与 [TabBar] 联动的页面控制器；使用 [PageView.builder] 替代 [TabBarView]，
   /// 只构建当前页和相邻页，避免首帧同时创建 8 套完整表单导致的超长帧。
@@ -363,14 +387,19 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     if (widget.initialTemplate != null) {
       _applyTemplateFields(widget.initialTemplate!);
     }
-    // 编辑模式：异步加载原流水并回填。
+    // 编辑模式：异步加载原记录并回填（流水 / 借还二选一）。
     if (widget.editTxnId != null) {
       _loadEditingTxn();
+    } else if (widget.editLendId != null) {
+      _loadEditingLend();
     }
   }
 
   /// 编辑模式：加载原流水并回填表单（金额 / 账户 / 分类 / 日期 / 备注 / 附件），
   /// Tab 定位到原类型对应页。加载失败（已删除）直接退出。
+  /// 编辑模式：加载原流水并回填表单（金额 / 账户 / 分类 / 日期 / 备注 / 附件），
+  /// 按 [TxnType] + [SourceModule] 定位 Tab（退款 / 报销收入也进入对应 Tab），
+  /// 加载失败（已删除）直接退出。
   Future<void> _loadEditingTxn() async {
     final Transaction? txn =
         await ref.read(transactionsDaoProvider).getById(widget.editTxnId!);
@@ -382,9 +411,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     }
     final RecordTab tab = switch (txn.type) {
       TxnType.expense => RecordTab.expense,
-      TxnType.income => RecordTab.income,
       TxnType.transfer => RecordTab.transfer,
+      TxnType.income => switch (txn.sourceModule) {
+        SourceModule.refund => RecordTab.refund,
+        SourceModule.reimbursement => RecordTab.reimbursement,
+        _ => RecordTab.income,
+      },
     };
+    // 退款：尽量回填关联原账单（单选 relatedId），金额走自定义输入。
+    Transaction? refundOrig;
+    if (tab == RecordTab.refund && txn.relatedId != null) {
+      refundOrig = await ref
+          .read(transactionsDaoProvider)
+          .getById(txn.relatedId!);
+    }
     final int index = _tabs.indexOf(tab).clamp(0, _tabs.length - 1);
     setState(() {
       _editingTxn = txn;
@@ -411,6 +451,66 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         _discountAmount =
             Money.fromMinor(txn.discountMinor).decimal.toStringAsFixed(2);
         _discountInputController.text = _discountAmount!;
+      }
+      if (tab == RecordTab.refund) {
+        _refundOriginals
+          ..clear()
+          ..addAll(refundOrig == null
+              ? const <Transaction>[]
+              : <Transaction>[refundOrig]);
+        _refundAmountAuto = false;
+        _refundAmountController.text = _amount;
+      } else if (tab == RecordTab.reimbursement) {
+        _rbToAccountId = txn.accountId;
+        _rbAmountController.text = _amount;
+      }
+    });
+    _pageController.jumpToPage(index);
+  }
+
+  /// 编辑模式（借还）：加载原借还记录并回填借还表单，Tab 定位到借还页。
+  ///
+  /// 借还编辑只改本金记录的字段（方向 / 对方 / 金额 / 账户 / 利息 / 日期 / 备注），
+  /// 不重跑冲销 / 还款业务逻辑；[LendRecord.status] / [LendRecord.repaidMinor]
+  /// 保留原值。
+  Future<void> _loadEditingLend() async {
+    final LendRecord? rec =
+        await ref.read(lendRepositoryProvider).getById(widget.editLendId!);
+    if (!mounted) return;
+    if (rec == null) {
+      _toast('借还记录不存在或已被删除');
+      context.pop();
+      return;
+    }
+    final int index = _tabs.indexOf(RecordTab.lend).clamp(0, _tabs.length - 1);
+    setState(() {
+      _editingLend = rec;
+      _tab = _tabs[index];
+      _tabController.index = index;
+      _lendDir = rec.direction;
+      _lendAction = _LendActionType.borrow; // 编辑界面显示借入 / 借出
+      _dueAt = rec.dueAt;
+      _counterpartyController.text = rec.counterparty;
+      _amount = Money.fromMinor(rec.amountMinor).decimal.toStringAsFixed(2);
+      _accountId = rec.accountId;
+      _toAccountId = rec.toAccountId;
+      _occurredAt = DateTime.fromMillisecondsSinceEpoch(
+        rec.occurredAt,
+        isUtc: true,
+      ).toLocal();
+      _noteController.text = rec.note ?? '';
+      // 利息 / 优惠共用一个输入框（_lendFeeInputType 决定语义）。
+      if (rec.feeMinor > 0) {
+        _lendFeeAmount =
+            Money.fromMinor(rec.feeMinor).decimal.toStringAsFixed(2);
+        _lendFeeInputType = _FeeInputType.fee;
+        _lendFeeController.text = _lendFeeAmount!;
+      }
+      if (rec.discountMinor > 0) {
+        _lendDiscountAmount =
+            Money.fromMinor(rec.discountMinor).decimal.toStringAsFixed(2);
+        _lendFeeInputType = _FeeInputType.discount;
+        _lendFeeController.text = _lendDiscountAmount!;
       }
     });
     _pageController.jumpToPage(index);
@@ -745,6 +845,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 attachmentUrls: _attachmentPaths,
               );
         case RecordTab.refund:
+          // 编辑模式：更新原退款流水（保留 sourceModule=refund / relatedId）。
+          if (_editingTxn != null) {
+            await ref.read(transactionRepositoryProvider).updateTransaction(
+              original: _editingTxn!,
+              type: TxnType.income,
+              amountMinor: minor,
+              accountId: _accountId,
+              note: _noteController.text.trim(),
+              occurredAt: occurredAt,
+              attachmentUrls: List<String>.of(_attachmentPaths),
+            );
+            savedId = _editingTxn!.id;
+            break;
+          }
           if (_refundOriginals.isEmpty) {
             _toast('请选择需要退款的账单');
             return;
@@ -793,6 +907,27 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 attachmentUrls: _attachmentPaths,
               );
         case RecordTab.lend:
+          // 编辑模式：直接更新原借还记录（保留 status / repaidMinor 等原值），
+          // 不重跑 add / repay / debtReduction 的业务逻辑。
+          if (_editingLend != null) {
+            await ref.read(lendRepositoryProvider).update(
+              id: _editingLend!.id,
+              direction: _lendDir,
+              status: _editingLend!.status,
+              counterparty: _counterpartyController.text.trim(),
+              amountMinor: minor,
+              repaidMinor: _editingLend!.repaidMinor,
+              occurredAt: occurredAt,
+              dueAt: _dueAt,
+              note: _noteController.text.trim(),
+              accountId: _accountId,
+              toAccountId: _toAccountId,
+              feeMinor: _lendFeeMinor,
+              discountMinor: _lendDiscountMinor,
+            );
+            savedId = _editingLend!.id;
+            break;
+          }
           final String counterparty = _counterpartyController.text.trim();
           if (_lendAction == _LendActionType.debtReduction) {
             if (counterparty.isEmpty) {
@@ -867,6 +1002,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 );
           }
         case RecordTab.reimbursement:
+          // 编辑模式：更新原报销收入流水（保留 sourceModule / 关联台账不动）。
+          if (_editingTxn != null) {
+            await ref.read(transactionRepositoryProvider).updateTransaction(
+              original: _editingTxn!,
+              type: TxnType.income,
+              amountMinor: minor,
+              accountId: _rbToAccountId,
+              note: _noteController.text.trim(),
+              occurredAt: occurredAt,
+              attachmentUrls: List<String>.of(_attachmentPaths),
+            );
+            savedId = _editingTxn!.id;
+            break;
+          }
           // 报销账户可不选：账单走「未指定报销账户」路径（补建记录
           // accountId 为空、不动报销账户余额），收入仍落收款账户并
           // 关联原账单。收款账户仍必选。
