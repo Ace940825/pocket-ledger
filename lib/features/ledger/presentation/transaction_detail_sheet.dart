@@ -16,6 +16,7 @@ import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/line_icons.dart';
 import '../../../../shared/widgets/modal_sheet_registry.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../lend/providers/lend_providers.dart';
 import '../../reimbursement/data/reimbursement_repository.dart';
 import '../../reimbursement/presentation/reimbursement_record_sheet.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
@@ -322,6 +323,9 @@ class TransactionDetailSheet extends ConsumerWidget {
                   : () => context.push('/accounts/${account.id}/transactions'),
         ),
     );
+    // 借还本金流水：追加「借出账户 / 借款账户」行（右边账户名可点）。
+    final Widget? lendRow = _lendAccountRow(context, ref);
+    if (lendRow != null) rows.add(lendRow);
     if (tags.isNotEmpty) {
       rows.add(
         _kvCustom(
@@ -366,6 +370,47 @@ class TransactionDetailSheet extends ConsumerWidget {
   }
 
   // ── 卡片二 · 附件 ──────────────────────────────────
+
+  /// 借还本金流水的「借还账户」行：左边方向标题（借出账户 / 借款账户），
+  /// 右边应收 / 应付账户名，点击跳资产详情页（与资产账户行同口径）。
+  /// 非借还流水、找不到关联借还记录或未指定借还账户时不显示该行。
+  Widget? _lendAccountRow(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
+    final String? relatedId = transaction.relatedId;
+    if (transaction.sourceModule != SourceModule.lend || relatedId == null) {
+      return null;
+    }
+    // 关联借还记录：从当前账本借还列表里反查（旧数据可能已无对应记录）。
+    final List<LendRecord> records =
+        ref.watch(lendListProvider).valueOrNull ?? const <LendRecord>[];
+    LendRecord? record;
+    for (final LendRecord r in records) {
+      if (r.id == relatedId) {
+        record = r;
+        break;
+      }
+    }
+    final String? lendAccountId = record?.accountId;
+    if (lendAccountId == null) return null;
+    final Map<String, Account> accounts = <String, Account>{
+      for (final Account a in ref.watch(accountsProvider).valueOrNull ??
+          const <Account>[])
+        a.id: a,
+    };
+    final Account? lendAccount = accounts[lendAccountId];
+    if (lendAccount == null) return null;
+    final String label = record!.direction == LendDirection.lendOut
+        ? '借出账户'
+        : '借款账户';
+    return _kvTap(
+      label,
+      lendAccount.name,
+      valueColor: ForestGreen.label,
+      onTap: () => context.push('/accounts/${lendAccount.id}/transactions'),
+    );
+  }
 
   Widget _buildAttachmentCard(List<String> attachments) {
     return _Card(
