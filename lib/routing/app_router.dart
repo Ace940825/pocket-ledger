@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../database/app_database.dart';
 import '../domain/enums.dart';
+import '../features/accounts/presentation/account_edit_page.dart';
 import '../features/accounts/presentation/account_ledger_page.dart';
 import '../features/accounts/presentation/accounts_page.dart';
 import '../features/accounts/presentation/add_account_page.dart';
@@ -42,6 +43,7 @@ abstract final class Routes {
   static const String accountManage = '/accounts/manage';
   static const String accountAdd = '/accounts/add';
   static const String accountLedger = '/accounts/:id/transactions';
+  static const String accountEdit = '/accounts/:id/edit';
   static const String budget = '/budget';
   static const String report = '/report';
 
@@ -150,6 +152,13 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: Routes.accountLedger,
         builder: (_, GoRouterState state) =>
             AccountLedgerPage(accountId: state.pathParameters['id'] ?? ''),
+      ),
+      // 编辑账户页（应收/应付账户左滑「编辑」进入）。
+      GoRoute(
+        path: Routes.accountEdit,
+        builder: (_, GoRouterState state) => AccountEditPage(
+          accountId: state.pathParameters['id'] ?? '',
+        ),
       ),
       GoRoute(
         path: Routes.categories,
