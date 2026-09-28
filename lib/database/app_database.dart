@@ -67,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -263,6 +263,16 @@ class AppDatabase extends _$AppDatabase {
             // 记录每笔还债/收债/备忘分别冲销了哪些借还记录、各多少，供删除
             // 借还账户时跨账户反向恢复其余账户（与 drift 代码生成解耦）。
             await _ensureLendFlowOffsetsTable();
+          }
+
+          if (from < 19) {
+            // v19：储蓄目标新增「已归档」列——储蓄页拆「计划/归档」双 Tab，
+            // 停止的计划移入归档 Tab，可恢复。历史数据全部为 false（未归档）。
+            await _addColumnIfMissing(
+              m,
+              savingsGoals,
+              savingsGoals.isArchived,
+            );
           }
 
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等

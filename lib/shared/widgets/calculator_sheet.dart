@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_colors.dart';
+import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
 
 /// 安全的中缀算术求值：仅支持非负数字与 `+ - * /` 运算符。
@@ -209,9 +209,9 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
             height: 48,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: result == null ? AppColors.divider : AppColors.primary,
-                foregroundColor: result == null ? AppColors.textTertiary : Colors.white,
-                disabledBackgroundColor: AppColors.divider,
+                backgroundColor: result == null ? Theme.of(context).colorScheme.outline : AppColors.primary,
+                foregroundColor: result == null ? AppColors.textTertiary : Theme.of(context).colorScheme.onPrimary,
+                disabledBackgroundColor: Theme.of(context).colorScheme.outline,
                 disabledForegroundColor: AppColors.textTertiary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -631,9 +631,9 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                     height: 48,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: _isValid ? AppColors.primary : AppColors.divider,
-                        foregroundColor: _isValid ? Colors.white : AppColors.textTertiary,
-                        disabledBackgroundColor: AppColors.divider,
+                        backgroundColor: _isValid ? AppColors.primary : Theme.of(context).colorScheme.outline,
+                        foregroundColor: _isValid ? Theme.of(context).colorScheme.onPrimary : AppColors.textTertiary,
+                        disabledBackgroundColor: Theme.of(context).colorScheme.outline,
                         disabledForegroundColor: AppColors.textTertiary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppDimens.radiusMd),

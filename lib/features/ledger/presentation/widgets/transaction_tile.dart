@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../../core/constants/app_colors.dart';
+import '../../../../../theme/app_colors.dart';
 import '../../../../../core/constants/app_dimens.dart';
 import '../../../../../core/theme/forest_design_tokens.dart';
 import '../../../../../database/app_database.dart';
@@ -144,9 +144,9 @@ class TransactionTile extends ConsumerWidget {
             horizontal: AppDimens.spaceLg,
             vertical: AppDimens.spaceSm,
           ),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: AppColors.divider, width: 0.5),
+              bottom: BorderSide(color: Theme.of(context).colorScheme.outline, width: 0.5),
             ),
           ),
           child: Row(
@@ -400,12 +400,12 @@ class _RebDoneBadge extends StatelessWidget {
           color: ForestGreen.deep,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: const Text(
-          '已报',
+        child: Text(
+            '已报',
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onPrimary,
           ),
         ),
       );

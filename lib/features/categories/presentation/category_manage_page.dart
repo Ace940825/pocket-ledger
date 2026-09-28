@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_colors.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../database/app_database.dart';
@@ -609,7 +609,7 @@ class _CategoryRow extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.divider,
+                  color: Theme.of(context).colorScheme.outline,
                   borderRadius: BorderRadius.circular(AppDimens.radiusSm),
                 ),
                 child: Text(

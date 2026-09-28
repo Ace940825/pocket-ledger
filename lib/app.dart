@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/config/env.dart';
-import 'core/theme/app_theme.dart';
+import 'theme/theme.dart';
 import 'routing/app_router.dart';
 
 class App extends ConsumerWidget {
@@ -18,8 +18,8 @@ class App extends ConsumerWidget {
 
     return MaterialApp.router(
       title: Env.appName,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppThemeData.light,
+      darkTheme: AppThemeData.dark,
       themeMode: ThemeMode.system,
       routerConfig: router,
       localizationsDelegates: AppLocalizations.localizationsDelegates,

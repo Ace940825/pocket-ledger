@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/app_dimens.dart';
@@ -364,7 +365,7 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
             children: <Widget>[
               _buildHandle(),
               _buildHeader(),
-              _buildHeroSeal(),
+              _buildHeroSeal(context),
               Flexible(
                 child: SingleChildScrollView(
                   controller: _scrollController,
@@ -425,7 +426,7 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
 
   // ---- 悬浮签章卡（鼠尾草渐变，内嵌表盘拨号）----
 
-  Widget _buildHeroSeal() => Container(
+  Widget _buildHeroSeal(BuildContext context) => Container(
         margin: const EdgeInsets.fromLTRB(18, 8, 18, 2),
         padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
         decoration: BoxDecoration(
@@ -441,9 +442,9 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
               child: Container(
                 width: 120,
                 height: 120,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0x24FFFFFF),
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.141),
                 ),
               ),
             ),
@@ -453,21 +454,21 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
               child: Container(
                 width: 88,
                 height: 88,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0x1AFFFFFF),
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.102),
                 ),
               ),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text(
+                Text(
                   'RECORD AT',
                   style: TextStyle(
                     fontSize: 11,
                     letterSpacing: 3,
-                    color: Color(0xD9FFFFFF),
+                    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.851),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -485,28 +486,28 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
                             children: <Widget>[
                               Text(
                                 '${_selected.month}月${_selected.day}日 ${_weekdayCN(_selected)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 27,
                                   fontWeight: FontWeight.w800,
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onPrimary,
                                   letterSpacing: 1,
                                 ),
                               ),
                               const SizedBox(width: 9),
                               Text(
                                 '${_selected.year}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xEBFFFFFF),
+                                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.922),
                                   letterSpacing: 2,
                                 ),
                               ),
                             ],
                           ),
                           if (widget.showTime) ...<Widget>[
-                            const SizedBox(height: 16),
-                            _buildHeroSeg(),
+                            SizedBox(height: 16),
+                            _buildHeroSeg(context),
                           ],
                         ],
                       ),
@@ -521,24 +522,24 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
       );
 
   /// 时 / 分 分段钮（签章卡内：选中态改白底深绿字）。
-  Widget _buildHeroSeg() => Container(
+  Widget _buildHeroSeg(BuildContext context) => Container(
         height: 36,
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: const Color(0x29FFFFFF),
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.161),
           borderRadius: BorderRadius.circular(ForestRadius.pill),
-          border: Border.all(color: const Color(0x59FFFFFF)),
+          border: Border.all(color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.349)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            _heroSegBtn('时 Hour', true),
-            _heroSegBtn('分 Min', false),
+            _heroSegBtn(context, '时 Hour', true),
+            _heroSegBtn(context, '分 Min', false),
           ],
         ),
       );
 
-  Widget _heroSegBtn(String label, bool isHour) {
+  Widget _heroSegBtn(BuildContext context, String label, bool isHour) {
     final bool on = _isHourMode == isHour;
     return InkWell(
       onTap: () => setState(() => _isHourMode = isHour),
@@ -549,7 +550,7 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
           vertical: 6,
         ),
         decoration: BoxDecoration(
-          color: on ? Colors.white : Colors.transparent,
+          color: on ? Theme.of(context).colorScheme.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(ForestRadius.pill),
         ),
         child: Text(
@@ -558,7 +559,7 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
             fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 1,
-            color: on ? ForestGreen.deep : const Color(0xD9FFFFFF),
+            color: on ? ForestGreen.deep : Theme.of(context).colorScheme.surface.withValues(alpha: 0.851),
           ),
         ),
       ),
@@ -618,7 +619,7 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: on ? Colors.white : ForestNeutral.textPrimary,
+                color: on ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.textPrimary,
               ),
             ),
           ),
@@ -814,7 +815,7 @@ class _DateTimePickerSheetBodyState extends State<_DateTimePickerSheetBody> {
             fontSize: 13.5,
             fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
             color: selected
-                ? Colors.white
+                ? Theme.of(context).colorScheme.onPrimary
                 : (inRange
                     ? ForestNeutral.textPrimary
                     : ForestNeutral.textTertiary),
@@ -909,6 +910,8 @@ class _TimeDial extends StatelessWidget {
                 hour: hour,
                 minute: minute,
                 seal: seal,
+                surface: Theme.of(context).colorScheme.surface,
+                onSurface: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             Center(
@@ -919,20 +922,20 @@ class _TimeDial extends StatelessWidget {
                   Text(
                     '${hour.toString().padLeft(2, '0')}:'
                     '${minute.toString().padLeft(2, '0')}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
                     ),
                   ),
                   Text(
                     hourMode ? '时 HOUR' : '分 MIN',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 8,
                       letterSpacing: 2,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xD9FFFFFF),
+                      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.851),
                     ),
                   ),
                 ],
@@ -952,6 +955,8 @@ class _DialPainter extends CustomPainter {
     required this.hour,
     required this.minute,
     this.seal = false,
+    required this.surface,
+    required this.onSurface,
   });
 
   final bool hourMode;
@@ -959,9 +964,15 @@ class _DialPainter extends CustomPainter {
   final int minute;
   final bool seal;
 
-  static const Color _sage1 = Color(0xFF93BF9A);
-  static const Color _sage2 = Color(0xFF5F9A6E);
-  static const Color _sageSolid = Color(0xFF5F9A6E);
+  /// 表盘刻度 / 轨道使用的表面色（由调用方自主题取）。
+  final Color surface;
+
+  /// 表盘签章高亮色（onSurface，双主题可见）。
+  final Color onSurface;
+
+  static const Color _sage1 = AppColors.sageMist;
+  static const Color _sage2 = AppColors.sageRibbon;
+  static const Color _sageSolid = AppColors.sageRibbon;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -973,7 +984,7 @@ class _DialPainter extends CustomPainter {
       c,
       r,
       Paint()
-        ..color = seal ? const Color(0x59FFFFFF) : ForestNeutral.hairline
+        ..color = seal ? surface.withValues(alpha: 0.349) : ForestNeutral.hairline
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );
@@ -989,7 +1000,7 @@ class _DialPainter extends CustomPainter {
         Offset(c.dx + r2 * math.cos(a), c.dy + r2 * math.sin(a)),
         Paint()
           ..color = seal
-              ? (major ? const Color(0xE6FFFFFF) : const Color(0x73FFFFFF))
+              ? (major ? surface.withValues(alpha: 0.902) : surface.withValues(alpha: 0.451))
               : (major ? ForestNeutral.textTertiary : ForestNeutral.hairline)
           ..strokeWidth = major ? 2 : 1
           ..strokeCap = StrokeCap.round,
@@ -1006,7 +1017,7 @@ class _DialPainter extends CustomPainter {
         frac * 2 * math.pi,
         false,
         Paint()
-          ..color = Colors.white
+          ..color = onSurface
           ..style = PaintingStyle.stroke
           ..strokeWidth = 7
           ..strokeCap = StrokeCap.round,
@@ -1037,13 +1048,13 @@ class _DialPainter extends CustomPainter {
     canvas.drawCircle(
       k,
       9,
-      Paint()..color = seal ? const Color(0xFFFFFCF5) : ForestGreen.deep,
+      Paint()..color = seal ? AppColors.cream : ForestGreen.deep,
     );
     canvas.drawCircle(
       k,
       9,
       Paint()
-        ..color = seal ? ForestGreen.deep : Colors.white
+        ..color = seal ? ForestGreen.deep : onSurface
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3,
     );
@@ -1100,12 +1111,12 @@ class _ConfirmButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
           ),
-          child: const Text(
+          child: Text(
             '确认 Confirm',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
               letterSpacing: 2,
             ),
           ),
@@ -1156,7 +1167,7 @@ class _WeekdayRow extends StatelessWidget {
     '六',
   ];
 
-  static const Color _sageAccent = Color(0xFF5F9A6E);
+  static const Color _sageAccent = AppColors.sageRibbon;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -1204,7 +1215,7 @@ class _DayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color textColor = isSelected
-        ? Colors.white
+        ? Theme.of(context).colorScheme.onPrimary
         : isMuted
             ? ForestNeutral.textTertiary
             : (isToday ? ForestGreen.deep : ForestNeutral.textPrimary);

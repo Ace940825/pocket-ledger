@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';

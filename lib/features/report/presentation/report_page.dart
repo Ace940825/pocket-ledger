@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
 import '../../../database/daos/transactions_dao.dart';
@@ -155,7 +155,7 @@ class _MonthlyTab extends ConsumerWidget {
                       centerSpaceRadius: 56,
                       sections: <PieChartSectionData>[
                         for (int i = 0; i < visible.length; i++)
-                          _pieSection(visible[i], sum, i),
+                          _pieSection(context, visible[i], sum, i),
                       ],
                     ),
                   ),
@@ -206,17 +206,17 @@ class _MonthlyTab extends ConsumerWidget {
     );
   }
 
-  PieChartSectionData _pieSection(CategoryTotal t, int sum, int i) {
+  PieChartSectionData _pieSection(BuildContext context, CategoryTotal t, int sum, int i) {
     final double share = sum == 0 ? 0 : t.totalMinor / sum;
     return PieChartSectionData(
       value: t.totalMinor.toDouble(),
       color: AppColors.chartPalette[i % AppColors.chartPalette.length],
       radius: 46,
       title: '${(share * 100).round()}%',
-      titleStyle: const TextStyle(
+      titleStyle: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w500,
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.onPrimary,
       ),
     );
   }

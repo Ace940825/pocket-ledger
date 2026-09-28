@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 
 import '../../../domain/enums.dart';
 
@@ -16,9 +17,9 @@ class TagScopeToggle extends StatelessWidget {
   final TagScope scope;
   final ValueChanged<TagScope> onChanged;
 
-  static const Color _track = Color(0xFFEDE4D2);
-  static const Color _onBg = Color(0xFF2C3329);
-  static const Color _onFg = Color(0xFFF4EFDF);
+  static const Color _track = AppColors.sandWarm;
+  static const Color _onBg = AppColors.ink;
+  static const Color _onFg = AppColors.creamSoft;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +49,7 @@ class TagScopeToggle extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: s == scope ? _onFg : const Color(0xFF6A7263),
+                      color: s == scope ? _onFg : AppColors.ink3,
                     ),
                   ),
                 ),

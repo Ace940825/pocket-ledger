@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
@@ -208,14 +208,14 @@ class _AssetsCard extends StatelessWidget {
           Text(
             '净资产',
             style: theme.textTheme.bodyMedium
-                ?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                ?.copyWith(color: theme.colorScheme.onPrimary.withValues(alpha: 0.85)),
           ),
           const SizedBox(height: 2),
           AnimatedMoneyText(
             Money.fromMinor(netAssets),
-            color: Colors.white,
+            color: theme.colorScheme.onPrimary,
             style: theme.textTheme.headlineSmall
-                ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                ?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.w600),
           ),
           const Spacer(),
           Row(
@@ -224,8 +224,8 @@ class _AssetsCard extends StatelessWidget {
                 child: _MiniStat(
                   label: '总资产',
                   valueMinor: totalAssets,
-                  labelColor: Colors.white.withValues(alpha: 0.85),
-                  valueColor: Colors.white,
+                  labelColor: theme.colorScheme.onPrimary.withValues(alpha: 0.85),
+                  valueColor: theme.colorScheme.onPrimary,
                 ),
               ),
               const SizedBox(width: AppDimens.spaceMd),
@@ -233,8 +233,8 @@ class _AssetsCard extends StatelessWidget {
                 child: _MiniStat(
                   label: '总负债',
                   valueMinor: totalLiabilities,
-                  labelColor: Colors.white.withValues(alpha: 0.85),
-                  valueColor: Colors.white,
+                  labelColor: theme.colorScheme.onPrimary.withValues(alpha: 0.85),
+                  valueColor: theme.colorScheme.onPrimary,
                 ),
               ),
             ],
@@ -268,7 +268,7 @@ class _BudgetCard extends StatelessWidget {
                 child: Text(
                   '暂未设置预算，点此去设置',
                   style:
-                      theme.textTheme.bodyLarge?.copyWith(color: Colors.white),
+                      theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onPrimary),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -279,15 +279,15 @@ class _BudgetCard extends StatelessWidget {
                 Text(
                   '剩余预算',
                   style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                      ?.copyWith(color: theme.colorScheme.onPrimary.withValues(alpha: 0.85)),
                 ),
                 const SizedBox(height: 2),
                 AnimatedMoneyText(
                   Money.fromMinor(
                       summary.remaining >= 0 ? summary.remaining : 0),
-                  color: Colors.white,
+                  color: theme.colorScheme.onPrimary,
                   style: theme.textTheme.headlineSmall?.copyWith(
-                      color: Colors.white, fontWeight: FontWeight.w600),
+                      color: theme.colorScheme.onPrimary, fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
                 Row(
@@ -296,8 +296,8 @@ class _BudgetCard extends StatelessWidget {
                       child: _MiniStat(
                         label: '总预算',
                         valueMinor: summary.total,
-                        labelColor: Colors.white.withValues(alpha: 0.85),
-                        valueColor: Colors.white,
+                        labelColor: theme.colorScheme.onPrimary.withValues(alpha: 0.85),
+                        valueColor: theme.colorScheme.onPrimary,
                       ),
                     ),
                     const SizedBox(width: AppDimens.spaceMd),
@@ -305,8 +305,8 @@ class _BudgetCard extends StatelessWidget {
                       child: _MiniStat(
                         label: '已用',
                         valueMinor: summary.spent,
-                        labelColor: Colors.white.withValues(alpha: 0.85),
-                        valueColor: Colors.white,
+                        labelColor: theme.colorScheme.onPrimary.withValues(alpha: 0.85),
+                        valueColor: theme.colorScheme.onPrimary,
                       ),
                     ),
                   ],
@@ -477,7 +477,7 @@ class _PageDots extends StatelessWidget {
           width: active ? 18 : 6,
           height: 6,
           decoration: BoxDecoration(
-            color: active ? AppColors.primary : AppColors.divider,
+            color: active ? AppColors.primary : Theme.of(context).colorScheme.outline,
             borderRadius: BorderRadius.circular(3),
           ),
         );

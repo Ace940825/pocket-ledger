@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failures.dart';
@@ -226,9 +227,9 @@ class _BudgetTile extends ConsumerWidget {
         ratio * 100 >= budget.alertThreshold;
 
     final Color barColor = overspent
-        ? const Color(0xFFE53935)
+        ? theme.colorScheme.error
         : nearLimit
-            ? const Color(0xFFFB8C00)
+            ? AppColors.amber
             : theme.colorScheme.primary;
 
     return Padding(
@@ -246,16 +247,16 @@ class _BudgetTile extends ConsumerWidget {
                 ),
               ),
               if (overspent)
-                const Icon(
+                Icon(
                   Icons.warning_amber_rounded,
                   size: 18,
-                  color: Color(0xFFE53935),
+                  color: theme.colorScheme.error,
                 )
               else if (nearLimit)
                 const Icon(
                   Icons.info_outline,
                   size: 18,
-                  color: Color(0xFFFB8C00),
+                  color: AppColors.amber,
                 ),
               IconButton(
                 visualDensity: VisualDensity.compact,
@@ -294,7 +295,7 @@ class _BudgetTile extends ConsumerWidget {
             ' / ${Money.fromMinor(budget.amountMinor).format()}'
             '  ·  ${_remainLabel(spentMinor, overspent)}',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: overspent ? const Color(0xFFE53935) : null,
+              color: overspent ? theme.colorScheme.error : null,
             ),
           ),
         ],

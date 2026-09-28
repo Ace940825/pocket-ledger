@@ -143,12 +143,12 @@ class _ItemTile extends ConsumerWidget {
             ),
           ),
           if (warn)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(left: 4),
               child: Icon(
                 Icons.warning_amber_rounded,
                 size: 14,
-                color: Color(0xFFE53935),
+                color: theme.colorScheme.error,
               ),
             ),
         ],
@@ -164,7 +164,7 @@ class _ItemTile extends ConsumerWidget {
           Text(
             '购入 ${Money.fromMinor(item.purchasePriceMinor).format()}$warrantyText',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: warn ? const Color(0xFFE53935) : null,
+              color: warn ? theme.colorScheme.error : null,
             ),
           ),
         ],

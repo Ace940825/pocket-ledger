@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 
 /// 空态插画：复刻 tag-forest-FINAL `emptySvg`（160×116 viewBox）。
 ///
@@ -26,12 +27,12 @@ class _EmptySvgPainter extends CustomPainter {
   static const double _vw = 160;
   static const double _vh = 116;
 
-  static const Color _ink = Color(0xFF2C3329);
-  static const Color _gold = Color(0xFFF0C64B);
-  static const Color _shadow = Color(0xFFE3EFD4);
-  static const Color _spark = Color(0xFF9AA091);
-  static const Color _paper = Color(0xFFFFFCF5);
-  static const Color _sunken = Color(0xFFF3EAD8);
+  static const Color _ink = AppColors.ink;
+  static const Color _gold = AppColors.sunGold;
+  static const Color _shadow = AppColors.sagePale;
+  static const Color _spark = AppColors.ink3;
+  static const Color _paper = AppColors.cream;
+  static const Color _sunken = AppColors.sunkenCream;
 
   @override
   void paint(Canvas canvas, Size size) {

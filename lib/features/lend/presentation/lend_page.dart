@@ -11,6 +11,7 @@ import '../providers/lend_providers.dart';
 import '../../record/record_tab.dart';
 import '../../record/presentation/record_sheet.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../theme/theme.dart';
 
 /// 借还页：借出 / 借入记录与状态跟踪。
 class LendPage extends ConsumerStatefulWidget {
@@ -121,5 +122,5 @@ class _LendPageState extends ConsumerState<LendPage> {
 }
 
 /// 借还页用的配色：借出视为应收（红/支出侧），借入视为应付（绿/收入侧）。
-const Color _lendOutColor = Color(0xFFE53935);
-const Color _lendInColor = Color(0xFF43A047);
+const Color _lendOutColor = AppColors.expense;
+const Color _lendInColor = AppColors.income;

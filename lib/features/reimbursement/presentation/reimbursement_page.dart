@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
@@ -594,9 +595,9 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
         : <ReimbMonthGroup>[];
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF16191A) : ForestBg.paper,
+      backgroundColor: isDark ? Theme.of(context).colorScheme.surface : ForestBg.paper,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF16191A) : ForestBg.paper,
+        backgroundColor: isDark ? Theme.of(context).colorScheme.surface : ForestBg.paper,
         foregroundColor:
             isDark ? ForestNeutral.textPrimary : ForestNeutral.deepInk,
         elevation: 0,
@@ -790,11 +791,11 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
                 CustomSlidableAction(
                   onPressed: (_) => _restore(r),
                   backgroundColor: ForestGreen.cta,
-                  foregroundColor: Colors.white,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   padding: EdgeInsets.zero,
-                  child: _swipeChild(
-                    const LineIcon(LineIconKind.refundArrow,
-                        size: 16, color: Colors.white),
+                  child: _swipeChild(context, 
+                    LineIcon(LineIconKind.refundArrow,
+                        size: 16, color: Theme.of(context).colorScheme.onPrimary),
                     '恢复',
                   ),
                 ),
@@ -822,15 +823,15 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
                 onPressed: (_) => pending ? _reimburse(r) : _unreimb(r),
                 backgroundColor:
                     pending ? ForestGreen.cta : ForestNeutral.textTertiary,
-                foregroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: EdgeInsets.zero,
-                child: _swipeChild(
+                child: _swipeChild(context, 
                   LineIcon(
                     pending
                         ? LineIconKind.reimbursement
                         : LineIconKind.refundArrow,
                     size: 16,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                   pending ? '报销' : '未报',
                 ),
@@ -838,34 +839,34 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
               CustomSlidableAction(
                 onPressed: (_) => _migrate(r),
                 backgroundColor: ForestSemantic.transfer,
-                foregroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: EdgeInsets.zero,
-                child: _swipeChild(
+                child: _swipeChild(context, 
                   // 设计稿迁移图标：上箭头 + 下箭头（↥↧）。
-                  const Icon(Icons.import_export,
-                      size: 16, color: Colors.white),
+                  Icon(Icons.import_export,
+                      size: 16, color: Theme.of(context).colorScheme.onPrimary),
                   '迁移',
                 ),
               ),
               CustomSlidableAction(
                 onPressed: (_) => _showEditor(r),
                 backgroundColor: ForestAccent.gold,
-                foregroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: EdgeInsets.zero,
-                child: _swipeChild(
-                  const LineIcon(LineIconKind.pencil,
-                      size: 16, color: Colors.white),
+                child: _swipeChild(context, 
+                  LineIcon(LineIconKind.pencil,
+                      size: 16, color: Theme.of(context).colorScheme.onPrimary),
                   '编辑',
                 ),
               ),
               CustomSlidableAction(
                 onPressed: (_) => _delete(r),
                 backgroundColor: ForestSemantic.expense,
-                foregroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: EdgeInsets.zero,
-                child: _swipeChild(
-                  const LineIcon(LineIconKind.trash,
-                      size: 16, color: Colors.white),
+                child: _swipeChild(context, 
+                  LineIcon(LineIconKind.trash,
+                      size: 16, color: Theme.of(context).colorScheme.onPrimary),
                   '删除',
                 ),
               ),
@@ -923,7 +924,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
     );
   }
 
-  Widget _swipeChild(Widget icon, String label) => Column(
+  Widget _swipeChild(BuildContext context, Widget icon, String label) => Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           icon,
@@ -932,9 +933,9 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
             label,
             maxLines: 1,
             softWrap: false,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10.5,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
               letterSpacing: 0.2,
             ),
           ),
@@ -962,12 +963,12 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
   }
 
   Widget _bottomBar(BuildContext context, bool isDark) {
-    final Color ghostBg = isDark ? const Color(0xFF1F2325) : ForestSurface.card;
+    final Color ghostBg = isDark ? Theme.of(context).colorScheme.surface : ForestSurface.card;
     final Color ghostBorder =
-        isDark ? const Color(0xFF2C3033) : ForestNeutral.hairlineStrong;
+        isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairlineStrong;
     return SafeArea(
       child: Container(
-        color: isDark ? const Color(0xFF16191A) : ForestBg.paper,
+        color: isDark ? Theme.of(context).colorScheme.surface : ForestBg.paper,
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
         child: Row(
           children: <Widget>[
@@ -981,14 +982,14 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
                 label: '记一笔',
               ),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               flex: 135,
               child: _PillButton(
                 onPressed: () => _showEditor(),
                 gradient: ForestGradients.button,
-                textColor: Colors.white,
-                icon: const Icon(Icons.add, size: 18, color: Colors.white),
+                textColor: Theme.of(context).colorScheme.onPrimary,
+                icon: Icon(Icons.add, size: 18, color: Theme.of(context).colorScheme.onPrimary),
                 label: '报销收入',
               ),
             ),
@@ -1024,7 +1025,7 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color cardBg = isDark ? const Color(0xFF1B1F20) : ForestSurface.card;
+    final Color cardBg = isDark ? Theme.of(context).colorScheme.surface : ForestSurface.card;
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 4),
       child: Container(
@@ -1032,13 +1033,13 @@ class _HeroCard extends StatelessWidget {
           color: cardBg,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline,
+            color: isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
           ),
           boxShadow: <BoxShadow>[
             BoxShadow(
               color: ForestGreen.deep.withValues(alpha: isDark ? 0.18 : 0.07),
               blurRadius: 16,
-              offset: const Offset(0, 6),
+              offset: Offset(0, 6),
             ),
           ],
         ),
@@ -1084,7 +1085,7 @@ class _HeroCard extends StatelessWidget {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF2C3033) : ForestBg.sunken,
+                      color: isDark ? Theme.of(context).colorScheme.surface : ForestBg.sunken,
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
@@ -1139,7 +1140,7 @@ class _HeroCard extends StatelessWidget {
                 fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
               ),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -1148,7 +1149,7 @@ class _HeroCard extends StatelessWidget {
                 _Chip(
                   label: '待报销 $pendingCount 笔',
                   background:
-                      isDark ? const Color(0xFF2C3033) : ForestBg.sunken,
+                      isDark ? Theme.of(context).colorScheme.surface : ForestBg.sunken,
                   color: isDark
                       ? ForestNeutral.textSecondary
                       : ForestNeutral.textSecondary,
@@ -1236,10 +1237,10 @@ class _FilterRow extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1F2325) : ForestSurface.card,
+                color: isDark ? Theme.of(context).colorScheme.surface : ForestSurface.card,
                 border: Border.all(
                   color:
-                      isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline,
+                      isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
                 ),
                 borderRadius: BorderRadius.circular(999),
               ),
@@ -1274,11 +1275,11 @@ class _FilterRow extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1F2325) : ForestSurface.card,
+                color: isDark ? Theme.of(context).colorScheme.surface : ForestSurface.card,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color:
-                      isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline,
+                      isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
                 ),
               ),
               alignment: Alignment.center,
@@ -1289,7 +1290,7 @@ class _FilterRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
           // 右侧状态 chips：紧凑规格（padding 9 / 字号 12 / 间距 6）保证
           // 三枚在 390pt 屏并排一行；Wrap 仅作极窄屏兜底。
           Expanded(
@@ -1351,7 +1352,7 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color bg = selected
         ? (isDark ? ForestGreen.deep.withValues(alpha: 0.22) : ForestGreen.soft)
-        : (isDark ? const Color(0xFF1F2325) : ForestBg.sunken);
+        : (isDark ? Theme.of(context).colorScheme.surface : ForestBg.sunken);
     final Color fg = selected
         ? (isDark ? ForestGreen.brand : ForestGreen.deep)
         : (isDark ? ForestNeutral.textSecondary : ForestNeutral.textSecondary);
@@ -1413,7 +1414,7 @@ class _ReimbTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool pending = r.status == ReimbursementStatus.pending;
-    final Color cardBg = isDark ? const Color(0xFF1B1F20) : ForestSurface.card;
+    final Color cardBg = isDark ? Theme.of(context).colorScheme.surface : ForestSurface.card;
     return Opacity(
       opacity: dimmed ? 0.5 : 1,
       child: InkWell(
@@ -1423,14 +1424,14 @@ class _ReimbTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: cardBg,
             border: Border.all(
-              color: isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline,
+              color: isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
             ),
             borderRadius: BorderRadius.circular(18),
             boxShadow: <BoxShadow>[
               BoxShadow(
                 color: ForestGreen.deep.withValues(alpha: isDark ? 0.10 : 0.05),
                 blurRadius: 10,
-                offset: const Offset(0, 3),
+                offset: Offset(0, 3),
               ),
             ],
           ),
@@ -1498,7 +1499,7 @@ class _ReimbTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  SizedBox(height: 3),
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
@@ -1553,7 +1554,7 @@ class _IncomeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color cardBg = isDark ? const Color(0xFF1B1F20) : ForestSurface.card;
+    final Color cardBg = isDark ? Theme.of(context).colorScheme.surface : ForestSurface.card;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
@@ -1561,14 +1562,14 @@ class _IncomeTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardBg,
           border: Border.all(
-            color: isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline,
+            color: isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
           ),
           borderRadius: BorderRadius.circular(18),
           boxShadow: <BoxShadow>[
             BoxShadow(
               color: ForestGreen.deep.withValues(alpha: isDark ? 0.10 : 0.05),
               blurRadius: 10,
-              offset: const Offset(0, 3),
+              offset: Offset(0, 3),
             ),
           ],
         ),
@@ -1632,7 +1633,7 @@ class _IncomeTile extends StatelessWidget {
                     fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
                   ),
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: 3),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
@@ -1685,11 +1686,11 @@ class _MonthHeader extends StatelessWidget {
                   : ForestNeutral.textTertiary,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
             child: Container(
               height: 1,
-              color: isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline,
+              color: isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
             ),
           ),
         ],
@@ -1872,7 +1873,7 @@ class _YearSheet extends StatelessWidget {
         children: <Widget>[
           const _Grab(),
           _SheetCloseButton(isDark: isDark),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           ...rows,
         ],
       ),
@@ -1903,10 +1904,10 @@ class _YearRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color bg = selected
         ? (isDark ? ForestGreen.deep.withValues(alpha: 0.20) : ForestGreen.soft)
-        : (isDark ? const Color(0xFF1F2325) : ForestSurface.raised);
+        : (isDark ? Theme.of(context).colorScheme.surface : ForestSurface.raised);
     final Color border = selected
         ? (isDark ? ForestGreen.softBorder : ForestGreen.softBorder)
-        : (isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline);
+        : (isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -1999,7 +2000,7 @@ class _YearRow extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
-                  child: const Icon(Icons.check, size: 14, color: Colors.white),
+                  child: Icon(Icons.check, size: 14, color: Theme.of(context).colorScheme.onPrimary),
                 ),
             ],
           ),
@@ -2043,11 +2044,9 @@ class _SettingsSheet extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   color:
-                      isDark ? const Color(0xFF1F2325) : ForestSurface.raised,
+                      isDark ? Theme.of(context).colorScheme.surface : ForestSurface.raised,
                   border: Border.all(
-                    color: isDark
-                        ? const Color(0xFF2C3033)
-                        : ForestNeutral.hairline,
+                    color: isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
                   ),
                   borderRadius: BorderRadius.circular(18),
                 ),
@@ -2237,7 +2236,7 @@ class _AssetActionSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
         ],
       ),
     );
@@ -2277,9 +2276,9 @@ class _ActionGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2325) : ForestSurface.raised,
+        color: isDark ? Theme.of(context).colorScheme.surface : ForestSurface.raised,
         border: Border.all(
-          color: isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline,
+          color: isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
         ),
         borderRadius: BorderRadius.circular(18),
       ),
@@ -2315,7 +2314,7 @@ class _ActionRow extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline,
+              color: isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
             ),
           ),
         ),
@@ -2414,10 +2413,10 @@ class _AccountPickerSheet extends ConsumerWidget {
           const SizedBox(height: 10),
           Container(
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1F2325) : ForestSurface.raised,
+              color: isDark ? Theme.of(context).colorScheme.surface : ForestSurface.raised,
               border: Border.all(
                 color:
-                    isDark ? const Color(0xFF2C3033) : ForestNeutral.hairline,
+                    isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
               ),
               borderRadius: BorderRadius.circular(18),
             ),
@@ -2434,9 +2433,7 @@ class _AccountPickerSheet extends ConsumerWidget {
                             ? Border.all(color: Colors.transparent)
                             : Border(
                                 top: BorderSide(
-                                  color: isDark
-                                      ? const Color(0xFF2C3033)
-                                      : ForestNeutral.hairline,
+                                  color: isDark ? Theme.of(context).colorScheme.outline : ForestNeutral.hairline,
                                 ),
                               ),
                       ),
@@ -2464,7 +2461,7 @@ class _AccountPickerSheet extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
         ],
       ),
     );
@@ -2487,14 +2484,14 @@ class _SheetScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = isDark ? const Color(0xFF1B1F20) : ForestSurface.card;
+    final Color bg = isDark ? Theme.of(context).colorScheme.surface : ForestSurface.card;
     return Container(
       decoration: BoxDecoration(
         color: bg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-        boxShadow: const <BoxShadow>[
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Color(0x4D2C3329),
+            color: AppColors.sage900.withValues(alpha: 0.302),
             blurRadius: 48,
             offset: Offset(0, -18),
           ),
@@ -2546,7 +2543,7 @@ class _SheetCloseButton extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF2C3033) : ForestBg.sunken,
+            color: isDark ? Theme.of(context).colorScheme.surface : ForestBg.sunken,
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,

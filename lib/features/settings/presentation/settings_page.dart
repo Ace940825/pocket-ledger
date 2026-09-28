@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_colors.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';

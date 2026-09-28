@@ -14,6 +14,7 @@ import '../../../shared/widgets/module_list_scaffold.dart';
 import '../domain/fee_utils.dart';
 import '../providers/installment_providers.dart';
 import 'installment_detail_page.dart';
+import '../../../theme/theme.dart';
 
 /// 分期页：计划列表与还款进度。
 class InstallmentPage extends ConsumerWidget {
@@ -62,7 +63,7 @@ class InstallmentPage extends ConsumerWidget {
                 const Icon(
                   Icons.check_circle,
                   size: 16,
-                  color: Color(0xFF43A047),
+                  color: AppColors.income,
                 ),
             ],
           ),

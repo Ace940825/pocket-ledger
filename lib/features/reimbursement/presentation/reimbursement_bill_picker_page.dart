@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -400,20 +400,20 @@ class _ReimbursementBillPickerPageState
               ],
             ),
             const SizedBox(width: 10),
-            _pickCircle(sel),
+            _pickCircle(context, sel),
           ],
         ),
       ),
     );
   }
 
-  Widget _pickCircle(bool sel) => Container(
+  Widget _pickCircle(BuildContext context, bool sel) => Container(
         width: 20,
         height: 20,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: sel ? Colors.transparent : const Color(0xFFD8CDB4),
+            color: sel ? Colors.transparent : AppColors.sand,
             width: 1.5,
           ),
           gradient: sel
@@ -423,7 +423,7 @@ class _ReimbursementBillPickerPageState
               : null,
         ),
         child: sel
-            ? const Icon(Icons.check, size: 13, color: Colors.white)
+            ? Icon(Icons.check, size: 13, color: Theme.of(context).colorScheme.onPrimary)
             : null,
       );
 
@@ -455,7 +455,7 @@ class _ReimbursementBillPickerPageState
                 Navigator.of(context).pop(Set<String>.from(_selected)),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.transparent,
-              foregroundColor: Colors.white,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
               shadowColor: Colors.transparent,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(999),
@@ -477,6 +477,6 @@ class _ReimbursementBillPickerPageState
 
 /// 鼠尾草渐变停靠色（与 ForestGradients.sage 同值，页面内取用方便）。
 abstract final class _SageGreen {
-  static const Color a = Color(0xFF93BF9A);
-  static const Color b = Color(0xFF5F9A6E);
+  static const Color a = AppColors.sageMist;
+  static const Color b = AppColors.sageRibbon;
 }

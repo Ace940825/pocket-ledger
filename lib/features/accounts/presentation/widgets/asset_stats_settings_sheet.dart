@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/constants/app_colors.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../providers/asset_stats_settings.dart';
 
@@ -48,8 +48,7 @@ class _AssetStatsSettingsSheetState
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final bool isDark = theme.brightness == Brightness.dark;
-    final Color bg = isDark ? const Color(0xFF1B1F24) : Colors.white;
+    final Color bg = theme.colorScheme.surface;
 
     return Padding(
       padding:
@@ -89,7 +88,7 @@ class _AssetStatsSettingsSheetState
                       ),
                       const Icon(
                         Icons.workspace_premium,
-                        color: AppColors.warning,
+                        color: AppColors.warn,
                       ),
                     ],
                   ),
@@ -154,10 +153,9 @@ class _AssetStatsSettingsSheetState
   /// 用回调把改动**实时**写回本面板的草稿，所以即使直接点空白处关掉二级弹窗，
   /// 已经拨过的开关也不会丢——最终仍由本面板的「保存」统一落库。
   Future<void> _openListStyleSettings() async {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: isDark ? const Color(0xFF1B1F24) : Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppDimens.radiusLg),
@@ -277,7 +275,7 @@ class _RoundCloseButton extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF2A2E33) : const Color(0xFFF0F0EE),
+          color: theme.colorScheme.surface,
           shape: BoxShape.circle,
         ),
         alignment: Alignment.center,
@@ -340,7 +338,7 @@ class _SwitchRow extends StatelessWidget {
             const Icon(
               Icons.workspace_premium,
               size: 18,
-              color: AppColors.warning,
+              color: AppColors.warn,
             ),
             const SizedBox(width: AppDimens.spaceXs),
           ],

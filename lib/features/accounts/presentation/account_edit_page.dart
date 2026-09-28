@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -800,7 +800,7 @@ class _Card extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: child,
     );

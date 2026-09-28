@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_colors.dart';
+import '../../theme/app_colors.dart';
 import '../models/money.dart';
 
 /// 金额文本。

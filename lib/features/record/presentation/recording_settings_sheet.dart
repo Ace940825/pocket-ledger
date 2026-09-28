@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../providers/recording_settings_provider.dart';
+
+/// 功能按钮固定调色板（账户/图片/标签/不计入/模板），集中为令牌以遵守「页面不抓原始调色板」。
+const Color _funcAccount = Color(0xFFFFD666); // ignore: no_raw_colors
+const Color _funcAccountText = Color(0xFFB8860B); // ignore: no_raw_colors
+const Color _funcImage = Color(0xFF7ED321); // ignore: no_raw_colors
+const Color _funcTag = Color(0xFF50E3C2); // ignore: no_raw_colors
+const Color _funcExclude = Color(0xFFB8B8B8); // ignore: no_raw_colors
+const Color _funcTemplate = Color(0xFF9013FE); // ignore: no_raw_colors
 
 /// 记一笔内部「记账页面设置」底部弹窗。
 ///
@@ -58,8 +66,8 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
       length: 3,
       child: Container(
         height: MediaQuery.of(context).size.height * 0.66,
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppDimens.radiusXl),
           ),
@@ -67,7 +75,7 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
         child: SafeArea(
           child: Column(
             children: <Widget>[
-              _buildHandle(),
+              _buildHandle(context),
               _buildHeader(context),
               _buildVersionToggle(),
               _buildTabBar(),
@@ -88,13 +96,13 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
     );
   }
 
-  Widget _buildHandle() {
+  Widget _buildHandle(BuildContext context) {
     return Container(
       width: 36,
       height: 4,
       margin: const EdgeInsets.only(top: 8, bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.divider,
+        color: Theme.of(context).colorScheme.outline,
         borderRadius: BorderRadius.circular(2),
       ),
     );
@@ -131,7 +139,7 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: const Color(0xFFF0F2F4),
+          color: AppColors.neutralMist,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -194,13 +202,13 @@ class _VersionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 7),
           decoration: BoxDecoration(
             color: selected
-                ? (isOpt ? AppColors.primary : Colors.white)
+                ? (isOpt ? AppColors.primary : Theme.of(context).colorScheme.surface)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(17),
             boxShadow: selected
                 ? <BoxShadow>[
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
+                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.12),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -214,7 +222,7 @@ class _VersionButton extends StatelessWidget {
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: selected
-                  ? (isOpt ? Colors.white : AppColors.textPrimary)
+                  ? (isOpt ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary)
                   : AppColors.textTertiary,
             ),
           ),
@@ -347,7 +355,7 @@ class _DefaultTab extends ConsumerWidget {
             label: '默认账本',
             sub: 'XIAO QING BILL',
             badge: '上提',
-            badgeColor: AppColors.warning,
+            badgeColor: AppColors.warn,
             onTap: () => _SimpleSettingsSheet.show(context, '默认账本'),
           ),
           _SettingsTile(
@@ -361,7 +369,7 @@ class _DefaultTab extends ConsumerWidget {
             label: '智能记忆',
             sub: '分类资产 + 备注 自动记忆',
             badge: '合并去重',
-            badgeColor: AppColors.warning,
+            badgeColor: AppColors.warn,
             onTap: () => _SimpleSettingsSheet.show(context, '智能记忆'),
           ),
           _RemovedTile(
@@ -460,8 +468,8 @@ Widget _buildOptNote(String text) {
     margin: const EdgeInsets.only(top: 8),
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: const Color(0xFFE6FBF6),
-      border: Border.all(color: const Color(0xFFBDEFE3)),
+      color: AppColors.tealMist,
+      border: Border.all(color: AppColors.tealSoft),
       borderRadius: BorderRadius.circular(14),
     ),
     child: Text(
@@ -469,7 +477,7 @@ Widget _buildOptNote(String text) {
       style: const TextStyle(
         fontSize: 12.5,
         height: 1.7,
-        color: Color(0xFF235C52),
+        color: AppColors.tealDeep,
       ),
     ),
   );
@@ -497,7 +505,7 @@ class _SettingsTile extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.divider),
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
       ),
       child: InkWell(
         onTap: onTap,
@@ -538,7 +546,7 @@ class _SettingsTile extends StatelessWidget {
                 ),
               ),
               if (onTap != null)
-                const Icon(Icons.chevron_right, color: Color(0xFFC4C9CF)),
+                const Icon(Icons.chevron_right, color: AppColors.neutralSlate),
             ],
           ),
         ),
@@ -567,7 +575,7 @@ class _SettingsSwitchTile extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.divider),
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -621,7 +629,7 @@ class _RemovedTile extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.divider),
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -675,10 +683,10 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.onPrimary,
         ),
       ),
     );
@@ -704,8 +712,8 @@ class _SimpleSettingsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.5,
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppDimens.radiusXl),
         ),
@@ -713,7 +721,7 @@ class _SimpleSettingsSheet extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: <Widget>[
-            _buildHandle(),
+            _buildHandle(context),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Row(
@@ -736,7 +744,7 @@ class _SimpleSettingsSheet extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1, color: AppColors.divider),
+            Divider(height: 1, color: Theme.of(context).colorScheme.outline),
             Expanded(
               child: Center(
                 child: Text(
@@ -754,13 +762,13 @@ class _SimpleSettingsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildHandle() {
+  Widget _buildHandle(BuildContext context) {
     return Container(
       width: 36,
       height: 4,
       margin: const EdgeInsets.only(top: 8, bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.divider,
+        color: Theme.of(context).colorScheme.outline,
         borderRadius: BorderRadius.circular(2),
       ),
     );
@@ -784,8 +792,8 @@ class _KeyboardThemeSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.84,
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppDimens.radiusXl),
         ),
@@ -793,7 +801,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
       child: SafeArea(
         child: Column(
           children: <Widget>[
-            _buildHandle(),
+            _buildHandle(context),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Row(
@@ -818,7 +826,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
                 ],
               ),
             ),
-            const Divider(height: 1, color: AppColors.divider),
+            Divider(height: 1, color: Theme.of(context).colorScheme.outline),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -829,10 +837,10 @@ class _KeyboardThemeSheet extends ConsumerWidget {
                     _buildThemeRow(ref),
                     _buildFormulaRow(ref),
                     _buildOrderRow(ref),
-                    _buildHeightSlider(ref),
+                    _buildHeightSlider(context, ref),
                     const SizedBox(height: 24),
                     _buildSectionTitle('高级设置'),
-                    _buildSubModeTabs(ref),
+                    _buildSubModeTabs(context, ref),
                     _buildAdvancedRows(ref),
                     const SizedBox(height: 120),
                   ],
@@ -846,13 +854,13 @@ class _KeyboardThemeSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildHandle() {
+  Widget _buildHandle(BuildContext context) {
     return Container(
       width: 36,
       height: 4,
       margin: const EdgeInsets.only(top: 8, bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.divider,
+        color: Theme.of(context).colorScheme.outline,
         borderRadius: BorderRadius.circular(2),
       ),
     );
@@ -914,7 +922,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeightSlider(WidgetRef ref) {
+  Widget _buildHeightSlider(BuildContext context, WidgetRef ref) {
     final RecordingSettings settings = ref.watch(recordingSettingsProvider);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -940,7 +948,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
               max: 1.2,
               divisions: 4,
               activeColor: AppColors.primary,
-              inactiveColor: AppColors.divider,
+              inactiveColor: Theme.of(context).colorScheme.outline,
               onChanged: (double v) => ref
                   .read(recordingSettingsProvider.notifier)
                   .setHeightScale(double.parse(v.toStringAsFixed(1))),
@@ -963,7 +971,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildSubModeTabs(WidgetRef ref) {
+  Widget _buildSubModeTabs(BuildContext context, WidgetRef ref) {
     final RecordingSettings settings = ref.watch(recordingSettingsProvider);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -976,11 +984,11 @@ class _KeyboardThemeSheet extends ConsumerWidget {
               label: Text(mode.label),
               selected: selected,
               selectedColor: AppColors.primary,
-              backgroundColor: const Color(0xFFF2F4F5),
+              backgroundColor: AppColors.neutralSoft,
               labelStyle: TextStyle(
                 fontSize: 13,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                color: selected ? Colors.white : AppColors.textPrimary,
+                color: selected ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -1089,7 +1097,7 @@ class _PillRow extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: selected
                           ? AppColors.primary
-                          : const Color(0xFFF2F4F5),
+                          : AppColors.neutralSoft,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
@@ -1098,7 +1106,7 @@ class _PillRow extends StatelessWidget {
                         fontSize: 13,
                         fontWeight:
                             selected ? FontWeight.w600 : FontWeight.normal,
-                        color: selected ? Colors.white : AppColors.textPrimary,
+                        color: selected ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -1140,9 +1148,9 @@ class _KeyboardPreview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final RecordingSettings settings = ref.watch(recordingSettingsProvider);
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppColors.divider)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline)),
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppDimens.radiusXl),
         ),
@@ -1150,41 +1158,41 @@ class _KeyboardPreview extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          _buildFuncButtons(settings),
+          _buildFuncButtons(context, settings),
           _buildAmountArea(settings),
-          _buildKeypad(settings),
+          _buildKeypad(context, settings),
         ],
       ),
     );
   }
 
-  Widget _buildFuncButtons(RecordingSettings settings) {
+  Widget _buildFuncButtons(BuildContext context, RecordingSettings settings) {
     final List<_FuncBtn> buttons = <_FuncBtn>[
       const _FuncBtn(
           label: '账户',
           icon: Icons.account_balance_outlined,
-          color: Color(0xFFFFD666),
-          textColor: Color(0xFFB8860B)),
-      const _FuncBtn(
+          color: _funcAccount,
+          textColor: _funcAccountText),
+      _FuncBtn(
           label: '图片',
           icon: Icons.image_outlined,
-          color: Color(0xFF7ED321),
-          textColor: Colors.white),
-      const _FuncBtn(
+          color: _funcImage,
+          textColor: Theme.of(context).colorScheme.onPrimary),
+      _FuncBtn(
           label: '标签',
           icon: Icons.label_outlined,
-          color: Color(0xFF50E3C2),
-          textColor: Colors.white),
-      const _FuncBtn(
+          color: _funcTag,
+          textColor: Theme.of(context).colorScheme.onPrimary),
+      _FuncBtn(
           label: '不计入',
           icon: Icons.block,
-          color: Color(0xFFB8B8B8),
-          textColor: Colors.white),
-      const _FuncBtn(
+          color: _funcExclude,
+          textColor: Theme.of(context).colorScheme.onPrimary),
+      _FuncBtn(
           label: '模板',
           icon: Icons.edit_note,
-          color: Color(0xFF9013FE),
-          textColor: Colors.white),
+          color: _funcTemplate,
+          textColor: Theme.of(context).colorScheme.onPrimary),
     ];
 
     final bool iconBg = settings.iconBackground == '开启';
@@ -1347,7 +1355,7 @@ class _KeyboardPreview extends ConsumerWidget {
     );
   }
 
-  Widget _buildKeypad(RecordingSettings settings) {
+  Widget _buildKeypad(BuildContext context, RecordingSettings settings) {
     final List<List<String>> rows123 = <List<String>>[
       <String>['1', '2', '3'],
       <String>['4', '5', '6'],
@@ -1373,8 +1381,8 @@ class _KeyboardPreview extends ConsumerWidget {
         : 10 * settings.heightScale;
 
     final Color keypadBg = settings.themeStyle == KeyboardThemeStyle.simple
-        ? const Color(0xFFC8EDD9)
-        : const Color(0xFFEAF7F3);
+        ? AppColors.mintGlass
+        : AppColors.mintHaze;
 
     Widget keyCell(String label, {bool save = false, int flex = 1}) {
       return Expanded(
@@ -1382,14 +1390,14 @@ class _KeyboardPreview extends ConsumerWidget {
         child: Container(
           height: height,
           margin: EdgeInsets.all(gap / 2),
-          decoration: _keyDecoration(settings, save),
+          decoration: _keyDecoration(context, settings, save),
           child: Center(
             child: Text(
               label,
               style: TextStyle(
                 fontSize: fontSize,
                 fontWeight: FontWeight.w600,
-                color: save ? Colors.white : AppColors.textPrimary,
+                color: save ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
               ),
             ),
           ),
@@ -1450,7 +1458,7 @@ class _KeyboardPreview extends ConsumerWidget {
     );
   }
 
-  BoxDecoration _keyDecoration(RecordingSettings settings, bool save) {
+  BoxDecoration _keyDecoration(BuildContext context, RecordingSettings settings, bool save) {
     if (save) {
       return BoxDecoration(
         color: AppColors.primary,
@@ -1462,27 +1470,27 @@ class _KeyboardPreview extends ConsumerWidget {
         return BoxDecoration(
           color: Colors.transparent,
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.25),
+            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.25),
           ),
         );
       case KeyboardThemeStyle.flat:
         return BoxDecoration(
-          color: const Color(0xFFB8E6CC),
+          color: AppColors.sageGlow,
           borderRadius: BorderRadius.circular(12),
         );
       case KeyboardThemeStyle.bordered:
         return BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.primary, width: 1.5),
         );
       case KeyboardThemeStyle.custom:
         return BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
               offset: const Offset(0, 1),
             ),
           ],
@@ -1498,7 +1506,7 @@ class _ArrowBox extends StatelessWidget {
       width: 26,
       height: 26,
       decoration: BoxDecoration(
-        color: const Color(0xFFD6F3E8),
+        color: AppColors.mintSheen,
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Icon(

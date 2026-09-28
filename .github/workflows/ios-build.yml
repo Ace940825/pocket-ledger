@@ -75,6 +75,13 @@ jobs:
       - name: 核心逻辑自检
         run: dart run tool/self_check.dart
 
+      # ---------------------------------------------------------------
+      # 颜色硬化守门：禁止裸 Colors.* / Color(0x..) 硬编码颜色回归
+      # 规则见 tool/guard_theme_colors.dart（豁免 lib/theme/ 与有意 ignore 的行）
+      # ---------------------------------------------------------------
+      - name: 颜色硬化守门（no_raw_colors）
+        run: flutter dart tool/guard_theme_colors.dart
+
       - name: 缓存 CocoaPods
         uses: actions/cache@v4
         with:

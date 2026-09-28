@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_colors.dart';
+import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
 
 /// 金额输入框。

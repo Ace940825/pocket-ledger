@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -117,7 +118,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.chevron_left, size: 26),
-                  color: const Color(0xFF2C3329),
+                  color: AppColors.ink,
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -171,7 +172,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF2C3329),
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
@@ -181,7 +182,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF2C3329),
+                    color: AppColors.ink,
                   ),
                 ),
               ],
@@ -200,7 +201,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.8,
-                  color: Color(0xFF6A7263),
+                  color: AppColors.ink3,
                 ),
               ),
             ),
@@ -218,7 +219,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                       fontWeight:
                           _enabled ? FontWeight.w700 : FontWeight.w400,
                       color:
-                          _enabled ? const Color(0xFF2E6B49) : const Color(0xFF6A7263),
+                          _enabled ? AppColors.deepGreen : AppColors.ink3,
                     ),
                   ),
                 ),
@@ -241,7 +242,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
               ),
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.search, size: 18, color: Color(0xFF9AA091)),
+                  const Icon(Icons.search, size: 18, color: AppColors.ink3),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
@@ -254,7 +255,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                         hintText: '搜索标签',
                         hintStyle: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF9AA091),
+                          color: AppColors.ink3,
                         ),
                         border: InputBorder.none,
                         isCollapsed: true,
@@ -282,7 +283,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 13,
-                color: Color(0xFF9AA091),
+                color: AppColors.ink3,
                 height: 1.7,
               ),
             ),
@@ -319,7 +320,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF2C3329),
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
@@ -335,13 +336,13 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF2C3329),
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -365,9 +366,9 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
           decoration: BoxDecoration(
             gradient: ForestGradients.sageMid,
             borderRadius: BorderRadius.circular(999),
-            boxShadow: const <BoxShadow>[
+            boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Color(0x333C8A60),
+                color: AppColors.stockDown.withValues(alpha: 0.2),
                 blurRadius: 14,
                 offset: Offset(0, 5),
               ),
@@ -382,7 +383,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF2E5B39),
+                  color: AppColors.sageInk,
                   letterSpacing: 0.08,
                 ),
               ),
@@ -501,7 +502,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
         margin: const EdgeInsets.all(8),
         padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFF262B24),
+          color: AppColors.sage900,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -554,19 +555,19 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
         title: const Text('删除类别', style: TextStyle(fontSize: 17)),
         content: Text(
           '确定删除「${category.name}」？其下标签也会一并删除。',
-          style: const TextStyle(fontSize: 14, color: Color(0xFF6A7263)),
+          style: const TextStyle(fontSize: 14, color: AppColors.ink3),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('取消', style: TextStyle(color: Color(0xFF6A7263))),
+            child: const Text('取消', style: TextStyle(color: AppColors.ink3)),
           ),
           TextButton(
             onPressed: () async {
               await ref.read(tagsDaoProvider).deleteCategory(category.id, _now());
               if (mounted) Navigator.of(ctx).pop();
             },
-            child: const Text('删除', style: TextStyle(color: Color(0xFFD9736B))),
+            child: const Text('删除', style: TextStyle(color: AppColors.salmon)),
           ),
         ],
       ),
@@ -635,7 +636,7 @@ class _GroupTagChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF2E6B49),
+                color: AppColors.deepGreen,
               ),
             ),
             const SizedBox(width: 4),
@@ -644,7 +645,7 @@ class _GroupTagChip extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF2C3329),
+                color: AppColors.ink,
               ),
             ),
           ],
@@ -678,7 +679,7 @@ class _AddTagChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF6A7263),
+            color: AppColors.ink3,
           ),
         ),
       ),
@@ -702,22 +703,22 @@ class _FeatureSwitch extends StatelessWidget {
         height: 27,
         padding: const EdgeInsets.only(left: 3, right: 3),
         decoration: BoxDecoration(
-          color: value ? const Color(0xFF7FB98A) : const Color(0xFFDCD2BC),
+          color: value ? AppColors.sageMeadow : AppColors.sandStone,
           borderRadius: BorderRadius.circular(999),
         ),
         child: AnimatedAlign(
-          duration: const Duration(milliseconds: 200),
+          duration: Duration(milliseconds: 200),
           curve: Curves.easeOut,
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             width: 22,
             height: 22,
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
               shape: BoxShape.circle,
               boxShadow: <BoxShadow>[
                 BoxShadow(
-                  color: Color(0x33000000),
+                  color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.2),
                   blurRadius: 4,
                   offset: Offset(0, 1),
                 ),
@@ -753,7 +754,7 @@ class _MenuItem extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 14.5,
-            color: danger ? const Color(0xFFE5938C) : const Color(0xFFF3EAD8),
+            color: danger ? AppColors.coralSoft : AppColors.sunkenCream,
           ),
         ),
       ),
@@ -801,7 +802,7 @@ class _NameSheet extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16.5,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF2C3329),
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 14),
@@ -939,7 +940,7 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
             style: TextStyle(
               fontSize: 16.5,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF2C3329),
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 14),
@@ -956,7 +957,7 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
               children: <Widget>[
                 const Text(
                   '类别',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF9AA091)),
+                  style: TextStyle(fontSize: 13, color: AppColors.ink3),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -965,7 +966,7 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF2C3329),
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
@@ -1091,11 +1092,11 @@ class _TagCategoryReorderPageState extends ConsumerState<TagCategoryReorderPage>
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.chevron_left, color: Color(0xFF2C3329)),
+          icon: const Icon(Icons.chevron_left, color: AppColors.ink),
         ),
         title: const Text(
           '类别排序',
-          style: TextStyle(fontSize: 16.5, color: Color(0xFF2C3329)),
+          style: TextStyle(fontSize: 16.5, color: AppColors.ink),
         ),
         centerTitle: true,
       ),
@@ -1122,7 +1123,7 @@ class _TagCategoryReorderPageState extends ConsumerState<TagCategoryReorderPage>
               ),
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.drag_handle, color: Color(0xFF9AA091)),
+                  const Icon(Icons.drag_handle, color: AppColors.ink3),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1130,7 +1131,7 @@ class _TagCategoryReorderPageState extends ConsumerState<TagCategoryReorderPage>
                       style: const TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF2C3329),
+                        color: AppColors.ink,
                       ),
                     ),
                   ),
@@ -1183,11 +1184,11 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.chevron_left, color: Color(0xFF2C3329)),
+          icon: const Icon(Icons.chevron_left, color: AppColors.ink),
         ),
         title: Text(
           '${widget.category.name} · 标签排序',
-          style: const TextStyle(fontSize: 16.5, color: Color(0xFF2C3329)),
+          style: const TextStyle(fontSize: 16.5, color: AppColors.ink),
         ),
         centerTitle: true,
       ),
@@ -1195,7 +1196,7 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
           ? const Center(
               child: Text(
                 '该分组暂无标签',
-                style: TextStyle(fontSize: 13.5, color: Color(0xFF9AA091)),
+                style: TextStyle(fontSize: 13.5, color: AppColors.ink3),
               ),
             )
           : ReorderableListView(
@@ -1223,7 +1224,7 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
                     child: Row(
                       children: <Widget>[
                         const Icon(Icons.drag_handle,
-                            color: Color(0xFF9AA091)),
+                            color: AppColors.ink3),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -1231,14 +1232,14 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
                             style: const TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF2C3329),
+                              color: AppColors.ink,
                             ),
                           ),
                         ),
                         IconButton(
                           onPressed: () => _delete(t),
                           icon: const Icon(Icons.delete_outline,
-                              color: Color(0xFFD9736B)),
+                              color: AppColors.salmon),
                         ),
                       ],
                     ),

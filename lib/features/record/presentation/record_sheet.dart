@@ -16,7 +16,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/config/env.dart';
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -101,8 +101,8 @@ class _Sage {
   static const Color cardAlt = ForestSurface.cardAlt; // #F6EFE0 次级卡面
 
   // 鼠尾草绿渐变停靠色（--sage-a/--sage-b，与 ForestGradients.sage 同值）
-  static const Color sageA = Color(0xFF93BF9A);
-  static const Color sageB = Color(0xFF5F9A6E);
+  static const Color sageA = AppColors.sageMist;
+  static const Color sageB = AppColors.sageRibbon;
 
   static const Color greenDeep = ForestGreen.deep; // #2E6B49 深绿强调
   static const Color greenSoft = ForestGreen.soft; // #E6F2E9 浅绿选中底
@@ -124,10 +124,10 @@ class _Sage {
   static const List<BoxShadow> shadow = ForestElevation.card;
 
   // --shadow-pick: 0 4px 16px rgba(95,154,110,.18),0 0 0 1px rgba(95,154,110,.25)
-  static const List<BoxShadow> pickShadow = <BoxShadow>[
-    BoxShadow(color: Color(0x2E5F9A6E), blurRadius: 16, offset: Offset(0, 4)),
+  static List<BoxShadow> pickShadow = <BoxShadow>[
+    BoxShadow(color: AppColors.sage600.withValues(alpha: 0.18), blurRadius: 16, offset: Offset(0, 4)),
     BoxShadow(
-      color: Color(0x405F9A6E),
+      color: AppColors.sage600.withValues(alpha: 0.251),
       blurRadius: 0,
       spreadRadius: 1,
       offset: Offset.zero,
@@ -1471,14 +1471,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final AsyncValue<List<SavingsGoal>> goals = ref.watch(savingsListProvider);
     return goals.when(
       data: (List<SavingsGoal> list) {
+        // 空态由 _buildSavingsGoalZone 的占位跳转栏接管，这里保证非空调用。
         if (list.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceMd),
-            child: Text(
-              '还没有储蓄目标，请先到「储蓄」页创建',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          );
+          return const SizedBox.shrink();
         }
         final String? safe =
             list.any((SavingsGoal g) => g.id == _goalId) ? _goalId : null;
@@ -1501,6 +1496,62 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       },
       loading: () => const LinearProgressIndicator(),
       error: (Object e, _) => Text('目标加载失败：$e'),
+    );
+  }
+
+  /// 存钱计划区主体（中间区域）：
+  ///
+  /// - 已有储蓄目标 → 复用「储蓄目标」下拉选择；
+  /// - 还没有目标 → 占位跳转栏（点击跳「储蓄」页创建），替代原红字提示。
+  Widget _buildSavingsGoalZone() {
+    final AsyncValue<List<SavingsGoal>> goals = ref.watch(savingsListProvider);
+    if (goals.value?.isNotEmpty ?? false) {
+      return _goalField();
+    }
+    return _rbCard(
+      onTap: () {
+        FocusManager.instance.primaryFocus?.unfocus();
+        context.push(Routes.savings);
+      },
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: ForestGreen.soft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.savings_outlined,
+              size: 18,
+              color: ForestGreen.deep,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  '暂无存钱计划',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _Sage.ink,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  '去「储蓄」页创建后即可选择',
+                  style: TextStyle(fontSize: 11, color: _Sage.ink3),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, size: 20, color: _Sage.ink3),
+        ],
+      ),
     );
   }
 
@@ -1572,26 +1623,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           _noteField(),
         ];
       case RecordTab.reimbursement:
-        // 报销改用独立的 _buildReimbursementBody，不再走 legacy 表单。
-        return const <Widget>[SizedBox.shrink()];
+      case RecordTab.refund:
       case RecordTab.savings:
-        return <Widget>[
-          SegmentedButton<bool>(
-            segments: const <ButtonSegment<bool>>[
-              ButtonSegment<bool>(value: true, label: Text('存入')),
-              ButtonSegment<bool>(value: false, label: Text('取出')),
-            ],
-            selected: <bool>{_saveDeposit},
-            onSelectionChanged: (Set<bool> next) =>
-                setState(() => _saveDeposit = next.first),
-          ),
-          const FormGap(),
-          _goalField(),
-          const FormGap(),
-          _noteField(),
-        ];
       case RecordTab.installment:
-        // 分期使用独立页面，不在 sheet 内渲染表单。
+        // 报销 / 退款 / 存钱 / 分期均使用独立布局，不走 legacy 表单。
         return const <Widget>[SizedBox.shrink()];
     }
   }
@@ -1762,7 +1797,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                    border: Border.all(color: AppColors.divider),
+                    border: Border.all(color: Theme.of(context).colorScheme.outline),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -1798,7 +1833,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               decoration: BoxDecoration(
                 color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                border: Border.all(color: AppColors.divider),
+                border: Border.all(color: Theme.of(context).colorScheme.outline),
               ),
               child: Text(
                 label,
@@ -1984,7 +2019,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final Money? money = account == null
         ? null
         : Money.fromMinor(account.balanceMinor, currency: account.currency);
-    final Widget avatar = _buildFlowAvatar(
+    final Widget avatar = _buildFlowAvatar(context,
       icon: accountIcon(account?.type ?? AccountType.cash),
       picked: account != null,
     );
@@ -2010,7 +2045,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           Text(
             money?.format() ?? hint,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12.5,
               color: ForestNeutral.textTertiary,
               letterSpacing: 0.3,
@@ -2052,7 +2087,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           boxShadow: <BoxShadow>[
             // 转出卡泛珊瑚红微光、转入卡泛绿微光（与设计稿同语言）。
             BoxShadow(
-              color: isOut ? const Color(0x1FE2675E) : const Color(0x1F2FA56B),
+              color: isOut ? AppColors.expenseDark.withValues(alpha: 0.122) : AppColors.stockDown.withValues(alpha: 0.122),
               blurRadius: 9,
               offset: const Offset(0, 3),
             ),
@@ -2068,25 +2103,25 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   }
 
   /// 黏土账户头像：未选 = 米白黏土 + 线稿图标；已选 = sage 渐变 + 白图标。
-  Widget _buildFlowAvatar({required IconData icon, required bool picked}) {
+  Widget _buildFlowAvatar(BuildContext context, {required IconData icon, required bool picked}) {
     return Container(
       width: 48,
       height: 48,
       decoration: BoxDecoration(
         gradient: picked
             ? ForestGradients.sage
-            : const LinearGradient(
+            : LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: <Color>[Color(0xFFFFFEFB), Color(0xFFE9E0CF)],
+                colors: <Color>[AppColors.creamBright, AppColors.sandPale],
               ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: picked ? Colors.transparent : const Color(0x99FFFFFF),
+          color: picked ? Colors.transparent : Theme.of(context).colorScheme.surface.withValues(alpha: 0.6),
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: picked ? const Color(0x6B5F9A6E) : const Color(0x304A422E),
+            color: picked ? AppColors.sage600.withValues(alpha: 0.42) : AppColors.ink.withValues(alpha: 0.188),
             blurRadius: picked ? 16 : 10,
             offset: const Offset(0, 4),
           ),
@@ -2100,11 +2135,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 gradient: RadialGradient(
-                  center: const Alignment(-0.24, -0.4),
+                  center: Alignment(-0.24, -0.4),
                   radius: 1.4,
                   colors: <Color>[
-                    Colors.white.withValues(alpha: picked ? 0.35 : 0.9),
-                    Colors.white.withValues(alpha: 0),
+                    Theme.of(context).colorScheme.surface.withValues(alpha: picked ? 0.35 : 0.9),
+                    Theme.of(context).colorScheme.surface.withValues(alpha: 0),
                   ],
                 ),
               ),
@@ -2114,7 +2149,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             child: Icon(
               icon,
               size: 22,
-              color: picked ? Colors.white : ForestNeutral.deepInk,
+              color: picked ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.deepInk,
             ),
           ),
         ],
@@ -2138,15 +2173,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             gradient: ForestGradients.sage,
             shape: BoxShape.circle,
             border: Border.all(color: ForestSurface.card, width: 3),
-            boxShadow: const <BoxShadow>[
+            boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Color(0x735F9A6E),
+                color: AppColors.sage600.withValues(alpha: 0.451),
                 blurRadius: 16,
                 offset: Offset(0, 6),
               ),
             ],
           ),
-          child: const Icon(Icons.sync_alt, size: 20, color: Colors.white),
+          child: Icon(Icons.sync_alt, size: 20, color: Theme.of(context).colorScheme.onPrimary),
         ),
       ),
     );
@@ -2223,7 +2258,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     letterSpacing: 0.3,
                   ),
                 ),
-                const SizedBox(width: 5),
+                SizedBox(width: 5),
                 Text(
                   '¥',
                   style: TextStyle(
@@ -2346,7 +2381,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       color: fg,
                     ),
                   ),
-                  const SizedBox(width: 5),
+                  SizedBox(width: 5),
                   Text(
                     '¥',
                     style: TextStyle(
@@ -2385,10 +2420,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                           isCollapsed: true,
                           contentPadding: EdgeInsets.zero,
                           hintText: '0',
-                          hintStyle: const TextStyle(
+                          hintStyle: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
-                            color: Color(0x593E443A),
+                            color: AppColors.sage800.withValues(alpha: 0.349),
                           ),
                         ),
                         style: TextStyle(
@@ -2428,7 +2463,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             size: 16,
             color: AppColors.textTertiary,
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          SizedBox(width: AppDimens.spaceSm),
           Expanded(
             child: Text(
               '转账、信用卡还款、取现可以用这个功能哦。\n'
@@ -2493,9 +2528,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           color: selected ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           boxShadow: selected
-              ? const <BoxShadow>[
+              ? <BoxShadow>[
                   BoxShadow(
-                    color: Color(0x595F9A6E),
+                    color: AppColors.sage600.withValues(alpha: 0.349),
                     blurRadius: 10,
                     offset: Offset(0, 3),
                   ),
@@ -2507,7 +2542,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           style: TextStyle(
             fontSize: 15,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            color: selected ? Colors.white : _Sage.ink2,
+            color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
             letterSpacing: selected ? 4 : 3,
           ),
         ),
@@ -2545,7 +2580,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
+              duration: Duration(milliseconds: 220),
               width: 50,
               height: 50,
               transform: selected
@@ -2559,9 +2594,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ),
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: selected
-                    ? const <BoxShadow>[
+                    ? <BoxShadow>[
                         BoxShadow(
-                          color: Color(0x665F9A6E),
+                          color: AppColors.sage600.withValues(alpha: 0.4),
                           blurRadius: 16,
                           offset: Offset(0, 6),
                         ),
@@ -2571,7 +2606,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               child: Icon(
                 action.icon(_lendDir),
                 size: 20,
-                color: selected ? Colors.white : _Sage.ink2,
+                color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
               ),
             ),
             const SizedBox(height: 5),
@@ -2703,7 +2738,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                               ? Icons.account_balance_wallet_outlined
                               : Icons.account_box_outlined,
                           size: 17,
-                          color: picked ? Colors.white : _Sage.greenDeep,
+                          color: picked ? Theme.of(context).colorScheme.onPrimary : _Sage.greenDeep,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -2847,7 +2882,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     child: Icon(
                       Icons.account_box_outlined,
                       size: 17,
-                      color: picked ? Colors.white : _Sage.greenDeep,
+                      color: picked ? Theme.of(context).colorScheme.onPrimary : _Sage.greenDeep,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -2877,7 +2912,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
                           hasValue ? current : placeholder,
                           style: TextStyle(
@@ -2987,20 +3022,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     decoration: BoxDecoration(
                       gradient: _Sage.sage,
                       borderRadius: BorderRadius.circular(10),
-                      boxShadow: const <BoxShadow>[
+                      boxShadow: <BoxShadow>[
                         BoxShadow(
-                          color: Color(0x4D5F9A6E),
+                          color: AppColors.sage600.withValues(alpha: 0.302),
                           blurRadius: 8,
                           offset: Offset(0, 3),
                         ),
                       ],
                     ),
-                    child: const Text(
+                    child: Text(
                       '¥',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     ),
                   ),
@@ -3098,7 +3133,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             ),
           ),
           const SizedBox(width: 9),
-          _buildLendCalculatorButton(enabled: isFee),
+          _buildLendCalculatorButton(context, enabled: isFee),
         ],
       ),
     );
@@ -3151,7 +3186,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           label,
           style: TextStyle(
             fontSize: 12.5,
-            color: selected ? Colors.white : _Sage.ink2,
+            color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
@@ -3161,7 +3196,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 借还计算器按钮（ForestSage V1 · 纸感细线）。
   /// 优惠模式下整体降透明度并禁用（优惠不支持计算）。
-  Widget _buildLendCalculatorButton({required bool enabled}) {
+  Widget _buildLendCalculatorButton(BuildContext context, {required bool enabled}) {
     return InkWell(
       onTap: enabled ? _openLendFeeCalculator : null,
       borderRadius: BorderRadius.circular(18),
@@ -3210,7 +3245,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(AppDimens.radiusLg),
@@ -3342,7 +3377,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   style: const TextStyle(
                     fontSize: 12,
                     height: 1.5,
-                    color: Color(0xFF52604F),
+                    color: AppColors.ink3,
                   ),
                 ),
               ),
@@ -3352,9 +3387,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Expanded(child: _buildSageFormulaCell(cells[0])),
-              const SizedBox(width: 8),
-              Expanded(child: _buildSageFormulaCell(cells[1])),
+              Expanded(child: _buildSageFormulaCell(context, cells[0])),
+              SizedBox(width: 8),
+              Expanded(child: _buildSageFormulaCell(context, cells[1])),
             ],
           ),
         ],
@@ -3363,12 +3398,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   }
 
   /// V1 公式格（浅绿卡片 + 标题 + 两行等式）。
-  Widget _buildSageFormulaCell(List<String> cell) {
+  Widget _buildSageFormulaCell(BuildContext context, List<String> cell) {
     return Container(
       padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
       decoration: BoxDecoration(
-        color: const Color(0xA6FFFFFF),
-        border: Border.all(color: const Color(0xCCDEE7CF)),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.651),
+        border: Border.all(color: AppColors.sage100.withValues(alpha: 0.8)),
         borderRadius: BorderRadius.circular(13),
       ),
       child: Column(
@@ -3620,6 +3655,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
+  /// 存钱 Tab 独立布局：仅「存钱计划」标题栏 + 目标选择 / 占位跳转栏。
+  ///
+  /// 金额行、存入/取出切换、备注、数字键盘均已移除——存入 / 取出动作
+  /// 统一在「储蓄」页完成，本 Tab 只承担计划入口（占位跳转）。
+  Widget _buildSavingsBody() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppDimens.spaceLg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _buildSectionTitle('存钱计划'),
+          const SizedBox(height: AppDimens.spaceSm),
+          _buildSavingsGoalZone(),
+        ],
+      ),
+    );
+  }
+
   /// 报销页独立布局（小青账模板）：顶部滚动表单 + 底部固定「保存」按钮。
   ///
   /// 报销使用自带「报销收入」输入框（系统数字键盘），不使用自定义数字键盘，
@@ -3721,7 +3774,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         ),
       ),
       const SizedBox(height: 16),
-      _buildRbBookRow(),
+      _buildRbBookRow(context),
       const SizedBox(height: 8),
     ];
   }
@@ -3940,8 +3993,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             ),
             shape: BoxShape.circle,
           ),
-          child: const Center(
-            child: Icon(Icons.check, size: 14, color: Colors.white),
+          child: Center(
+            child: Icon(Icons.check, size: 14, color: Theme.of(context).colorScheme.onPrimary),
           ),
         ),
       );
@@ -3953,17 +4006,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: sel ? Colors.transparent : const Color(0xFFD8CDB4),
+            color: sel ? Colors.transparent : AppColors.sand,
             width: 1.5,
           ),
           gradient: sel
-              ? const LinearGradient(
+              ? LinearGradient(
                   colors: <Color>[_Sage.sageA, _Sage.sageB],
                 )
               : null,
         ),
         child: sel
-            ? const Icon(Icons.check, size: 13, color: Colors.white)
+            ? Icon(Icons.check, size: 13, color: Theme.of(context).colorScheme.onPrimary)
             : null,
       );
 
@@ -3989,9 +4042,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               // 设计稿 --shadow 常驻：让奶油卡从纸底上「浮」起来，
               // 否则 #FFFCF5 与 #FBF6EA 只差数个色阶，整页发白。
               boxShadow: picked
-                  ? const <BoxShadow>[
+                  ? <BoxShadow>[
                       BoxShadow(
-                        color: Color(0x145F9A6E),
+                        color: AppColors.sage600.withValues(alpha: 0.078),
                         blurRadius: 10,
                         offset: Offset(0, 2),
                       ),
@@ -4245,7 +4298,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: allDone ? _Sage.greenSoft : const Color(0xFFFFF3D6),
+              color: allDone ? _Sage.greenSoft : AppColors.goldSoft,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
@@ -4253,7 +4306,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: allDone ? _Sage.greenDeep : const Color(0xFFB87A1E),
+                color: allDone ? _Sage.greenDeep : AppColors.goldAmber,
               ),
             ),
           ),
@@ -4564,13 +4617,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
                   '¥',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                 ),
               ),
@@ -4627,7 +4680,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 账本（只读展示当前账本名）。
   /// 账本（只读展示当前账本名，V1 奶油卡）。
-  Widget _buildRbBookRow() {
+  Widget _buildRbBookRow(BuildContext context) {
     final AsyncValue<Book?> book = ref.watch(currentBookProvider);
     return _rbCard(
       child: Row(
@@ -4722,36 +4775,37 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             _sageSwitch(
               _rbExclude,
               (bool v) => setState(() => _rbExclude = v),
+              context,
             ),
           ],
         ),
       );
 
   /// 鼠尾草风格开关（关=沙底 / 开=渐变）。
-  Widget _sageSwitch(bool v, ValueChanged<bool> onChanged) => GestureDetector(
+  Widget _sageSwitch(bool v, ValueChanged<bool> onChanged, BuildContext context) => GestureDetector(
         onTap: () => onChanged(!v),
         child: Container(
           width: 50,
           height: 30,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            color: v ? _Sage.sageB : const Color(0xFFE4DCC9),
+            color: v ? _Sage.sageB : AppColors.sandTaupe,
           ),
           child: Stack(
             children: <Widget>[
               AnimatedPositioned(
                 left: v ? 23 : 3,
                 top: 3,
-                duration: const Duration(milliseconds: 200),
+                duration: Duration(milliseconds: 200),
                 child: Container(
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(999),
-                    boxShadow: const <BoxShadow>[
+                    boxShadow: <BoxShadow>[
                       BoxShadow(
-                        color: Color(0x33000000),
+                        color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.2),
                         blurRadius: 5,
                         offset: Offset(0, 2),
                       ),
@@ -4826,7 +4880,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 仅报销 / 退款页露出，造成「跟工程内色调不一致」。
   Widget _buildSaveFooter() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _Sage.card,
         border: Border(top: BorderSide(color: _Sage.hairline)),
       ),
@@ -4850,12 +4904,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             ),
           ),
           child: _saving
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                 )
               : const Text('保存'),
@@ -4941,7 +4995,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           const Spacer(),
           Text(
             note,
-            style: const TextStyle(fontSize: 11, color: _Sage.ink3),
+            style: TextStyle(fontSize: 11, color: _Sage.ink3),
           ),
         ],
       ],
@@ -4969,9 +5023,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             borderRadius: BorderRadius.circular(13),
             border: primary ? null : Border.all(color: _Sage.hairline),
             boxShadow: primary
-                ? const <BoxShadow>[
+                ? <BoxShadow>[
                     BoxShadow(
-                      color: Color(0x475F9A6E),
+                      color: AppColors.sage600.withValues(alpha: 0.278),
                       blurRadius: 8,
                       offset: Offset(0, 3),
                     ),
@@ -4983,7 +5037,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: primary ? Colors.white : _Sage.ink,
+              color: primary ? Theme.of(context).colorScheme.onPrimary : _Sage.ink,
             ),
           ),
         ),
@@ -5263,7 +5317,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           alignment: Alignment.center,
           decoration: BoxDecoration(
             gradient: selected
-                ? const LinearGradient(
+                ? LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: <Color>[_Sage.sageA, _Sage.sageB],
@@ -5276,9 +5330,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               width: selected ? 0 : 1.5,
             ),
             boxShadow: selected
-                ? const <BoxShadow>[
+                ? <BoxShadow>[
                     BoxShadow(
-                      color: Color(0x525F9A6E),
+                      color: AppColors.sage600.withValues(alpha: 0.322),
                       blurRadius: 12,
                       offset: Offset(0, 5),
                     ),
@@ -5290,7 +5344,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 14,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-              color: selected ? Colors.white : _Sage.ink2,
+              color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
             ),
           ),
         ),
@@ -5352,15 +5406,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         }),
         borderRadius: BorderRadius.circular(999),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
             color: on ? _Sage.card : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
             boxShadow: on
-                ? const <BoxShadow>[
+                ? <BoxShadow>[
                     BoxShadow(
-                      color: Color(0x2E786E5A),
+                      color: AppColors.ink3.withValues(alpha: 0.18),
                       blurRadius: 6,
                       offset: Offset(0, 2),
                     ),
@@ -5595,7 +5649,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: <Color>[Color(0xFFEAF3EA), Color(0xFFDDEBDD)],
+                colors: <Color>[AppColors.sageHaze, AppColors.sageLine],
               ),
               borderRadius: BorderRadius.circular(11),
             ),
@@ -6123,7 +6177,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 for (int i = 0; i < _attachmentPaths.length; i++) ...<Widget>[
-                  if (i > 0) const SizedBox(width: AppDimens.spaceSm),
+                  if (i > 0) SizedBox(width: AppDimens.spaceSm),
                   _stripCell(i),
                 ],
               ],
@@ -6152,9 +6206,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           transform: Matrix4.translationValues(0, -6, 0),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-            boxShadow: const <BoxShadow>[
+            boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Color(0x552E5B39),
+                color: AppColors.sage800.withValues(alpha: 0.333),
                 blurRadius: 14,
                 offset: Offset(0, 6),
               ),
@@ -6205,9 +6259,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppDimens.radiusSm),
                 border: hovered
-                    ? Border.all(color: const Color(0xFF3C8A60), width: 2.5)
+                    ? Border.all(color: AppColors.ctaForest, width: 2.5)
                     : null,
-                color: hovered ? const Color(0x1A3C8A60) : null,
+                color: hovered ? AppColors.stockDown.withValues(alpha: 0.102) : null,
               ),
               child: _buildAttachmentThumb(path),
             ),
@@ -6717,7 +6771,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         _pageController
                             .animateToPage(
                           index,
-                          duration: const Duration(milliseconds: 250),
+                          duration: Duration(milliseconds: 250),
                           curve: Curves.easeInOut,
                         )
                             .then((_) {
@@ -6738,17 +6792,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         // 设计稿 .tabs button.on：--sageGrad 135°(#93BF9A→#5F9A6E)
                         gradient: ForestGradients.sage,
                         borderRadius: BorderRadius.circular(999),
-                        boxShadow: const <BoxShadow>[
+                        boxShadow: <BoxShadow>[
                           // 设计稿 0 3px 8px rgba(95,154,110,.35)
                           BoxShadow(
-                            color: Color(0x595F9A6E),
+                            color: AppColors.sage600.withValues(alpha: 0.349),
                             offset: Offset(0, 3),
                             blurRadius: 8,
                           ),
                         ],
                       ),
                       indicatorSize: TabBarIndicatorSize.tab,
-                      labelColor: Colors.white,
+                      labelColor: Theme.of(context).colorScheme.onPrimary,
                       unselectedLabelColor: ForestNeutral.textSecondary,
                       labelStyle: theme.textTheme.bodyMedium?.copyWith(
                         fontSize: 14,
@@ -6804,11 +6858,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         itemBuilder: (BuildContext context, int index) {
           final RecordTab tab = _tabs[index];
           if (tab == RecordTab.installment) {
-            return const AddInstallmentPage(showAppBar: false);
+            return AddInstallmentPage(showAppBar: false);
           } else if (tab == RecordTab.reimbursement) {
             return _KeepAlivePage(
               key: ValueKey<RecordTab>(tab),
               builder: (_) => _buildReimbursementBody(),
+            );
+          } else if (tab == RecordTab.savings) {
+            return _KeepAlivePage(
+              key: ValueKey<RecordTab>(tab),
+              builder: (_) => _buildSavingsBody(),
             );
           } else if (tab == RecordTab.refund) {
             return _KeepAlivePage(
@@ -6894,18 +6953,18 @@ class _CategoryItem extends StatelessWidget {
             color: selected ? Colors.transparent : ForestNeutral.hairline,
           ),
           boxShadow: selected
-              ? const <BoxShadow>[
+              ? <BoxShadow>[
                   // 设计稿 rgba(95,154,110,.35)
                   BoxShadow(
-                    color: Color(0x595F9A6E),
+                    color: AppColors.sage600.withValues(alpha: 0.349),
                     offset: Offset(0, 6),
                     blurRadius: 14,
                   ),
                 ]
-              : const <BoxShadow>[
+              : <BoxShadow>[
                   // 设计稿 0 1px 2px rgba(60,55,40,.04)
                   BoxShadow(
-                    color: Color(0x0A3C3728),
+                    color: AppColors.ink.withValues(alpha: 0.039),
                     offset: Offset(0, 1),
                     blurRadius: 2,
                   ),
@@ -6916,8 +6975,8 @@ class _CategoryItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             _ClayIconTile(
-                color: color, selected: selected, child: _buildIcon()),
-            const SizedBox(height: 6),
+                color: color, selected: selected, child: _buildIcon(context)),
+            SizedBox(height: 6),
             Text(
               label,
               maxLines: 1,
@@ -6928,7 +6987,7 @@ class _CategoryItem extends StatelessWidget {
                 // 设计稿 .cat.on .lb：白字 w700（渐变已换 sageGrad 中饱和绿，
                 // 白字对比达标；此前浅粉彩渐变下用 ForestSage.ink 属权宜之计）
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? Colors.white : ForestNeutral.textPrimary,
+                color: selected ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.textPrimary,
               ),
             ),
           ],
@@ -6937,11 +6996,11 @@ class _CategoryItem extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon() {
+  Widget _buildIcon(BuildContext context) {
     // 未选中描边加深：向暖墨色收敛 22%，避免 22px 线稿在高光斑上被冲淡
     final Color iconColor = selected
-        ? Colors.white
-        : Color.lerp(color, const Color(0xFF3E3526), 0.22)!;
+        ? Theme.of(context).colorScheme.onPrimary
+        : Color.lerp(color, AppColors.ink, 0.22)!;
     if (lineKind != null) {
       return LineIcon(lineKind!, size: 22, color: iconColor);
     }
@@ -6966,7 +7025,7 @@ class _ClayIconTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 加深黏土底：分类色混入比例 0.32 → 0.5（用户反馈图标整体偏淡）
-    final Color tint = Color.lerp(Colors.white, color, 0.5)!;
+    final Color tint = Color.lerp(Colors.white, color, 0.5)!; // ignore: no_raw_colors
     return Container(
       width: 42,
       height: 42,
@@ -6979,20 +7038,20 @@ class _ClayIconTile extends StatelessWidget {
             : LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: <Color>[Colors.white, tint],
+                colors: <Color>[Colors.white, tint], // ignore: no_raw_colors
                 stops: const <double>[0, 0.78],
               ),
         borderRadius: BorderRadius.circular(13),
         border: Border.all(
           color: selected
               ? Colors.transparent
-              : Colors.white.withValues(alpha: 0.5),
+              : Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
         ),
         boxShadow: <BoxShadow>[
           // 未选中：设计稿 5px 7px 14px rgba(74,66,46,.20)（微收敛防格间溢出）
           // 选中：0 6px 14px rgba(74,66,46,.22)
           BoxShadow(
-            color: const Color(0x334A422E),
+            color: AppColors.ink.withValues(alpha: 0.2),
             offset: selected ? const Offset(0, 6) : const Offset(3, 4),
             blurRadius: selected ? 14 : 10,
           ),
@@ -7010,11 +7069,11 @@ class _ClayIconTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(13),
                   gradient: RadialGradient(
-                    center: const Alignment(-0.2, -0.3),
+                    center: Alignment(-0.2, -0.3),
                     radius: 0.9,
                     colors: <Color>[
-                      Colors.white.withValues(alpha: 0.92),
-                      Colors.white.withValues(alpha: 0),
+                      Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+                      Theme.of(context).colorScheme.surface.withValues(alpha: 0),
                     ],
                   ),
                 ),
@@ -7088,7 +7147,7 @@ class _ViewToggle extends StatelessWidget {
           icon: Icons.grid_view_outlined,
           label: '宫格',
         ),
-        const SizedBox(width: AppDimens.spaceSm),
+        SizedBox(width: AppDimens.spaceSm),
         buildOption(
           value: true,
           icon: Icons.list_alt_outlined,
@@ -7147,7 +7206,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: AppDimens.spaceMd),
                   decoration: BoxDecoration(
-                    color: AppColors.divider,
+                    color: Theme.of(context).colorScheme.outline,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -7213,7 +7272,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppDimens.spaceMd),
+              SizedBox(height: AppDimens.spaceMd),
               if (widget.children.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
@@ -7513,7 +7572,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
           children: <Widget>[
             Icon(Icons.info_outline,
                 size: 16, color: ForestNeutral.textSecondary),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Expanded(
               child: Text(
                 '支出可以使用这个功能哦。如使用招商信用卡，消费20元笔笔返现0.5元，实际扣款19.5 = 消费金额(20) − 优惠金额(0.5)',
@@ -7584,14 +7643,14 @@ class _DiscountSheetState extends State<DiscountSheet> {
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
-                ? const Color(0x402E5B39) // rgba(46,91,57,.25)
+                ? AppColors.sage800.withValues(alpha: 0.251) // rgba(46,91,57,.25)
                 : ForestNeutral.hairline,
             width: 1.5,
           ),
           boxShadow: selected
               ? <BoxShadow>[
-                  const BoxShadow(
-                    color: Color(0x333C8A60), // rgba(60,138,96,.20)
+                  BoxShadow(
+                    color: AppColors.stockDown.withValues(alpha: 0.2), // rgba(60,138,96,.20)
                     blurRadius: 14,
                     offset: Offset(0, 4),
                   ),
@@ -7609,7 +7668,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
               ),
               child: Center(
                 child: selected
-                    ? const Icon(Icons.check, size: 12, color: Colors.white)
+                    ? Icon(Icons.check, size: 12, color: Theme.of(context).colorScheme.onPrimary)
                     : const Text(
                         '¥',
                         style: TextStyle(
@@ -7626,7 +7685,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                color: selected ? Colors.white : ForestNeutral.textTertiary,
+                color: selected ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.textTertiary,
               ),
             ),
             if (algoLabel != null) ...<Widget>[
@@ -7639,7 +7698,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                       const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                   child: Text(
                     algoLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: ForestSage.label,
@@ -7679,7 +7738,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0x332E5B39), // rgba(46,91,57,.20)
+                color: AppColors.sage800.withValues(alpha: 0.2), // rgba(46,91,57,.20)
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -7716,7 +7775,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
                       Flexible(child: _segPill(theme, 'discount', '输入优惠金额')),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Flexible(child: _segPill(theme, 'original', '输入原价和实付')),
                     ],
                   ),
@@ -7738,9 +7797,9 @@ class _DiscountSheetState extends State<DiscountSheet> {
                 color: ForestSurface.card,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: ForestNeutral.hairline),
-                boxShadow: const <BoxShadow>[
+                boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: Color(0x142C3329), // rgba(44,51,41,.08)
+                    color: AppColors.sage900.withValues(alpha: 0.078), // rgba(44,51,41,.08)
                     blurRadius: 12,
                     offset: Offset(0, 4),
                   ),
@@ -7766,7 +7825,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                         Text(
                           // 优惠前金额 = 上一页金额，固定两位小数（¥100.00）
                           '¥${_fmt2(_toDouble(_base))}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 28,
                             height: 1.1,
                             fontWeight: FontWeight.w800,
@@ -7783,9 +7842,9 @@ class _DiscountSheetState extends State<DiscountSheet> {
                       color: ForestGreen.soft,
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: focused == 'paid'
-                          ? const <BoxShadow>[
+                          ? <BoxShadow>[
                               BoxShadow(
-                                color: Color(0x593C8A60), // rgba(46,138,96,.35)
+                                color: AppColors.stockDown.withValues(alpha: 0.349), // rgba(46,138,96,.35)
                                 blurRadius: 0,
                                 spreadRadius: 2,
                               ),
@@ -8036,7 +8095,7 @@ class _RecordKeypad extends StatelessWidget {
       height: 196,
       child: GridView.count(
         crossAxisCount: 4,
-        physics: const NeverScrollableScrollPhysics(),
+        physics: NeverScrollableScrollPhysics(),
         crossAxisSpacing: AppDimens.spaceSm,
         mainAxisSpacing: AppDimens.spaceSm,
         childAspectRatio: 2.0,
@@ -8112,9 +8171,9 @@ class _Digit extends StatelessWidget {
         color: ForestSurface.card,
         border: Border.all(color: ForestNeutral.hairline),
         borderRadius: BorderRadius.circular(14),
-        boxShadow: const <BoxShadow>[
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Color(0x0F3C3728), // rgba(60,55,40,.06)
+            color: AppColors.ink.withValues(alpha: 0.059), // rgba(60,55,40,.06)
             offset: Offset(0, 1),
             blurRadius: 3,
           ),
@@ -8161,7 +8220,7 @@ class _KeyAction extends StatelessWidget {
     final bool isSave = label == '保存';
     final bool isAgain = label == '再记';
     final Color contentColor = isSave
-        ? Colors.white
+        ? Theme.of(context).colorScheme.onPrimary
         : isAgain
             ? ForestNeutral.textSecondary
             : active
@@ -8180,19 +8239,19 @@ class _KeyAction extends StatelessWidget {
             : Border.all(color: ForestNeutral.hairline),
         borderRadius: BorderRadius.circular(14),
         boxShadow: isSave
-            ? const <BoxShadow>[
+            ? <BoxShadow>[
                 // 设计稿 0 6px 14px rgba(95,154,110,.38)
                 BoxShadow(
-                  color: Color(0x615F9A6E),
+                  color: AppColors.sage600.withValues(alpha: 0.38),
                   offset: Offset(0, 6),
                   blurRadius: 14,
                 ),
               ]
             : isAgain
                 ? null
-                : const <BoxShadow>[
+                : <BoxShadow>[
                     BoxShadow(
-                      color: Color(0x0F3C3728),
+                      color: AppColors.ink.withValues(alpha: 0.059),
                       offset: Offset(0, 1),
                       blurRadius: 3,
                     ),
@@ -8298,7 +8357,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                       child: const Icon(
                         Icons.close,
                         size: 16,
-                        color: Color(0xFF6A7263),
+                        color: AppColors.ink3,
                       ),
                     ),
                   ),
@@ -8308,7 +8367,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                   style: TextStyle(
                     fontSize: 16.5,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF2C3329),
+                    color: AppColors.ink,
                     letterSpacing: 0.02,
                   ),
                 ),
@@ -8328,7 +8387,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                         style: TextStyle(
                           fontSize: 13.5,
                           height: 1.8,
-                          color: Color(0xFF6A7263),
+                          color: AppColors.ink3,
                         ),
                       ),
                     )
@@ -8360,7 +8419,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
           const SizedBox(height: 10),
           Text(
             _paths.isEmpty ? '最多选择9张图片' : '已选 ${_paths.length}/9 张图片',
-            style: const TextStyle(fontSize: 11.5, color: Color(0xFF9AA091)),
+            style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
           ),
           const SizedBox(height: 8),
           // 照片（默认选中）
@@ -8372,7 +8431,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
               Navigator.of(context).pop(ImageSource.gallery);
             },
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           // 拍照
           _imageModeButton(
             label: '拍照',
@@ -8405,9 +8464,9 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
           transform: Matrix4.translationValues(0, -8, 0),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            boxShadow: const <BoxShadow>[
+            boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Color(0x552E5B39),
+                color: AppColors.sage800.withValues(alpha: 0.333),
                 blurRadius: 16,
                 offset: Offset(0, 7),
               ),
@@ -8446,14 +8505,14 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
           final bool hovered = candidate.isNotEmpty;
           return AnimatedScale(
             scale: hovered ? 1.04 : 1.0,
-            duration: const Duration(milliseconds: 120),
+            duration: Duration(milliseconds: 120),
             child: DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 border: hovered
                     ? Border.all(color: ForestGreen.deep, width: 2.5)
                     : null,
-                color: hovered ? const Color(0x1A3C8A60) : null,
+                color: hovered ? AppColors.stockDown.withValues(alpha: 0.102) : null,
               ),
               child: _thumb(path),
             ),
@@ -8477,10 +8536,10 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
               fit: BoxFit.cover,
               errorBuilder: (_, Object e, StackTrace? st) => Container(
                 color: ForestBg.sunken,
-                child: const Icon(
+                child: Icon(
                   Icons.broken_image_outlined,
                   size: 22,
-                  color: Color(0xFF9AA091),
+                  color: AppColors.ink3,
                 ),
               ),
             ),
@@ -8502,7 +8561,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                 shape: BoxShape.circle,
                 border: Border.all(color: ForestBg.paper, width: 1.5),
               ),
-              child: const Icon(Icons.close, size: 12, color: Colors.white),
+              child: Icon(Icons.close, size: 12, color: Theme.of(context).colorScheme.onPrimary),
             ),
           ),
         ),
@@ -8530,9 +8589,9 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
             color: selected ? null : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
             boxShadow: selected
-                ? const <BoxShadow>[
+                ? <BoxShadow>[
                     BoxShadow(
-                      color: Color(0x333C8A60),
+                      color: AppColors.stockDown.withValues(alpha: 0.2),
                       blurRadius: 12,
                       offset: Offset(0, 4),
                     ),
@@ -8545,7 +8604,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
               style: TextStyle(
                 fontSize: selected ? 15.5 : 14.5,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                color: selected ? Colors.white : ForestSage.label,
+                color: selected ? Theme.of(context).colorScheme.onPrimary : ForestSage.label,
                 letterSpacing: selected ? 0.06 : 0.04,
               ),
             ),
@@ -8561,7 +8620,7 @@ class _DashedRoundedCard extends StatelessWidget {
   const _DashedRoundedCard({
     required this.child,
     this.radius = 14,
-    this.color = const Color(0xFFD8CBB2),
+    this.color = AppColors.sandMuted,
     this.strokeWidth = 1.6,
   });
 
@@ -8644,7 +8703,10 @@ class _TransferFlowRibbon extends StatelessWidget {
     return AnimatedBuilder(
       animation: progress,
       builder: (BuildContext context, Widget? child) => CustomPaint(
-        painter: _TransferFlowRibbonPainter(t: progress.value),
+        painter: _TransferFlowRibbonPainter(
+          t: progress.value,
+          surface: Theme.of(context).colorScheme.surface,
+        ),
         size: Size.infinite,
       ),
     );
@@ -8652,13 +8714,16 @@ class _TransferFlowRibbon extends StatelessWidget {
 }
 
 class _TransferFlowRibbonPainter extends CustomPainter {
-  _TransferFlowRibbonPainter({required this.t});
+  _TransferFlowRibbonPainter({required this.t, required this.surface});
 
   /// 0..1 循环相位：驱动光点流动与节点脉动。
   final double t;
 
-  static const Color _sage1 = Color(0xFF93BF9A);
-  static const Color _sage2 = Color(0xFF5F9A6E);
+  /// 高光芯 / 光点使用的表面色（由调用方自主题取）。
+  final Color surface;
+
+  static const Color _sage1 = AppColors.sageMist;
+  static const Color _sage2 = AppColors.sageRibbon;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -8666,7 +8731,7 @@ class _TransferFlowRibbonPainter extends CustomPainter {
     // 落点在头像内侧边缘（黄点示意）：头像 48px、卡片水平内边距 14 →
     // 转出卡头像右缘 x=14+48=62，转入卡头像左缘 x=w-62；y 取头像垂直中心
     // （卡高 74 垂直居中 → 37 / 121）。
-    final Offset p0 = const Offset(62, 37);
+    final Offset p0 = Offset(62, 37);
     final Offset p1 = Offset(w - 62, 121);
     final Path path = Path()
       ..moveTo(p0.dx, p0.dy)
@@ -8685,7 +8750,7 @@ class _TransferFlowRibbonPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 5
       ..strokeCap = StrokeCap.round
-      ..shader = const LinearGradient(colors: <Color>[_sage1, _sage2])
+      ..shader = LinearGradient(colors: <Color>[_sage1, _sage2])
           .createShader(Rect.fromLTWH(0, 0, w, size.height));
     canvas.drawPath(path, base);
 
@@ -8694,7 +8759,7 @@ class _TransferFlowRibbonPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.8
       ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withValues(alpha: 0.45);
+      ..color = surface.withValues(alpha: 0.45);
     canvas.drawPath(path, core);
 
     // 光点：沿路径的白色短划线，相位随动画推进形成「续流」。
@@ -8713,7 +8778,7 @@ class _TransferFlowRibbonPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
       ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withValues(alpha: 0.95);
+      ..color = surface.withValues(alpha: 0.95);
     canvas.drawPath(dots, dotPaint);
   }
 
@@ -9007,7 +9072,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                _buildAmountCard(),
+                _buildAmountCard(context),
                 const SizedBox(height: 18),
                 _label('总AA人数'),
                 const SizedBox(height: 10),
@@ -9084,7 +9149,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
   }
 
   // ── 总金额卡：总金额 + 每人均 + 本次收款(约) + 取整胶囊 ─────────
-  Widget _buildAmountCard() {
+  Widget _buildAmountCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -9120,7 +9185,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -9181,7 +9246,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
               Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
@@ -9339,12 +9404,12 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
             ),
             borderRadius: BorderRadius.circular(999),
           ),
-          child: const Text(
+          child: Text(
             '确认',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
             ),
           ),
         ),

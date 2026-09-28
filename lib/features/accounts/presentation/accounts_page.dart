@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -963,7 +963,7 @@ class _NetAssetsHeader extends StatelessWidget {
           Text(
             '净资产',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.85),
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
             ),
           ),
           const SizedBox(height: AppDimens.spaceXs),

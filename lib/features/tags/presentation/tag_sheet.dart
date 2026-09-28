@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
@@ -214,7 +215,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       child: const Icon(
                         Icons.close,
                         size: 16,
-                        color: Color(0xFF6A7263),
+                        color: AppColors.ink3,
                       ),
                     ),
                   ),
@@ -224,7 +225,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF2C3329),
+                    color: AppColors.ink,
                     letterSpacing: 0.02,
                   ),
                 ),
@@ -246,7 +247,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2C3329),
+                        color: AppColors.ink,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: const Text(
@@ -254,7 +255,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFFF4EFDF),
+                          color: AppColors.creamSoft,
                         ),
                       ),
                     ),
@@ -287,7 +288,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
             ),
             child: Row(
               children: <Widget>[
-                const Icon(Icons.search, size: 18, color: Color(0xFF9AA091)),
+                const Icon(Icons.search, size: 18, color: AppColors.ink3),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -299,7 +300,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       focusedBorder: InputBorder.none,
                       hintText: '搜索标签',
                       hintStyle:
-                          TextStyle(fontSize: 14, color: Color(0xFF9AA091)),
+                          TextStyle(fontSize: 14, color: AppColors.ink3),
                       border: InputBorder.none,
                       isCollapsed: true,
                       contentPadding: EdgeInsets.symmetric(vertical: 8),
@@ -316,7 +317,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                     child: const Icon(
                       Icons.close,
                       size: 16,
-                      color: Color(0xFF9AA091),
+                      color: AppColors.ink3,
                     ),
                   ),
               ],
@@ -352,11 +353,11 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       : '已选 ${_current.length} 个标签'),
               style: const TextStyle(
                 fontSize: 12.5,
-                color: Color(0xFF2E6B49),
+                color: AppColors.deepGreen,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const Spacer(),
+            Spacer(),
             SizedBox(
               height: 36,
               child: InkWell(
@@ -368,9 +369,9 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   decoration: BoxDecoration(
                     gradient: ForestGradients.sageMid,
                     borderRadius: BorderRadius.circular(999),
-                    boxShadow: const <BoxShadow>[
+                    boxShadow: <BoxShadow>[
                       BoxShadow(
-                        color: Color(0x333C8A60),
+                        color: AppColors.stockDown.withValues(alpha: 0.2),
                         blurRadius: 12,
                         offset: Offset(0, 4),
                       ),
@@ -381,7 +382,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF2E5B39),
+                      color: AppColors.sageInk,
                     ),
                   ),
                 ),
@@ -416,7 +417,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
         child: Text(
           _query.isEmpty ? '没有发现标签哦，试着去添加一个~' : '未找到「$_query」相关标签',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 13.5, color: Color(0xFF9AA091)),
+          style: const TextStyle(fontSize: 13.5, color: AppColors.ink3),
         ),
       );
     }
@@ -484,7 +485,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF2C3329),
+                    color: AppColors.ink,
                   ),
                 ),
               ),
@@ -504,7 +505,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF2C3329),
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
@@ -538,9 +539,9 @@ class _TagSheetState extends ConsumerState<TagSheet> {
               ),
               child: Text(
                 'ⓘ「${g.category.name}」为标签分组，请添加具体的标签再使用哦~',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF6A7263),
+                  color: AppColors.ink3,
                   height: 1.7,
                 ),
               ),
@@ -579,9 +580,9 @@ class _TagChip extends StatelessWidget {
               ? null
               : Border.all(color: ForestNeutral.hairline),
           boxShadow: selected
-              ? const <BoxShadow>[
+              ? <BoxShadow>[
                   BoxShadow(
-                    color: Color(0x2A3C8A60),
+                    color: AppColors.stockDown.withValues(alpha: 0.165),
                     blurRadius: 8,
                     offset: Offset(0, 2),
                   ),
@@ -632,7 +633,7 @@ class _DashedDivider extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF9AA091)),
+            style: const TextStyle(fontSize: 12, color: AppColors.ink3),
           ),
         ),
         const Expanded(child: _HorizontalDashed()),
@@ -691,7 +692,7 @@ class _GlobalEmpty extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: Color(0xFF9AA091),
+              color: AppColors.ink3,
               height: 1.7,
             ),
           ),

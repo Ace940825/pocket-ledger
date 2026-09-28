@@ -6,4 +6,14 @@ part of 'tags_dao.dart';
 mixin _$TagsDaoMixin on DatabaseAccessor<AppDatabase> {
   $TagCategoriesTable get tagCategories => attachedDatabase.tagCategories;
   $TagsTable get tags => attachedDatabase.tags;
+  TagsDaoManager get managers => TagsDaoManager(this);
+}
+
+class TagsDaoManager {
+  final _$TagsDaoMixin _db;
+  TagsDaoManager(this._db);
+  $$TagCategoriesTableTableManager get tagCategories =>
+      $$TagCategoriesTableTableManager(_db.attachedDatabase, _db.tagCategories);
+  $$TagsTableTableManager get tags =>
+      $$TagsTableTableManager(_db.attachedDatabase, _db.tags);
 }

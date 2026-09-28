@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -112,12 +112,12 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
                   child: FilledButton(
                     onPressed: _saving ? null : _save,
                     child: _saving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           )
                         : const Text('保存'),
@@ -188,7 +188,7 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
           children: <Widget>[
             _ColorChip(
               selected: _selectedColorValue == null,
-              color: Colors.grey,
+              color: theme.colorScheme.onSurfaceVariant,
               onTap: () => setState(() => _selectedColorValue = null),
               isDefault: true,
             ),
@@ -238,7 +238,7 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
                       : AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                   border: Border.all(
-                    color: selected ? color : AppColors.divider,
+                    color: selected ? color : Theme.of(context).colorScheme.outline,
                   ),
                 ),
                 child: Center(
@@ -327,7 +327,7 @@ class _ColorChip extends StatelessWidget {
           border: Border.all(
             color: selected
                 ? Theme.of(context).colorScheme.onSurface
-                : AppColors.divider,
+                : Theme.of(context).colorScheme.outline,
             width: selected ? 2.5 : 1,
           ),
         ),
@@ -340,7 +340,7 @@ class _ColorChip extends StatelessWidget {
                 size: 20,
               )
             : (selected
-                ? const Icon(Icons.check, color: Colors.white, size: 20)
+                ? Icon(Icons.check, color: Theme.of(context).colorScheme.onPrimary, size: 20)
                 : null),
       ),
     );

@@ -11,6 +11,7 @@ import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
 import '../data/investment_repository.dart';
 import '../providers/investment_providers.dart';
+import '../../../theme/theme.dart';
 
 /// 投资页：持仓列表 + 组合盈亏汇总。
 ///
@@ -49,11 +50,12 @@ class _PortfolioSummaryCard extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
 
     // 中国区习惯：涨用红、跌用绿。
+    final bool isDark = theme.brightness == Brightness.dark;
     final Color profitColor = summary.profitMinor > 0
-        ? const Color(0xFFE53935)
+        ? AppColors.stock(true, dark: isDark)
         : summary.profitMinor < 0
-            ? const Color(0xFF43A047)
-            : theme.textTheme.bodyMedium?.color ?? Colors.grey;
+            ? AppColors.stock(false, dark: isDark)
+            : theme.textTheme.bodyMedium?.color ?? theme.colorScheme.onSurfaceVariant;
 
     return Card(
       margin: const EdgeInsets.all(12),
@@ -134,11 +136,12 @@ class _HoldingTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final int profit = holding.profitMinor;
+    final bool isDark = theme.brightness == Brightness.dark;
     final Color profitColor = profit > 0
-        ? const Color(0xFFE53935)
+        ? AppColors.stock(true, dark: isDark)
         : profit < 0
-            ? const Color(0xFF43A047)
-            : Colors.grey;
+            ? AppColors.stock(false, dark: isDark)
+            : theme.colorScheme.onSurfaceVariant;
 
     return ListTile(
       title: Text('${holding.symbol}  ${holding.name}'),

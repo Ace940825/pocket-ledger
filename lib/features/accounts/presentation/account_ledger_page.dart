@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/utils/date_utils.dart';
@@ -459,7 +459,7 @@ class _AccountCardHeader extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final bool isDark = theme.brightness == Brightness.dark;
     final bool isDebt = account.type.isDebt;
-    final Color cardColor = isDark ? const Color(0xFF1B1F24) : Colors.white;
+    final Color cardColor = theme.colorScheme.surface;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -474,7 +474,7 @@ class _AccountCardHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppDimens.radiusLg),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.045),
+              color: Theme.of(context).colorScheme.shadow.withValues(alpha: isDark ? 0.28 : 0.045),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),

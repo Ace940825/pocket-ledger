@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:pocket_ledger/core/constants/app_colors.dart';
+import 'package:pocket_ledger/theme/app_colors.dart';
 import 'package:pocket_ledger/shared/models/money.dart';
 import 'package:pocket_ledger/shared/widgets/animated_money_text.dart';
 

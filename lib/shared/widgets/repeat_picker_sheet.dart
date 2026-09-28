@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/constants/app_colors.dart';
+import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
 import '../../features/installment/domain/repeat_rule.dart';
 
@@ -144,8 +144,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
       child: SafeArea(
         bottom: false,
         child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(AppDimens.radiusLg),
             ),
@@ -190,7 +190,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                       onPressed: () => Navigator.of(context).pop(_result),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius:
@@ -265,7 +265,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                 child: Text(
                   _unitLabels[unit.index],
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: selected ? Colors.white : AppColors.textPrimary,
+                    color: selected ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
@@ -296,9 +296,9 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           width: 56,
           height: 40,
           alignment: Alignment.center,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border.symmetric(
-              horizontal: BorderSide(color: AppColors.divider),
+              horizontal: BorderSide(color: Theme.of(context).colorScheme.outline),
             ),
           ),
           child: TextField(
@@ -353,7 +353,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.divider),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
           borderRadius: const BorderRadius.horizontal(
             left: Radius.zero,
             right: Radius.zero,
@@ -362,7 +362,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         child: Icon(
           icon,
           size: 18,
-          color: onTap == null ? AppColors.divider : AppColors.textSecondary,
+          color: onTap == null ? Theme.of(context).colorScheme.outline : AppColors.textSecondary,
         ),
       ),
     );
@@ -558,7 +558,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.textPrimary,
+            color: selected ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
             fontSize: fontSize,
             height: 1.0,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 
 /// 标签模块专用的轻量 toast：基于 Overlay。
 ///
@@ -40,7 +41,7 @@ void showTagToast(
               padding:
                   const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
               decoration: BoxDecoration(
-                color: const Color(0xEB262B24),
+                color: AppColors.sage900.withValues(alpha: 0.922),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
@@ -50,7 +51,7 @@ void showTagToast(
                 softWrap: false,
                 overflow: TextOverflow.fade,
                 style: const TextStyle(
-                  color: Color(0xFFF4EFDF),
+                  color: AppColors.creamSoft,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   height: 1.2,

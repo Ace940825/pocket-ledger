@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
@@ -262,7 +262,7 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
-          top: BorderSide(color: AppColors.divider),
+          top: BorderSide(color: Theme.of(context).colorScheme.outline),
         ),
       ),
       child: Row(
@@ -451,7 +451,7 @@ class _SelectionCircle extends StatelessWidget {
         ),
       ),
       child: selected
-          ? const Icon(Icons.check, size: 14, color: Colors.white)
+          ? Icon(Icons.check, size: 14, color: Theme.of(context).colorScheme.onPrimary)
           : null,
     );
   }

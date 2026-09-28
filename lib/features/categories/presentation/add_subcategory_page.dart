@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -112,12 +112,12 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
                   child: FilledButton(
                     onPressed: _saving ? null : _save,
                     child: _saving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           )
                         : const Text('保存'),
@@ -137,7 +137,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
       decoration: BoxDecoration(
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: Row(
         children: <Widget>[
@@ -227,7 +227,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
                   : AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               border: Border.all(
-                color: selected ? color : AppColors.divider,
+                color: selected ? color : Theme.of(context).colorScheme.outline,
               ),
             ),
             child: Center(

@@ -112,7 +112,7 @@ class InstallmentDetailPage extends ConsumerWidget {
                 subtitle: Text(
                   '到期 ${formatDueDate(p.dueAt)}${overdue ? ' · 已逾期' : ''}',
                   style: overdue
-                      ? const TextStyle(color: Color(0xFFE53935))
+                      ? TextStyle(color: Theme.of(context).colorScheme.error)
                       : null,
                 ),
                 secondary: Text(

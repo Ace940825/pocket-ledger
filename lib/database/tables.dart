@@ -245,6 +245,10 @@ class SavingsGoals extends Table with SyncColumns {
   TextColumn get note => text().nullable()();
   BoolColumn get isAchieved => boolean().withDefault(const Constant(false))();
 
+  /// 是否已归档（停止的计划）。归档目标移入储蓄页「归档」Tab，
+  /// 不再出现在「计划」列表，可随时恢复。
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => <Column>{id};
 }

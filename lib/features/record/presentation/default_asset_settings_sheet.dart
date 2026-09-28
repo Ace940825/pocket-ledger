@@ -8,6 +8,7 @@
 /// 从 [AccountPickerSheet] 标题栏齿轮键打开（区别于记账页面设置）。
 
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -61,7 +62,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                   height: 4 * s,
                   margin: EdgeInsets.only(top: 10 * s),
                   decoration: BoxDecoration(
-                    color: const Color(0x382E5B39),
+                    color: AppColors.sage800.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -119,7 +120,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
               Container(
                 decoration: BoxDecoration(
                   color: ForestSurface.card,
-                  border: Border.all(color: const Color(0x122C3329)),
+                  border: Border.all(color: AppColors.sage900.withValues(alpha: 0.071)),
                   borderRadius: BorderRadius.circular(16 * s),
                 ),
                 child: Column(
@@ -177,7 +178,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
   }
 
   Widget _hairline(double s) => Divider(
-      height: 1, thickness: 1, color: const Color(0x1A2E5B39), indent: 14 * s);
+      height: 1, thickness: 1, color: AppColors.sage800.withValues(alpha: 0.102), indent: 14 * s);
 
   /// 二级弹窗：完整版账户选择列表（无齿轮键），点卡片直接确认返回。
   Future<void> _pickDefaultAccount(BuildContext context, WidgetRef ref) async {
@@ -324,7 +325,7 @@ class _SettingRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11 * s,
                     height: 1.5,
-                    color: const Color(0xFF8B8571),
+                    color: AppColors.ink3,
                   ),
                 ),
               ],
@@ -357,8 +358,8 @@ class _ValuePill extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 5 * s),
         decoration: BoxDecoration(
-          color: const Color(0xFFEFF5E6),
-          border: Border.all(color: const Color(0x4D4FAE80)),
+          color: AppColors.mintSurface,
+          border: Border.all(color: AppColors.stockDown.withValues(alpha: 0.302)),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(

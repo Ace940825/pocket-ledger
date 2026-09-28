@@ -10,6 +10,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_dimens.dart';
@@ -33,20 +34,20 @@ List<Account> fundAccountsOnly(List<Account> list) => list
 
 class _SheetA {
   // 卡片描边 rgba(44,51,41,.07)
-  static const Color cardBorder = Color(0x122C3329);
+  static Color cardBorder = AppColors.sage900.withValues(alpha: 0.071);
   // 选中卡边框 rgba(46,91,57,.25)
-  static const Color selBorder = Color(0x402E5B39);
+  static Color selBorder = AppColors.sage800.withValues(alpha: 0.251);
   // 选中卡阴影 rgba(60,138,96,.20)
-  static const List<BoxShadow> selShadow = <BoxShadow>[
-    BoxShadow(color: Color(0x33408A60), blurRadius: 14, offset: Offset(0, 4)),
+  static List<BoxShadow> selShadow = <BoxShadow>[
+    BoxShadow(color: AppColors.stockDown.withValues(alpha: 0.2), blurRadius: 14, offset: Offset(0, 4)),
   ];
   // 选中态加深余额色（浅绿底保证对比）
-  static const Color selPos = Color(0xFF1F7A4A);
-  static const Color selNeg = Color(0xFFC24C3F);
+  static const Color selPos = AppColors.pickerGreen;
+  static const Color selNeg = AppColors.pickerRed;
   // 关闭按钮灰绿（= transfer）
-  static const Color closeIcon = Color(0xFF8C9A86);
+  static const Color closeIcon = AppColors.ink3;
   // 次要文字
-  static const Color dueText = Color(0xFF6B7565);
+  static const Color dueText = AppColors.ink3;
 }
 
 // ───────────────────── Bottom Sheet 组件 ─────────────────────
@@ -185,7 +186,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
     return ScrollConfiguration(
       behavior: behavior,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: ForestBg.paper,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           boxShadow: ForestElevation.sheet,
@@ -201,7 +202,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(top: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0x382E5B39),
+                  color: AppColors.sage800.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -221,8 +222,8 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFAEDE3),
-                            border: Border.all(color: const Color(0xFFE4C4A8)),
+                            color: AppColors.pickerCream,
+                            border: Border.all(color: AppColors.pickerClay),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -230,7 +231,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                               const Icon(
                                 Icons.info_outline,
                                 size: 15,
-                                color: Color(0xFF9C5B33),
+                                color: AppColors.clayBrown,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -239,7 +240,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                                   style: const TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF9C5B33),
+                                    color: AppColors.clayBrown,
                                   ),
                                 ),
                               ),
@@ -334,7 +335,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
           height: bodyHeight,
           child: ListView.separated(
             itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(
+            separatorBuilder: (_, __) => Divider(
               height: 1,
               indent: 56,
             ),
@@ -404,7 +405,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
           decoration: BoxDecoration(
             color: ForestBg.sunken,
             border: Border.all(
-              color: selected ? ForestGreen.deep : const Color(0x242C3329),
+              color: selected ? ForestGreen.deep : AppColors.sage900.withValues(alpha: 0.141),
               width: 1,
             ),
             borderRadius: BorderRadius.circular(14),
@@ -615,7 +616,7 @@ class _AccountTile extends StatelessWidget {
       child: Stack(
         children: <Widget>[
           card,
-          const Positioned(
+          Positioned(
             top: 10,
             right: 12,
             child: SizedBox(
@@ -679,7 +680,7 @@ class _CardInner extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
           decoration: BoxDecoration(
-            color: selected ? const Color(0x8CFFFFFF) : ForestGreen.soft,
+            color: selected ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.549) : ForestGreen.soft,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
@@ -752,11 +753,11 @@ class _CardInner extends StatelessWidget {
       ),
       child: Text(
         '可用 ${available.format()}',
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
           height: 1.2,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF8A7B5C),
+          color: AppColors.inkWarm,
           fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
         ),
       ),
@@ -787,7 +788,7 @@ class _AccountAvatar extends StatelessWidget {
       ),
       child: Icon(
         _accountIcon(account.type),
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.onPrimary,
         size: 22,
       ),
     );
@@ -865,9 +866,9 @@ class _PillBtn extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(999),
           boxShadow: isPrimary
-              ? const <BoxShadow>[
+              ? <BoxShadow>[
                   BoxShadow(
-                    color: Color(0x473C8A60),
+                    color: AppColors.stockDown.withValues(alpha: 0.278),
                     blurRadius: 12,
                     offset: Offset(0, 4),
                   ),
@@ -880,7 +881,7 @@ class _PillBtn extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: isPrimary ? Colors.white : ForestGreen.label,
+              color: isPrimary ? Theme.of(context).colorScheme.onPrimary : ForestGreen.label,
             ),
           ),
         ),
@@ -917,9 +918,9 @@ class _OpBtn extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(13),
               boxShadow: primary
-                  ? const <BoxShadow>[
+                  ? <BoxShadow>[
                       BoxShadow(
-                        color: Color(0x473C8A60),
+                        color: AppColors.stockDown.withValues(alpha: 0.278),
                         blurRadius: 12,
                         offset: Offset(0, 4),
                       ),
@@ -932,7 +933,7 @@ class _OpBtn extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: primary ? Colors.white : ForestGreen.label,
+                  color: primary ? Theme.of(context).colorScheme.onPrimary : ForestGreen.label,
                 ),
               ),
             ),

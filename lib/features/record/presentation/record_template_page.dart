@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
@@ -180,7 +181,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
             color: ForestNeutral.textPrimary,
           ),
         ),
-        content: const Text(
+        content: Text(
           '模板用于经常购买或常记的账单，如每天买水 2 元，可将固定支出保存为模板，套用时自动填充账户、分类、备注、标签与开关，快速完成记账（金额需手动输入）。',
           style: TextStyle(
             fontSize: 13.5,
@@ -191,7 +192,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
+            child: Text(
               '知道了',
               style: TextStyle(
                 color: ForestGreen.deep,
@@ -205,7 +206,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
   }
 
   /// 胶囊筛选 chip（奶油卡 + 发丝线 / 渐变选中 · 设计稿 6px 14px · 圆角 999）。
-  Widget _pill({
+  Widget _pill(BuildContext context, {
     required String label,
     required bool on,
     required VoidCallback onTap,
@@ -223,9 +224,9 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
             color: on ? Colors.transparent : ForestNeutral.hairline,
           ),
           boxShadow: on
-              ? const <BoxShadow>[
+              ? <BoxShadow>[
                   BoxShadow(
-                    color: Color(0x473F8A60),
+                    color: AppColors.stockDown.withValues(alpha: 0.278),
                     blurRadius: 8,
                     offset: Offset(0, 3),
                   ),
@@ -237,7 +238,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: on ? FontWeight.w700 : FontWeight.w500,
-            color: on ? Colors.white : ForestNeutral.textSecondary,
+            color: on ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.textSecondary,
           ),
         ),
       ),
@@ -301,11 +302,11 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(20, 2, 20, 14),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: <Color>[Color(0xFFE9F1E2), ForestBg.paper],
+                    colors: <Color>[AppColors.mintWhisper, ForestBg.paper],
                   ),
                 ),
                 child: Column(
@@ -321,7 +322,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
                             shape: BoxShape.circle,
                             border: Border.all(color: ForestNeutral.hairline),
                           ),
@@ -333,7 +334,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     // 头卡：徽章 + 标题/副标题 + 帮助钮
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -344,9 +345,9 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                         color: ForestSurface.card,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: ForestNeutral.hairline),
-                        boxShadow: const <BoxShadow>[
+                        boxShadow: <BoxShadow>[
                           BoxShadow(
-                            color: Color(0x0D2C3329),
+                            color: AppColors.sage900.withValues(alpha: 0.051),
                             blurRadius: 14,
                             offset: Offset(0, 4),
                           ),
@@ -404,7 +405,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                 color: ForestBg.sunken,
                                 borderRadius: BorderRadius.circular(999),
                               ),
-                              child: const Text(
+                              child: Text(
                                 '帮助',
                                 style: TextStyle(
                                   fontSize: 12,
@@ -417,7 +418,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     // 虚线说明卡（可折叠，1px 沙色虚线 · 设计稿 --sand #EDE4D2）
                     CustomPaint(
                       painter: const _NoteDashedBorderPainter(),
@@ -428,7 +429,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                         child: Container(
                           padding: const EdgeInsets.fromLTRB(12, 10, 26, 10),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.6),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Row(
@@ -439,7 +440,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                 child: Icon(
                                   Icons.info_outline,
                                   size: 15,
-                                  color: Color(0xFF5F9A6E),
+                                  color: AppColors.sageRibbon,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -488,7 +489,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                   child: Row(
                     children: <Widget>[
                       const Icon(Icons.search,
-                          size: 16, color: Color(0xFF9AA091)),
+                          size: 16, color: AppColors.ink3),
                       const SizedBox(width: 9),
                       Expanded(
                         child: TextField(
@@ -500,7 +501,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                             hintText: '支持分类备注金额搜索',
                             hintStyle: TextStyle(
                               fontSize: 13.5,
-                              color: Color(0xFF9AA091),
+                              color: AppColors.ink3,
                             ),
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
@@ -518,7 +519,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                           child: const Icon(
                             Icons.close,
                             size: 15,
-                            color: Color(0xFF9AA091),
+                            color: AppColors.ink3,
                           ),
                         ),
                     ],
@@ -548,7 +549,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                             for (int i = 0;
                                 i < _condLabels.length;
                                 i++) ...<Widget>[
-                              _pill(
+                              _pill(context,
                                 label: _condLabels[i],
                                 on: _condFilter.contains(i),
                                 onTap: () => setState(() {
@@ -581,7 +582,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                       const SizedBox(width: 8),
                   itemBuilder: (BuildContext ctx, int i) {
                     final bool on = i == _typeFilter;
-                    return _pill(
+                    return _pill(context,
                       label: _typeLabels[i],
                       on: on,
                       onTap: () => setState(() => _typeFilter = i),
@@ -633,8 +634,8 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                   SlidableAction(
                                     onPressed: (BuildContext _) =>
                                         _editTemplate(t),
-                                    backgroundColor: const Color(0xFF4C8D6B),
-                                    foregroundColor: Colors.white,
+                                    backgroundColor: AppColors.sageLeaf,
+                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                     icon: Icons.edit_outlined,
                                     label: '编辑',
                                     spacing: 2,
@@ -643,7 +644,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                     onPressed: (BuildContext _) =>
                                         _remove(t),
                                     backgroundColor: ForestSemantic.expense,
-                                    foregroundColor: Colors.white,
+                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                     icon: Icons.delete_outline,
                                     label: '删除',
                                     spacing: 2,
@@ -668,7 +669,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
               ),
               // 底部渐变「添加」长钮
               Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border:
                       Border(top: BorderSide(color: ForestNeutral.hairline)),
                 ),
@@ -687,21 +688,21 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                           decoration: BoxDecoration(
                             gradient: ForestGradients.sageMid,
                             borderRadius: BorderRadius.circular(999),
-                            boxShadow: const <BoxShadow>[
+                            boxShadow: <BoxShadow>[
                               BoxShadow(
-                                color: Color(0x523F8A60),
+                                color: AppColors.stockDown.withValues(alpha: 0.322),
                                 blurRadius: 16,
                                 offset: Offset(0, 6),
                               ),
                             ],
                           ),
-                          child: const Text(
+                          child: Text(
                             '添加',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 2,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           ),
                         ),
@@ -736,7 +737,7 @@ class _NoteDashedBorderPainter extends CustomPainter {
     );
     final Path path = Path()..addRRect(rrect);
     final Paint paint = Paint()
-      ..color = const Color(0xFFEDE4D2)
+      ..color = AppColors.sandWarm
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     const double dash = 6;
@@ -817,7 +818,7 @@ class RecordTemplateCard extends ConsumerWidget {
           signed: true, style: const TextStyle(fontSize: 15)),
       _ => Text(
           '¥${money.format(showSymbol: false)}',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
             color: ForestNeutral.textPrimary,
@@ -883,9 +884,9 @@ class RecordTemplateCard extends ConsumerWidget {
     final Map<String, Category> categories =
         ref.watch(categoryMapProvider).valueOrNull ?? const <String, Category>{};
     final (IconData icon, Color tint) = _iconStyle(categories);
-    final Color onCard = selected ? Colors.white : ForestNeutral.textPrimary;
+    final Color onCard = selected ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.textPrimary;
     final Color faintOnCard = selected
-        ? Colors.white.withValues(alpha: 0.8)
+        ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.8)
         : ForestNeutral.textTertiary;
 
     // 副行与流水条目同构：「账户（或摘要）  MM-dd HH:mm  备注」。
@@ -905,14 +906,14 @@ class RecordTemplateCard extends ConsumerWidget {
           height: iconEdge,
           decoration: BoxDecoration(
             color: selected
-                ? Colors.white.withValues(alpha: 0.22)
+                ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.22)
                 : tint.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(iconRadius),
           ),
           child: Icon(
             icon,
             size: 22,
-            color: selected ? Colors.white : tint,
+            color: selected ? Theme.of(context).colorScheme.onPrimary : tint,
           ),
         ),
         const SizedBox(width: 12),
@@ -945,10 +946,10 @@ class RecordTemplateCard extends ConsumerWidget {
         selected
             ? Text(
                 _signedAmountText(),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onPrimary,
                 ),
               )
             : _amountWidget(),
@@ -966,13 +967,13 @@ class RecordTemplateCard extends ConsumerWidget {
           borderRadius: BorderRadius.circular(radius),
           border: selected
               ? Border.all(color: Colors.transparent)
-              : const Border(
+              : Border(
                   bottom: BorderSide(color: ForestNeutral.hairline),
                 ),
           boxShadow: selected
-              ? const <BoxShadow>[
+              ? <BoxShadow>[
                   BoxShadow(
-                    color: Color(0x4D3F8A60),
+                    color: AppColors.stockDown.withValues(alpha: 0.302),
                     blurRadius: 16,
                     offset: Offset(0, 6),
                   ),

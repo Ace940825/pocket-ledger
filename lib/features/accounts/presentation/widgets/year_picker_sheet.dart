@@ -124,7 +124,7 @@ class _YearChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final Color unselectedBg = theme.brightness == Brightness.dark
-        ? const Color(0xFF2A2E33)
+        ? theme.colorScheme.surface
         : ForestBg.sunken;
 
     return InkWell(
@@ -145,7 +145,7 @@ class _YearChip extends StatelessWidget {
         child: Text(
           '$year年',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: selected ? Colors.white : ForestNeutral.textPrimary,
+            color: selected ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.textPrimary,
             fontWeight: selected ? FontWeight.w800 : FontWeight.normal,
           ),
         ),

@@ -15,3 +15,11 @@ final StreamProvider<List<SavingsGoal>> savingsListProvider =
       .watch(savingsRepositoryProvider)
       .watch(ref.watch(currentBookIdProvider)),
 );
+
+/// 「归档」Tab：已归档（停止）的储蓄计划。
+final StreamProvider<List<SavingsGoal>> savingsArchivedProvider =
+    StreamProvider<List<SavingsGoal>>(
+  (Ref ref) => ref
+      .watch(savingsRepositoryProvider)
+      .watchArchived(ref.watch(currentBookIdProvider)),
+);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
@@ -105,7 +106,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: <Color>[Color(0xFFE9F1E2), ForestBg.paper],
+                colors: <Color>[AppColors.mintWhisper, ForestBg.paper],
               ),
               borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
@@ -118,7 +119,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF5F9A6E).withValues(alpha: 0.35),
+                      color: AppColors.sageRibbon.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -176,7 +177,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                   ),
           ),
           if (list.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             _buildFooter(list),
           ],
         ],
@@ -200,7 +201,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                   height: 30,
                   decoration: BoxDecoration(
                     // 设计稿 .s-close：半透明白 + 发丝线（浮在晕染带上）。
-                    color: Colors.white.withValues(alpha: 0.75),
+                    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.75),
                     shape: BoxShape.circle,
                     border: Border.all(color: ForestNeutral.hairline),
                   ),
@@ -227,7 +228,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                 onTap: () async {
                   await Navigator.of(context).push<void>(
                     MaterialPageRoute<void>(
-                      builder: (BuildContext ctx) => const RecordTemplatePage(),
+                      builder: (BuildContext ctx) => RecordTemplatePage(),
                     ),
                   );
                   if (mounted) setState(() {});
@@ -242,9 +243,9 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                     // 设计稿 .s-add：深绿 #2E6B49 + 深绿投影。
                     color: ForestGreen.deep,
                     borderRadius: BorderRadius.circular(999),
-                    boxShadow: const <BoxShadow>[
+                    boxShadow: <BoxShadow>[
                       BoxShadow(
-                        color: Color(0x402E6B49),
+                        color: AppColors.ctaGreenDeep.withValues(alpha: 0.251),
                         blurRadius: 10,
                         offset: Offset(0, 3),
                       ),
@@ -255,7 +256,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFF4EFDF),
+                      color: AppColors.creamSoft,
                     ),
                   ),
                 ),
@@ -342,7 +343,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
                       color: enabled
-                          ? const Color(0xFFF4EFDF)
+                          ? AppColors.creamSoft
                           : ForestNeutral.textTertiary,
                     ),
                   ),

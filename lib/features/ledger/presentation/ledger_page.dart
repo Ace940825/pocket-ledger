@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_colors.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../database/app_database.dart';
@@ -59,7 +59,7 @@ class LedgerPage extends ConsumerWidget {
                         SlidableAction(
                           onPressed: (_) => _delete(context, ref, txn),
                           backgroundColor: AppColors.expense,
-                          foregroundColor: Colors.white,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
                           icon: Icons.delete_outline,
                           label: '删除',
                         ),

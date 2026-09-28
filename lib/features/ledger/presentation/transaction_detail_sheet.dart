@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -203,12 +204,12 @@ class TransactionDetailSheet extends ConsumerWidget {
         clipBehavior: Clip.none,
         children: <Widget>[
           // 角落 ❦ 水印（奶油卡上用浅鼠尾草调）
-          const Positioned(
+          Positioned(
             right: -8,
             bottom: -22,
             child: Text(
               '❦',
-              style: TextStyle(fontSize: 110, color: Color(0x14557E4C)),
+              style: TextStyle(fontSize: 110, color: AppColors.ctaGreen.withValues(alpha: 0.078)),
             ),
           ),
           Column(
@@ -820,7 +821,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                   border: Border.all(color: ForestGreen.softBorder),
                   borderRadius: BorderRadius.circular(ForestRadius.pill),
                 ),
-                child: const Text(
+                child: Text(
                   '关联',
                   style: TextStyle(
                     fontSize: 10,
@@ -1036,7 +1037,7 @@ class TransactionDetailSheet extends ConsumerWidget {
     for (int i = 0; i < rows.length; i++) {
       result.add(rows[i]);
       if (i < rows.length - 1) {
-        result.add(const Divider(
+        result.add(Divider(
           height: 1,
           thickness: 1,
           color: ForestNeutral.hairline,
@@ -1124,7 +1125,7 @@ class TransactionDetailSheet extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('删除',
+            child: Text('删除',
                 style: TextStyle(color: ForestSemantic.expense)),
           ),
         ],
@@ -1305,10 +1306,10 @@ class _JumpNav extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onPrimary,
             letterSpacing: 0.4,
           ),
         ),

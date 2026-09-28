@@ -41,3 +41,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# WorkBuddy 代理内部数据（非工程产物）
+.workbuddy/
+
+# 本仓库为 iOS-only 项目；windows/ 仅沙箱内本地验证曾临时生成，不纳入版本控制
+/windows/
+
+# Android Gradle 构建产物
+/android/build/

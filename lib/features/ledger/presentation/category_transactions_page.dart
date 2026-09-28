@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../../core/theme/forest_design_tokens.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
@@ -113,7 +113,7 @@ class _CategoryTransactionsPageState
                         _selectedMonth == null
                             ? '该分类下暂无账单'
                             : '该分类 ${month.year}年${month.month}月暂无账单',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13, color: AppColors.textTertiary),
                       ),
                     );
@@ -148,12 +148,12 @@ class _CategoryTransactionsPageState
               child: Container(
                 width: 38,
                 height: 38,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
                   shape: BoxShape.circle,
                   boxShadow: <BoxShadow>[
                     BoxShadow(
-                      color: Color(0x14000000),
+                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.078),
                       blurRadius: 8,
                       offset: Offset(0, 2),
                     ),
@@ -374,8 +374,8 @@ class _DayGroup extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(
@@ -385,7 +385,7 @@ class _DayGroup extends StatelessWidget {
                     Container(
                       height: 0.6,
                       margin: const EdgeInsets.only(left: 52),
-                      color: AppColors.divider,
+                      color: Theme.of(context).colorScheme.outline,
                     ),
                   TransactionTile(
                     transaction: items[i],

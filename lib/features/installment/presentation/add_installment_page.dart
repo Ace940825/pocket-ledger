@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -368,7 +368,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   }) {
     final OutlineInputBorder border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      borderSide: const BorderSide(color: AppColors.divider),
+      borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
     );
     // 当没有真实 prefixIcon 时，塞入一个透明占位，
     // 让普通输入框的内容区高度与带 ¥ 的输入框（prefixIcon 24×24）完全一致。
@@ -391,7 +391,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         minHeight: 24,
       ),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: Theme.of(context).colorScheme.surface,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppDimens.spaceMd,
         vertical: AppDimens.spaceXs / 2,
@@ -756,12 +756,12 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         onTap: () {},
         child: Row(
           children: <Widget>[
-            const CircleAvatar(
+            CircleAvatar(
               radius: 14,
               backgroundColor: AppColors.primary,
               child: Text(
                 '账',
-                style: TextStyle(color: Colors.white, fontSize: 12),
+                style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 12),
               ),
             ),
             const SizedBox(width: AppDimens.spaceSm),
@@ -888,9 +888,9 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         AppDimens.spaceLg,
         AppDimens.spaceLg,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppColors.divider)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline)),
       ),
       child: Row(
         children: <Widget>[
@@ -905,12 +905,12 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             child: FilledButton(
               onPressed: _saving ? null : _save,
               child: _saving
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     )
                   : const Text('保存'),

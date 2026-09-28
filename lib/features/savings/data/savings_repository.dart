@@ -17,17 +17,59 @@ class SavingsRepository {
 
   final AppDatabase _db;
 
+  /// 「计划」Tab：未归档目标（达标优先，其次按截止日）。
   Stream<List<SavingsGoal>> watch(String bookId) {
     return (_db.select(_db.savingsGoals)
           ..where(
             (SavingsGoals t) =>
-                t.bookId.equals(bookId) & t.deleted.equals(false),
+                t.bookId.equals(bookId) &
+                t.deleted.equals(false) &
+                t.isArchived.equals(false),
           )
           ..orderBy(<OrderClauseGenerator<SavingsGoals>>[
             (SavingsGoals t) => OrderingTerm.asc(t.isAchieved),
             (SavingsGoals t) => OrderingTerm.asc(t.deadlineAt),
           ]))
         .watch();
+  }
+
+  /// 「归档」Tab：已归档（停止）的目标。
+  Stream<List<SavingsGoal>> watchArchived(String bookId) {
+    return (_db.select(_db.savingsGoals)
+          ..where(
+            (SavingsGoals t) =>
+                t.bookId.equals(bookId) &
+                t.deleted.equals(false) &
+                t.isArchived.equals(true),
+          )
+          ..orderBy(<OrderClauseGenerator<SavingsGoals>>[
+            (SavingsGoals t) => OrderingTerm.desc(t.updatedAt),
+          ]))
+        .watch();
+  }
+
+  /// 归档 / 恢复目标（储蓄页「计划 ↔ 归档」双 Tab 联动）。
+  Future<void> setArchived(String id, {required bool archived}) async {
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      await (_db.update(_db.savingsGoals)
+            ..where((SavingsGoals t) => t.id.equals(id)))
+          .write(
+        SavingsGoalsCompanion(
+          isArchived: Value<bool>(archived),
+          updatedAt: Value<int>(now),
+          dirty: const Value<bool>(true),
+        ),
+      );
+      await enqueueSyncOp(
+        _db,
+        table: 'savings_goals',
+        recordId: id,
+        opType: SyncOpType.update,
+        updatedAt: now,
+        payload: <String, Object?>{'isArchived': archived},
+      );
+    });
   }
 
   Future<String> add({
