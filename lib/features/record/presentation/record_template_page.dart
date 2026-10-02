@@ -226,7 +226,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
           boxShadow: on
               ? <BoxShadow>[
                   BoxShadow(
-                    color: AppColors.stockDown.withValues(alpha: 0.278),
+                    color: AppPalette.stockDown.withValues(alpha: 0.278),
                     blurRadius: 8,
                     offset: Offset(0, 3),
                   ),
@@ -306,7 +306,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: <Color>[AppColors.mintWhisper, ForestBg.paper],
+                    colors: <Color>[AppPalette.mintWhisper, ForestBg.paper],
                   ),
                 ),
                 child: Column(
@@ -347,7 +347,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                         border: Border.all(color: ForestNeutral.hairline),
                         boxShadow: <BoxShadow>[
                           BoxShadow(
-                            color: AppColors.sage900.withValues(alpha: 0.051),
+                            color: AppPalette.sage900.withValues(alpha: 0.051),
                             blurRadius: 14,
                             offset: Offset(0, 4),
                           ),
@@ -440,7 +440,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                 child: Icon(
                                   Icons.info_outline,
                                   size: 15,
-                                  color: AppColors.sageRibbon,
+                                  color: AppPalette.sageRibbon,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -489,7 +489,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                   child: Row(
                     children: <Widget>[
                       const Icon(Icons.search,
-                          size: 16, color: AppColors.ink3),
+                          size: 16, color: AppPalette.ink3),
                       const SizedBox(width: 9),
                       Expanded(
                         child: TextField(
@@ -501,7 +501,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                             hintText: '支持分类备注金额搜索',
                             hintStyle: TextStyle(
                               fontSize: 13.5,
-                              color: AppColors.ink3,
+                              color: AppPalette.ink3,
                             ),
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
@@ -519,7 +519,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                           child: const Icon(
                             Icons.close,
                             size: 15,
-                            color: AppColors.ink3,
+                            color: AppPalette.ink3,
                           ),
                         ),
                     ],
@@ -543,6 +543,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: SingleChildScrollView(
+                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: <Widget>[
@@ -575,6 +576,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
               SizedBox(
                 height: 32,
                 child: ListView.separated(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   itemCount: _typeLabels.length,
@@ -597,6 +599,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                     ? Center(
                         // 键盘弹出压缩可视区时改为滚动，避免 BOTTOM OVERFLOWED。
                         child: SingleChildScrollView(
+                          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: <Widget>[
@@ -617,6 +620,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                       )
                     : SlidableAutoCloseBehavior(
                         child: ListView.separated(
+                          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                           padding:
                               const EdgeInsets.fromLTRB(20, 12, 20, 12),
                           itemCount: filtered.length,
@@ -634,7 +638,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                   SlidableAction(
                                     onPressed: (BuildContext _) =>
                                         _editTemplate(t),
-                                    backgroundColor: AppColors.sageLeaf,
+                                    backgroundColor: AppPalette.sageLeaf,
                                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                     icon: Icons.edit_outlined,
                                     label: '编辑',
@@ -690,7 +694,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                             borderRadius: BorderRadius.circular(999),
                             boxShadow: <BoxShadow>[
                               BoxShadow(
-                                color: AppColors.stockDown.withValues(alpha: 0.322),
+                                color: AppPalette.stockDown.withValues(alpha: 0.322),
                                 blurRadius: 16,
                                 offset: Offset(0, 6),
                               ),
@@ -737,7 +741,7 @@ class _NoteDashedBorderPainter extends CustomPainter {
     );
     final Path path = Path()..addRRect(rrect);
     final Paint paint = Paint()
-      ..color = AppColors.sandWarm
+      ..color = AppPalette.sandWarm
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     const double dash = 6;
@@ -973,7 +977,7 @@ class RecordTemplateCard extends ConsumerWidget {
           boxShadow: selected
               ? <BoxShadow>[
                   BoxShadow(
-                    color: AppColors.stockDown.withValues(alpha: 0.302),
+                    color: AppPalette.stockDown.withValues(alpha: 0.302),
                     blurRadius: 16,
                     offset: Offset(0, 6),
                   ),

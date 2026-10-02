@@ -75,7 +75,7 @@ class SyncStatusCard extends ConsumerWidget {
             Text(
               '云端仅用于多设备备份与共享。关闭后应用依然是功能完整的本地记账工具。',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
+                color: AppPalette.textTertiary,
               ),
             ),
           ],

@@ -12,7 +12,8 @@ import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
-import '../../../shared/widgets/date_picker_sheet.dart';
+import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/repeat_picker_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
@@ -126,6 +127,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         children: <Widget>[
           Expanded(
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.all(AppDimens.spaceLg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,7 +287,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               Text(
                 '购买商品时进行分期',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
+                  color: AppPalette.textTertiary,
                   fontSize: 12,
                 ),
               ),
@@ -315,7 +317,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               width: 4,
               height: 16,
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: AppPalette.primary,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -324,7 +326,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               title,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: AppPalette.textPrimary,
                   ),
             ),
           ],
@@ -333,7 +335,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         Container(
           padding: const EdgeInsets.all(AppDimens.spaceMd),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: AppPalette.surfaceLight,
             borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           ),
           child: Column(
@@ -384,7 +386,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       hintStyle: Theme.of(context)
           .textTheme
           .bodyMedium
-          ?.copyWith(color: AppColors.textTertiary),
+          ?.copyWith(color: AppPalette.textTertiary),
       prefixIcon: effectivePrefixIcon,
       prefixIconConstraints: BoxConstraints(
         minWidth: hasRealPrefix || useWidePlaceholder ? 44 : 0,
@@ -400,16 +402,16 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       enabledBorder: border,
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        borderSide: const BorderSide(color: AppColors.primary),
+        borderSide: const BorderSide(color: AppPalette.primary),
       ),
       disabledBorder: border,
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        borderSide: const BorderSide(color: AppColors.danger),
+        borderSide: const BorderSide(color: AppPalette.danger),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        borderSide: const BorderSide(color: AppColors.danger),
+        borderSide: const BorderSide(color: AppPalette.danger),
       ),
     );
   }
@@ -433,8 +435,9 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   }) {
     return TextField(
       controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      textInputAction: TextInputAction.next,
+      readOnly: true,
+      showCursor: false,
+      enableInteractiveSelection: false,
       decoration: _buildFieldDecoration(
         hintText: hint,
         prefixIcon: Padding(
@@ -444,13 +447,13 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             height: 24,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
+              color: AppPalette.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppDimens.radiusSm),
             ),
             child: Text(
               '¥',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.primary,
+                    color: AppPalette.primary,
                     fontWeight: FontWeight.w700,
                   ),
             ),
@@ -458,7 +461,18 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         ),
       ),
       onChanged: onChanged,
-      onTapOutside: (_) => FocusScope.of(context).unfocus(),
+      onTap: () async {
+        final String? r = await showAmountKeypad(
+          context: context,
+          initial: controller.text,
+          allowDecimal: true,
+          title: hint,
+        );
+        if (r != null) {
+          controller.text = r;
+          onChanged?.call(r);
+        }
+      },
     );
   }
 
@@ -503,7 +517,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           Text(
             DateFormat('yyyy年M月d日').format(value),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: AppPalette.textSecondary,
                 ),
           ),
         ],
@@ -539,7 +553,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
+                          color: AppPalette.textTertiary,
                         ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -551,7 +565,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           Text(
             value,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: AppPalette.textSecondary,
                 ),
           ),
         ],
@@ -583,34 +597,45 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
 
   Future<void> _pickFirstDue() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    final DateTime? picked = await DatePickerSheet.show(
+    final CalendarSelection? picked = await CalendarSheet.show(
       context,
+      mode: CalendarSheetMode.day,
       initialDate: _firstDueAt,
       firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      currentTimeLabel: '当前时间',
+      lastDate: DateTime(2107, 12, 31),
+      showTime: true,
+      showQuickChips: true,
+      weekStart: CalendarWeekStart.sunday,
     );
     FocusManager.instance.primaryFocus?.unfocus();
-    if (picked != null && mounted) {
-      setState(() {
-        _firstDueAt = DateTime(
-          picked.year,
-          picked.month,
-          picked.day,
-          _firstDueAt.hour,
-          _firstDueAt.minute,
-          _firstDueAt.second,
-          _firstDueAt.millisecond,
-          _firstDueAt.microsecond,
-        );
-        // 当开始时间改变时，把重复规则也同步到新的日期/月份，避免「每月 31 日」
-        // 但开始时间只有 30 号这类错位。
-        _repeatRule = InstallmentRepeatRule.defaultFor(
-          _repeatRule.unit,
-          firstDue: _firstDueAt,
-        ).copyWith(interval: _repeatRule.interval);
-      });
+    if (picked == null || !mounted) return;
+    // 仅取所选日期，时分沿用原 _firstDueAt（与旧行为一致）。
+    final DateTime day;
+    if (picked is CalendarDay) {
+      day = picked.date;
+    } else if (picked is CalendarPeriod) {
+      day = picked.start;
+    } else {
+      return;
     }
+    setState(() {
+      _firstDueAt = DateTime(
+        day.year,
+        day.month,
+        day.day,
+        _firstDueAt.hour,
+        _firstDueAt.minute,
+        _firstDueAt.second,
+        _firstDueAt.millisecond,
+        _firstDueAt.microsecond,
+      );
+      // 当开始时间改变时，把重复规则也同步到新的日期/月份，避免「每月 31 日」
+      // 但开始时间只有 30 号这类错位。
+      _repeatRule = InstallmentRepeatRule.defaultFor(
+        _repeatRule.unit,
+        firstDue: _firstDueAt,
+      ).copyWith(interval: _repeatRule.interval);
+    });
   }
 
   Future<void> _pickRepeatRule() async {
@@ -653,6 +678,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             const Divider(height: 1),
             Flexible(
               child: ListView.builder(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 shrinkWrap: true,
                 itemCount: options.length,
                 itemBuilder: (BuildContext ctx, int index) {
@@ -660,7 +686,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   return ListTile(
                     title: Text(option),
                     trailing: option == selected
-                        ? const Icon(Icons.check, color: AppColors.primary)
+                        ? const Icon(Icons.check, color: AppPalette.primary)
                         : null,
                     onTap: () => Navigator.of(ctx).pop(option),
                   );
@@ -700,8 +726,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   selected?.name ?? '请选择负债账户',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: selected != null
-                            ? AppColors.textPrimary
-                            : AppColors.textTertiary,
+                            ? AppPalette.textPrimary
+                            : AppPalette.textTertiary,
                       ),
                 ),
               ),
@@ -758,7 +784,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           children: <Widget>[
             CircleAvatar(
               radius: 14,
-              backgroundColor: AppColors.primary,
+              backgroundColor: AppPalette.primary,
               child: Text(
                 '账',
                 style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 12),
@@ -776,7 +802,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   Text(
                     '默认账本',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
+                          color: AppPalette.textTertiary,
                         ),
                   ),
                 ],
@@ -812,8 +838,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   selected?.name ?? '分类',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: selected != null
-                            ? AppColors.textPrimary
-                            : AppColors.textTertiary,
+                            ? AppPalette.textPrimary
+                            : AppPalette.textTertiary,
                       ),
                 ),
               ),
@@ -829,7 +855,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   Future<void> _showCategoryPicker(List<Category> categories) async {
     FocusManager.instance.primaryFocus?.unfocus();
     final List<Category> parents = categories
-        .where((Category c) => c.parentId == null)
+        .where((Category c) => c.parentId == null && !c.isSystem)
         .toList(growable: false);
     final String? result = await showModalBottomSheet<String>(
       context: context,
@@ -852,6 +878,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             const Divider(height: 1),
             Flexible(
               child: ListView.builder(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 shrinkWrap: true,
                 itemCount: parents.length,
                 itemBuilder: (BuildContext ctx, int index) {
@@ -862,7 +889,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                         : null,
                     title: Text(category.name),
                     trailing: category.id == _categoryId
-                        ? const Icon(Icons.check, color: AppColors.primary)
+                        ? const Icon(Icons.check, color: AppPalette.primary)
                         : null,
                     onTap: () => Navigator.of(ctx).pop(category.id),
                   );
@@ -1003,6 +1030,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             const Divider(height: 1),
             Flexible(
               child: ListView.builder(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 shrinkWrap: true,
                 itemCount: _periods,
                 itemBuilder: (BuildContext ctx, int index) {
@@ -1136,7 +1164,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
         IconButton(
           icon: const Icon(Icons.remove_circle_outline),
           onPressed: widget.value <= widget.min ? null : _decrease,
-          color: AppColors.textSecondary,
+          color: AppPalette.textSecondary,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
         ),
@@ -1144,26 +1172,16 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
           width: 48,
           height: 30,
           child: Center(
-            child: TextField(
+            child:             KeypadField(
               controller: _controller,
-              focusNode: _focusNode,
+              allowDecimal: false,
               textAlign: TextAlign.center,
-              textAlignVertical: TextAlignVertical.center,
-              keyboardType: TextInputType.number,
-              maxLines: 1,
-              inputFormatters: <TextInputFormatter>[
-                FilteringTextInputFormatter.digitsOnly,
-              ],
+              onChanged: (_) => _commit(),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     height: 1.0,
-                    color: AppColors.textPrimary,
+                    color: AppPalette.textPrimary,
                   ),
-              strutStyle: const StrutStyle(
-                height: 1.0,
-                leading: 0,
-                forceStrutHeight: true,
-              ),
               decoration: const InputDecoration(
                 isCollapsed: true,
                 contentPadding: EdgeInsets.zero,
@@ -1176,18 +1194,13 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
                 focusedErrorBorder: InputBorder.none,
                 disabledBorder: InputBorder.none,
               ),
-              onSubmitted: (_) => _commit(),
-              onTap: () => _controller.selection = TextSelection(
-                baseOffset: 0,
-                extentOffset: _controller.text.length,
-              ),
             ),
           ),
         ),
         IconButton(
           icon: const Icon(Icons.add_circle_outline),
           onPressed: widget.value >= widget.max ? null : _increase,
-          color: AppColors.textSecondary,
+          color: AppPalette.textSecondary,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
         ),

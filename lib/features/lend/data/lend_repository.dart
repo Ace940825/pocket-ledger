@@ -306,20 +306,30 @@ class LendRepository {
     final bool borrowIn = direction == LendDirection.borrowIn;
     final String name;
     final CategoryType type;
+    final String iconKey;
     switch (kind) {
       case _LendFlowKind.principal:
         name = borrowIn ? '借入' : '借出';
         type = borrowIn ? CategoryType.income : CategoryType.expense;
+        iconKey = borrowIn ? 'borrow_in' : 'lend_out';
       case _LendFlowKind.repay:
         name = borrowIn ? '还债' : '收债';
         type = borrowIn ? CategoryType.expense : CategoryType.income;
+        iconKey = borrowIn ? 'repay_debt' : 'collect_debt';
       case _LendFlowKind.reduction:
         name = borrowIn ? '债务消减' : '坏账计提';
         // 债务消减 / 坏账计提均按支出类型展示（无真实资金流动，仅记账备忘，
         // 不计入收支统计与预算；统一支出口径便于用户识别）。
         type = CategoryType.expense;
+        iconKey = borrowIn ? 'debt_reduce' : 'bad_debt';
     }
-    return _catRepo.ensureNamed(bookId: bookId, name: name, type: type);
+    return _catRepo.ensureNamed(
+      bookId: bookId,
+      name: name,
+      type: type,
+      iconKey: iconKey,
+      isSystem: true,
+    );
   }
 
   /// 借还本金流水反查：relatedId 指向借还记录、来源为借还模块的流水。

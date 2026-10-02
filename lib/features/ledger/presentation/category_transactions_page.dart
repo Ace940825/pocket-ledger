@@ -104,7 +104,7 @@ class _CategoryTransactionsPageState
                 error: (Object e, StackTrace _) => Center(
                   child: Text('加载失败 $e',
                       style: const TextStyle(
-                          fontSize: 13, color: AppColors.textTertiary)),
+                          fontSize: 13, color: AppPalette.textTertiary)),
                 ),
                 data: (_) {
                   if (filtered.isEmpty) {
@@ -114,7 +114,7 @@ class _CategoryTransactionsPageState
                             ? '该分类下暂无账单'
                             : '该分类 ${month.year}年${month.month}月暂无账单',
                         style: TextStyle(
-                            fontSize: 13, color: AppColors.textTertiary),
+                            fontSize: 13, color: AppPalette.textTertiary),
                       ),
                     );
                   }
@@ -366,7 +366,7 @@ class _DayGroup extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
+                    color: AppPalette.textSecondary,
                   ),
                 ),
               ],

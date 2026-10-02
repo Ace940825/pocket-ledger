@@ -12,6 +12,8 @@ import '../data/bank_data.dart';
 import '../providers/accounts_providers.dart';
 import 'bank_select_page.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/day_pick_sheet.dart';
 
 /// 账户表单页。
 ///
@@ -150,18 +152,17 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
     return Money.fromMinor(limit - debt).format();
   }
 
+  /// 账单日 / 还款日选择：共享「选择日期」底部弹窗（纯 1~31 数字宫格，
+  /// 取消/确定确认式）。返回 1~31，取消返回 null。
   Future<void> _pickDay(
     TextEditingController controller,
     String title,
   ) async {
     final int? current = int.tryParse(controller.text);
-    final int initialDay = current ?? 1;
-    final int? selected = await showDialog<int>(
-      context: context,
-      builder: (BuildContext context) => _DayPickerDialog(
-        title: title,
-        initialDay: initialDay,
-      ),
+    final int? selected = await showDayPickSheet(
+      context,
+      title: title,
+      initialDay: current ?? 1,
     );
     if (selected != null) {
       controller.text = selected.toString();
@@ -224,11 +225,12 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             controller: _balanceController,
             label: amountLabel,
             prefixText: '¥ ',
+            useKeypad: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             suffix: const Icon(
               Icons.calculate_outlined,
               size: 18,
-              color: AppColors.textTertiary,
+              color: AppPalette.textTertiary,
             ),
           ),
         );
@@ -254,11 +256,12 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             controller: _balanceController,
             label: _isDebt ? '当前欠款' : '账户余额',
             prefixText: '¥ ',
+            useKeypad: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             suffix: const Icon(
               Icons.calculate_outlined,
               size: 18,
-              color: AppColors.textTertiary,
+              color: AppPalette.textTertiary,
             ),
           ),
         );
@@ -280,6 +283,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           controller: _creditLimitController,
           label: '信用额度',
           prefixText: '¥ ',
+          useKeypad: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
         ),
@@ -288,6 +292,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           controller: _balanceController,
           label: '当前欠款',
           prefixText: '¥ ',
+          useKeypad: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
         ),
@@ -309,7 +314,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               Icon(
                 Icons.info_outline,
                 size: 14,
-                color: AppColors.textSecondary,
+                color: AppPalette.textSecondary,
               ),
               SizedBox(width: AppDimens.spaceSm),
               Expanded(
@@ -317,7 +322,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                   '当前欠款 和 信用额度 输入一个即可自动识别计算',
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: AppPalette.textSecondary,
                   ),
                 ),
               ),
@@ -333,11 +338,12 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           controller: _balanceController,
           label: '账户余额',
           prefixText: '¥ ',
+          useKeypad: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           suffix: const Icon(
             Icons.account_balance_wallet_outlined,
             size: 18,
-            color: AppColors.textTertiary,
+            color: AppPalette.textTertiary,
           ),
         ),
       ];
@@ -367,7 +373,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primary = AppColors.primary;
+    const Color primary = AppPalette.primary;
 
     return Scaffold(
       appBar: AppBar(
@@ -378,6 +384,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
         ),
       ),
       body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.all(AppDimens.spaceLg),
         children: <Widget>[
           // 资产类型（只读）
@@ -460,7 +467,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 '将创建一笔调整资产的账单方便查看变动记录。',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: AppPalette.textSecondary,
                 ),
               ),
             ),
@@ -485,7 +492,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                     '资产状态',
                     style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textPrimary,
+                      color: AppPalette.textPrimary,
                     ),
                   ),
                 ),
@@ -578,7 +585,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: AppPalette.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
@@ -599,7 +606,7 @@ class _TypeHeader extends StatelessWidget {
         padding: const EdgeInsets.all(AppDimens.spaceMd),
         child: Row(
           children: <Widget>[
-            Icon(accountIcon(type), color: AppColors.primary, size: 24),
+            Icon(accountIcon(type), color: AppPalette.primary, size: 24),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Text(
@@ -668,14 +675,14 @@ class _BankHeader extends StatelessWidget {
                   name,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: bankName == null
-                            ? AppColors.textTertiary
-                            : AppColors.textPrimary,
+                            ? AppPalette.textTertiary
+                            : AppPalette.textPrimary,
                       ),
                 ),
               ),
               const Icon(
                 Icons.chevron_right,
-                color: AppColors.textTertiary,
+                color: AppPalette.textTertiary,
               ),
             ],
           ),
@@ -686,16 +693,6 @@ class _BankHeader extends StatelessWidget {
 }
 
 class _TextField extends StatelessWidget {
-  const _TextField({
-    required this.controller,
-    required this.label,
-    this.hint,
-    this.prefixText,
-    this.keyboardType,
-    this.suffix,
-    this.onChanged,
-  });
-
   final TextEditingController controller;
   final String label;
   final String? hint;
@@ -704,12 +701,47 @@ class _TextField extends StatelessWidget {
   final Widget? suffix;
   final ValueChanged<String>? onChanged;
 
+  /// 是否改用工程内数字键盘录入（金额 / 额度 / 天数等），不唤起系统键盘。
+  final bool useKeypad;
+
+  /// 工程内键盘是否允许小数点。
+  final bool allowDecimal;
+
+  const _TextField({
+    required this.controller,
+    required this.label,
+    this.hint,
+    this.prefixText,
+    this.keyboardType,
+    this.suffix,
+    this.onChanged,
+    this.useKeypad = false,
+    this.allowDecimal = true,
+  });
+
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      keyboardType: keyboardType,
+      keyboardType: useKeypad ? null : keyboardType,
+      readOnly: useKeypad,
+      showCursor: !useKeypad,
+      enableInteractiveSelection: !useKeypad,
       onChanged: onChanged,
+      onTap: useKeypad
+          ? () async {
+              final String? r = await showAmountKeypad(
+                context: context,
+                initial: controller.text,
+                allowDecimal: allowDecimal,
+                title: label,
+              );
+              if (r != null) {
+                controller.text = r;
+                onChanged?.call(r);
+              }
+            }
+          : null,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -743,14 +775,14 @@ class _ReadOnlyField extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: AppPalette.textSecondary,
                 ),
           ),
           const SizedBox(height: AppDimens.spaceSm),
           Text(
             value.isEmpty ? placeholder : value,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: value.isEmpty ? AppColors.textTertiary : null,
+                  color: value.isEmpty ? AppPalette.textTertiary : null,
                 ),
           ),
         ],
@@ -785,7 +817,7 @@ class _DayPickerField extends StatelessWidget {
                   Text(
                     label,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: AppPalette.textSecondary,
                         ),
                   ),
                   const SizedBox(height: AppDimens.spaceSm),
@@ -798,84 +830,11 @@ class _DayPickerField extends StatelessWidget {
             ),
             const Icon(
               Icons.chevron_right,
-              color: AppColors.textTertiary,
+              color: AppPalette.textTertiary,
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _DayPickerDialog extends StatefulWidget {
-  const _DayPickerDialog({
-    required this.title,
-    required this.initialDay,
-  });
-
-  final String title;
-  final int initialDay;
-
-  @override
-  State<_DayPickerDialog> createState() => _DayPickerDialogState();
-}
-
-class _DayPickerDialogState extends State<_DayPickerDialog> {
-  late int _selectedDay;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedDay = widget.initialDay;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: SizedBox(
-        width: 240,
-        height: 220,
-        child: ListWheelScrollView.useDelegate(
-          itemExtent: 44,
-          magnification: 1.2,
-          useMagnifier: true,
-          diameterRatio: 1.2,
-          controller: FixedExtentScrollController(
-            initialItem: _selectedDay - 1,
-          ),
-          onSelectedItemChanged: (int index) {
-            setState(() => _selectedDay = index + 1);
-          },
-          childDelegate: ListWheelChildBuilderDelegate(
-            builder: (BuildContext context, int index) {
-              if (index < 0 || index >= 31) return null;
-              final int day = index + 1;
-              final bool selected = day == _selectedDay;
-              return Center(
-                child: Text(
-                  '每月$day日',
-                  style: TextStyle(
-                    fontSize: selected ? 18 : 16,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                    color: selected ? AppColors.primary : AppColors.textPrimary,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_selectedDay),
-          child: const Text('确定'),
-        ),
-      ],
     );
   }
 }
@@ -913,7 +872,7 @@ class _SwitchTile extends StatelessWidget {
                 Text(
                   subtitle,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: AppPalette.textSecondary,
                       ),
                 ),
               ],
@@ -922,7 +881,7 @@ class _SwitchTile extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: AppColors.primary,
+            activeThumbColor: AppPalette.primary,
           ),
         ],
       ),
@@ -943,11 +902,11 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color color = selected ? AppColors.primary : AppColors.textTertiary;
+    final Color color = selected ? AppPalette.primary : AppPalette.textTertiary;
     return Material(
       color: selected
-          ? AppColors.primary.withValues(alpha: 0.12)
-          : AppColors.textTertiary.withValues(alpha: 0.08),
+          ? AppPalette.primary.withValues(alpha: 0.12)
+          : AppPalette.textTertiary.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(AppDimens.radiusLg),
       child: InkWell(
         onTap: onTap,

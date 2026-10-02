@@ -6,10 +6,11 @@ import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/money_text.dart';
+import '../../../shared/widgets/category_icons.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 
 /// 账单选择页面返回的结果：用户确认后返回选中的流水列表。
 ///
@@ -145,9 +146,8 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
     );
   }
 
-  /// 月份选择下拉：全部月份 / 最近 12 个月。
+  /// 月份选择下拉：全部月份 / 具体月份（经 [CalendarSheet]）。
   Widget _buildMonthDropdown() {
-    final List<DateTime> months = _generateRecentMonths(12);
     final DateTime? current = _filterMonth;
     final String label =
         current == null ? '全部月份' : DateFormat('yyyy年M月').format(current);
@@ -163,23 +163,26 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
                 ListTile(
                   title: const Text('全部月份'),
                   trailing: current == null
-                      ? const Icon(Icons.check, color: AppColors.primary)
+                      ? const Icon(Icons.check, color: AppPalette.primary)
                       : null,
                   onTap: () => Navigator.of(ctx).pop(null),
                 ),
                 const Divider(height: 1),
-                ...months.map((DateTime m) {
-                  final bool isSelected = current != null &&
-                      m.year == current.year &&
-                      m.month == current.month;
-                  return ListTile(
-                    title: Text(DateFormat('yyyy年M月').format(m)),
-                    trailing: isSelected
-                        ? const Icon(Icons.check, color: AppColors.primary)
-                        : null,
-                    onTap: () => Navigator.of(ctx).pop(m),
-                  );
-                }),
+                ListTile(
+                  title: const Text('选择具体月份'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final CalendarSelection? sel = await CalendarSheet.show(
+                      ctx,
+                      mode: CalendarSheetMode.month,
+                      initialMonth:
+                          _filterMonth ?? DateTime.now(),
+                    );
+                    if (sel is CalendarMonth) {
+                      Navigator.of(ctx).pop(DateTime(sel.year, sel.month));
+                    }
+                  },
+                ),
               ],
             ),
           ),
@@ -201,16 +204,6 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
         ],
       ),
     );
-  }
-
-  List<DateTime> _generateRecentMonths(int count) {
-    final List<DateTime> result = <DateTime>[];
-    final DateTime now = DateTime.now();
-    for (int i = 0; i < count; i++) {
-      final DateTime m = DateTime(now.year, now.month - i);
-      result.add(m);
-    }
-    return result;
   }
 
   List<Transaction> _applyMonthFilter(List<Transaction> list) {
@@ -241,23 +234,18 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
     showAppToast(context, '筛选功能开发中');
   }
 
-  /// 底部确认栏：展示已选笔数 / 合计金额，点击确认返回选中列表。
+  /// 底部确认栏（对齐小青账）：全宽浅绿渐变「确认」按钮，
+  /// 未选中时置灰；按钮文案带已选笔数。
   Widget _buildConfirmFooter(List<Transaction> filtered) {
-    final List<Transaction> selected = filtered
-        .where((Transaction t) => _selectedIds.contains(t.id))
-        .toList(growable: false);
-    final int count = selected.length;
-    final int totalMinor = selected.fold<int>(
-      0,
-      (int sum, Transaction t) => sum + t.amountMinor,
-    );
+    final int count =
+        filtered.where((Transaction t) => _selectedIds.contains(t.id)).length;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppDimens.spaceLg,
         AppDimens.spaceMd,
         AppDimens.spaceLg,
-        AppDimens.spaceLg,
+        AppDimens.spaceLg + MediaQuery.paddingOf(context).bottom,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -265,37 +253,33 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
           top: BorderSide(color: Theme.of(context).colorScheme.outline),
         ),
       ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  '已选 $count 笔',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                if (count > 0)
-                  MoneyText(
-                    Money.fromMinor(-totalMinor),
-                    signed: true,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.expense,
-                        ),
-                  ),
-              ],
+      child: SizedBox(
+        height: 48,
+        child: FilledButton(
+          onPressed: count == 0 ? null : () => _onConfirmFrom(filtered),
+          style: FilledButton.styleFrom(
+            backgroundColor: count == 0
+                ? AppPalette.primary.withValues(alpha: 0.35)
+                : AppPalette.primary,
+            foregroundColor: AppPalette.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
             ),
           ),
-          FilledButton(
-            onPressed: count == 0 ? null : () => _onConfirm(selected),
-            child: Text('确认${count > 0 ? '（$count）' : ''}'),
+          child: Text(
+            count == 0 ? '确认' : '确认（$count）',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  void _onConfirmFrom(List<Transaction> filtered) {
+    final List<Transaction> selected = filtered
+        .where((Transaction t) => _selectedIds.contains(t.id))
+        .toList(growable: false);
+    _onConfirm(selected);
   }
 
   void _onConfirm(List<Transaction> selected) {
@@ -308,8 +292,10 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
   }
 }
 
-/// 账单列表项：左侧分类图标、标题/时间、右侧金额、最右选择圆圈。
-class _BillTile extends StatelessWidget {
+/// 账单列表项（对齐小青账）：左侧分类图标、标题(备注)、日期/时间两行，
+/// 右侧金额（优惠账单=划线原价+红色实付+「优惠X」小字）+「退款 ¥X=¥Y」
+/// 标注，最右选择圆圈。
+class _BillTile extends ConsumerWidget {
   const _BillTile({
     required this.transaction,
     this.category,
@@ -323,16 +309,32 @@ class _BillTile extends StatelessWidget {
   final VoidCallback onToggle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final DateTime occurred = DateTime.fromMillisecondsSinceEpoch(
       transaction.occurredAt,
       isUtc: true,
     ).toLocal();
 
-    final String title = category?.name ?? '支出';
-    final IconData icon = _iconFor(category);
-    final Color tint = _tintFor(category);
+    // 标题：分类名（备注非空时「分类 - 备注」，对齐小青账「餐饮 - 三餐」）。
+    final String note = transaction.note ?? '';
+    final String title = note.isNotEmpty
+        ? '${category?.name ?? '支出'} - $note'
+        : (category?.name ?? '支出');
+    final IconData icon = categoryIconData(category?.iconKey);
+    final Color tint = category?.colorValue != null
+        ? Color(category!.colorValue!)
+        : AppPalette.expense;
+
+    // 退款标注：被退款过的原账单显示「退款 ¥X=¥Y」
+    // （X=累计已退合计，Y=剩余=实付−已退，与流水列表同口径）。
+    final List<Transaction> refunds = ref
+            .watch(refundsByRelatedIdProvider(transaction.id))
+            .valueOrNull ??
+        const <Transaction>[];
+    final int refundedMinor =
+        refunds.fold<int>(0, (int s, Transaction r) => s + r.amountMinor);
+    final int paidMinor = transaction.amountMinor - transaction.discountMinor;
 
     return InkWell(
       onTap: onToggle,
@@ -359,22 +361,82 @@ class _BillTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    DateFormat('M月d日 HH:mm').format(occurred),
+                    DateFormat('M月d日').format(occurred),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: AppPalette.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    DateFormat('HH:mm').format(occurred),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppPalette.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: AppDimens.spaceSm),
-            MoneyText(
-              Money.fromMinor(-transaction.amountMinor),
-              signed: true,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.expense,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (transaction.discountMinor > 0) ...<Widget>[
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: <Widget>[
+                      Text(
+                        '-${Money.fromMinor(transaction.amountMinor).format()}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppPalette.textTertiary,
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: AppPalette.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        Money.fromMinor(paidMinor).format(),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppPalette.expense,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '优惠${Money.fromMinor(transaction.discountMinor).format()}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppPalette.expense,
+                    ),
+                  ),
+                ] else
+                  Text(
+                    '-${Money.fromMinor(transaction.amountMinor).format()}',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.expense,
+                    ),
+                  ),
+                if (refundedMinor > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      '退款 ${Money.fromMinor(refundedMinor).format()}'
+                      '=${Money.fromMinor(
+                        (paidMinor - refundedMinor).clamp(0, paidMinor),
+                      ).format()}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppPalette.expense,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: AppDimens.spaceMd),
             _SelectionCircle(selected: selected),
@@ -382,31 +444,6 @@ class _BillTile extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  IconData _iconFor(Category? c) {
-    final String? key = c?.iconKey;
-    if (key != null && key.isNotEmpty) {
-      return switch (key) {
-        'food' => Icons.restaurant,
-        'transport' => Icons.directions_car,
-        'shopping' => Icons.shopping_bag,
-        'entertainment' => Icons.movie,
-        'housing' => Icons.home,
-        'medical' => Icons.local_hospital,
-        'education' => Icons.school,
-        'salary' => Icons.work,
-        'transfer' => Icons.swap_horiz,
-        _ => Icons.label_outline,
-      };
-    }
-    return Icons.north_east;
-  }
-
-  Color _tintFor(Category? c) {
-    final int? colorValue = c?.colorValue;
-    if (colorValue != null) return Color(colorValue);
-    return AppColors.expense;
   }
 }
 
@@ -444,9 +481,9 @@ class _SelectionCircle extends StatelessWidget {
       height: 22,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: selected ? AppColors.primary : Colors.transparent,
+        color: selected ? AppPalette.primary : Colors.transparent,
         border: Border.all(
-          color: selected ? AppColors.primary : AppColors.textTertiary,
+          color: selected ? AppPalette.primary : AppPalette.textTertiary,
           width: 1.5,
         ),
       ),

@@ -383,7 +383,7 @@ class _ReimbursementBillPickerPageState
                     '已报 ${Money.fromMinor(received).format()}',
                     style: const TextStyle(
                       fontSize: 11.5,
-                      color: AppColors.expense,
+                      color: AppPalette.expense,
                     ),
                   ),
                 ],
@@ -393,7 +393,7 @@ class _ReimbursementBillPickerPageState
                     excludeLabels.join('、'),
                     style: const TextStyle(
                       fontSize: 11.5,
-                      color: AppColors.expense,
+                      color: AppPalette.expense,
                     ),
                   ),
                 ],
@@ -413,7 +413,7 @@ class _ReimbursementBillPickerPageState
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: sel ? Colors.transparent : AppColors.sand,
+            color: sel ? Colors.transparent : AppPalette.sand,
             width: 1.5,
           ),
           gradient: sel
@@ -477,6 +477,6 @@ class _ReimbursementBillPickerPageState
 
 /// 鼠尾草渐变停靠色（与 ForestGradients.sage 同值，页面内取用方便）。
 abstract final class _SageGreen {
-  static const Color a = AppColors.sageMist;
-  static const Color b = AppColors.sageRibbon;
+  static const Color a = AppPalette.sageMist;
+  static const Color b = AppPalette.sageRibbon;
 }

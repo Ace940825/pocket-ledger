@@ -94,10 +94,10 @@ class AttachmentThumb extends StatelessWidget {
               errorBuilder: (_, __, ___) => Container(
                 width: size,
                 height: size,
-                color: AppColors.surfaceLight,
+                color: AppPalette.surfaceLight,
                 child: const Icon(
                   Icons.broken_image_outlined,
-                  color: AppColors.textTertiary,
+                  color: AppPalette.textTertiary,
                 ),
               ),
             ),
@@ -152,7 +152,7 @@ Future<void> openImageViewer(
                   child: Icon(
                     Icons.broken_image_outlined,
                     size: 48,
-                    color: AppColors.textTertiary,
+                    color: AppPalette.textTertiary,
                   ),
                 ),
               ),

@@ -50,3 +50,12 @@ app.*.map.json
 
 # Android Gradle 构建产物
 /android/build/
+
+# 本地密钥（百炼 API Key 等 --dart-define-from-file 注入），严禁提交
+/ocr_keys.json
+
+# 合并冲突解决时留下的备份残片（.premerge.bak 等），非源码
+*.premerge.bak
+
+# Cloudflare Wrangler 本地缓存/构建产物（含 account 缓存，自动再生，不入库）
+**/.wrangler/

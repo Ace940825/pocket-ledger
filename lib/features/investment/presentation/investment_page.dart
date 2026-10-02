@@ -8,6 +8,7 @@ import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
 import '../data/investment_repository.dart';
 import '../providers/investment_providers.dart';
@@ -52,9 +53,9 @@ class _PortfolioSummaryCard extends ConsumerWidget {
     // 中国区习惯：涨用红、跌用绿。
     final bool isDark = theme.brightness == Brightness.dark;
     final Color profitColor = summary.profitMinor > 0
-        ? AppColors.stock(true, dark: isDark)
+        ? AppPalette.stock(true, dark: isDark)
         : summary.profitMinor < 0
-            ? AppColors.stock(false, dark: isDark)
+            ? AppPalette.stock(false, dark: isDark)
             : theme.textTheme.bodyMedium?.color ?? theme.colorScheme.onSurfaceVariant;
 
     return Card(
@@ -138,9 +139,9 @@ class _HoldingTile extends ConsumerWidget {
     final int profit = holding.profitMinor;
     final bool isDark = theme.brightness == Brightness.dark;
     final Color profitColor = profit > 0
-        ? AppColors.stock(true, dark: isDark)
+        ? AppPalette.stock(true, dark: isDark)
         : profit < 0
-            ? AppColors.stock(false, dark: isDark)
+            ? AppPalette.stock(false, dark: isDark)
             : theme.colorScheme.onSurfaceVariant;
 
     return ListTile(
@@ -186,15 +187,16 @@ class _HoldingTile extends ConsumerWidget {
       context: context,
       builder: (BuildContext dialog) => AlertDialog(
         title: Text('更新 ${holding.symbol} 现价'),
-        content: TextField(
+        content: KeypadField(
           controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          allowDecimal: true,
+          maxDecimalDigits: 4,
+          title: '更新现价',
           decoration: const InputDecoration(
             labelText: '现价',
             prefixText: '¥ ',
             helperText: '支持 4 位小数，用于基金净值',
           ),
-          autofocus: true,
         ),
         actions: <Widget>[
           TextButton(
@@ -259,6 +261,7 @@ Future<void> showHoldingEditor(
       builder: (BuildContext ctx, StateSetter setState) => AlertDialog(
         title: Text(holding == null ? '新增持仓' : '编辑持仓'),
         content: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -281,31 +284,27 @@ Future<void> showHoldingEditor(
                 onChanged: (InvestmentType t) => setState(() => type = t),
               ),
               const FormGap(),
-              IntField(
+              KeypadField(
                 controller: quantityController,
-                label: '份额',
+                allowDecimal: true,
+                maxDecimalDigits: 4,
+                labelText: '份额',
                 helperText: '支持 4 位小数，内部放大 1e6 存整数',
               ),
               const FormGap(),
-              TextField(
+              KeypadField(
                 controller: costController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: '成本单价',
-                  prefixText: '¥ ',
-                ),
+                allowDecimal: true,
+                labelText: '成本单价',
+                prefixText: '¥ ',
               ),
               const FormGap(),
-              TextField(
+              KeypadField(
                 controller: priceController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: '当前单价',
-                  prefixText: '¥ ',
-                  helperText: '留空则默认等于成本单价',
-                ),
+                allowDecimal: true,
+                labelText: '当前单价',
+                prefixText: '¥ ',
+                helperText: '留空则默认等于成本单价',
               ),
               const FormGap(),
               TextField(

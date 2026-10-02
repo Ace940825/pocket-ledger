@@ -88,6 +88,11 @@ class Categories extends Table with SyncColumns {
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
 
+  /// 系统分类（借入/借出/转账/报销/退款/分期/存款等落账时由
+  /// [CategoryRepository.ensureNamed] 自动重建挂分类）：用户分类管理/图标
+  /// 选择器隐藏，仅用于流水挂分类与统计聚合。
+  BoolColumn get isSystem => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => <Column>{id};
 }
@@ -248,6 +253,71 @@ class SavingsGoals extends Table with SyncColumns {
   /// 是否已归档（停止的计划）。归档目标移入储蓄页「归档」Tab，
   /// 不再出现在「计划」列表，可随时恢复。
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+
+  /// 存钱模式（SavingsMode.name，如 fixed365）。创建时落库；
+  /// 历史数据为 null，卡片按「储蓄计划」兜底显示。
+  TextColumn get mode => text().nullable()();
+
+  /// 重复周期展示文案（每1天 / 每7天 / 每月1日）。null = 不显示胶囊。
+  TextColumn get repeatCycle => text().nullable()();
+
+  /// 结束方式展示文案（如「执行365次结束」「按日期结束」）。null = 不显示。
+  TextColumn get endNote => text().nullable()();
+
+  /// 已执行次数：存入 +1、取出 -1（下限 0）。
+  IntColumn get depositCount => integer().withDefault(const Constant(0))();
+
+  /// 计划开始日期（本地毫秒，取创建时刻）。逐期存入排期的起点锚点；
+  /// 用 updatedAt 会在每次编辑后漂移，故单独落列。历史数据为 null，
+  /// 详情页回退用 updatedAt。
+  IntColumn get startedAt => integer().nullable()();
+
+  /// 弹性存钱法递增模式：1 = 金额模式（等差），2 = 百分比模式（等比）。
+  IntColumn get elasticMode => integer().withDefault(const Constant(1))();
+
+  /// 弹性存钱法首期基础金额 N（分）。排期第 1 期 = N，后续按模式递增。
+  IntColumn get elasticBaseMinor => integer().nullable()();
+
+  /// 弹性「金额模式」递增系数（分）：第 i 期 = N + (i - 1) × step。
+  IntColumn get elasticStepMinor => integer().nullable()();
+
+  /// 弹性「百分比模式」递增百分比（整数 ×100，如 10% = 1000）。
+  IntColumn get elasticPercentHundred => integer().nullable()();
+
+  /// 转出/扣款账户（存钱快捷属性，可空）。
+  ///
+  /// 计划级默认的「扣款来源」：创建 / 编辑页选中后落库，编辑页与
+  /// 「存钱」弹窗把它作为扣款账户的默认值回显（历史数据为 null，
+  /// 回退 = 页面态留空由用户选择）。与 [accountId]（入款账户）成对。
+  TextColumn get sourceAccountId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => <Column>{id};
+}
+
+/// 储蓄计划逐期存入台账（本地表，不参与云端同步）。
+///
+/// 每执行一次「第 N 期存入」落一行：按计划排期（见
+/// `savings_schedule.dart`）把第 [dayIndex] 期标记为已存入，实际存入
+/// 金额 [amountMinor] 可与计划额不同（允许手动改）。删除计划时随之清理。
+class SavingsDeposits extends Table {
+  TextColumn get id => text()();
+  TextColumn get bookId => text()();
+
+  /// 所属储蓄计划（SavingsGoals.id）。
+  TextColumn get goalId => text()();
+
+  /// 期数（1-based，对应排期第 N 期）。
+  IntColumn get dayIndex => integer()();
+
+  /// 实际存入金额（分）。
+  IntColumn get amountMinor => integer()();
+
+  /// 实际存入时间（本地毫秒）。
+  IntColumn get depositedAt => integer()();
+
+  /// 本次存入备注（可空，存钱弹窗录入）。
+  TextColumn get note => text().nullable()();
 
   @override
   Set<Column> get primaryKey => <Column>{id};

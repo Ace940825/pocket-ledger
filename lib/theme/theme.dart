@@ -5,7 +5,7 @@
 //   import 'package:pocket_ledger/theme/theme.dart';
 //
 // 业务代码取用约定：
-//   颜色   → AppColors.xxx           或  context.colors.primary (Material 语义)
+//   颜色   → AppPalette.xxx           或  context.colors.primary (Material 语义)
 //   文字   → AppTextStyles.xxx
 //   尺寸   → AppDimens.xxx / AppShadows.xxx
 //   图标   → AppIcons.xxx

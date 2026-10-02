@@ -44,7 +44,7 @@ Future<void> showBudgetEditor(
   final List<Category> categories =
       ref.read(allCategoriesProvider).valueOrNull ?? const <Category>[];
   final List<Category> expenseCategories = categories
-      .where((Category c) => c.type == CategoryType.expense)
+      .where((Category c) => c.type == CategoryType.expense && !c.isSystem)
       .toList(growable: false);
 
   final TextEditingController amountController = TextEditingController(
@@ -229,7 +229,7 @@ class _BudgetTile extends ConsumerWidget {
     final Color barColor = overspent
         ? theme.colorScheme.error
         : nearLimit
-            ? AppColors.amber
+            ? AppPalette.amber
             : theme.colorScheme.primary;
 
     return Padding(
@@ -256,7 +256,7 @@ class _BudgetTile extends ConsumerWidget {
                 const Icon(
                   Icons.info_outline,
                   size: 18,
-                  color: AppColors.amber,
+                  color: AppPalette.amber,
                 ),
               IconButton(
                 visualDensity: VisualDensity.compact,

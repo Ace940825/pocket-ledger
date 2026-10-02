@@ -119,13 +119,13 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+                color: AppPalette.textPrimary,
               ),
             ),
           ),
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(Icons.close, color: AppColors.textTertiary),
+            child: const Icon(Icons.close, color: AppPalette.textTertiary),
           ),
         ],
       ),
@@ -139,7 +139,7 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: AppColors.neutralMist,
+          color: AppPalette.neutralMist,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -164,10 +164,10 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
   Widget _buildTabBar() {
     return TabBar(
       controller: _tabController,
-      labelColor: AppColors.textPrimary,
-      unselectedLabelColor: AppColors.textTertiary,
+      labelColor: AppPalette.textPrimary,
+      unselectedLabelColor: AppPalette.textTertiary,
       indicator: const UnderlineTabIndicator(
-        borderSide: BorderSide(color: AppColors.primary, width: 3),
+        borderSide: BorderSide(color: AppPalette.primary, width: 3),
         insets: EdgeInsets.symmetric(horizontal: 48),
       ),
       tabs: const <Tab>[
@@ -202,7 +202,7 @@ class _VersionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 7),
           decoration: BoxDecoration(
             color: selected
-                ? (isOpt ? AppColors.primary : Theme.of(context).colorScheme.surface)
+                ? (isOpt ? AppPalette.primary : Theme.of(context).colorScheme.surface)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(17),
             boxShadow: selected
@@ -222,8 +222,8 @@ class _VersionButton extends StatelessWidget {
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: selected
-                  ? (isOpt ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary)
-                  : AppColors.textTertiary,
+                  ? (isOpt ? Theme.of(context).colorScheme.onPrimary : AppPalette.textPrimary)
+                  : AppPalette.textTertiary,
             ),
           ),
         ),
@@ -249,28 +249,28 @@ class _GeneralTab extends ConsumerWidget {
             label: '键盘外观',
             sub: '公式 / 排序 / 高度 / 行数 / 金额位置 / 按钮 / 图标背景',
             badge: '对齐截图',
-            badgeColor: AppColors.info,
+            badgeColor: AppPalette.info,
             onTap: () => _KeyboardThemeSheet.show(context),
           ),
           _SettingsTile(
             label: '记账偏好',
             sub: '日期类型 / 记录未来账单 / 图片裁剪 / 优惠算法',
             badge: '归组',
-            badgeColor: AppColors.success,
+            badgeColor: AppPalette.success,
             onTap: () => _SimpleSettingsSheet.show(context, '记账偏好'),
           ),
           _SettingsTile(
             label: '记账布局',
             sub: '按钮区配置 + Tab 开关',
             badge: '合并',
-            badgeColor: AppColors.info,
+            badgeColor: AppPalette.info,
             onTap: () => _SimpleSettingsSheet.show(context, '记账布局'),
           ),
           _SettingsTile(
             label: '反馈与动效',
             sub: '震动反馈 + 界面动效',
             badge: '改名',
-            badgeColor: AppColors.success,
+            badgeColor: AppPalette.success,
             onTap: () => _SimpleSettingsSheet.show(context, '反馈与动效'),
           ),
           _buildOptNote(
@@ -355,21 +355,21 @@ class _DefaultTab extends ConsumerWidget {
             label: '默认账本',
             sub: 'XIAO QING BILL',
             badge: '上提',
-            badgeColor: AppColors.warn,
+            badgeColor: AppPalette.warn,
             onTap: () => _SimpleSettingsSheet.show(context, '默认账本'),
           ),
           _SettingsTile(
             label: '账本管理',
             sub: '排序 / 封存列表',
             badge: '分离',
-            badgeColor: AppColors.success,
+            badgeColor: AppPalette.success,
             onTap: () => _SimpleSettingsSheet.show(context, '账本管理'),
           ),
           _SettingsTile(
             label: '智能记忆',
             sub: '分类资产 + 备注 自动记忆',
             badge: '合并去重',
-            badgeColor: AppColors.warn,
+            badgeColor: AppPalette.warn,
             onTap: () => _SimpleSettingsSheet.show(context, '智能记忆'),
           ),
           _RemovedTile(
@@ -468,8 +468,8 @@ Widget _buildOptNote(String text) {
     margin: const EdgeInsets.only(top: 8),
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: AppColors.tealMist,
-      border: Border.all(color: AppColors.tealSoft),
+      color: AppPalette.tealMist,
+      border: Border.all(color: AppPalette.tealSoft),
       borderRadius: BorderRadius.circular(14),
     ),
     child: Text(
@@ -477,7 +477,7 @@ Widget _buildOptNote(String text) {
       style: const TextStyle(
         fontSize: 12.5,
         height: 1.7,
-        color: AppColors.tealDeep,
+        color: AppPalette.tealDeep,
       ),
     ),
   );
@@ -525,7 +525,7 @@ class _SettingsTile extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
+                            color: AppPalette.textPrimary,
                           ),
                         ),
                         if (badge != null) ...<Widget>[
@@ -539,14 +539,14 @@ class _SettingsTile extends StatelessWidget {
                       sub,
                       style: const TextStyle(
                         fontSize: 12,
-                        color: AppColors.textTertiary,
+                        color: AppPalette.textTertiary,
                       ),
                     ),
                   ],
                 ),
               ),
               if (onTap != null)
-                const Icon(Icons.chevron_right, color: AppColors.neutralSlate),
+                const Icon(Icons.chevron_right, color: AppPalette.neutralSlate),
             ],
           ),
         ),
@@ -590,7 +590,7 @@ class _SettingsSwitchTile extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
+                      color: AppPalette.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -598,7 +598,7 @@ class _SettingsSwitchTile extends StatelessWidget {
                     sub,
                     style: const TextStyle(
                       fontSize: 12,
-                      color: AppColors.textTertiary,
+                      color: AppPalette.textTertiary,
                     ),
                   ),
                 ],
@@ -607,7 +607,7 @@ class _SettingsSwitchTile extends StatelessWidget {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeThumbColor: AppColors.success,
+              activeThumbColor: AppPalette.success,
             ),
           ],
         ),
@@ -644,7 +644,7 @@ class _RemovedTile extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textTertiary,
+                      color: AppPalette.textTertiary,
                       decoration: TextDecoration.lineThrough,
                     ),
                   ),
@@ -653,13 +653,13 @@ class _RemovedTile extends StatelessWidget {
                     sub,
                     style: const TextStyle(
                       fontSize: 12,
-                      color: AppColors.expense,
+                      color: AppPalette.expense,
                     ),
                   ),
                 ],
               ),
             ),
-            _Badge(text: '已移除', color: AppColors.expense),
+            _Badge(text: '已移除', color: AppPalette.expense),
           ],
         ),
       ),
@@ -732,14 +732,14 @@ class _SimpleSettingsSheet extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: AppPalette.textPrimary,
                       ),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
                     child:
-                        const Icon(Icons.close, color: AppColors.textTertiary),
+                        const Icon(Icons.close, color: AppPalette.textTertiary),
                   ),
                 ],
               ),
@@ -751,7 +751,7 @@ class _SimpleSettingsSheet extends StatelessWidget {
                   '「$title」设置页（占位）',
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.textTertiary,
+                    color: AppPalette.textTertiary,
                   ),
                 ),
               ),
@@ -812,7 +812,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: AppPalette.textPrimary,
                       ),
                     ),
                   ),
@@ -820,7 +820,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
                     onTap: () => Navigator.of(context).pop(),
                     child: const Icon(
                       Icons.close,
-                      color: AppColors.textTertiary,
+                      color: AppPalette.textTertiary,
                     ),
                   ),
                 ],
@@ -874,7 +874,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
         style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w800,
-          color: AppColors.textPrimary,
+          color: AppPalette.textPrimary,
         ),
       ),
     );
@@ -931,14 +931,14 @@ class _KeyboardThemeSheet extends ConsumerWidget {
           const SizedBox(
             width: 22,
             child: Text('◎',
-                style: TextStyle(fontSize: 16, color: AppColors.textTertiary)),
+                style: TextStyle(fontSize: 16, color: AppPalette.textTertiary)),
           ),
           const Text(
             '键盘高度比例',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary,
+              color: AppPalette.textPrimary,
             ),
           ),
           Expanded(
@@ -947,7 +947,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
               min: 0.8,
               max: 1.2,
               divisions: 4,
-              activeColor: AppColors.primary,
+              activeColor: AppPalette.primary,
               inactiveColor: Theme.of(context).colorScheme.outline,
               onChanged: (double v) => ref
                   .read(recordingSettingsProvider.notifier)
@@ -962,7 +962,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+                color: AppPalette.primary,
               ),
             ),
           ),
@@ -983,12 +983,12 @@ class _KeyboardThemeSheet extends ConsumerWidget {
             child: ChoiceChip(
               label: Text(mode.label),
               selected: selected,
-              selectedColor: AppColors.primary,
-              backgroundColor: AppColors.neutralSoft,
+              selectedColor: AppPalette.primary,
+              backgroundColor: AppPalette.neutralSoft,
               labelStyle: TextStyle(
                 fontSize: 13,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                color: selected ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
+                color: selected ? Theme.of(context).colorScheme.onPrimary : AppPalette.textPrimary,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -1065,7 +1065,7 @@ class _PillRow extends StatelessWidget {
                 _iconFor(label),
                 style: const TextStyle(
                   fontSize: 16,
-                  color: AppColors.textTertiary,
+                  color: AppPalette.textTertiary,
                 ),
               ),
             ),
@@ -1076,7 +1076,7 @@ class _PillRow extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                  color: AppPalette.textPrimary,
                 ),
               ),
             ),
@@ -1096,8 +1096,8 @@ class _PillRow extends StatelessWidget {
                         const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                     decoration: BoxDecoration(
                       color: selected
-                          ? AppColors.primary
-                          : AppColors.neutralSoft,
+                          ? AppPalette.primary
+                          : AppPalette.neutralSoft,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
@@ -1106,7 +1106,7 @@ class _PillRow extends StatelessWidget {
                         fontSize: 13,
                         fontWeight:
                             selected ? FontWeight.w600 : FontWeight.normal,
-                        color: selected ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
+                        color: selected ? Theme.of(context).colorScheme.onPrimary : AppPalette.textPrimary,
                       ),
                     ),
                   ),
@@ -1221,7 +1221,7 @@ class _KeyboardPreview extends ConsumerWidget {
                       b.label,
                       style: const TextStyle(
                         fontSize: 11,
-                        color: AppColors.textTertiary,
+                        color: AppPalette.textTertiary,
                       ),
                     ),
                   ],
@@ -1234,14 +1234,14 @@ class _KeyboardPreview extends ConsumerWidget {
                 b.label,
                 style: const TextStyle(
                   fontSize: 13,
-                  color: AppColors.textPrimary,
+                  color: AppPalette.textPrimary,
                 ),
               ),
             );
           }),
           const Spacer(),
           const Icon(Icons.settings_outlined,
-              size: 18, color: AppColors.textTertiary),
+              size: 18, color: AppPalette.textTertiary),
         ],
       ),
     );
@@ -1264,7 +1264,7 @@ class _KeyboardPreview extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: AppPalette.textPrimary,
                   ),
                 ),
                 const Spacer(),
@@ -1274,14 +1274,14 @@ class _KeyboardPreview extends ConsumerWidget {
             Row(
               children: <Widget>[
                 const Icon(Icons.calendar_today_outlined,
-                    size: 13, color: AppColors.textTertiary),
+                    size: 13, color: AppPalette.textTertiary),
                 const SizedBox(width: 4),
                 Text(
                   '9月20日',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+                    color: AppPalette.primary,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1289,7 +1289,7 @@ class _KeyboardPreview extends ConsumerWidget {
                   '请输入备注信息（最多150字）',
                   style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textTertiary,
+                    color: AppPalette.textTertiary,
                   ),
                 ),
               ],
@@ -1314,7 +1314,7 @@ class _KeyboardPreview extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: AppPalette.textPrimary,
                 ),
               ),
             ],
@@ -1326,14 +1326,14 @@ class _KeyboardPreview extends ConsumerWidget {
                 '请输入备注信息（最多150字）',
                 style: TextStyle(
                   fontSize: 13,
-                  color: AppColors.textTertiary,
+                  color: AppPalette.textTertiary,
                 ),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   const Icon(Icons.calendar_today_outlined,
-                      size: 13, color: AppColors.textTertiary),
+                      size: 13, color: AppPalette.textTertiary),
                   const SizedBox(width: 4),
                   Text(
                     '9月20日',
@@ -1342,8 +1342,8 @@ class _KeyboardPreview extends ConsumerWidget {
                       fontWeight:
                           simpleDatePlain ? FontWeight.normal : FontWeight.w600,
                       color: simpleDatePlain
-                          ? AppColors.textTertiary
-                          : AppColors.primary,
+                          ? AppPalette.textTertiary
+                          : AppPalette.primary,
                     ),
                   ),
                 ],
@@ -1381,8 +1381,8 @@ class _KeyboardPreview extends ConsumerWidget {
         : 10 * settings.heightScale;
 
     final Color keypadBg = settings.themeStyle == KeyboardThemeStyle.simple
-        ? AppColors.mintGlass
-        : AppColors.mintHaze;
+        ? AppPalette.mintGlass
+        : AppPalette.mintHaze;
 
     Widget keyCell(String label, {bool save = false, int flex = 1}) {
       return Expanded(
@@ -1397,7 +1397,7 @@ class _KeyboardPreview extends ConsumerWidget {
               style: TextStyle(
                 fontSize: fontSize,
                 fontWeight: FontWeight.w600,
-                color: save ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
+                color: save ? Theme.of(context).colorScheme.onPrimary : AppPalette.textPrimary,
               ),
             ),
           ),
@@ -1461,7 +1461,7 @@ class _KeyboardPreview extends ConsumerWidget {
   BoxDecoration _keyDecoration(BuildContext context, RecordingSettings settings, bool save) {
     if (save) {
       return BoxDecoration(
-        color: AppColors.primary,
+        color: AppPalette.primary,
         borderRadius: BorderRadius.circular(10),
       );
     }
@@ -1475,14 +1475,14 @@ class _KeyboardPreview extends ConsumerWidget {
         );
       case KeyboardThemeStyle.flat:
         return BoxDecoration(
-          color: AppColors.sageGlow,
+          color: AppPalette.sageGlow,
           borderRadius: BorderRadius.circular(12),
         );
       case KeyboardThemeStyle.bordered:
         return BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.primary, width: 1.5),
+          border: Border.all(color: AppPalette.primary, width: 1.5),
         );
       case KeyboardThemeStyle.custom:
         return BoxDecoration(
@@ -1506,13 +1506,13 @@ class _ArrowBox extends StatelessWidget {
       width: 26,
       height: 26,
       decoration: BoxDecoration(
-        color: AppColors.mintSheen,
+        color: AppPalette.mintSheen,
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Icon(
         Icons.keyboard_arrow_down,
         size: 18,
-        color: AppColors.primary,
+        color: AppPalette.primary,
       ),
     );
   }

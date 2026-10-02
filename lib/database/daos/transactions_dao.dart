@@ -99,6 +99,45 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// 实时监听某账本下的**全部**流水（不限时间），按发生时间倒序。
+  ///
+  /// 「账单列表」页（账单管理入口）用：跨全部周期的明细，
+  /// 排序（时间/创建/更新/金额）在 Dart 侧二次处理。
+  Stream<List<Transaction>> watchAll({required String bookId}) {
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch();
+  }
+
+  /// 实时监听某账本下指定时间区间的全部流水，按发生时间倒序。
+  ///
+  /// 账单页用：选中月份的完整流水（不限条数），
+  /// 月内按日分组、日收支合计与柱状图都在 Dart 侧二次聚合。
+  Stream<List<Transaction>> watchRange({
+    required String bookId,
+    required int startAt,
+    required int endAt,
+  }) {
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.deleted.equals(false) &
+                tbl.occurredAt.isBiggerOrEqualValue(startAt) &
+                tbl.occurredAt.isSmallerThanValue(endAt),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch();
+  }
+
   /// 实时监听某账本下的全部支出流水，按发生时间倒序。
   ///
   /// 给退款「选择原账单」用：需要列出所有未删除的支出账单，

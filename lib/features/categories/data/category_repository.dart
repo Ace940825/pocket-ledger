@@ -29,6 +29,7 @@ class CategoryRepository {
     required CategoryType type,
     String? iconKey,
     int? colorValue,
+    bool isSystem = false,
   }) async {
     final String trimmed = name.trim();
     final List<Category> all = await (_db.select(_db.categories)
@@ -48,6 +49,7 @@ class CategoryRepository {
       type: type,
       iconKey: iconKey,
       colorValue: colorValue,
+      isSystem: isSystem,
     );
   }
 
@@ -59,6 +61,7 @@ class CategoryRepository {
     String? parentId,
     int? colorValue,
     String? iconKey,
+    bool isSystem = false,
   }) {
     if (name.trim().isEmpty) {
       throw const ValidationFailure('分类名称不能为空');
@@ -77,6 +80,7 @@ class CategoryRepository {
           parentId: Value<String?>(parentId),
           colorValue: Value<int?>(colorValue),
           iconKey: Value<String?>(iconKey),
+          isSystem: Value<bool>(isSystem),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -93,6 +97,7 @@ class CategoryRepository {
           'parentId': parentId,
           'colorValue': colorValue,
           'iconKey': iconKey,
+          'isSystem': isSystem,
         },
       );
 
@@ -181,6 +186,9 @@ class CategoryRepository {
   }
 
   /// 批量重排一级分类顺序。传入按目标顺序排列的 ID 列表。
+  ///
+  /// 只需传**同一类型**（支出或收入）内的一级分类：`sortOrder` 在库内本就
+  /// 按类型各自从 0 编号，两类型的顺序互不影响（见 `bootstrap.dart` 种子）。
   Future<void> reorderParents(List<String> orderedIds) async {
     if (orderedIds.isEmpty) return;
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;

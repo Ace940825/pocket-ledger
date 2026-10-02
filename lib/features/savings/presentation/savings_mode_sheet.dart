@@ -106,10 +106,10 @@ class SavingsModeCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.softGreen, // ForestGreen.soft
+                  color: AppPalette.softGreen, // ForestGreen.soft
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(mode.icon, size: 24, color: AppColors.deepGreen),
+                child: Icon(mode.icon, size: 24, color: AppPalette.deepGreen),
               ),
               const SizedBox(height: 10),
               Text(

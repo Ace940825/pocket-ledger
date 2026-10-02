@@ -29,7 +29,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     final Text text = tester.widget<Text>(find.byType(Text));
-    expect(text.style?.color, AppColors.income);
+    expect(text.style?.color, AppPalette.income);
   });
 
   testWidgets('负数按支出色（红）着色', (WidgetTester tester) async {
@@ -42,7 +42,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     final Text text = tester.widget<Text>(find.byType(Text));
-    expect(text.style?.color, AppColors.expense);
+    expect(text.style?.color, AppPalette.expense);
   });
 
   testWidgets('显式 color 覆盖自动着色', (WidgetTester tester) async {

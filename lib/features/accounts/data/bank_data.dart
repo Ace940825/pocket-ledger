@@ -132,5 +132,5 @@ List<Bank> filterBanks(List<Bank> banks, String keyword) {
 /// 为银行名称生成一个稳定的图标背景色（若不在内置列表中）。
 Color colorForBank(String name) {
   final int hash = name.hashCode.abs();
-  return AppColors.chartPalette[hash % AppColors.chartPalette.length];
+  return AppPalette.chartPalette[hash % AppPalette.chartPalette.length];
 }

@@ -17,9 +17,9 @@ class TagScopeToggle extends StatelessWidget {
   final TagScope scope;
   final ValueChanged<TagScope> onChanged;
 
-  static const Color _track = AppColors.sandWarm;
-  static const Color _onBg = AppColors.ink;
-  static const Color _onFg = AppColors.creamSoft;
+  static const Color _track = AppPalette.sandWarm;
+  static const Color _onBg = AppPalette.ink;
+  static const Color _onFg = AppPalette.creamSoft;
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +49,7 @@ class TagScopeToggle extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: s == scope ? _onFg : AppColors.ink3,
+                      color: s == scope ? _onFg : AppPalette.ink3,
                     ),
                   ),
                 ),

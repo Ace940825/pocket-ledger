@@ -21,7 +21,10 @@ import '../../lend/providers/lend_providers.dart';
 import '../../reimbursement/data/reimbursement_repository.dart';
 import '../../reimbursement/presentation/reimbursement_record_sheet.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
+import '../../record/presentation/record_sheet.dart';
+import '../../record/record_tab.dart';
 import '../providers/ledger_providers.dart';
+import 'widgets/txn_icon.dart';
 import '../../../shared/widgets/app_toast.dart';
 
 /// 流水详情底部弹窗 · B1「Hero 聚焦查看」落地版（ForestSage 暖纸皮肤）。
@@ -145,6 +148,12 @@ class TransactionDetailSheet extends ConsumerWidget {
                   if (transaction.type == TxnType.income &&
                       transaction.sourceModule == SourceModule.reimbursement)
                     _buildReimbLinkedCard(context, ref),
+                  // 卡片五 · 源账单（退款流水专属）：展示关联的原账单，
+                  // 点击跳原账单详情（对齐小青账「源账单 · 关联」）。
+                  if (transaction.type == TxnType.income &&
+                      transaction.sourceModule == SourceModule.refund &&
+                      transaction.relatedId != null)
+                    _buildRefundSourceCard(context, ref),
                   const SizedBox(height: 4),
                 ],
               ),
@@ -166,9 +175,10 @@ class TransactionDetailSheet extends ConsumerWidget {
     required Book? book,
     required Account? account,
   }) {
-    final LineIconKind tileKind = category != null
-        ? (categoryLineKind(category.iconKey) ?? LineIconKind.star)
-        : LineIconKind.star;
+    // 储蓄存入/取出按方向走储蓄罐线稿（系统分类「存款」无 iconKey，不走判定
+    // 会退回星形兜底）；其余流水沿用「分类线稿 → 星形兜底」。
+    final LineIconKind tileKind =
+        txnLineIconKind(transaction, category) ?? LineIconKind.star;
 
     final List<Widget> chips = <Widget>[];
     if (transaction.type == TxnType.expense && transaction.discountMinor > 0) {
@@ -188,7 +198,7 @@ class TransactionDetailSheet extends ConsumerWidget {
     final String summary = <String>[
       DateFormat('yyyy-MM-dd HH:mm').format(occurred),
       book?.name ?? '默认账本',
-      account?.name ?? '未知账户',
+      account?.name ?? '无',
     ].join(' · ');
 
     return Container(
@@ -209,7 +219,7 @@ class TransactionDetailSheet extends ConsumerWidget {
             bottom: -22,
             child: Text(
               '❦',
-              style: TextStyle(fontSize: 110, color: AppColors.ctaGreen.withValues(alpha: 0.078)),
+              style: TextStyle(fontSize: 110, color: AppPalette.ctaGreen.withValues(alpha: 0.078)),
             ),
           ),
           Column(
@@ -318,7 +328,7 @@ class TransactionDetailSheet extends ConsumerWidget {
     rows.add(
         _kvTap(
           '资产账户',
-          account?.name ?? '未知账户',
+          account?.name ?? '无',
           // 报销账户跳报销页，其余（含借出/借入账户）进资产详情页，
           // 与账户页点击口径一致
           onTap: account == null
@@ -915,6 +925,189 @@ class TransactionDetailSheet extends ConsumerWidget {
     );
   }
 
+  // ── 卡片五 · 退款流水的源账单 ───────────────────────
+
+  /// 退款收入流水的底部关联卡：头部「源账单 · 关联徽章」，
+  /// 下方展示关联的原账单行（类目图标 + 名称 + 时间 + 原金额），
+  /// 点击打开原账单详情（与报销关联卡同款结构）。
+  Widget _buildRefundSourceCard(BuildContext context, WidgetRef ref) {
+    final String? billId = transaction.relatedId;
+    if (billId == null) return const SizedBox.shrink();
+    final AsyncValue<Transaction?> billAsync =
+        ref.watch(transactionDetailProvider(billId));
+    final Transaction? bill = billAsync.valueOrNull;
+    // 原账单可能已被删除：数据为空时整卡不显示（避免空壳误导）。
+    if (bill == null) return const SizedBox.shrink();
+
+    final Map<String, Category> categories =
+        ref.watch(categoryMapProvider).valueOrNull ?? <String, Category>{};
+    // 原账单的退款标注（与流水列表同口径）：「退款 ¥X=¥Y」
+    // （X=累计已退合计，Y=剩余=实付−已退）。
+    final List<Transaction> refunds =
+        ref.watch(refundsByRelatedIdProvider(bill.id)).valueOrNull ??
+            const <Transaction>[];
+    final int refundedMinor =
+        refunds.fold<int>(0, (int s, Transaction r) => s + r.amountMinor);
+    final Category? billCategory = categories[bill.categoryId];
+    final LineIconKind billIcon = billCategory != null
+        ? (categoryLineKind(billCategory.iconKey) ?? LineIconKind.star)
+        : LineIconKind.star;
+    final Color billTint = billCategory?.colorValue != null
+        ? Color(billCategory!.colorValue!)
+        : ForestGreen.deep;
+    final String time = DateFormat('yyyy-MM-dd HH:mm').format(
+      DateTime.fromMillisecondsSinceEpoch(
+        bill.occurredAt,
+        isUtc: true,
+      ).toLocal(),
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+      decoration: BoxDecoration(
+        color: ForestSurface.card,
+        border: Border.all(color: ForestNeutral.hairline),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: ForestElevation.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // 头部：左标题 · 右「关联」徽章
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  '源账单',
+                  style: TextStyle(
+                    fontSize: _kSection,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    color: ForestGreen.label,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: ForestGreen.soft,
+                  border: Border.all(color: ForestGreen.softBorder),
+                  borderRadius: BorderRadius.circular(ForestRadius.pill),
+                ),
+                child: Text(
+                  '关联',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: ForestGreen.deep,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // 下方：原账单行（点击打开原账单详情）
+          GestureDetector(
+            onTap: () => TransactionDetailSheet.show(context, bill),
+            child: Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: billTint.withValues(alpha: 0.12),
+                      border:
+                          Border.all(color: billTint.withValues(alpha: 0.25)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Center(
+                      child: LineIcon(
+                        billIcon,
+                        size: 15,
+                        color: billTint,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          bill.note?.trim().isNotEmpty == true
+                              ? bill.note!.trim()
+                              : (billCategory?.name ?? '原账单'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: ForestNeutral.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          time,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: ForestNeutral.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        '-${Money.fromMinor(bill.amountMinor).format()}',
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: ForestSemantic.expense,
+                        ),
+                      ),
+                      if (refundedMinor > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            '退款 ${Money.fromMinor(refundedMinor).format()}'
+                            '=${Money.fromMinor(
+                              (bill.amountMinor -
+                                      bill.discountMinor -
+                                      refundedMinor)
+                                  .clamp(0, bill.amountMinor),
+                            ).format()}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: ForestSemantic.expense,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 4),
+                  const LineIcon(
+                    LineIconKind.chevronRight,
+                    size: 14,
+                    color: ForestNeutral.textTertiary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── 通用小组件 ─────────────────────────────────────
 
   Widget _buildGrab() => Container(
@@ -1147,10 +1340,13 @@ class TransactionDetailSheet extends ConsumerWidget {
   }
 
   Future<void> _onRefund(BuildContext context, WidgetRef ref) async {
-    // TODO: 接入「选择原账单创建退款收入」流程与 /refund 路由。
-    if (context.mounted) {
-      showAppToast(context, '退款功能将在后续版本接入');
-    }
+    // 跳「记一笔」退款页并预关联本账单：金额/账户空置待填，
+    // 保存生成退款收入流水（sourceModule=refund，relatedId 指向本账单）。
+    await openRecordSheet(
+      context,
+      initialTab: RecordTab.refund,
+      refundSourceId: transaction.id,
+    );
   }
 }
 

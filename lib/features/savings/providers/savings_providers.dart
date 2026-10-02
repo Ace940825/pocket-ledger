@@ -23,3 +23,11 @@ final StreamProvider<List<SavingsGoal>> savingsArchivedProvider =
       .watch(savingsRepositoryProvider)
       .watchArchived(ref.watch(currentBookIdProvider)),
 );
+
+/// 某计划的逐期存入台账（详情页期卡「已存入 / 未存入」标记）。
+final StreamProviderFamily<List<SavingsDeposit>, String>
+    savingsDepositsProvider = StreamProvider.family<List<SavingsDeposit>,
+        String>(
+  (Ref ref, String goalId) =>
+      ref.watch(savingsRepositoryProvider).watchDeposits(goalId),
+);

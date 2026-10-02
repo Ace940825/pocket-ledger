@@ -4,6 +4,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../theme/app_colors.dart';
+import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -478,7 +479,7 @@ class _GroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final Color amountColor =
-        isDebt ? AppColors.expense : AppColors.textPrimary;
+        isDebt ? AppPalette.expense : AppPalette.textPrimary;
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -583,19 +584,19 @@ class _AccountBody extends StatelessWidget {
               _SlideAction(
                 icon: Icons.visibility_off_outlined,
                 label: '隐藏',
-                color: AppColors.textTertiary,
+                color: AppPalette.textTertiary,
                 onPressed: () => onArchiveAccount(a),
               ),
               _SlideAction(
                 icon: Icons.edit_outlined,
                 label: '编辑',
-                color: AppColors.info,
+                color: AppPalette.info,
                 onPressed: () => onEditAccount(a),
               ),
               _SlideAction(
                 icon: Icons.delete_outline,
                 label: '删除',
-                color: AppColors.danger,
+                color: AppPalette.danger,
                 onPressed: () => onDeleteAccount(a),
               ),
             ],
@@ -603,12 +604,12 @@ class _AccountBody extends StatelessWidget {
           child: ListTile(
             onTap: () => onOpenDetail(a),
             leading: CircleAvatar(
-              backgroundColor: (isDebt ? AppColors.expense : AppColors.primary)
+              backgroundColor: (isDebt ? AppPalette.expense : AppPalette.primary)
                   .withValues(alpha: 0.12),
               child: Icon(
                 accountIcon(a.type),
                 size: 20,
-                color: isDebt ? AppColors.expense : AppColors.primary,
+                color: isDebt ? AppPalette.expense : AppPalette.primary,
               ),
             ),
             title: Row(
@@ -628,7 +629,7 @@ class _AccountBody extends StatelessWidget {
             trailing: MoneyText(
               Money.fromMinor(a.balanceMinor),
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: isDebt ? AppColors.expense : AppColors.textPrimary,
+                    color: isDebt ? AppPalette.expense : AppPalette.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -694,7 +695,7 @@ class _SideTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color color = isDebt ? AppColors.expense : AppColors.primary;
+    final Color color = isDebt ? AppPalette.expense : AppPalette.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
@@ -758,7 +759,7 @@ class _ReceivableBody extends StatelessWidget {
             icon: Icons.handshake_outlined,
             totalMinor: lendOutMinor,
             balances: lendOutBalances,
-            amountColor: AppColors.income,
+            amountColor: AppPalette.income,
             onTotalTap: () => context.push(Routes.lend),
           ),
       ],
@@ -815,7 +816,7 @@ class _PayableBody extends StatelessWidget {
             icon: Icons.handshake_outlined,
             totalMinor: borrowInMinor,
             balances: borrowInBalances,
-            amountColor: AppColors.expense,
+            amountColor: AppPalette.expense,
             onTotalTap: () => context.push(Routes.lend),
           ),
       ],
@@ -905,7 +906,7 @@ class _SummaryRow extends StatelessWidget {
     required this.title,
     required this.amountMinor,
     required this.onTap,
-    this.amountColor = AppColors.income,
+    this.amountColor = AppPalette.income,
   });
 
   final IconData icon;
@@ -935,7 +936,7 @@ class _SummaryRow extends StatelessWidget {
           ),
           const SizedBox(width: AppDimens.spaceXs),
           const Icon(Icons.chevron_right,
-              size: 18, color: AppColors.textTertiary),
+              size: 18, color: AppPalette.textTertiary),
         ],
       ),
     );
@@ -954,8 +955,9 @@ class _NetAssetsHeader extends StatelessWidget {
       margin: const EdgeInsets.all(AppDimens.spaceLg),
       padding: const EdgeInsets.all(AppDimens.spaceLg),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        gradient: ForestAssetBg.card,
         borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        boxShadow: ForestAssetElevation.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -963,14 +965,14 @@ class _NetAssetsHeader extends StatelessWidget {
           Text(
             '净资产',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
+              color: ForestAssetText.primary.withValues(alpha: 0.85),
             ),
           ),
           const SizedBox(height: AppDimens.spaceXs),
           Text(
             Money.fromMinor(value.valueOrNull ?? 0).format(),
             style: theme.textTheme.headlineSmall?.copyWith(
-            color: Theme.of(context).colorScheme.onPrimary,
+            color: ForestAssetText.emphasis,
             fontWeight: FontWeight.w600,
             ),
           ),

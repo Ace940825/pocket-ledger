@@ -54,7 +54,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
     final ThemeData theme = Theme.of(context);
     final Color parentColor = _selectedParent.colorValue != null
         ? Color(_selectedParent.colorValue!)
-        : AppColors.primary;
+        : AppPalette.primary;
 
     return Scaffold(
       appBar: AppBar(
@@ -98,6 +98,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
               const SizedBox(height: AppDimens.spaceLg),
               Expanded(
                 child: SingleChildScrollView(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(
                     AppDimens.spaceLg,
                     0,
@@ -142,7 +143,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
     return Container(
       padding: const EdgeInsets.all(AppDimens.spaceMd),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: AppPalette.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
@@ -151,7 +152,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
           Text(
             '所属一级分类',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
+              color: AppPalette.textSecondary,
             ),
           ),
           const Spacer(),
@@ -185,7 +186,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
     return Container(
       padding: const EdgeInsets.all(AppDimens.spaceMd),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: AppPalette.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
       child: Row(
@@ -194,14 +195,14 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
           const Icon(
             Icons.info_outline,
             size: 16,
-            color: AppColors.textTertiary,
+            color: AppPalette.textTertiary,
           ),
           const SizedBox(width: AppDimens.spaceSm),
           Expanded(
             child: Text(
               '分类名称需手动输入，选择图标后不会自动填充名称。',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
+                color: AppPalette.textTertiary,
               ),
             ),
           ),
@@ -212,6 +213,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
 
   Widget _buildIconPicker(ThemeData theme, Color color) {
     return GridView.builder(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -231,7 +233,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
             decoration: BoxDecoration(
               color: selected
                   ? color.withValues(alpha: 0.15)
-                  : AppColors.surfaceLight,
+                  : AppPalette.surfaceLight,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               border: Border.all(
                 color: selected ? color : Theme.of(context).colorScheme.outline,

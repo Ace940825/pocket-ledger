@@ -39,8 +39,8 @@ class AppTheme extends ThemeExtension<AppTheme> {
   final double radiusChip;
 
   static const AppTheme light = AppTheme(
-    sageGradient: AppColors.sageGradient,
-    sageGradientSoft: AppColors.sageGradientSoft,
+    sageGradient: AppPalette.sageGradient,
+    sageGradientSoft: AppPalette.sageGradientSoft,
     shadowSm: AppShadows.sm,
     shadowMd: AppShadows.md,
     shadowSage: AppShadows.sage,
@@ -137,9 +137,9 @@ class AppThemeData {
   const AppThemeData._();
 
   static final ThemeData light =
-      _build(AppColors.lightScheme, AppTheme.light, AppColors.paper);
+      _build(AppPalette.lightScheme, AppTheme.light, AppPalette.paper);
   static final ThemeData dark =
-      _build(AppColors.darkScheme, AppTheme.dark, const Color(0xFF1F1F18));
+      _build(AppPalette.darkScheme, AppTheme.dark, const Color(0xFF1F1F18));
 
   static ThemeData _build(
     ColorScheme scheme,
@@ -161,7 +161,10 @@ class AppThemeData {
         backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
         elevation: 0,
-        titleTextStyle: AppTextStyles.title,
+        // AppTextStyles.title 本体无颜色（见 app_text_styles.dart 铁律），
+        // AppBar 直接采用无色样式时文字会渲染成白色 → 奶油底不可见，
+        // 必须在此显式补 onSurface 色。
+        titleTextStyle: AppTextStyles.title.copyWith(color: scheme.onSurface),
       ),
       cardTheme: CardThemeData(
         color: scheme.surface,
@@ -192,7 +195,7 @@ class AppThemeData {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.ctaGreen,
+          backgroundColor: AppPalette.ctaGreen,
           foregroundColor: scheme.onPrimary,
           minimumSize: const Size.fromHeight(AppDimens.minTouch),
           shape:

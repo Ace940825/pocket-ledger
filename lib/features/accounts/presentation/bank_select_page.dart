@@ -131,6 +131,7 @@ class _BankSelectPageState extends State<BankSelectPage> {
       body: Stack(
         children: <Widget>[
           CustomScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             controller: _scrollController,
             slivers: <Widget>[
               SliverToBoxAdapter(
@@ -147,7 +148,7 @@ class _BankSelectPageState extends State<BankSelectPage> {
                       hintText: '搜索银行',
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
-                      fillColor: AppColors.surfaceLight,
+                      fillColor: AppPalette.surfaceLight,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppDimens.radiusLg),
                         borderSide: BorderSide.none,
@@ -179,7 +180,7 @@ class _BankSelectPageState extends State<BankSelectPage> {
                         entry.key,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              color: AppPalette.textPrimary,
                             ),
                       ),
                     ),
@@ -310,8 +311,8 @@ class _AlphabetIndex extends StatelessWidget {
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   color: enabled
-                      ? AppColors.textSecondary
-                      : AppColors.textTertiary.withValues(alpha: 0.4),
+                      ? AppPalette.textSecondary
+                      : AppPalette.textTertiary.withValues(alpha: 0.4),
                 ),
               ),
             ),

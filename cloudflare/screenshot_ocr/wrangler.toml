@@ -1,0 +1,12 @@
+name = "pocket-ledger-screenshot-ocr"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# Workers AI 绑定：视觉模型（@cf/meta/llama-3.2-vision 等在 Free 计划通常可用）。
+# 若部署后识别返回 403（个别大模型限 Paid），把下面的变量改成更小模型，
+# 或升级 Workers Paid 计划（$5/月，含每天 10,000 Neurons 免费额度）。
+[ai]
+binding = "AI"
+
+[vars]
+OCR_MODEL = "@cf/meta/llama-3.2-vision"

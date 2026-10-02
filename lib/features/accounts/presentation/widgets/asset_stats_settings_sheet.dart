@@ -88,7 +88,7 @@ class _AssetStatsSettingsSheetState
                       ),
                       const Icon(
                         Icons.workspace_premium,
-                        color: AppColors.warn,
+                        color: AppPalette.warn,
                       ),
                     ],
                   ),
@@ -131,8 +131,8 @@ class _AssetStatsSettingsSheetState
                   FilledButton(
                     onPressed: _save,
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primaryLight,
-                      foregroundColor: AppColors.primaryDark,
+                      backgroundColor: AppPalette.primaryLight,
+                      foregroundColor: AppPalette.primaryDark,
                       padding: const EdgeInsets.symmetric(
                         vertical: AppDimens.spaceMd,
                       ),
@@ -282,7 +282,7 @@ class _RoundCloseButton extends StatelessWidget {
         child: Icon(
           Icons.close,
           size: 20,
-          color: AppColors.textSecondary,
+          color: AppPalette.textSecondary,
         ),
       ),
     );
@@ -328,7 +328,7 @@ class _SwitchRow extends StatelessWidget {
                 Text(
                   subtitle,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: AppPalette.textSecondary,
                   ),
                 ),
               ],
@@ -338,7 +338,7 @@ class _SwitchRow extends StatelessWidget {
             const Icon(
               Icons.workspace_premium,
               size: 18,
-              color: AppColors.warn,
+              color: AppPalette.warn,
             ),
             const SizedBox(width: AppDimens.spaceXs),
           ],

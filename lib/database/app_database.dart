@@ -35,6 +35,7 @@ part 'app_database.g.dart';
     LendRecords,
     Reimbursements,
     SavingsGoals,
+    SavingsDeposits,
     InstallmentPlans,
     InstallmentPeriods,
     Budgets,
@@ -67,7 +68,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -204,14 +205,18 @@ class AppDatabase extends _$AppDatabase {
           if (from < 12) {
             // v12：模板新增「示例金额 / 转入账户 / 借还对方」三列，
             // 支撑模板页独立录入（不落流水）与模板卡金额/账户摘要展示。
-            await _addColumnIfMissing(m, recordTemplates, recordTemplates.amountMinor);
-            await _addColumnIfMissing(m, recordTemplates, recordTemplates.toAccountId);
-            await _addColumnIfMissing(m, recordTemplates, recordTemplates.counterparty);
+            await _addColumnIfMissing(
+                m, recordTemplates, recordTemplates.amountMinor);
+            await _addColumnIfMissing(
+                m, recordTemplates, recordTemplates.toAccountId);
+            await _addColumnIfMissing(
+                m, recordTemplates, recordTemplates.counterparty);
           }
 
           if (from < 13) {
             // v13：模板新增「示例优惠」列，保存/回填记一笔的优惠金额。
-            await _addColumnIfMissing(m, recordTemplates, recordTemplates.discountMinor);
+            await _addColumnIfMissing(
+                m, recordTemplates, recordTemplates.discountMinor);
           }
 
           if (from < 14) {
@@ -272,6 +277,70 @@ class AppDatabase extends _$AppDatabase {
               m,
               savingsGoals,
               savingsGoals.isArchived,
+            );
+          }
+
+          if (from < 20) {
+            // v20：储蓄目标新增「存钱模式 / 重复周期 / 结束方式 / 已执行次数」
+            // 四列——计划卡片按小青账样式展示模式名与三枚信息胶囊。
+            // 历史数据 mode 等三列为 null（卡片兜底显示），已执行次数为 0。
+            await _addColumnIfMissing(m, savingsGoals, savingsGoals.mode);
+            await _addColumnIfMissing(
+              m,
+              savingsGoals,
+              savingsGoals.repeatCycle,
+            );
+            await _addColumnIfMissing(m, savingsGoals, savingsGoals.endNote);
+            await _addColumnIfMissing(
+              m,
+              savingsGoals,
+              savingsGoals.depositCount,
+            );
+          }
+
+          if (from < 21) {
+            // v21：储蓄计划详情页——目标新增「开始日期」列（逐期排期起点，
+            // 历史数据 null 时回退 updatedAt）+ 新增「逐期存入台账」本地表
+            // （第 N 期实际存入金额/时间，点期卡标记存入 / 撤销）。
+            await _addColumnIfMissing(m, savingsGoals, savingsGoals.startedAt);
+            await _createTableIfMissing(m, savingsDeposits);
+          }
+
+          if (from < 22) {
+            // v22：储蓄逐期存入台账新增「备注」列（存钱弹窗录入，可空）。
+            await _addColumnIfMissing(m, savingsDeposits, savingsDeposits.note);
+          }
+
+          if (from < 23) {
+            // v23：弹性存钱法支持真正递增——新增「递增模式 / 首期基础额 /
+            // 金额模式系数 / 百分比模式百分比」四列。旧弹性计划三列均为
+            // null，排期回退均摊（见 savings_schedule.dart），不崩。
+            await _addColumnIfMissing(
+                m, savingsGoals, savingsGoals.elasticMode);
+            await _addColumnIfMissing(
+                m, savingsGoals, savingsGoals.elasticBaseMinor);
+            await _addColumnIfMissing(
+                m, savingsGoals, savingsGoals.elasticStepMinor);
+            await _addColumnIfMissing(
+                m, savingsGoals, savingsGoals.elasticPercentHundred);
+          }
+
+          if (from < 24) {
+            // v24：分类新增「系统分类」标记列——借入/借出/转账/报销/退款/
+            // 分期/存款等落账时由 ensureNamed 自动重建挂分类，用户分类管理
+            // 与图标选择器隐藏（仅流水挂分类与统计用）。历史数据全部为
+            // false（旧版无系统分类概念）。
+            await _addColumnIfMissing(m, categories, categories.isSystem);
+          }
+
+          if (from < 25) {
+            // v25：储蓄计划新增「转出/扣款账户」列（存钱快捷属性落库）——
+            // 原先该账户仅页面态不落库，编辑页重开必空。历史数据为 null，
+            // 页面回退为默认资产账户 / 留空由用户选择。
+            await _addColumnIfMissing(
+              m,
+              savingsGoals,
+              savingsGoals.sourceAccountId,
             );
           }
 
@@ -376,6 +445,10 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_pending_ops_seq '
       'ON pending_ops(local_seq)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_savings_deposits_goal '
+      'ON savings_deposits(goal_id, day_index)',
     );
   }
 }

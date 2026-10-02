@@ -63,7 +63,7 @@ class InstallmentPage extends ConsumerWidget {
                 const Icon(
                   Icons.check_circle,
                   size: 16,
-                  color: AppColors.income,
+                  color: AppPalette.income,
                 ),
             ],
           ),
@@ -93,6 +93,7 @@ class InstallmentPage extends ConsumerWidget {
         builder: (BuildContext ctx, StateSetter setState) => AlertDialog(
           title: const Text('新增分期计划'),
           content: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[

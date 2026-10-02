@@ -79,7 +79,10 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
   Widget _buildList(List<Category> all) {
     final List<Category> candidates = all
         .where(
-          (Category c) => c.id != widget.source.id && c.type == _selectedType,
+          (Category c) =>
+              c.id != widget.source.id &&
+              c.type == _selectedType &&
+              !c.isSystem,
         )
         .toList();
 
@@ -178,7 +181,7 @@ class _TypeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final Color color =
-        selected ? theme.colorScheme.onSurface : AppColors.textTertiary;
+        selected ? theme.colorScheme.onSurface : AppPalette.textTertiary;
     final FontWeight weight = selected ? FontWeight.w600 : FontWeight.normal;
 
     return GestureDetector(
@@ -248,7 +251,7 @@ class _MigrateParentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color color = parent.colorValue != null
         ? Color(parent.colorValue!)
-        : AppColors.primary;
+        : AppPalette.primary;
     final bool hasChildren = children.isNotEmpty;
 
     return Column(
@@ -267,7 +270,7 @@ class _MigrateParentTile extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: AppPalette.surfaceLight,
                           borderRadius:
                               BorderRadius.circular(AppDimens.radiusMd),
                         ),
@@ -296,7 +299,7 @@ class _MigrateParentTile extends StatelessWidget {
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
-                                ?.copyWith(color: AppColors.textTertiary),
+                                ?.copyWith(color: AppPalette.textTertiary),
                           ),
                         ),
                     ],
@@ -338,7 +341,7 @@ class _MigrateChildTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color color = category.colorValue != null
         ? Color(category.colorValue!)
-        : AppColors.primary;
+        : AppPalette.primary;
 
     return InkWell(
       onTap: () => onSelect(category),
@@ -350,7 +353,7 @@ class _MigrateChildTile extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: AppPalette.surfaceLight,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
               child: Icon(

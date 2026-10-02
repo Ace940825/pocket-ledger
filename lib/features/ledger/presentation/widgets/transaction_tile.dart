@@ -11,10 +11,12 @@ import '../../providers/ledger_providers.dart';
 import '../../../../../shared/models/money.dart';
 import '../../../../../shared/widgets/attachment_viewer.dart';
 import '../../../../../shared/widgets/category_icons.dart';
+import '../../../../../shared/widgets/line_icons.dart';
 import '../../../../../shared/widgets/money_text.dart';
 import '../../../accounts/providers/accounts_providers.dart';
 import '../../../reimbursement/data/reimbursement_repository.dart';
 import '../../../reimbursement/providers/reimbursement_providers.dart';
+import 'txn_icon.dart';
 
 /// 流水列表项（小青账版本，对齐参考稿卡片逻辑）。
 ///
@@ -119,8 +121,22 @@ class TransactionTile extends ConsumerWidget {
         receivedMinor > 0 &&
         receivedMinor >= transaction.amountMinor;
 
+    // 退款标注：被退款的原支出账单，金额下显示「退款 ¥X=¥Y」
+    // （X=累计已退合计，Y=剩余 = 实付 − 已退；对齐小青账）。
+    final bool isExpenseRow = transaction.type == TxnType.expense;
+    int refundedMinor = 0;
+    if (isExpenseRow) {
+      final List<Transaction> refunds = ref
+              .watch(refundsByRelatedIdProvider(transaction.id))
+              .valueOrNull ??
+          const <Transaction>[];
+      refundedMinor =
+          refunds.fold<int>(0, (int s, Transaction r) => s + r.amountMinor);
+    }
+    final int paidMinor = transaction.amountMinor - transaction.discountMinor;
+
     final Color tint = isReimbIncome
-        ? AppColors.textTertiary
+        ? AppPalette.textTertiary
         : category?.colorValue != null
             ? Color(category!.colorValue!)
             : _tintFor(transaction.type);
@@ -128,6 +144,11 @@ class TransactionTile extends ConsumerWidget {
         category?.iconKey != null && category!.iconKey!.isNotEmpty
             ? categoryIconData(category.iconKey)
             : _iconFor(transaction.type);
+    // 双轨线稿优先：储蓄存入/取出按方向走储蓄罐线稿（系统分类「存款」不带
+    // iconKey，否则会退回 transfer 的 swap_horiz 兜底）；系统分类
+    // （借入/借出/取现/还款等）挂的 iconKey 有对应钢笔线稿时渲染 LineIcon，
+    // 否则退回 Material 兜底/类型默认图标。
+    final LineIconKind? lineKind = txnLineIconKind(transaction, category);
     final String accountLabel = _accountLabel(accounts);
 
     // 红色标注：不计收支 / 不计预算（任一开启才显示）。
@@ -152,8 +173,21 @@ class TransactionTile extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // 左侧图标：报销收入用「报」字圆角标，其余用分类图标。
-              if (isReimbIncome)
+              // 左侧图标：线稿优先（分类 iconKey 命中钢笔线稿），其次
+              // 报销收入用「报」字圆角标，最后退回 Material/类型默认图标。
+              if (lineKind != null)
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: tint.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  ),
+                  child: Center(
+                    child: LineIcon(lineKind, size: 22, color: tint),
+                  ),
+                )
+              else if (isReimbIncome)
                 Container(
                   width: 44,
                   height: 44,
@@ -167,7 +201,7 @@ class TransactionTile extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: AppPalette.textPrimary,
                       ),
                     ),
                   ),
@@ -218,7 +252,7 @@ class TransactionTile extends ConsumerWidget {
                       '${DateFormat('HH:mm').format(occurred)}'
                       '${_noteSuffix()}$refundFromSuffix',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
+                        color: AppPalette.textTertiary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -232,7 +266,7 @@ class TransactionTile extends ConsumerWidget {
                   child: Icon(
                     Icons.attach_file,
                     size: 16,
-                    color: AppColors.textTertiary,
+                    color: AppPalette.textTertiary,
                   ),
                 ),
               // 右侧：金额 + 已报 + 账户名 + 排除标注（自上而下）。
@@ -244,7 +278,7 @@ class TransactionTile extends ConsumerWidget {
                       ? Text(
                           Money.fromMinor(transaction.amountMinor).format(),
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppColors.transfer,
+                            color: AppPalette.transfer,
                             fontWeight: FontWeight.w600,
                           ),
                         )
@@ -259,17 +293,31 @@ class TransactionTile extends ConsumerWidget {
                                   Money.fromMinor(signedMinor.abs()),
                                   signed: false,
                                   color: fullyReimbursed
-                                      ? AppColors.textTertiary
+                                      ? AppPalette.textTertiary
                                       : null,
                                   style: fullyReimbursed
                                       ? const TextStyle(
                                           decoration:
                                               TextDecoration.lineThrough,
                                           decorationColor:
-                                              AppColors.textTertiary,
+                                              AppPalette.textTertiary,
                                         )
                                       : null,
                                 ),
+                  if (isExpenseRow && refundedMinor > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '退款 ${Money.fromMinor(refundedMinor).format()}'
+                        '=${Money.fromMinor(
+                          (paidMinor - refundedMinor).clamp(0, paidMinor),
+                        ).format()}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppPalette.expense,
+                        ),
+                      ),
+                    ),
                   if (isReimbExpense && receivedMinor > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
@@ -277,7 +325,7 @@ class TransactionTile extends ConsumerWidget {
                         '已报 ${Money.fromMinor(receivedMinor).format()}',
                         style: const TextStyle(
                           fontSize: 11,
-                          color: AppColors.expense,
+                          color: AppPalette.expense,
                         ),
                       ),
                     ),
@@ -288,7 +336,7 @@ class TransactionTile extends ConsumerWidget {
                         accountLabel,
                         style: const TextStyle(
                           fontSize: 11,
-                          color: AppColors.textTertiary,
+                          color: AppPalette.textTertiary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -301,7 +349,7 @@ class TransactionTile extends ConsumerWidget {
                         excludeLabels.join('、'),
                         style: const TextStyle(
                           fontSize: 11,
-                          color: AppColors.expense,
+                          color: AppPalette.expense,
                         ),
                       ),
                     ),
@@ -332,9 +380,9 @@ class TransactionTile extends ConsumerWidget {
   }
 
   Color _tintFor(TxnType type) => switch (type) {
-        TxnType.income => AppColors.income,
-        TxnType.expense => AppColors.expense,
-        TxnType.transfer => AppColors.transfer,
+        TxnType.income => AppPalette.income,
+        TxnType.expense => AppPalette.expense,
+        TxnType.transfer => AppPalette.transfer,
       };
 
   IconData _iconFor(TxnType type) => switch (type) {
@@ -440,9 +488,9 @@ class _DiscountedAmount extends StatelessWidget {
               '-${Money.fromMinor(originalMinor).format()}',
               style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textTertiary,
+                color: AppPalette.textTertiary,
                 decoration: TextDecoration.lineThrough,
-                decorationColor: AppColors.textTertiary,
+                decorationColor: AppPalette.textTertiary,
               ),
             ),
             const SizedBox(width: 4),
@@ -451,13 +499,13 @@ class _DiscountedAmount extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 color: strikeActual
-                    ? AppColors.textTertiary
-                    : AppColors.expense,
+                    ? AppPalette.textTertiary
+                    : AppPalette.expense,
                 fontWeight: FontWeight.w600,
                 decoration: strikeActual
                     ? TextDecoration.lineThrough
                     : null,
-                decorationColor: AppColors.textTertiary,
+                decorationColor: AppPalette.textTertiary,
               ),
             ),
           ],
@@ -467,7 +515,7 @@ class _DiscountedAmount extends StatelessWidget {
           '优惠${Money.fromMinor(discountMinor).format()}',
           style: const TextStyle(
             fontSize: 11,
-            color: AppColors.expense,
+            color: AppPalette.expense,
           ),
         ),
       ],
@@ -498,7 +546,7 @@ class DateSectionHeader extends StatelessWidget {
       child: Text(
         DateFormat('yyyy年M月d日').format(date),
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textTertiary,
+              color: AppPalette.textTertiary,
               fontWeight: FontWeight.w600,
             ),
       ),

@@ -4,7 +4,7 @@
 // 架构（详见 pocket_ledger_color_standard.md）：
 //   L0 颜料(Palette)   —— 只放原始 hex，不起业务名；组件不应直接引用。
 //   L1 语义角色(Roles) —— 给颜料起业务名；亮/暗变体成对出现。
-//   L2 主题装配        —— AppColors.lightScheme / darkScheme 一次性解析亮暗。
+//   L2 主题装配        —— AppPalette.lightScheme / darkScheme 一次性解析亮暗。
 //   L3 使用端          —— 组件只引用 L1 角色或 scheme.*，绝不直接写 Color()。
 //
 // 铁律：业务代码禁止写死 Colors.xxx / Color(0x..) / withValues(alpha)。一律走本文件或 ColorScheme。
@@ -14,8 +14,8 @@ import 'package:flutter/material.dart';
 
 /// 颜色标准（森林手账·鼠尾草绿 暖纸皮肤）
 @immutable
-class AppColors {
-  const AppColors._();
+class AppPalette {
+  const AppPalette._();
 
   // =====================================================================
   // L0 · 颜料调色板（Palette）
@@ -26,7 +26,7 @@ class AppColors {
   // ---------- 纸 / 奶油底 ----------
   static const paper = Color(0xFFFBF6EA); // 页面背景（纸底）
   static const paper2 = Color(0xFFF4EEDE); // 次级底 / 分组底 / 输入框底
-  static const cream = Color(0xFFFFFCF5); // 卡片背景
+  static const cream = Color(0xFFFBF8F0); // 卡片背景（暖奶油，去白）
   static const cream2 = Color(0xFFFFFDF9); // 悬浮 / 置顶卡
 
   // ---------- 鼠尾草绿阶（品牌主色族） ----------
@@ -42,13 +42,13 @@ class AppColors {
   static const sage900 = Color(0xFF2B3A25); // 暗色模式深绿
 
   // ---------- CTA 绿（白字按钮，已做 AA 校正） ----------
-  static const ctaGreen = Color(0xFF557C4B); // 白字 4.8:1
-  static const ctaGreenDeep = Color(0xFF43603B); // 白字 7.1:1，按下态
+  static const ctaGreen = Color(0xFF41823B); // 白字 ≥4.5 AA（贴近 asset 森林绿）
+  static const ctaGreenDeep = Color(0xFF335E2B); // 白字 ≥7:1，按下态
 
   // ---------- 文字墨阶 ----------
-  static const ink = Color(0xFF3B352B); // 主文字（暖黑）
-  static const ink2 = Color(0xFF6E6555); // 次文字
-  static const ink3 = Color(0xFF7E7261); // 提示 / 占位 / 说明
+  static const ink = Color(0xFF4F5F2F); // 主文字（橄榄绿墨，asset 风格）
+  static const ink2 = Color(0xFF6B7A4F); // 次文字（绿调）
+  static const ink3 = Color(0xFF7A8A5A); // 提示 / 占位 / 说明（绿调）
 
   // ---------- 线 ----------
   static const hairline = Color(0xFFECE3D1); // 分隔线 / 卡片描边
@@ -61,14 +61,14 @@ class AppColors {
   // =====================================================================
 
   // ---- 财务金额语义（国内记账：收入绿 / 支出红 / 转账中性蓝） ----
-  static const expense = Color(0xFFC15B3C); // 支出 · 陶土红（亮）
-  static const income = Color(0xFF5E8A56); // 收入 · 苔绿（亮）
+  static const expense = Color(0xFFB84A3A); // 支出 · 暖陶土红（亮，AA 4.80）
+  static const income = Color(0xFF3A7A3A); // 收入 · 深森林绿（亮，asset 风格）
   static const transfer = Color(0xFF7C9DB5); // 转账 · 中性蓝（亮，仅图形 / 大字）
   static const gold = Color(0xFFD2A94F); // 强调金（报销 / 标记）
 
   // 暗底提亮变体（保对比度，铁律③）
-  static const expenseDark = Color(0xFFE0846A); // 暗底支出
-  static const incomeDark = Color(0xFF9CCB90); // 暗底收入
+  static const expenseDark = Color(0xFFED9480); // 暗底支出（asset 暖陶土派生）
+  static const incomeDark = Color(0xFFA9D49D); // 暗底收入（asset 森林绿派生）
 
   // ---- 投资语义（A 股：涨红 / 跌绿）—— 与记账语义「相反」，独立成组，勿污染 income/expense ----
   // 投资页接入前必须显式选用本组；绝不可用 income/expense 顶替，否则红绿含义打架。
@@ -84,7 +84,7 @@ class AppColors {
 
   // ---------------------------------------------------------------------
   // 迁移期兼容别名（过渡用；后续清理应改为 scheme.* / 新令牌，勿新增调用）
-  // 旧仓库 AppColors.* 旧成员 → 新标准映射，保证页面切到本模块后仍编译。
+  // 旧仓库 AppPalette.* 旧成员 → 新标准映射，保证页面切到本模块后仍编译。
   // ---------------------------------------------------------------------
   static const Color primary = ctaGreen; // 旧 #0F9D70 → 品牌主绿（白字按钮）
   static const Color primaryLight = sage400; // 旧 #5DCAA5
@@ -160,7 +160,7 @@ class AppColors {
 
   /// 由调色板生成 Material ColorScheme（暗色）
   static ColorScheme get darkScheme => ColorScheme.dark().copyWith(
-        primary: const Color(0xFF9FBE92),
+        primary: const Color(0xFF8FB883), // D1 暗：CTA 森林绿
         onPrimary: const Color(0xFF1A2114),
         primaryContainer: sage900,
         onPrimaryContainer: const Color(0xFFC9DCC0),
@@ -168,10 +168,10 @@ class AppColors {
         secondaryContainer: const Color(0xFF33402C),
         onSecondaryContainer: const Color(0xFFC9DCC0),
         onSecondary: const Color(0xFF1A2114),
-        surface: const Color(0xFF2A2A22),
-        onSurface: const Color(0xFFF1ECDC),
+        surface: const Color(0xFF26291F), // D4 暗：暖绿调暗底（asset 去白派生）
+        onSurface: const Color(0xFFD6E3C8), // D5 暗：淡鼠尾草字（绿调墨派生）
         surfaceContainerHighest: const Color(0xFF33332A),
-        onSurfaceVariant: const Color(0xFFC9C3B0),
+        onSurfaceVariant: const Color(0xFFB8C6A8), // D5 暗：次文字绿调
         outline: const Color(0xFF4A4A3C),
         error: expenseDark,
         onError: const Color(0xFF2A140D),
@@ -179,7 +179,7 @@ class AppColors {
 
   // =====================================================================
   // L3 便捷 helper（亮度择变体，消灭各页面重复实现）
-  // 用法：final c = AppColors.amount(positive, dark: isDark(ctx));
+  // 用法：final c = AppPalette.amount(positive, dark: isDark(ctx));
   // =====================================================================
 
   /// 财务金额语义色（按亮度择变体，铁律③⑥）：收入绿 / 支出红。
@@ -200,10 +200,10 @@ class AppColors {
 
   // =====================================================================
   // L1c · §7 统一补充令牌（精确同值，零漂移；消业务页裸 hex）
-  // 命名与取值一一对应既有 Forest/AppColors 语义；引入仅为「页面不抓原始调色板」。
+  // 命名与取值一一对应既有 Forest/AppPalette 语义；引入仅为「页面不抓原始调色板」。
   // =====================================================================
 
-  // ---- Forest 同值别名（避免跨文件引 Forest 令牌，集中走 AppColors）----
+  // ---- Forest 同值别名（避免跨文件引 Forest 令牌，集中走 AppPalette）----
   static const Color deepGreen = Color(0xFF2E6B49); // = ForestGreen.deep
   static const Color sunkenCream = Color(0xFFF3EAD8); // = ForestBg.sunken
   static const Color sageInk = Color(0xFF2E5B39); // = ForestSage.ink
@@ -260,4 +260,38 @@ class AppColors {
   static const Color mintSheen = Color(0xFFD6F3E8); // 薄荷微光
   static const Color surfaceMist = Color(0xFFF5F6F5); // 中性近白薄雾
   static const Color neutralGray = Color(0xFF8A8F8B); // 中性灰
+
+  // —— 框架原色（供消费端替代 Colors.white/black，守门要求走令牌）——
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color black = Color(0xFF000000);
+  static const Color black54 = Color(0x8A000000); // Colors.black54
+
+  // —— L1d 别名令牌：精确同值语义化（便于消费端替代裸 Color(0x..)）——
+  static const Color scrimBlack20 = Color(0x33000000); // 黑 20% 蒙层
+  static const Color graySurface = Color(0xFFF6F7F9); // 浅灰面
+  static const Color redSoftBg = Color(0xFFFDE9E7); // 柔红底
+  static const Color transferBlueGray = Color(0xFF7A8CA0); // 转账蓝灰
+  static const Color blueTintBg = Color(0xFFE3F0FD); // 蓝染底
+  static const Color blueTint = Color(0xFF3B82D6); // 蓝染
+  static const Color purpleTintBg = Color(0xFFEFE9FB); // 紫染底
+  static const Color purpleTint = Color(0xFF8B5CF6); // 紫染
+  static const Color greenTintBg = Color(0xFFE6F4EA); // 绿染底
+  static const Color goldStar = Color(0xFFF5C542); // 金星
+  static const Color apricot = Color(0xFFF0A24B); // 杏橙
+  static const Color mistBlue = Color(0xFF5B8DEF); // 雾蓝
+  static const Color orchid = Color(0xFF9B6DF3); // 藕紫
+  static const Color peachPink = Color(0xFFE56D9C); // 桃粉
+  static const Color tealJade = Color(0xFF3FB8B0); // 青碧
+  static const Color pineGreen = Color(0xFF5F9A6E); // 松绿
+}
+
+/// 独立小类：承载少量在 AppPalette 大类下会被 analyzer 元素模型漏解析的别名令牌。
+/// （AppPalette 静态字段过多时，analyzer 10 会偶发丢弃末尾/特定字段；拆到独立类可稳定解析。）
+class AppPaletteX {
+  const AppPaletteX._();
+  static const Color forestScrim32 = Color(0x52141E18); // rgba(20,30,24,.32)
+  static const Color azureSurface = Color(0xFFE1ECFB); // 设计稿 .pill.e 底
+  static const Color coralSurface = Color(0xFFFBE3DF); // 设计稿 .pill.s 底
+  static const Color azureAccent = Color(0xFF3F72C9); // --blue
+  static const Color coralAccent = Color(0xFFC9473B); // --red
 }

@@ -122,5 +122,5 @@ class _LendPageState extends ConsumerState<LendPage> {
 }
 
 /// 借还页用的配色：借出视为应收（红/支出侧），借入视为应付（绿/收入侧）。
-const Color _lendOutColor = AppColors.expense;
-const Color _lendInColor = AppColors.income;
+const Color _lendOutColor = AppPalette.expense;
+const Color _lendInColor = AppPalette.income;

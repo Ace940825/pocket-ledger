@@ -34,20 +34,20 @@ List<Account> fundAccountsOnly(List<Account> list) => list
 
 class _SheetA {
   // 卡片描边 rgba(44,51,41,.07)
-  static Color cardBorder = AppColors.sage900.withValues(alpha: 0.071);
+  static Color cardBorder = AppPalette.sage900.withValues(alpha: 0.071);
   // 选中卡边框 rgba(46,91,57,.25)
-  static Color selBorder = AppColors.sage800.withValues(alpha: 0.251);
+  static Color selBorder = AppPalette.sage800.withValues(alpha: 0.251);
   // 选中卡阴影 rgba(60,138,96,.20)
   static List<BoxShadow> selShadow = <BoxShadow>[
-    BoxShadow(color: AppColors.stockDown.withValues(alpha: 0.2), blurRadius: 14, offset: Offset(0, 4)),
+    BoxShadow(color: AppPalette.stockDown.withValues(alpha: 0.2), blurRadius: 14, offset: Offset(0, 4)),
   ];
   // 选中态加深余额色（浅绿底保证对比）
-  static const Color selPos = AppColors.pickerGreen;
-  static const Color selNeg = AppColors.pickerRed;
+  static const Color selPos = AppPalette.pickerGreen;
+  static const Color selNeg = AppPalette.pickerRed;
   // 关闭按钮灰绿（= transfer）
-  static const Color closeIcon = AppColors.ink3;
+  static const Color closeIcon = AppPalette.ink3;
   // 次要文字
-  static const Color dueText = AppColors.ink3;
+  static const Color dueText = AppPalette.ink3;
 }
 
 // ───────────────────── Bottom Sheet 组件 ─────────────────────
@@ -202,7 +202,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(top: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.sage800.withValues(alpha: 0.22),
+                  color: AppPalette.sage800.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -222,8 +222,8 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.pickerCream,
-                            border: Border.all(color: AppColors.pickerClay),
+                            color: AppPalette.pickerCream,
+                            border: Border.all(color: AppPalette.pickerClay),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -231,7 +231,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                               const Icon(
                                 Icons.info_outline,
                                 size: 15,
-                                color: AppColors.clayBrown,
+                                color: AppPalette.clayBrown,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -240,7 +240,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                                   style: const TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.clayBrown,
+                                    color: AppPalette.clayBrown,
                                   ),
                                 ),
                               ),
@@ -405,7 +405,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
           decoration: BoxDecoration(
             color: ForestBg.sunken,
             border: Border.all(
-              color: selected ? ForestGreen.deep : AppColors.sage900.withValues(alpha: 0.141),
+              color: selected ? ForestGreen.deep : AppPalette.sage900.withValues(alpha: 0.141),
               width: 1,
             ),
             borderRadius: BorderRadius.circular(14),
@@ -757,7 +757,7 @@ class _CardInner extends StatelessWidget {
           fontSize: 10,
           height: 1.2,
           fontWeight: FontWeight.w600,
-          color: AppColors.inkWarm,
+          color: AppPalette.inkWarm,
           fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
         ),
       ),
@@ -868,7 +868,7 @@ class _PillBtn extends StatelessWidget {
           boxShadow: isPrimary
               ? <BoxShadow>[
                   BoxShadow(
-                    color: AppColors.stockDown.withValues(alpha: 0.278),
+                    color: AppPalette.stockDown.withValues(alpha: 0.278),
                     blurRadius: 12,
                     offset: Offset(0, 4),
                   ),
@@ -920,7 +920,7 @@ class _OpBtn extends StatelessWidget {
               boxShadow: primary
                   ? <BoxShadow>[
                       BoxShadow(
-                        color: AppColors.stockDown.withValues(alpha: 0.278),
+                        color: AppPalette.stockDown.withValues(alpha: 0.278),
                         blurRadius: 12,
                         offset: Offset(0, 4),
                       ),

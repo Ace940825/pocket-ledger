@@ -10,12 +10,77 @@ import '../../inventory/providers/inventory_providers.dart';
 import '../../investment/data/investment_repository.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../../lend/providers/lend_providers.dart';
+import '../../ledger/providers/ledger_providers.dart'
+    show LedgerAdvancedFilter, LedgerPeriod;
 import '../data/report_repository.dart';
+
+/// 报表统计分支：月支出 / 月收入 / 其他（不计收支 + 转账）。
+enum ReportBranch { expense, income, other }
+
+/// 报表页高级筛选状态（与账单页的 ledgerAdvancedFilterProvider 互不影响，
+/// 「查询」带回结果后触发报表聚合刷新）。
+final StateProvider<LedgerAdvancedFilter?> reportAdvancedFilterProvider =
+    StateProvider<LedgerAdvancedFilter?>((Ref ref) => null);
 
 final Provider<ReportRepository> reportRepositoryProvider =
     Provider<ReportRepository>(
   (Ref ref) => ReportRepository(ref.watch(transactionsDaoProvider)),
 );
+
+/// 报表页当前查看的周期（本地时区；[LedgerPeriod.end] 为开区间）。
+/// 默认当前自然月；与账单页的 ledgerPeriodProvider 互不影响。
+final StateProvider<LedgerPeriod> reportPeriodProvider =
+    StateProvider<LedgerPeriod>((Ref ref) {
+  final DateTime now = DateTime.now();
+  return LedgerPeriod.monthOf(DateTime(now.year, now.month));
+});
+
+/// 报表周期的 UTC 毫秒区间 [startAt, endAt)。
+final Provider<({int startAt, int endAt})> reportPeriodRangeProvider =
+    Provider<({int startAt, int endAt})>((Ref ref) {
+  final LedgerPeriod p = ref.watch(reportPeriodProvider);
+  return (
+    startAt: p.start.toUtc().millisecondsSinceEpoch,
+    endAt: p.end.toUtc().millisecondsSinceEpoch,
+  );
+});
+
+/// 报表周期的**全部**流水（含转账、不计收支项），环形图/明细聚合用。
+/// 口径与账单页 monthTransactionsProvider 一致，只是区间跟随报表周期。
+final AutoDisposeStreamProvider<List<Transaction>>
+    reportPeriodTransactionsProvider =
+    StreamProvider.autoDispose<List<Transaction>>((Ref ref) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  final ({int startAt, int endAt}) range =
+      ref.watch(reportPeriodRangeProvider);
+  return ref.watch(transactionsDaoProvider).watchRange(
+        bookId: bookId,
+        startAt: range.startAt,
+        endAt: range.endAt,
+      );
+});
+
+/// 报表「日历」Tab 当前查看的年份（本地时区）。
+final StateProvider<int> reportCalendarYearProvider =
+    StateProvider<int>((Ref ref) => DateTime.now().year);
+
+/// 报表「日历」Tab 当前形态：null = 年视图；1~12 = 该月月视图。
+/// 提升为 provider 以便「报表 / 日历」两个 Tab 双向同步时间。
+final StateProvider<int?> reportCalendarMonthProvider =
+    StateProvider<int?>((Ref ref) => null);
+
+/// 日历 Tab 年份的**全部**流水（含转账、不计收支项），月宫格/年账单明细聚合用。
+final AutoDisposeStreamProvider<List<Transaction>>
+    reportCalendarYearTransactionsProvider =
+    StreamProvider.autoDispose<List<Transaction>>((Ref ref) {
+  final int y = ref.watch(reportCalendarYearProvider);
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref.watch(transactionsDaoProvider).watchRange(
+        bookId: bookId,
+        startAt: DateTime(y).toUtc().millisecondsSinceEpoch,
+        endAt: DateTime(y + 1).toUtc().millisecondsSinceEpoch,
+      );
+});
 
 /// 近 [months] 个月的收支趋势，按月升序。
 ///

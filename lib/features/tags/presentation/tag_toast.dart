@@ -41,7 +41,7 @@ void showTagToast(
               padding:
                   const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
               decoration: BoxDecoration(
-                color: AppColors.sage900.withValues(alpha: 0.922),
+                color: AppPalette.sage900.withValues(alpha: 0.922),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
@@ -51,7 +51,7 @@ void showTagToast(
                 softWrap: false,
                 overflow: TextOverflow.fade,
                 style: const TextStyle(
-                  color: AppColors.creamSoft,
+                  color: AppPalette.creamSoft,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   height: 1.2,

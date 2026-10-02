@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../theme/app_colors.dart';
+import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
@@ -116,8 +117,9 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
   static const double _cardHeight = 184;
   static const int _pageCount = 3;
 
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
+  // 默认停在「本月收支」卡（children 顺序：0 预算 / 1 收支 / 2 资产）。
+  final PageController _pageController = PageController(initialPage: 1);
+  int _currentPage = 1;
 
   @override
   void dispose() {
@@ -201,21 +203,22 @@ class _AssetsCard extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     return _TappableSurface(
       onTap: onTap,
-      background: AppColors.primary,
+      background: ForestAssetBg.deep,
+      gradient: ForestAssetBg.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
             '净资产',
             style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onPrimary.withValues(alpha: 0.85)),
+                ?.copyWith(color: ForestAssetText.primary.withValues(alpha: 0.85)),
           ),
           const SizedBox(height: 2),
           AnimatedMoneyText(
             Money.fromMinor(netAssets),
-            color: theme.colorScheme.onPrimary,
+            color: ForestAssetText.emphasis,
             style: theme.textTheme.headlineSmall
-                ?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.w600),
+                ?.copyWith(color: ForestAssetText.emphasis, fontWeight: FontWeight.w600),
           ),
           const Spacer(),
           Row(
@@ -224,8 +227,8 @@ class _AssetsCard extends StatelessWidget {
                 child: _MiniStat(
                   label: '总资产',
                   valueMinor: totalAssets,
-                  labelColor: theme.colorScheme.onPrimary.withValues(alpha: 0.85),
-                  valueColor: theme.colorScheme.onPrimary,
+                  labelColor: ForestAssetText.primary.withValues(alpha: 0.85),
+                  valueColor: ForestAssetText.emphasis,
                 ),
               ),
               const SizedBox(width: AppDimens.spaceMd),
@@ -233,8 +236,8 @@ class _AssetsCard extends StatelessWidget {
                 child: _MiniStat(
                   label: '总负债',
                   valueMinor: totalLiabilities,
-                  labelColor: theme.colorScheme.onPrimary.withValues(alpha: 0.85),
-                  valueColor: theme.colorScheme.onPrimary,
+                  labelColor: ForestAssetText.primary.withValues(alpha: 0.85),
+                  valueColor: ForestAssetText.emphasis,
                 ),
               ),
             ],
@@ -258,7 +261,7 @@ class _BudgetCard extends StatelessWidget {
     final bool empty = summary.total == 0;
     return _TappableSurface(
       onTap: onTap,
-      background: AppColors.info,
+      background: AppPalette.info,
       child: empty
           ? Center(
               child: Padding(
@@ -348,9 +351,9 @@ class _IncomeExpenseCard extends StatelessWidget {
           const SizedBox(height: 2),
           AnimatedMoneyText(
             Money.fromMinor(balance),
-            color: balance >= 0 ? AppColors.income : AppColors.expense,
+            color: balance >= 0 ? AppPalette.income : AppPalette.expense,
             style: theme.textTheme.headlineSmall?.copyWith(
-              color: balance >= 0 ? AppColors.income : AppColors.expense,
+              color: balance >= 0 ? AppPalette.income : AppPalette.expense,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -362,7 +365,7 @@ class _IncomeExpenseCard extends StatelessWidget {
                   label: '收入',
                   valueMinor: income,
                   labelColor: theme.colorScheme.onSurfaceVariant,
-                  valueColor: AppColors.income,
+                  valueColor: AppPalette.income,
                 ),
               ),
               const SizedBox(width: AppDimens.spaceMd),
@@ -371,7 +374,7 @@ class _IncomeExpenseCard extends StatelessWidget {
                   label: '支出',
                   valueMinor: expense,
                   labelColor: theme.colorScheme.onSurfaceVariant,
-                  valueColor: AppColors.expense,
+                  valueColor: AppPalette.expense,
                 ),
               ),
             ],
@@ -387,27 +390,39 @@ class _TappableSurface extends StatelessWidget {
   const _TappableSurface({
     required this.onTap,
     required this.background,
+    this.gradient,
     required this.child,
   });
 
   final VoidCallback onTap;
   final Color background;
+  final Gradient? gradient;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    final bool hasGradient = gradient != null;
     return Padding(
       // PageView 的页面之间留点间距，避免波纹溢出到相邻卡片
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Material(
-        color: background,
+        color: hasGradient ? Colors.transparent : background,
         borderRadius: BorderRadius.circular(AppDimens.radiusLg),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceLg),
-            child: child,
+        child: Container(
+          decoration: hasGradient
+              ? BoxDecoration(
+                  gradient: gradient,
+                  borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                  boxShadow: ForestAssetElevation.card,
+                )
+              : null,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              child: child,
+            ),
           ),
         ),
       ),
@@ -477,7 +492,7 @@ class _PageDots extends StatelessWidget {
           width: active ? 18 : 6,
           height: 6,
           decoration: BoxDecoration(
-            color: active ? AppColors.primary : Theme.of(context).colorScheme.outline,
+            color: active ? AppPalette.primary : Theme.of(context).colorScheme.outline,
             borderRadius: BorderRadius.circular(3),
           ),
         );

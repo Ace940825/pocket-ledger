@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
+import 'amount_keypad.dart';
 import '../../features/installment/domain/repeat_rule.dart';
 
 /// 小青账风格的分期「执行方式 / 重复周期」底部选择面板。
@@ -189,7 +190,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                     child: FilledButton(
                       onPressed: () => Navigator.of(context).pop(_result),
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: AppPalette.primary,
                         foregroundColor: Theme.of(context).colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -258,14 +259,14 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   color:
-                      selected ? AppColors.textPrimary : AppColors.surfaceLight,
+                      selected ? AppPalette.textPrimary : AppPalette.surfaceLight,
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   _unitLabels[unit.index],
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: selected ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
+                    color: selected ? Theme.of(context).colorScheme.onPrimary : AppPalette.textPrimary,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
@@ -301,32 +302,28 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
               horizontal: BorderSide(color: Theme.of(context).colorScheme.outline),
             ),
           ),
-          child: TextField(
-            controller: _intervalController,
-            focusNode: _intervalFocusNode,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            inputFormatters: <TextInputFormatter>[
-              FilteringTextInputFormatter.digitsOnly,
-            ],
-            decoration: const InputDecoration(
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-              filled: true,
-              fillColor: Colors.transparent,
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              errorBorder: InputBorder.none,
-              disabledBorder: InputBorder.none,
-              focusedErrorBorder: InputBorder.none,
-              counterText: '',
+          child:             KeypadField(
+              controller: _intervalController,
+              allowDecimal: false,
+              textAlign: TextAlign.center,
+              onChanged: (_) => _commitIntervalText(),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                filled: true,
+                fillColor: Colors.transparent,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                counterText: '',
+              ),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-            onSubmitted: (_) => _commitIntervalText(),
-          ),
         ),
         _stepperButton(
           icon: Icons.add,
@@ -362,7 +359,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         child: Icon(
           icon,
           size: 18,
-          color: onTap == null ? Theme.of(context).colorScheme.outline : AppColors.textSecondary,
+          color: onTap == null ? Theme.of(context).colorScheme.outline : AppPalette.textSecondary,
         ),
       ),
     );
@@ -552,13 +549,13 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         height: height ?? 40,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? AppColors.textPrimary : AppColors.surfaceLight,
+          color: selected ? AppPalette.textPrimary : AppPalette.surfaceLight,
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Theme.of(context).colorScheme.onPrimary : AppColors.textPrimary,
+            color: selected ? Theme.of(context).colorScheme.onPrimary : AppPalette.textPrimary,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
             fontSize: fontSize,
             height: 1.0,

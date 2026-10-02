@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
+import 'amount_keypad.dart';
 
 /// 安全的中缀算术求值：仅支持非负数字与 `+ - * /` 运算符。
 ///
@@ -191,7 +192,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
                 onPressed: () => setState(() => _aaMode = !_aaMode),
                 child: Text(
                   _aaMode ? '四则运算' : 'AA 分摊',
-                  style: TextStyle(color: AppColors.primary),
+                  style: TextStyle(color: AppPalette.primary),
                 ),
               ),
             ],
@@ -209,10 +210,10 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
             height: 48,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: result == null ? Theme.of(context).colorScheme.outline : AppColors.primary,
-                foregroundColor: result == null ? AppColors.textTertiary : Theme.of(context).colorScheme.onPrimary,
+                backgroundColor: result == null ? Theme.of(context).colorScheme.outline : AppPalette.primary,
+                foregroundColor: result == null ? AppPalette.textTertiary : Theme.of(context).colorScheme.onPrimary,
                 disabledBackgroundColor: Theme.of(context).colorScheme.outline,
-                disabledForegroundColor: AppColors.textTertiary,
+                disabledForegroundColor: AppPalette.textTertiary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 ),
@@ -251,14 +252,14 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           Text(
             displayExpr,
             style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: AppPalette.textSecondary,
                 ),
           ),
           const SizedBox(height: AppDimens.spaceXs),
           Text(
             result == null ? '' : '= ${_formatCurrency(result)}',
             style: theme.textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: AppPalette.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
           ),
@@ -275,14 +276,13 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
     );
     return Column(
       children: <Widget>[
-        TextField(
+        KeypadField(
           controller: _aaTotal,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          textAlignVertical: TextAlignVertical.center,
+          allowDecimal: true,
           decoration: InputDecoration(
             hintText: '总金额',
             hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textTertiary,
+                  color: AppPalette.textTertiary,
                 ),
             filled: true,
             fillColor: theme.colorScheme.surfaceContainerHighest,
@@ -290,7 +290,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
             enabledBorder: border,
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              borderSide: const BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppPalette.primary),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppDimens.spaceMd,
@@ -300,14 +300,13 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: AppDimens.spaceMd),
-        TextField(
+        KeypadField(
           controller: _aaPeople,
-          keyboardType: TextInputType.number,
-          textAlignVertical: TextAlignVertical.center,
+          allowDecimal: false,
           decoration: InputDecoration(
             hintText: '人数',
             hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textTertiary,
+                  color: AppPalette.textTertiary,
                 ),
             filled: true,
             fillColor: theme.colorScheme.surfaceContainerHighest,
@@ -315,7 +314,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
             enabledBorder: border,
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              borderSide: const BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppPalette.primary),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppDimens.spaceMd,
@@ -335,7 +334,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           child: Text(
             result == null ? '人均 ¥0.00' : '人均 ¥${_formatCurrency(result)}',
             style: theme.textTheme.headlineSmall?.copyWith(
-                  color: AppColors.primary,
+                  color: AppPalette.primary,
                   fontWeight: FontWeight.w600,
                 ),
             textAlign: TextAlign.end,
@@ -378,7 +377,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: highlight
-              ? AppColors.primary.withValues(alpha: 0.12)
+              ? AppPalette.primary.withValues(alpha: 0.12)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(AppDimens.radiusSm),
         ),
@@ -386,7 +385,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           k,
           style: TextStyle(
             fontSize: 24,
-            color: highlight ? AppColors.primary : AppColors.textPrimary,
+            color: highlight ? AppPalette.primary : AppPalette.textPrimary,
             fontWeight: FontWeight.w500,
             height: 1.0,
           ),
@@ -489,7 +488,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
     return InputDecoration(
       hintText: hint,
       hintStyle: theme.textTheme.bodyMedium?.copyWith(
-            color: AppColors.textTertiary,
+            color: AppPalette.textTertiary,
           ),
       filled: true,
       fillColor: theme.colorScheme.surfaceContainerHighest,
@@ -497,7 +496,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
       enabledBorder: border,
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        borderSide: const BorderSide(color: AppColors.primary),
+        borderSide: const BorderSide(color: AppPalette.primary),
       ),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppDimens.spaceMd,
@@ -525,7 +524,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                     children: <Widget>[
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                        icon: const Icon(Icons.close, color: AppPalette.textSecondary),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       ),
@@ -536,7 +535,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                            color: AppPalette.textPrimary,
                           ),
                         ),
                       ),
@@ -557,14 +556,14 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                         const Icon(
                           Icons.info_outline,
                           size: 18,
-                          color: AppColors.textTertiary,
+                          color: AppPalette.textTertiary,
                         ),
                         const SizedBox(width: AppDimens.spaceSm),
                         Expanded(
                           child: Text(
                             '如手续费和优惠都存在的情况，手续费-优惠=真正的手续费',
                             style: theme.textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textSecondary,
+                                  color: AppPalette.textSecondary,
                                 ),
                           ),
                         ),
@@ -573,25 +572,19 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                   ),
                   const SizedBox(height: AppDimens.spaceMd),
                   // 手续费
-                  TextField(
+                  KeypadField(
                     controller: _feeController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.next,
-                    textAlignVertical: TextAlignVertical.center,
+                    allowDecimal: true,
                     decoration: _fieldDecoration(context, '手续费'),
                     onChanged: (_) => setState(() {}),
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
                   ),
                   const SizedBox(height: AppDimens.spaceMd),
                   // 优惠
-                  TextField(
+                  KeypadField(
                     controller: _discountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.next,
-                    textAlignVertical: TextAlignVertical.center,
+                    allowDecimal: true,
                     decoration: _fieldDecoration(context, '优惠'),
                     onChanged: (_) => setState(() {}),
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
                   ),
                   const SizedBox(height: AppDimens.spaceMd),
                   // 剩余手续费
@@ -610,14 +603,14 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                         Text(
                           '剩余手续费',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textTertiary,
+                                color: AppPalette.textTertiary,
                               ),
                         ),
                         const Spacer(),
                         Text(
                           _remainingText.isEmpty ? '0.00' : _remainingText,
                           style: theme.textTheme.bodyLarge?.copyWith(
-                                color: AppColors.textPrimary,
+                                color: AppPalette.textPrimary,
                                 fontWeight: FontWeight.w600,
                               ),
                         ),
@@ -631,10 +624,10 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                     height: 48,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: _isValid ? AppColors.primary : Theme.of(context).colorScheme.outline,
-                        foregroundColor: _isValid ? Theme.of(context).colorScheme.onPrimary : AppColors.textTertiary,
+                        backgroundColor: _isValid ? AppPalette.primary : Theme.of(context).colorScheme.outline,
+                        foregroundColor: _isValid ? Theme.of(context).colorScheme.onPrimary : AppPalette.textTertiary,
                         disabledBackgroundColor: Theme.of(context).colorScheme.outline,
-                        disabledForegroundColor: AppColors.textTertiary,
+                        disabledForegroundColor: AppPalette.textTertiary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                         ),

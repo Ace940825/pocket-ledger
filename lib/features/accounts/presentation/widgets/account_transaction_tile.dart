@@ -7,8 +7,10 @@ import '../../../../core/constants/app_dimens.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
 import '../../../../shared/models/money.dart';
+import '../../../../shared/widgets/line_icons.dart';
 import '../../../../shared/widgets/money_text.dart';
 import '../../../accounts/providers/accounts_providers.dart';
+import '../../../ledger/presentation/widgets/txn_icon.dart';
 
 /// 资产详情页用的交易行。
 ///
@@ -43,8 +45,13 @@ class AccountTransactionTile extends ConsumerWidget {
 
     final Category? category = _category(ref);
     final String title = _title(category);
-    final IconData icon = _iconFor(category, transaction.type);
     final Color tint = _tintFor(category);
+    // 双轨线稿优先：与流水列表行 / 详情弹层一致，分类 iconKey 命中钢笔线稿时
+    // 渲染 LineIcon；退款保持原 Material 图标（replay），不接手绘；
+    // 其余（含储蓄存取）走 [txnLineIconKind] 的统一方向判定。
+    final bool isRefund = transaction.sourceModule == SourceModule.refund;
+    final LineIconKind? lineKind =
+        isRefund ? null : txnLineIconKind(transaction, category);
 
     return InkWell(
       onTap: onTap,
@@ -55,7 +62,13 @@ class AccountTransactionTile extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            _CircleIcon(icon: icon, tint: tint),
+            _CircleIcon(
+              tint: tint,
+              child: lineKind != null
+                  ? LineIcon(lineKind, size: 20, color: tint)
+                  : Icon(_iconFor(category, transaction.type),
+                      size: 20, color: tint),
+            ),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Column(
@@ -73,7 +86,7 @@ class AccountTransactionTile extends ConsumerWidget {
                   Text(
                     DateFormat('HH:mm').format(occurred),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: AppPalette.textSecondary,
                     ),
                   ),
                 ],
@@ -93,7 +106,7 @@ class AccountTransactionTile extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: AppPalette.textSecondary,
                   ),
                 ),
               ],
@@ -142,9 +155,9 @@ class AccountTransactionTile extends ConsumerWidget {
     final int? colorValue = category?.colorValue;
     if (colorValue != null) return Color(colorValue);
     return switch (transaction.type) {
-      TxnType.income => AppColors.income,
-      TxnType.expense => AppColors.expense,
-      TxnType.transfer => AppColors.transfer,
+      TxnType.income => AppPalette.income,
+      TxnType.expense => AppPalette.expense,
+      TxnType.transfer => AppPalette.transfer,
     };
   }
 
@@ -177,9 +190,9 @@ class AccountTransactionTile extends ConsumerWidget {
 }
 
 class _CircleIcon extends StatelessWidget {
-  const _CircleIcon({required this.icon, required this.tint});
+  const _CircleIcon({required this.child, required this.tint});
 
-  final IconData icon;
+  final Widget child;
   final Color tint;
 
   @override
@@ -193,7 +206,7 @@ class _CircleIcon extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
-      child: Icon(icon, size: 20, color: tint),
+      child: child,
     );
   }
 }
@@ -222,7 +235,7 @@ class _AmountText extends StatelessWidget {
           Money.fromMinor(amount).format(),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: FontWeight.w600,
-            color: AppColors.transfer,
+            color: AppPalette.transfer,
           ),
         );
       case TxnType.income:

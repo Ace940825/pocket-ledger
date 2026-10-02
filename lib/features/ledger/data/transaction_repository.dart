@@ -7,6 +7,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import '../../categories/data/category_repository.dart';
 import '../../lend/data/lend_flow_restore.dart';
 import '../../reimbursement/data/reimbursement_repository.dart';
 import 'transaction_edit_rules.dart';
@@ -328,6 +329,26 @@ class TransactionRepository {
     ];
   }
 
+  /// 按 [relatedId] 取一条未删除流水（储蓄逐期存入以此唯一关联）。
+  /// 无匹配返回 null。
+  Future<Transaction?> getByRelatedId(String relatedId) async {
+    final List<Transaction> rows = await (_db.select(_db.transactions)
+          ..where(
+            (Transactions t) =>
+                t.relatedId.equals(relatedId) & t.deleted.equals(false),
+          ))
+        .get();
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  /// 按 [relatedId] 软删关联流水（撤销存入时反向冲销余额，保持账本一致）。
+  /// 关联流水不存在时直接跳过（幂等）。
+  Future<void> removeByRelatedId(String relatedId) async {
+    final Transaction? txn = await getByRelatedId(relatedId);
+    if (txn == null) return;
+    await remove(txn.id);
+  }
+
   /// 账单迁移：把使用 [fromId] 分类的全部流水改挂到 [toId] 分类。
   ///
   /// 仅修改 categoryId，不影响金额与账户余额，因此无需调整余额 delta。
@@ -527,7 +548,7 @@ class TransactionRepository {
     int? feeMinor,
     int? discountMinor,
     List<String>? attachmentUrls,
-  }) {
+  }) async {
     if (fromAccountId == toAccountId) {
       throw const ValidationFailure('转出与转入账户不能相同');
     }
@@ -540,6 +561,38 @@ class TransactionRepository {
 
     final String groupId = const Uuid().v7();
 
+    // 系统分类（落账时由 ensureNamed 自动重建挂分类，用户分类选择器隐藏）：
+    // 负债账户 → 资金/投资账户 = 取现；资金/投资账户 → 负债账户 = 还款；
+    // 其余内部划转 = 内部转账。
+    final Account? fromAccount = await _db.accountsDao.getById(fromAccountId);
+    final Account? toAccount = await _db.accountsDao.getById(toAccountId);
+    final AccountType fromType = fromAccount?.type ?? AccountType.cash;
+    final AccountType toType = toAccount?.type ?? AccountType.cash;
+    final AccountCategory fromCat = fromType.category;
+    final AccountCategory toCat = toType.category;
+    String transferName;
+    String transferIconKey;
+    if (fromType.isLiabilitySide &&
+        (toCat == AccountCategory.capital || toCat == AccountCategory.investment)) {
+      transferName = '取现';
+      transferIconKey = 'withdrawal';
+    } else if ((fromCat == AccountCategory.capital ||
+            fromCat == AccountCategory.investment) &&
+        toType.isLiabilitySide) {
+      transferName = '还款';
+      transferIconKey = 'repay';
+    } else {
+      transferName = '内部转账';
+      transferIconKey = 'internal_transfer';
+    }
+    final String transferCategoryId = await CategoryRepository(_db).ensureNamed(
+      bookId: bookId,
+      name: transferName,
+      type: CategoryType.transfer,
+      iconKey: transferIconKey,
+      isSystem: true,
+    );
+
     return _db.transaction<String>(
       () => add(
         bookId: bookId,
@@ -547,6 +600,7 @@ class TransactionRepository {
         amountMinor: amountMinor,
         accountId: fromAccountId,
         toAccountId: toAccountId,
+        categoryId: transferCategoryId,
         occurredAt: occurredAt,
         note: _buildTransferNote(note, feeMinor, discountMinor),
         currency: currency,

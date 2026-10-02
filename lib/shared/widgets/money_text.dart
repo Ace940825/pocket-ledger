@@ -6,7 +6,7 @@ import '../models/money.dart';
 /// 金额文本。
 ///
 /// 自动按正负着色，符合国内记账认知：**收入绿、支出红**。
-/// 注意：投资涨跌场景不要用本组件，应使用 AppColors.stockUp / stockDown。
+/// 注意：投资涨跌场景不要用本组件，应使用 AppPalette.stockUp / stockDown。
 class MoneyText extends StatelessWidget {
   const MoneyText(
     this.money, {
@@ -36,7 +36,7 @@ class MoneyText extends StatelessWidget {
   }
 
   Color? _resolveColor() {
-    if (money.isZero) return AppColors.textSecondary;
-    return money.isPositive ? AppColors.income : AppColors.expense;
+    if (money.isZero) return AppPalette.textSecondary;
+    return money.isPositive ? AppPalette.income : AppPalette.expense;
   }
 }

@@ -114,7 +114,7 @@ class _TabContent extends StatelessWidget {
         Text(
           '账户类型',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
+                color: AppPalette.textSecondary,
               ),
         ),
         const SizedBox(height: AppDimens.spaceSm),
@@ -147,13 +147,13 @@ class _NoTypeHint extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppDimens.spaceMd),
       decoration: BoxDecoration(
-        color: AppColors.textTertiary.withValues(alpha: 0.08),
+        color: AppPalette.textTertiary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
       child: const Text(
         '该分类没有可新建的账户类型。'
         '应收/应付款项请在「记一笔」里通过报销、借出、借入创建。',
-        style: TextStyle(color: AppColors.textSecondary),
+        style: TextStyle(color: AppPalette.textSecondary),
       ),
     );
   }
@@ -168,7 +168,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: AppPalette.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
@@ -199,7 +199,7 @@ class _TypeOption extends StatelessWidget {
         ),
         child: Row(
           children: <Widget>[
-            Icon(accountIcon(type), size: 22, color: AppColors.textSecondary),
+            Icon(accountIcon(type), size: 22, color: AppPalette.textSecondary),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Text(

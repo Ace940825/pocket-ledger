@@ -27,12 +27,12 @@ class _EmptySvgPainter extends CustomPainter {
   static const double _vw = 160;
   static const double _vh = 116;
 
-  static const Color _ink = AppColors.ink;
-  static const Color _gold = AppColors.sunGold;
-  static const Color _shadow = AppColors.sagePale;
-  static const Color _spark = AppColors.ink3;
-  static const Color _paper = AppColors.cream;
-  static const Color _sunken = AppColors.sunkenCream;
+  static const Color _ink = AppPalette.ink;
+  static const Color _gold = AppPalette.sunGold;
+  static const Color _shadow = AppPalette.sagePale;
+  static const Color _spark = AppPalette.ink3;
+  static const Color _paper = AppPalette.cream;
+  static const Color _sunken = AppPalette.sunkenCream;
 
   @override
   void paint(Canvas canvas, Size size) {

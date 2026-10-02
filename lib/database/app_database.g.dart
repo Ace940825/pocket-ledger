@@ -1554,6 +1554,16 @@ class $CategoriesTable extends Categories
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_archived" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isSystemMeta =
+      const VerificationMeta('isSystem');
+  @override
+  late final GeneratedColumn<bool> isSystem = GeneratedColumn<bool>(
+      'is_system', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_system" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
         updatedAt,
@@ -1568,7 +1578,8 @@ class $CategoriesTable extends Categories
         iconKey,
         colorValue,
         sortOrder,
-        isArchived
+        isArchived,
+        isSystem
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1639,6 +1650,10 @@ class $CategoriesTable extends Categories
           isArchived.isAcceptableOrUnknown(
               data['is_archived']!, _isArchivedMeta));
     }
+    if (data.containsKey('is_system')) {
+      context.handle(_isSystemMeta,
+          isSystem.isAcceptableOrUnknown(data['is_system']!, _isSystemMeta));
+    }
     return context;
   }
 
@@ -1674,6 +1689,8 @@ class $CategoriesTable extends Categories
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
       isArchived: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_archived'])!,
+      isSystem: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_system'])!,
     );
   }
 
@@ -1700,6 +1717,7 @@ class Category extends DataClass implements Insertable<Category> {
   final int? colorValue;
   final int sortOrder;
   final bool isArchived;
+  final bool isSystem;
   const Category(
       {required this.updatedAt,
       required this.deleted,
@@ -1713,7 +1731,8 @@ class Category extends DataClass implements Insertable<Category> {
       this.iconKey,
       this.colorValue,
       required this.sortOrder,
-      required this.isArchived});
+      required this.isArchived,
+      required this.isSystem});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1740,6 +1759,7 @@ class Category extends DataClass implements Insertable<Category> {
     }
     map['sort_order'] = Variable<int>(sortOrder);
     map['is_archived'] = Variable<bool>(isArchived);
+    map['is_system'] = Variable<bool>(isSystem);
     return map;
   }
 
@@ -1766,6 +1786,7 @@ class Category extends DataClass implements Insertable<Category> {
           : Value(colorValue),
       sortOrder: Value(sortOrder),
       isArchived: Value(isArchived),
+      isSystem: Value(isSystem),
     );
   }
 
@@ -1787,6 +1808,7 @@ class Category extends DataClass implements Insertable<Category> {
       colorValue: serializer.fromJson<int?>(json['colorValue']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
+      isSystem: serializer.fromJson<bool>(json['isSystem']),
     );
   }
   @override
@@ -1807,6 +1829,7 @@ class Category extends DataClass implements Insertable<Category> {
       'colorValue': serializer.toJson<int?>(colorValue),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'isArchived': serializer.toJson<bool>(isArchived),
+      'isSystem': serializer.toJson<bool>(isSystem),
     };
   }
 
@@ -1823,7 +1846,8 @@ class Category extends DataClass implements Insertable<Category> {
           Value<String?> iconKey = const Value.absent(),
           Value<int?> colorValue = const Value.absent(),
           int? sortOrder,
-          bool? isArchived}) =>
+          bool? isArchived,
+          bool? isSystem}) =>
       Category(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -1838,6 +1862,7 @@ class Category extends DataClass implements Insertable<Category> {
         colorValue: colorValue.present ? colorValue.value : this.colorValue,
         sortOrder: sortOrder ?? this.sortOrder,
         isArchived: isArchived ?? this.isArchived,
+        isSystem: isSystem ?? this.isSystem,
       );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
@@ -1856,6 +1881,7 @@ class Category extends DataClass implements Insertable<Category> {
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       isArchived:
           data.isArchived.present ? data.isArchived.value : this.isArchived,
+      isSystem: data.isSystem.present ? data.isSystem.value : this.isSystem,
     );
   }
 
@@ -1874,14 +1900,15 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('iconKey: $iconKey, ')
           ..write('colorValue: $colorValue, ')
           ..write('sortOrder: $sortOrder, ')
-          ..write('isArchived: $isArchived')
+          ..write('isArchived: $isArchived, ')
+          ..write('isSystem: $isSystem')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(updatedAt, deleted, dirty, syncedAt, id,
-      bookId, name, type, parentId, iconKey, colorValue, sortOrder, isArchived);
+      bookId, name, type, parentId, iconKey, colorValue, sortOrder, isArchived, isSystem);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1898,7 +1925,8 @@ class Category extends DataClass implements Insertable<Category> {
           other.iconKey == this.iconKey &&
           other.colorValue == this.colorValue &&
           other.sortOrder == this.sortOrder &&
-          other.isArchived == this.isArchived);
+          other.isArchived == this.isArchived &&
+          other.isSystem == this.isSystem);
 }
 
 class CategoriesCompanion extends UpdateCompanion<Category> {
@@ -1915,6 +1943,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<int?> colorValue;
   final Value<int> sortOrder;
   final Value<bool> isArchived;
+  final Value<bool> isSystem;
   final Value<int> rowid;
   const CategoriesCompanion({
     this.updatedAt = const Value.absent(),
@@ -1930,6 +1959,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.colorValue = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.isArchived = const Value.absent(),
+    this.isSystem = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CategoriesCompanion.insert({
@@ -1946,6 +1976,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.colorValue = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.isArchived = const Value.absent(),
+    this.isSystem = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -1966,6 +1997,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<int>? colorValue,
     Expression<int>? sortOrder,
     Expression<bool>? isArchived,
+    Expression<bool>? isSystem,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1982,6 +2014,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (colorValue != null) 'color_value': colorValue,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (isArchived != null) 'is_archived': isArchived,
+      if (isSystem != null) 'is_system': isSystem,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2000,6 +2033,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       Value<int?>? colorValue,
       Value<int>? sortOrder,
       Value<bool>? isArchived,
+      Value<bool>? isSystem,
       Value<int>? rowid}) {
     return CategoriesCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2015,6 +2049,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       colorValue: colorValue ?? this.colorValue,
       sortOrder: sortOrder ?? this.sortOrder,
       isArchived: isArchived ?? this.isArchived,
+      isSystem: isSystem ?? this.isSystem,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2062,6 +2097,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (isArchived.present) {
       map['is_archived'] = Variable<bool>(isArchived.value);
     }
+    if (isSystem.present) {
+      map['is_system'] = Variable<bool>(isSystem.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2084,6 +2122,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('colorValue: $colorValue, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('isArchived: $isArchived, ')
+          ..write('isSystem: $isSystem, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5338,6 +5377,69 @@ class $SavingsGoalsTable extends SavingsGoals
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_archived" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+      'mode', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _repeatCycleMeta =
+      const VerificationMeta('repeatCycle');
+  @override
+  late final GeneratedColumn<String> repeatCycle = GeneratedColumn<String>(
+      'repeat_cycle', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _endNoteMeta =
+      const VerificationMeta('endNote');
+  @override
+  late final GeneratedColumn<String> endNote = GeneratedColumn<String>(
+      'end_note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _depositCountMeta =
+      const VerificationMeta('depositCount');
+  @override
+  late final GeneratedColumn<int> depositCount = GeneratedColumn<int>(
+      'deposit_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _startedAtMeta =
+      const VerificationMeta('startedAt');
+  @override
+  late final GeneratedColumn<int> startedAt = GeneratedColumn<int>(
+      'started_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _elasticModeMeta =
+      const VerificationMeta('elasticMode');
+  @override
+  late final GeneratedColumn<int> elasticMode = GeneratedColumn<int>(
+      'elastic_mode', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _elasticBaseMinorMeta =
+      const VerificationMeta('elasticBaseMinor');
+  @override
+  late final GeneratedColumn<int> elasticBaseMinor = GeneratedColumn<int>(
+      'elastic_base_minor', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _elasticStepMinorMeta =
+      const VerificationMeta('elasticStepMinor');
+  @override
+  late final GeneratedColumn<int> elasticStepMinor = GeneratedColumn<int>(
+      'elastic_step_minor', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _elasticPercentHundredMeta =
+      const VerificationMeta('elasticPercentHundred');
+  @override
+  late final GeneratedColumn<int> elasticPercentHundred = GeneratedColumn<int>(
+      'elastic_percent_hundred', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _sourceAccountIdMeta =
+      const VerificationMeta('sourceAccountId');
+  @override
+  late final GeneratedColumn<String> sourceAccountId = GeneratedColumn<String>(
+      'source_account_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         updatedAt,
@@ -5354,7 +5456,17 @@ class $SavingsGoalsTable extends SavingsGoals
         deadlineAt,
         note,
         isAchieved,
-        isArchived
+        isArchived,
+        mode,
+        repeatCycle,
+        endNote,
+        depositCount,
+        startedAt,
+        elasticMode,
+        elasticBaseMinor,
+        elasticStepMinor,
+        elasticPercentHundred,
+        sourceAccountId
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5423,6 +5535,12 @@ class $SavingsGoalsTable extends SavingsGoals
       context.handle(_accountIdMeta,
           accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
     }
+    if (data.containsKey('source_account_id')) {
+      context.handle(
+          _sourceAccountIdMeta,
+          sourceAccountId.isAcceptableOrUnknown(
+              data['source_account_id']!, _sourceAccountIdMeta));
+    }
     if (data.containsKey('deadline_at')) {
       context.handle(
           _deadlineAtMeta,
@@ -5444,6 +5562,30 @@ class $SavingsGoalsTable extends SavingsGoals
           _isArchivedMeta,
           isArchived.isAcceptableOrUnknown(
               data['is_archived']!, _isArchivedMeta));
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+          _modeMeta, mode.isAcceptableOrUnknown(data['mode']!, _modeMeta));
+    }
+    if (data.containsKey('repeat_cycle')) {
+      context.handle(
+          _repeatCycleMeta,
+          repeatCycle.isAcceptableOrUnknown(
+              data['repeat_cycle']!, _repeatCycleMeta));
+    }
+    if (data.containsKey('end_note')) {
+      context.handle(_endNoteMeta,
+          endNote.isAcceptableOrUnknown(data['end_note']!, _endNoteMeta));
+    }
+    if (data.containsKey('deposit_count')) {
+      context.handle(
+          _depositCountMeta,
+          depositCount.isAcceptableOrUnknown(
+              data['deposit_count']!, _depositCountMeta));
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(_startedAtMeta,
+          startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta));
     }
     return context;
   }
@@ -5476,6 +5618,8 @@ class $SavingsGoalsTable extends SavingsGoals
           .read(DriftSqlType.string, data['${effectivePrefix}currency'])!,
       accountId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}account_id']),
+      sourceAccountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_account_id']),
       deadlineAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}deadline_at']),
       note: attachedDatabase.typeMapping
@@ -5484,6 +5628,24 @@ class $SavingsGoalsTable extends SavingsGoals
           .read(DriftSqlType.bool, data['${effectivePrefix}is_achieved'])!,
       isArchived: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_archived'])!,
+      mode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mode']),
+      repeatCycle: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}repeat_cycle']),
+      endNote: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}end_note']),
+      depositCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}deposit_count'])!,
+      startedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}started_at']),
+      elasticMode: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}elastic_mode'])!,
+      elasticBaseMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}elastic_base_minor']),
+      elasticStepMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}elastic_step_minor']),
+      elasticPercentHundred: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}elastic_percent_hundred']),
     );
   }
 
@@ -5512,6 +5674,39 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
   /// 是否已归档（停止的计划）。归档目标移入储蓄页「归档」Tab，
   /// 不再出现在「计划」列表，可随时恢复。
   final bool isArchived;
+
+  /// 存钱模式（SavingsMode.name，如 fixed365）。创建时落库；
+  /// 历史数据为 null，卡片按「储蓄计划」兜底显示。
+  final String? mode;
+
+  /// 重复周期展示文案（每1天 / 每7天 / 每月1日）。null = 不显示胶囊。
+  final String? repeatCycle;
+
+  /// 结束方式展示文案（如「执行365次结束」「按日期结束」）。null = 不显示。
+  final String? endNote;
+
+  /// 已执行次数：存入 +1、取出 -1（下限 0）。
+  final int depositCount;
+
+  /// 计划开始日期（本地毫秒，取创建时刻）。逐期存入排期的起点锚点；
+  /// 用 updatedAt 会在每次编辑后漂移，故单独落列。历史数据为 null，
+  /// 详情页回退用 updatedAt。
+  final int? startedAt;
+
+  /// 弹性存钱法递增模式：1 = 金额模式（等差），2 = 百分比模式（等比）。
+  final int elasticMode;
+
+  /// 弹性存钱法首期基础金额 N（分）。
+  final int? elasticBaseMinor;
+
+  /// 弹性「金额模式」递增系数（分）：第 i 期 = N + (i - 1) × step。
+  final int? elasticStepMinor;
+
+  /// 弹性「百分比模式」递增百分比（整数 ×100，如 10% = 1000）。
+  final int? elasticPercentHundred;
+
+  /// 转出/扣款账户（存钱快捷属性，可空）。
+  final String? sourceAccountId;
   const SavingsGoal(
       {required this.updatedAt,
       required this.deleted,
@@ -5527,7 +5722,17 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
       this.deadlineAt,
       this.note,
       required this.isAchieved,
-      required this.isArchived});
+      required this.isArchived,
+      this.mode,
+      this.repeatCycle,
+      this.endNote,
+      required this.depositCount,
+      this.startedAt,
+      this.elasticMode = 1,
+      this.elasticBaseMinor,
+      this.elasticStepMinor,
+      this.elasticPercentHundred,
+      this.sourceAccountId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -5554,6 +5759,32 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
     }
     map['is_achieved'] = Variable<bool>(isAchieved);
     map['is_archived'] = Variable<bool>(isArchived);
+    if (!nullToAbsent || mode != null) {
+      map['mode'] = Variable<String>(mode);
+    }
+    if (!nullToAbsent || repeatCycle != null) {
+      map['repeat_cycle'] = Variable<String>(repeatCycle);
+    }
+    if (!nullToAbsent || endNote != null) {
+      map['end_note'] = Variable<String>(endNote);
+    }
+    map['deposit_count'] = Variable<int>(depositCount);
+    if (!nullToAbsent || startedAt != null) {
+      map['started_at'] = Variable<int>(startedAt);
+    }
+    map['elastic_mode'] = Variable<int>(elasticMode);
+    if (!nullToAbsent || elasticBaseMinor != null) {
+      map['elastic_base_minor'] = Variable<int>(elasticBaseMinor);
+    }
+    if (!nullToAbsent || elasticStepMinor != null) {
+      map['elastic_step_minor'] = Variable<int>(elasticStepMinor);
+    }
+    if (!nullToAbsent || elasticPercentHundred != null) {
+      map['elastic_percent_hundred'] = Variable<int>(elasticPercentHundred);
+    }
+    if (!nullToAbsent || sourceAccountId != null) {
+      map['source_account_id'] = Variable<String>(sourceAccountId);
+    }
     return map;
   }
 
@@ -5580,6 +5811,30 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       isAchieved: Value(isAchieved),
       isArchived: Value(isArchived),
+      mode: mode == null && nullToAbsent ? const Value.absent() : Value(mode),
+      repeatCycle: repeatCycle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(repeatCycle),
+      endNote: endNote == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endNote),
+      depositCount: Value(depositCount),
+      startedAt: startedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startedAt),
+      elasticMode: Value(elasticMode),
+      elasticBaseMinor: elasticBaseMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(elasticBaseMinor),
+      elasticStepMinor: elasticStepMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(elasticStepMinor),
+      elasticPercentHundred: elasticPercentHundred == null && nullToAbsent
+          ? const Value.absent()
+          : Value(elasticPercentHundred),
+      sourceAccountId: sourceAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceAccountId),
     );
   }
 
@@ -5602,6 +5857,17 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
       note: serializer.fromJson<String?>(json['note']),
       isAchieved: serializer.fromJson<bool>(json['isAchieved']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
+      mode: serializer.fromJson<String?>(json['mode']),
+      repeatCycle: serializer.fromJson<String?>(json['repeatCycle']),
+      endNote: serializer.fromJson<String?>(json['endNote']),
+      depositCount: serializer.fromJson<int>(json['depositCount']),
+      startedAt: serializer.fromJson<int?>(json['startedAt']),
+      elasticMode: serializer.fromJson<int>(json['elasticMode']),
+      elasticBaseMinor: serializer.fromJson<int?>(json['elasticBaseMinor']),
+      elasticStepMinor: serializer.fromJson<int?>(json['elasticStepMinor']),
+      elasticPercentHundred:
+          serializer.fromJson<int?>(json['elasticPercentHundred']),
+      sourceAccountId: serializer.fromJson<String?>(json['sourceAccountId']),
     );
   }
   @override
@@ -5623,6 +5889,16 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
       'note': serializer.toJson<String?>(note),
       'isAchieved': serializer.toJson<bool>(isAchieved),
       'isArchived': serializer.toJson<bool>(isArchived),
+      'mode': serializer.toJson<String?>(mode),
+      'repeatCycle': serializer.toJson<String?>(repeatCycle),
+      'endNote': serializer.toJson<String?>(endNote),
+      'depositCount': serializer.toJson<int>(depositCount),
+      'startedAt': serializer.toJson<int?>(startedAt),
+      'elasticMode': serializer.toJson<int>(elasticMode),
+      'elasticBaseMinor': serializer.toJson<int?>(elasticBaseMinor),
+      'elasticStepMinor': serializer.toJson<int?>(elasticStepMinor),
+      'elasticPercentHundred': serializer.toJson<int?>(elasticPercentHundred),
+      'sourceAccountId': serializer.toJson<String?>(sourceAccountId),
     };
   }
 
@@ -5641,7 +5917,17 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
           Value<int?> deadlineAt = const Value.absent(),
           Value<String?> note = const Value.absent(),
           bool? isAchieved,
-          bool? isArchived}) =>
+          bool? isArchived,
+          Value<String?> mode = const Value.absent(),
+          Value<String?> repeatCycle = const Value.absent(),
+          Value<String?> endNote = const Value.absent(),
+          int? depositCount,
+          Value<int?> startedAt = const Value.absent(),
+          int? elasticMode,
+          Value<int?> elasticBaseMinor = const Value.absent(),
+          Value<int?> elasticStepMinor = const Value.absent(),
+          Value<int?> elasticPercentHundred = const Value.absent(),
+          Value<String?> sourceAccountId = const Value.absent()}) =>
       SavingsGoal(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -5658,6 +5944,21 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
         note: note.present ? note.value : this.note,
         isAchieved: isAchieved ?? this.isAchieved,
         isArchived: isArchived ?? this.isArchived,
+        mode: mode.present ? mode.value : this.mode,
+        repeatCycle: repeatCycle.present ? repeatCycle.value : this.repeatCycle,
+        endNote: endNote.present ? endNote.value : this.endNote,
+        depositCount: depositCount ?? this.depositCount,
+        startedAt: startedAt.present ? startedAt.value : this.startedAt,
+        elasticMode: elasticMode ?? this.elasticMode,
+        elasticBaseMinor:
+            elasticBaseMinor.present ? elasticBaseMinor.value : this.elasticBaseMinor,
+        elasticStepMinor:
+            elasticStepMinor.present ? elasticStepMinor.value : this.elasticStepMinor,
+        elasticPercentHundred: elasticPercentHundred.present
+            ? elasticPercentHundred.value
+            : this.elasticPercentHundred,
+        sourceAccountId:
+            sourceAccountId.present ? sourceAccountId.value : this.sourceAccountId,
       );
   SavingsGoal copyWithCompanion(SavingsGoalsCompanion data) {
     return SavingsGoal(
@@ -5682,6 +5983,28 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
           data.isAchieved.present ? data.isAchieved.value : this.isAchieved,
       isArchived:
           data.isArchived.present ? data.isArchived.value : this.isArchived,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      repeatCycle:
+          data.repeatCycle.present ? data.repeatCycle.value : this.repeatCycle,
+      endNote: data.endNote.present ? data.endNote.value : this.endNote,
+      depositCount: data.depositCount.present
+          ? data.depositCount.value
+          : this.depositCount,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      elasticMode:
+          data.elasticMode.present ? data.elasticMode.value : this.elasticMode,
+      elasticBaseMinor: data.elasticBaseMinor.present
+          ? data.elasticBaseMinor.value
+          : this.elasticBaseMinor,
+      elasticStepMinor: data.elasticStepMinor.present
+          ? data.elasticStepMinor.value
+          : this.elasticStepMinor,
+      elasticPercentHundred: data.elasticPercentHundred.present
+          ? data.elasticPercentHundred.value
+          : this.elasticPercentHundred,
+      sourceAccountId: data.sourceAccountId.present
+          ? data.sourceAccountId.value
+          : this.sourceAccountId,
     );
   }
 
@@ -5702,13 +6025,23 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
           ..write('deadlineAt: $deadlineAt, ')
           ..write('note: $note, ')
           ..write('isAchieved: $isAchieved, ')
-          ..write('isArchived: $isArchived')
+          ..write('isArchived: $isArchived, ')
+          ..write('mode: $mode, ')
+          ..write('repeatCycle: $repeatCycle, ')
+          ..write('endNote: $endNote, ')
+          ..write('depositCount: $depositCount, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('elasticMode: $elasticMode, ')
+          ..write('elasticBaseMinor: $elasticBaseMinor, ')
+          ..write('elasticStepMinor: $elasticStepMinor, ')
+          ..write('elasticPercentHundred: $elasticPercentHundred, ')
+          ..write('sourceAccountId: $sourceAccountId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll(<Object?>[
       updatedAt,
       deleted,
       dirty,
@@ -5723,7 +6056,18 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
       deadlineAt,
       note,
       isAchieved,
-      isArchived);
+      isArchived,
+      mode,
+      repeatCycle,
+      endNote,
+      depositCount,
+      startedAt,
+      elasticMode,
+      elasticBaseMinor,
+      elasticStepMinor,
+      elasticPercentHundred,
+      sourceAccountId,
+    ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5742,7 +6086,17 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
           other.deadlineAt == this.deadlineAt &&
           other.note == this.note &&
           other.isAchieved == this.isAchieved &&
-          other.isArchived == this.isArchived);
+          other.isArchived == this.isArchived &&
+          other.mode == this.mode &&
+          other.repeatCycle == this.repeatCycle &&
+          other.endNote == this.endNote &&
+          other.depositCount == this.depositCount &&
+          other.startedAt == this.startedAt &&
+          other.elasticMode == this.elasticMode &&
+          other.elasticBaseMinor == this.elasticBaseMinor &&
+          other.elasticStepMinor == this.elasticStepMinor &&
+          other.elasticPercentHundred == this.elasticPercentHundred &&
+          other.sourceAccountId == this.sourceAccountId);
 }
 
 class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
@@ -5761,6 +6115,16 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
   final Value<String?> note;
   final Value<bool> isAchieved;
   final Value<bool> isArchived;
+  final Value<String?> mode;
+  final Value<String?> repeatCycle;
+  final Value<String?> endNote;
+  final Value<int> depositCount;
+  final Value<int?> startedAt;
+  final Value<int> elasticMode;
+  final Value<int?> elasticBaseMinor;
+  final Value<int?> elasticStepMinor;
+  final Value<int?> elasticPercentHundred;
+  final Value<String?> sourceAccountId;
   final Value<int> rowid;
   const SavingsGoalsCompanion({
     this.updatedAt = const Value.absent(),
@@ -5778,6 +6142,16 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
     this.note = const Value.absent(),
     this.isAchieved = const Value.absent(),
     this.isArchived = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.repeatCycle = const Value.absent(),
+    this.endNote = const Value.absent(),
+    this.depositCount = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.elasticMode = const Value.absent(),
+    this.elasticBaseMinor = const Value.absent(),
+    this.elasticStepMinor = const Value.absent(),
+    this.elasticPercentHundred = const Value.absent(),
+    this.sourceAccountId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SavingsGoalsCompanion.insert({
@@ -5796,6 +6170,16 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
     this.note = const Value.absent(),
     this.isAchieved = const Value.absent(),
     this.isArchived = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.repeatCycle = const Value.absent(),
+    this.endNote = const Value.absent(),
+    this.depositCount = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.elasticMode = const Value.absent(),
+    this.elasticBaseMinor = const Value.absent(),
+    this.elasticStepMinor = const Value.absent(),
+    this.elasticPercentHundred = const Value.absent(),
+    this.sourceAccountId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -5818,6 +6202,11 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
     Expression<String>? note,
     Expression<bool>? isAchieved,
     Expression<bool>? isArchived,
+    Expression<String>? mode,
+    Expression<String>? repeatCycle,
+    Expression<String>? endNote,
+    Expression<int>? depositCount,
+    Expression<int>? startedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5836,6 +6225,11 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
       if (note != null) 'note': note,
       if (isAchieved != null) 'is_achieved': isAchieved,
       if (isArchived != null) 'is_archived': isArchived,
+      if (mode != null) 'mode': mode,
+      if (repeatCycle != null) 'repeat_cycle': repeatCycle,
+      if (endNote != null) 'end_note': endNote,
+      if (depositCount != null) 'deposit_count': depositCount,
+      if (startedAt != null) 'started_at': startedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5856,6 +6250,12 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
       Value<String?>? note,
       Value<bool>? isAchieved,
       Value<bool>? isArchived,
+      Value<String?>? mode,
+      Value<String?>? repeatCycle,
+      Value<String?>? endNote,
+      Value<int>? depositCount,
+      Value<int?>? startedAt,
+      Value<String?>? sourceAccountId,
       Value<int>? rowid}) {
     return SavingsGoalsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -5869,10 +6269,16 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
       currentMinor: currentMinor ?? this.currentMinor,
       currency: currency ?? this.currency,
       accountId: accountId ?? this.accountId,
+      sourceAccountId: sourceAccountId ?? this.sourceAccountId,
       deadlineAt: deadlineAt ?? this.deadlineAt,
       note: note ?? this.note,
       isAchieved: isAchieved ?? this.isAchieved,
       isArchived: isArchived ?? this.isArchived,
+      mode: mode ?? this.mode,
+      repeatCycle: repeatCycle ?? this.repeatCycle,
+      endNote: endNote ?? this.endNote,
+      depositCount: depositCount ?? this.depositCount,
+      startedAt: startedAt ?? this.startedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5913,6 +6319,9 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
     }
+    if (sourceAccountId.present) {
+      map['source_account_id'] = Variable<String>(sourceAccountId.value);
+    }
     if (deadlineAt.present) {
       map['deadline_at'] = Variable<int>(deadlineAt.value);
     }
@@ -5924,6 +6333,33 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
     }
     if (isArchived.present) {
       map['is_archived'] = Variable<bool>(isArchived.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (repeatCycle.present) {
+      map['repeat_cycle'] = Variable<String>(repeatCycle.value);
+    }
+    if (endNote.present) {
+      map['end_note'] = Variable<String>(endNote.value);
+    }
+    if (depositCount.present) {
+      map['deposit_count'] = Variable<int>(depositCount.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<int>(startedAt.value);
+    }
+    if (elasticMode.present) {
+      map['elastic_mode'] = Variable<int>(elasticMode.value);
+    }
+    if (elasticBaseMinor.present) {
+      map['elastic_base_minor'] = Variable<int>(elasticBaseMinor.value);
+    }
+    if (elasticStepMinor.present) {
+      map['elastic_step_minor'] = Variable<int>(elasticStepMinor.value);
+    }
+    if (elasticPercentHundred.present) {
+      map['elastic_percent_hundred'] = Variable<int>(elasticPercentHundred.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -5945,10 +6381,413 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
           ..write('currentMinor: $currentMinor, ')
           ..write('currency: $currency, ')
           ..write('accountId: $accountId, ')
+          ..write('sourceAccountId: $sourceAccountId, ')
           ..write('deadlineAt: $deadlineAt, ')
           ..write('note: $note, ')
           ..write('isAchieved: $isAchieved, ')
           ..write('isArchived: $isArchived, ')
+          ..write('mode: $mode, ')
+          ..write('repeatCycle: $repeatCycle, ')
+          ..write('endNote: $endNote, ')
+          ..write('depositCount: $depositCount, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SavingsDepositsTable extends SavingsDeposits
+    with TableInfo<$SavingsDepositsTable, SavingsDeposit> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SavingsDepositsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+      'book_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _goalIdMeta = const VerificationMeta('goalId');
+  @override
+  late final GeneratedColumn<String> goalId = GeneratedColumn<String>(
+      'goal_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _dayIndexMeta =
+      const VerificationMeta('dayIndex');
+  @override
+  late final GeneratedColumn<int> dayIndex = GeneratedColumn<int>(
+      'day_index', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _amountMinorMeta =
+      const VerificationMeta('amountMinor');
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+      'amount_minor', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _depositedAtMeta =
+      const VerificationMeta('depositedAt');
+  @override
+  late final GeneratedColumn<int> depositedAt = GeneratedColumn<int>(
+      'deposited_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, bookId, goalId, dayIndex, amountMinor, depositedAt, note];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'savings_deposits';
+  @override
+  VerificationContext validateIntegrity(Insertable<SavingsDeposit> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('book_id')) {
+      context.handle(_bookIdMeta,
+          bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta));
+    } else if (isInserting) {
+      context.missing(_bookIdMeta);
+    }
+    if (data.containsKey('goal_id')) {
+      context.handle(_goalIdMeta,
+          goalId.isAcceptableOrUnknown(data['goal_id']!, _goalIdMeta));
+    } else if (isInserting) {
+      context.missing(_goalIdMeta);
+    }
+    if (data.containsKey('day_index')) {
+      context.handle(_dayIndexMeta,
+          dayIndex.isAcceptableOrUnknown(data['day_index']!, _dayIndexMeta));
+    } else if (isInserting) {
+      context.missing(_dayIndexMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+          _amountMinorMeta,
+          amountMinor.isAcceptableOrUnknown(
+              data['amount_minor']!, _amountMinorMeta));
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('deposited_at')) {
+      context.handle(
+          _depositedAtMeta,
+          depositedAt.isAcceptableOrUnknown(
+              data['deposited_at']!, _depositedAtMeta));
+    } else if (isInserting) {
+      context.missing(_depositedAtMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(_noteMeta,
+          note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SavingsDeposit map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SavingsDeposit(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      bookId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}book_id'])!,
+      goalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}goal_id'])!,
+      dayIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}day_index'])!,
+      amountMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}amount_minor'])!,
+      depositedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}deposited_at'])!,
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+    );
+  }
+
+  @override
+  $SavingsDepositsTable createAlias(String alias) {
+    return $SavingsDepositsTable(attachedDatabase, alias);
+  }
+}
+
+class SavingsDeposit extends DataClass implements Insertable<SavingsDeposit> {
+  final String id;
+  final String bookId;
+
+  /// 所属储蓄计划（SavingsGoals.id）。
+  final String goalId;
+
+  /// 期数（1-based，对应排期第 N 期）。
+  final int dayIndex;
+
+  /// 实际存入金额（分）。
+  final int amountMinor;
+
+  /// 实际存入时间（本地毫秒）。
+  final int depositedAt;
+
+  /// 本次存入备注（可空，存钱弹窗录入）。
+  final String? note;
+  const SavingsDeposit(
+      {required this.id,
+      required this.bookId,
+      required this.goalId,
+      required this.dayIndex,
+      required this.amountMinor,
+      required this.depositedAt,
+      this.note});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['book_id'] = Variable<String>(bookId);
+    map['goal_id'] = Variable<String>(goalId);
+    map['day_index'] = Variable<int>(dayIndex);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['deposited_at'] = Variable<int>(depositedAt);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    return map;
+  }
+
+  SavingsDepositsCompanion toCompanion(bool nullToAbsent) {
+    return SavingsDepositsCompanion(
+      id: Value(id),
+      bookId: Value(bookId),
+      goalId: Value(goalId),
+      dayIndex: Value(dayIndex),
+      amountMinor: Value(amountMinor),
+      depositedAt: Value(depositedAt),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+    );
+  }
+
+  factory SavingsDeposit.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SavingsDeposit(
+      id: serializer.fromJson<String>(json['id']),
+      bookId: serializer.fromJson<String>(json['bookId']),
+      goalId: serializer.fromJson<String>(json['goalId']),
+      dayIndex: serializer.fromJson<int>(json['dayIndex']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      depositedAt: serializer.fromJson<int>(json['depositedAt']),
+      note: serializer.fromJson<String?>(json['note']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'bookId': serializer.toJson<String>(bookId),
+      'goalId': serializer.toJson<String>(goalId),
+      'dayIndex': serializer.toJson<int>(dayIndex),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'depositedAt': serializer.toJson<int>(depositedAt),
+      'note': serializer.toJson<String?>(note),
+    };
+  }
+
+  SavingsDeposit copyWith(
+          {String? id,
+          String? bookId,
+          String? goalId,
+          int? dayIndex,
+          int? amountMinor,
+          int? depositedAt,
+          String? note}) =>
+      SavingsDeposit(
+        id: id ?? this.id,
+        bookId: bookId ?? this.bookId,
+        goalId: goalId ?? this.goalId,
+        dayIndex: dayIndex ?? this.dayIndex,
+        amountMinor: amountMinor ?? this.amountMinor,
+        depositedAt: depositedAt ?? this.depositedAt,
+        note: note ?? this.note,
+      );
+  SavingsDeposit copyWithCompanion(SavingsDepositsCompanion data) {
+    return SavingsDeposit(
+      id: data.id.present ? data.id.value : this.id,
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      goalId: data.goalId.present ? data.goalId.value : this.goalId,
+      dayIndex: data.dayIndex.present ? data.dayIndex.value : this.dayIndex,
+      amountMinor:
+          data.amountMinor.present ? data.amountMinor.value : this.amountMinor,
+      depositedAt:
+          data.depositedAt.present ? data.depositedAt.value : this.depositedAt,
+      note: data.note.present ? data.note.value : this.note,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavingsDeposit(')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('goalId: $goalId, ')
+          ..write('dayIndex: $dayIndex, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('depositedAt: $depositedAt, ')
+          ..write('note: $note')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, bookId, goalId, dayIndex, amountMinor, depositedAt, note);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SavingsDeposit &&
+          other.id == this.id &&
+          other.bookId == this.bookId &&
+          other.goalId == this.goalId &&
+          other.dayIndex == this.dayIndex &&
+          other.amountMinor == this.amountMinor &&
+          other.depositedAt == this.depositedAt &&
+          other.note == this.note);
+}
+
+class SavingsDepositsCompanion extends UpdateCompanion<SavingsDeposit> {
+  final Value<String> id;
+  final Value<String> bookId;
+  final Value<String> goalId;
+  final Value<int> dayIndex;
+  final Value<int> amountMinor;
+  final Value<int> depositedAt;
+  final Value<String?> note;
+  final Value<int> rowid;
+  const SavingsDepositsCompanion({
+    this.id = const Value.absent(),
+    this.bookId = const Value.absent(),
+    this.goalId = const Value.absent(),
+    this.dayIndex = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.depositedAt = const Value.absent(),
+    this.note = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SavingsDepositsCompanion.insert({
+    required String id,
+    required String bookId,
+    required String goalId,
+    required int dayIndex,
+    required int amountMinor,
+    required int depositedAt,
+    this.rowid = const Value.absent(),
+    String? note,
+  })  : id = Value(id),
+        bookId = Value(bookId),
+        goalId = Value(goalId),
+        dayIndex = Value(dayIndex),
+        amountMinor = Value(amountMinor),
+        depositedAt = Value(depositedAt),
+        note = Value(note);
+  static Insertable<SavingsDeposit> custom({
+    Expression<String>? id,
+    Expression<String>? bookId,
+    Expression<String>? goalId,
+    Expression<int>? dayIndex,
+    Expression<int>? amountMinor,
+    Expression<int>? depositedAt,
+    Expression<String>? note,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (bookId != null) 'book_id': bookId,
+      if (goalId != null) 'goal_id': goalId,
+      if (dayIndex != null) 'day_index': dayIndex,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (depositedAt != null) 'deposited_at': depositedAt,
+      if (note != null) 'note': note,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SavingsDepositsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? bookId,
+      Value<String>? goalId,
+      Value<int>? dayIndex,
+      Value<int>? amountMinor,
+      Value<int>? depositedAt,
+      Value<String?>? note,
+      Value<int>? rowid}) {
+    return SavingsDepositsCompanion(
+      id: id ?? this.id,
+      bookId: bookId ?? this.bookId,
+      goalId: goalId ?? this.goalId,
+      dayIndex: dayIndex ?? this.dayIndex,
+      amountMinor: amountMinor ?? this.amountMinor,
+      depositedAt: depositedAt ?? this.depositedAt,
+      note: note ?? this.note,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (goalId.present) {
+      map['goal_id'] = Variable<String>(goalId.value);
+    }
+    if (dayIndex.present) {
+      map['day_index'] = Variable<int>(dayIndex.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (depositedAt.present) {
+      map['deposited_at'] = Variable<int>(depositedAt.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavingsDepositsCompanion(')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('goalId: $goalId, ')
+          ..write('dayIndex: $dayIndex, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('depositedAt: $depositedAt, ')
+          ..write('note: $note, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11910,6 +12749,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LendRecordsTable lendRecords = $LendRecordsTable(this);
   late final $ReimbursementsTable reimbursements = $ReimbursementsTable(this);
   late final $SavingsGoalsTable savingsGoals = $SavingsGoalsTable(this);
+  late final $SavingsDepositsTable savingsDeposits =
+      $SavingsDepositsTable(this);
   late final $InstallmentPlansTable installmentPlans =
       $InstallmentPlansTable(this);
   late final $InstallmentPeriodsTable installmentPeriods =
@@ -11942,6 +12783,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         lendRecords,
         reimbursements,
         savingsGoals,
+        savingsDeposits,
         installmentPlans,
         installmentPeriods,
         budgets,
@@ -14210,6 +15052,11 @@ typedef $$SavingsGoalsTableCreateCompanionBuilder = SavingsGoalsCompanion
   Value<String?> note,
   Value<bool> isAchieved,
   Value<bool> isArchived,
+  Value<String?> mode,
+  Value<String?> repeatCycle,
+  Value<String?> endNote,
+  Value<int> depositCount,
+  Value<int?> startedAt,
   Value<int> rowid,
 });
 typedef $$SavingsGoalsTableUpdateCompanionBuilder = SavingsGoalsCompanion
@@ -14229,6 +15076,11 @@ typedef $$SavingsGoalsTableUpdateCompanionBuilder = SavingsGoalsCompanion
   Value<String?> note,
   Value<bool> isAchieved,
   Value<bool> isArchived,
+  Value<String?> mode,
+  Value<String?> repeatCycle,
+  Value<String?> endNote,
+  Value<int> depositCount,
+  Value<int?> startedAt,
   Value<int> rowid,
 });
 
@@ -14285,6 +15137,21 @@ class $$SavingsGoalsTableFilterComposer
 
   ColumnFilters<bool> get isArchived => $composableBuilder(
       column: $table.isArchived, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mode => $composableBuilder(
+      column: $table.mode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get repeatCycle => $composableBuilder(
+      column: $table.repeatCycle, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get endNote => $composableBuilder(
+      column: $table.endNote, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get depositCount => $composableBuilder(
+      column: $table.depositCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnFilters(column));
 }
 
 class $$SavingsGoalsTableOrderingComposer
@@ -14341,6 +15208,22 @@ class $$SavingsGoalsTableOrderingComposer
 
   ColumnOrderings<bool> get isArchived => $composableBuilder(
       column: $table.isArchived, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+      column: $table.mode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get repeatCycle => $composableBuilder(
+      column: $table.repeatCycle, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get endNote => $composableBuilder(
+      column: $table.endNote, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get depositCount => $composableBuilder(
+      column: $table.depositCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SavingsGoalsTableAnnotationComposer
@@ -14396,6 +15279,21 @@ class $$SavingsGoalsTableAnnotationComposer
 
   GeneratedColumn<bool> get isArchived => $composableBuilder(
       column: $table.isArchived, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get repeatCycle => $composableBuilder(
+      column: $table.repeatCycle, builder: (column) => column);
+
+  GeneratedColumn<String> get endNote =>
+      $composableBuilder(column: $table.endNote, builder: (column) => column);
+
+  GeneratedColumn<int> get depositCount => $composableBuilder(
+      column: $table.depositCount, builder: (column) => column);
+
+  GeneratedColumn<int> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
 }
 
 class $$SavingsGoalsTableTableManager extends RootTableManager<
@@ -14439,6 +15337,11 @@ class $$SavingsGoalsTableTableManager extends RootTableManager<
             Value<String?> note = const Value.absent(),
             Value<bool> isAchieved = const Value.absent(),
             Value<bool> isArchived = const Value.absent(),
+            Value<String?> mode = const Value.absent(),
+            Value<String?> repeatCycle = const Value.absent(),
+            Value<String?> endNote = const Value.absent(),
+            Value<int> depositCount = const Value.absent(),
+            Value<int?> startedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SavingsGoalsCompanion(
@@ -14457,6 +15360,11 @@ class $$SavingsGoalsTableTableManager extends RootTableManager<
             note: note,
             isAchieved: isAchieved,
             isArchived: isArchived,
+            mode: mode,
+            repeatCycle: repeatCycle,
+            endNote: endNote,
+            depositCount: depositCount,
+            startedAt: startedAt,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -14475,6 +15383,11 @@ class $$SavingsGoalsTableTableManager extends RootTableManager<
             Value<String?> note = const Value.absent(),
             Value<bool> isAchieved = const Value.absent(),
             Value<bool> isArchived = const Value.absent(),
+            Value<String?> mode = const Value.absent(),
+            Value<String?> repeatCycle = const Value.absent(),
+            Value<String?> endNote = const Value.absent(),
+            Value<int> depositCount = const Value.absent(),
+            Value<int?> startedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SavingsGoalsCompanion.insert(
@@ -14493,6 +15406,11 @@ class $$SavingsGoalsTableTableManager extends RootTableManager<
             note: note,
             isAchieved: isAchieved,
             isArchived: isArchived,
+            mode: mode,
+            repeatCycle: repeatCycle,
+            endNote: endNote,
+            depositCount: depositCount,
+            startedAt: startedAt,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -14516,6 +15434,195 @@ typedef $$SavingsGoalsTableProcessedTableManager = ProcessedTableManager<
       BaseReferences<_$AppDatabase, $SavingsGoalsTable, SavingsGoal>
     ),
     SavingsGoal,
+    PrefetchHooks Function()>;
+typedef $$SavingsDepositsTableCreateCompanionBuilder = SavingsDepositsCompanion
+    Function({
+  required String id,
+  required String bookId,
+  required String goalId,
+  required int dayIndex,
+  required int amountMinor,
+  required int depositedAt,
+  Value<int> rowid,
+});
+typedef $$SavingsDepositsTableUpdateCompanionBuilder = SavingsDepositsCompanion
+    Function({
+  Value<String> id,
+  Value<String> bookId,
+  Value<String> goalId,
+  Value<int> dayIndex,
+  Value<int> amountMinor,
+  Value<int> depositedAt,
+  Value<int> rowid,
+});
+
+class $$SavingsDepositsTableFilterComposer
+    extends Composer<_$AppDatabase, $SavingsDepositsTable> {
+  $$SavingsDepositsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get bookId => $composableBuilder(
+      column: $table.bookId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get goalId => $composableBuilder(
+      column: $table.goalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get dayIndex => $composableBuilder(
+      column: $table.dayIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+      column: $table.amountMinor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get depositedAt => $composableBuilder(
+      column: $table.depositedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$SavingsDepositsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SavingsDepositsTable> {
+  $$SavingsDepositsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get bookId => $composableBuilder(
+      column: $table.bookId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get goalId => $composableBuilder(
+      column: $table.goalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get dayIndex => $composableBuilder(
+      column: $table.dayIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+      column: $table.amountMinor, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get depositedAt => $composableBuilder(
+      column: $table.depositedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SavingsDepositsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SavingsDepositsTable> {
+  $$SavingsDepositsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get bookId =>
+      $composableBuilder(column: $table.bookId, builder: (column) => column);
+
+  GeneratedColumn<String> get goalId =>
+      $composableBuilder(column: $table.goalId, builder: (column) => column);
+
+  GeneratedColumn<int> get dayIndex =>
+      $composableBuilder(column: $table.dayIndex, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+      column: $table.amountMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get depositedAt => $composableBuilder(
+      column: $table.depositedAt, builder: (column) => column);
+}
+
+class $$SavingsDepositsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SavingsDepositsTable,
+    SavingsDeposit,
+    $$SavingsDepositsTableFilterComposer,
+    $$SavingsDepositsTableOrderingComposer,
+    $$SavingsDepositsTableAnnotationComposer,
+    $$SavingsDepositsTableCreateCompanionBuilder,
+    $$SavingsDepositsTableUpdateCompanionBuilder,
+    (
+      SavingsDeposit,
+      BaseReferences<_$AppDatabase, $SavingsDepositsTable, SavingsDeposit>
+    ),
+    SavingsDeposit,
+    PrefetchHooks Function()> {
+  $$SavingsDepositsTableTableManager(
+      _$AppDatabase db, $SavingsDepositsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SavingsDepositsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SavingsDepositsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SavingsDepositsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> bookId = const Value.absent(),
+            Value<String> goalId = const Value.absent(),
+            Value<int> dayIndex = const Value.absent(),
+            Value<int> amountMinor = const Value.absent(),
+            Value<int> depositedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SavingsDepositsCompanion(
+            id: id,
+            bookId: bookId,
+            goalId: goalId,
+            dayIndex: dayIndex,
+            amountMinor: amountMinor,
+            depositedAt: depositedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String bookId,
+            required String goalId,
+            required int dayIndex,
+            required int amountMinor,
+            required int depositedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SavingsDepositsCompanion.insert(
+            id: id,
+            bookId: bookId,
+            goalId: goalId,
+            dayIndex: dayIndex,
+            amountMinor: amountMinor,
+            depositedAt: depositedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SavingsDepositsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SavingsDepositsTable,
+    SavingsDeposit,
+    $$SavingsDepositsTableFilterComposer,
+    $$SavingsDepositsTableOrderingComposer,
+    $$SavingsDepositsTableAnnotationComposer,
+    $$SavingsDepositsTableCreateCompanionBuilder,
+    $$SavingsDepositsTableUpdateCompanionBuilder,
+    (
+      SavingsDeposit,
+      BaseReferences<_$AppDatabase, $SavingsDepositsTable, SavingsDeposit>
+    ),
+    SavingsDeposit,
     PrefetchHooks Function()>;
 typedef $$InstallmentPlansTableCreateCompanionBuilder
     = InstallmentPlansCompanion Function({
@@ -17234,6 +18341,8 @@ class $AppDatabaseManager {
       $$ReimbursementsTableTableManager(_db, _db.reimbursements);
   $$SavingsGoalsTableTableManager get savingsGoals =>
       $$SavingsGoalsTableTableManager(_db, _db.savingsGoals);
+  $$SavingsDepositsTableTableManager get savingsDeposits =>
+      $$SavingsDepositsTableTableManager(_db, _db.savingsDeposits);
   $$InstallmentPlansTableTableManager get installmentPlans =>
       $$InstallmentPlansTableTableManager(_db, _db.installmentPlans);
   $$InstallmentPeriodsTableTableManager get installmentPeriods =>

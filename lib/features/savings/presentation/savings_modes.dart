@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 /// 存钱模式预设（参照小青账「存钱模式选择」）。
 ///
 /// 模式只负责一件事：**创建预设**——储蓄页点「添加」先选模式，
-/// 编辑表单按 [defaultName] / [presetTargetMinor] / [presetDeadlineDays] /
-/// [presetNote] 预填；模式信息随名称与备注保留在目标上。
+/// 编辑表单按 [defaultName] / [presetTargetMinor] / [presetDeadlineDays]
+/// 预填；[description] 仅作模式介绍展示，备注留空不落库（不预置）。
 ///
 /// 金额数学（预填目标）：
 /// - 365 天：1+2+…+365 = 66,795 元；

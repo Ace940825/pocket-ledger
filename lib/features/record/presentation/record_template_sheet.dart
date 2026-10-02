@@ -106,7 +106,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: <Color>[AppColors.mintWhisper, ForestBg.paper],
+                colors: <Color>[AppPalette.mintWhisper, ForestBg.paper],
               ),
               borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
@@ -119,7 +119,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.sageRibbon.withValues(alpha: 0.35),
+                      color: AppPalette.sageRibbon.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -245,7 +245,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: <BoxShadow>[
                       BoxShadow(
-                        color: AppColors.ctaGreenDeep.withValues(alpha: 0.251),
+                        color: AppPalette.ctaGreenDeep.withValues(alpha: 0.251),
                         blurRadius: 10,
                         offset: Offset(0, 3),
                       ),
@@ -256,7 +256,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.creamSoft,
+                      color: AppPalette.creamSoft,
                     ),
                   ),
                 ),
@@ -343,7 +343,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
                       color: enabled
-                          ? AppColors.creamSoft
+                          ? AppPalette.creamSoft
                           : ForestNeutral.textTertiary,
                     ),
                   ),

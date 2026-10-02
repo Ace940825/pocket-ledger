@@ -308,6 +308,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
         builder: (BuildContext ctx, StateSetter setState) => AlertDialog(
           title: Text(record == null ? '新增报销' : '编辑报销'),
           content: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
@@ -671,6 +672,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
     final bool isEmpty = incomesMode ? incomes.isEmpty : filtered.isEmpty;
 
     return CustomScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: <Widget>[
         SliverToBoxAdapter(
           child: _HeroCard(
@@ -2491,7 +2493,7 @@ class _SheetScaffold extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: AppColors.sage900.withValues(alpha: 0.302),
+            color: AppPalette.sage900.withValues(alpha: 0.302),
             blurRadius: 48,
             offset: Offset(0, -18),
           ),

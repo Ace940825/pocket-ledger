@@ -111,7 +111,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           Text(
             '显示封存',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: AppPalette.textSecondary,
                 ),
           ),
           const SizedBox(width: AppDimens.spaceSm),
@@ -126,8 +126,10 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
   }
 
   Widget _buildList(List<Category> list) {
+    // 系统分类（借入/借出/转账/报销/退款/分期/存款等）由 ensureNamed 自动
+    // 重建挂分类，用户分类管理页隐藏，不打扰手动管理。
     final List<Category> typed =
-        list.where((Category c) => c.type == _type).toList();
+        list.where((Category c) => c.type == _type && !c.isSystem).toList();
 
     final List<Category> visible = _showArchived
         ? typed
@@ -255,7 +257,7 @@ class _TypeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final Color color =
-        selected ? theme.colorScheme.onSurface : AppColors.textTertiary;
+        selected ? theme.colorScheme.onSurface : AppPalette.textTertiary;
     final FontWeight weight = selected ? FontWeight.w600 : FontWeight.normal;
 
     return GestureDetector(
@@ -385,7 +387,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
     final String parentName = widget.category.name;
     final Color color = category.colorValue != null
         ? Color(category.colorValue!)
-        : AppColors.primary;
+        : AppPalette.primary;
 
     final String? action = await showModalBottomSheet<String>(
       context: context,
@@ -407,7 +409,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
+                        color: AppPalette.surfaceLight,
                         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                       ),
                       child: Icon(
@@ -497,11 +499,11 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
               ListTile(
                 leading: const Icon(
                   Icons.delete_outline,
-                  color: AppColors.expense,
+                  color: AppPalette.expense,
                 ),
                 title: Text(
                   isParent ? '删除分类' : '删除子分类',
-                  style: const TextStyle(color: AppColors.expense),
+                  style: const TextStyle(color: AppPalette.expense),
                 ),
                 subtitle: Text(
                   isParent ? '迁移账单后删除，或直接删除分类' : '迁移账单后删除，或直接删除子分类',
@@ -570,7 +572,7 @@ class _CategoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color color = category.colorValue != null
         ? Color(category.colorValue!)
-        : AppColors.primary;
+        : AppPalette.primary;
 
     return InkWell(
       onTap: onTap,
@@ -583,7 +585,7 @@ class _CategoryRow extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: AppPalette.surfaceLight,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
               child: Icon(
@@ -615,7 +617,7 @@ class _CategoryRow extends StatelessWidget {
                 child: Text(
                   '已封存',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
+                        color: AppPalette.textTertiary,
                         fontSize: 11,
                       ),
                 ),
@@ -624,7 +626,7 @@ class _CategoryRow extends StatelessWidget {
               onPressed: onMore,
               icon: const Icon(
                 Icons.more_horiz,
-                color: AppColors.textTertiary,
+                color: AppPalette.textTertiary,
               ),
             ),
           ],
@@ -652,7 +654,7 @@ class _SubcategoryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color color = category?.colorValue != null
         ? Color(category!.colorValue!)
-        : AppColors.primary;
+        : AppPalette.primary;
 
     return SizedBox(
       width: 64,
@@ -666,14 +668,14 @@ class _SubcategoryChip extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: AppPalette.surfaceLight,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
               child: Icon(
                 isAdd
                     ? Icons.add_circle_outline
                     : categoryIconData(category!.iconKey),
-                color: isAdd ? AppColors.primary : color,
+                color: isAdd ? AppPalette.primary : color,
                 size: 24,
               ),
             ),
@@ -684,7 +686,7 @@ class _SubcategoryChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isAdd ? AppColors.textSecondary : null,
+                    color: isAdd ? AppPalette.textSecondary : null,
                     fontSize: 12,
                   ),
             ),
@@ -717,7 +719,12 @@ class _ExpandArrow extends StatelessWidget {
   }
 }
 
-/// 分类排序：拖拽重排一级分类顺序。
+/// 分类排序：支出、收入各自独立排序一级分类。
+///
+/// 顶部「支出分类 / 收入分类」分段切换，只展示当前段的一级分类，两段互不干扰。
+/// `sortOrder` 在库内**按类型各自从 0 编号**（见 `bootstrap.dart` 种子），
+/// 所以这里只把本类型的 id 序列交给 [CategoryRepository.reorderParents]
+/// 重新编号，不会打乱另一类型的顺序。
 Future<void> _showSortSheet(
   BuildContext context,
   WidgetRef ref,
@@ -730,14 +737,27 @@ Future<void> _showSortSheet(
     return;
   }
 
-  final List<Category> items = all
-      .where((Category c) => c.parentId == null)
+  // 一级分类按类型拆成两段（支出 / 收入），段内按 sortOrder 排。
+  // sortOrder 在库内本就按类型各自从 0 编号，因此两段互不干扰。
+  List<Category> parentsOf(CategoryType t) => all
+      .where((Category c) => c.parentId == null && c.type == t && !c.isSystem)
       .toList()
     ..sort((Category a, Category b) => a.sortOrder.compareTo(b.sortOrder));
-  if (items.length < 2) {
+
+  final Map<CategoryType, List<Category>> segments =
+      <CategoryType, List<Category>>{
+    CategoryType.expense: parentsOf(CategoryType.expense),
+    CategoryType.income: parentsOf(CategoryType.income),
+  };
+  final bool anySortable =
+      segments.values.any((List<Category> list) => list.length > 1);
+  if (!anySortable) {
     _toast(context, '分类不足两个，无需排序');
     return;
   }
+
+  // 从哪个类型进来就默认展示哪一段。
+  CategoryType current = type;
 
   await showModalBottomSheet<void>(
     context: context,
@@ -750,6 +770,8 @@ Future<void> _showSortSheet(
     builder: (BuildContext sheet) => SafeArea(
       child: StatefulBuilder(
         builder: (BuildContext ctx, StateSetter setSheetState) {
+          // 当前段的一级分类（与 segments 里的实例同一引用，拖拽后原地更新）。
+          final List<Category> items = segments[current]!;
           return SizedBox(
             height: MediaQuery.of(ctx).size.height * 0.7,
             child: Column(
@@ -777,28 +799,66 @@ Future<void> _showSortSheet(
                   ),
                 ),
                 const Divider(height: 1),
-                Expanded(
-                  child: ReorderableListView(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppDimens.spaceSm,
-                    ),
-                    buildDefaultDragHandles: true,
-                    onReorderItem: (int oldIndex, int newIndex) async {
-                      setSheetState(() {
-                        final Category moved = items.removeAt(oldIndex);
-                        items.insert(newIndex, moved);
-                      });
-                      final List<String> ids =
-                          items.map((Category c) => c.id).toList();
-                      await ref
-                          .read(categoryRepositoryProvider)
-                          .reorderParents(ids);
-                    },
+                // 支出 / 收入 分段切换：两段各自独立排序，互不影响。
+                Padding(
+                  padding: const EdgeInsets.only(top: AppDimens.spaceSm),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
-                      for (final Category c in items)
-                        _SortTile(key: ValueKey<String>(c.id), category: c),
+                      _TypeTab(
+                        label: _typeLabel(CategoryType.expense),
+                        selected: current == CategoryType.expense,
+                        onTap: () => setSheetState(
+                          () => current = CategoryType.expense,
+                        ),
+                      ),
+                      const SizedBox(width: AppDimens.spaceXl),
+                      _TypeTab(
+                        label: _typeLabel(CategoryType.income),
+                        selected: current == CategoryType.income,
+                        onTap: () => setSheetState(
+                          () => current = CategoryType.income,
+                        ),
+                      ),
                     ],
                   ),
+                ),
+                const SizedBox(height: AppDimens.spaceSm),
+                Expanded(
+                  child: items.length < 2
+                      ? Center(
+                          child: Text(
+                            '该类型分类不足两个，无需排序',
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: AppPalette.textSecondary),
+                          ),
+                        )
+                      : ReorderableListView(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppDimens.spaceSm,
+                          ),
+                          buildDefaultDragHandles: true,
+                          onReorderItem: (int oldIndex, int newIndex) async {
+                            setSheetState(() {
+                              final Category moved = items.removeAt(oldIndex);
+                              items.insert(newIndex, moved);
+                            });
+                            final List<String> ids =
+                                items.map((Category c) => c.id).toList();
+                            await ref
+                                .read(categoryRepositoryProvider)
+                                .reorderParents(ids);
+                          },
+                          children: <Widget>[
+                            for (final Category c in items)
+                              _SortTile(
+                                key: ValueKey<String>(c.id),
+                                category: c,
+                              ),
+                          ],
+                        ),
                 ),
                 const SizedBox(height: AppDimens.spaceMd),
               ],
@@ -819,19 +879,19 @@ class _SortTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color color = category.colorValue != null
         ? Color(category.colorValue!)
-        : AppColors.primary;
+        : AppPalette.primary;
     return ListTile(
       leading: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
+          color: AppPalette.surfaceLight,
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
         child: Icon(categoryIconData(category.iconKey), color: color, size: 22),
       ),
       title: Text(category.name),
-      trailing: const Icon(Icons.drag_handle, color: AppColors.textTertiary),
+      trailing: const Icon(Icons.drag_handle, color: AppPalette.textTertiary),
     );
   }
 }
@@ -850,7 +910,8 @@ Future<void> _showChangeParentSheet(
   }
 
   final List<Category> candidates = all
-      .where((Category c) => c.parentId == null && c.id != category.id)
+      .where((Category c) =>
+          c.parentId == null && c.id != category.id && !c.isSystem)
       .toList()
     ..sort((Category a, Category b) => a.sortOrder.compareTo(b.sortOrder));
   if (candidates.isEmpty) {
@@ -901,13 +962,13 @@ Future<void> _showChangeParentSheet(
                 final Category t = candidates[i];
                 final Color color = t.colorValue != null
                     ? Color(t.colorValue!)
-                    : AppColors.primary;
+                    : AppPalette.primary;
                 return ListTile(
                   leading: Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: AppPalette.surfaceLight,
                       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     ),
                     child: Icon(categoryIconData(t.iconKey),
@@ -1093,3 +1154,7 @@ Future<void> _showChildSortSheet(
 void _toast(BuildContext context, String message) {
   showAppToast(context, message);
 }
+
+/// 分类类型的中文名（排序页分段标题与分类管理页 Tab 共用）。
+String _typeLabel(CategoryType type) =>
+    type == CategoryType.income ? '收入分类' : '支出分类';

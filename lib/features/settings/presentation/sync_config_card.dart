@@ -107,8 +107,8 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                       blocked ?? '配置已就绪，可立即同步',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: blocked == null
-                            ? AppColors.income
-                            : AppColors.textTertiary,
+                            ? AppPalette.income
+                            : AppPalette.textTertiary,
                       ),
                     ),
                     value: settings.enabled,
@@ -173,7 +173,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                     '部署 Cloudflare Workers 后填入以上两项。端点与令牌只保存在本机钥匙串，'
                     '不会写入数据库，也不随任何备份外传。',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
+                      color: AppPalette.textTertiary,
                     ),
                   ),
                 ],

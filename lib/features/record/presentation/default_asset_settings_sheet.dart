@@ -62,7 +62,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                   height: 4 * s,
                   margin: EdgeInsets.only(top: 10 * s),
                   decoration: BoxDecoration(
-                    color: AppColors.sage800.withValues(alpha: 0.22),
+                    color: AppPalette.sage800.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -120,7 +120,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
               Container(
                 decoration: BoxDecoration(
                   color: ForestSurface.card,
-                  border: Border.all(color: AppColors.sage900.withValues(alpha: 0.071)),
+                  border: Border.all(color: AppPalette.sage900.withValues(alpha: 0.071)),
                   borderRadius: BorderRadius.circular(16 * s),
                 ),
                 child: Column(
@@ -178,7 +178,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
   }
 
   Widget _hairline(double s) => Divider(
-      height: 1, thickness: 1, color: AppColors.sage800.withValues(alpha: 0.102), indent: 14 * s);
+      height: 1, thickness: 1, color: AppPalette.sage800.withValues(alpha: 0.102), indent: 14 * s);
 
   /// 二级弹窗：完整版账户选择列表（无齿轮键），点卡片直接确认返回。
   Future<void> _pickDefaultAccount(BuildContext context, WidgetRef ref) async {
@@ -325,7 +325,7 @@ class _SettingRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11 * s,
                     height: 1.5,
-                    color: AppColors.ink3,
+                    color: AppPalette.ink3,
                   ),
                 ),
               ],
@@ -358,8 +358,8 @@ class _ValuePill extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 5 * s),
         decoration: BoxDecoration(
-          color: AppColors.mintSurface,
-          border: Border.all(color: AppColors.stockDown.withValues(alpha: 0.302)),
+          color: AppPalette.mintSurface,
+          border: Border.all(color: AppPalette.stockDown.withValues(alpha: 0.302)),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(

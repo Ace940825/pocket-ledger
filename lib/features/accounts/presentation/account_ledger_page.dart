@@ -20,8 +20,9 @@ import '../providers/accounts_providers.dart';
 import 'account_ledger_grouping.dart';
 import 'widgets/account_transaction_tile.dart';
 import 'widgets/asset_stats_settings_sheet.dart';
-import 'widgets/year_picker_sheet.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/amount_keypad.dart';
 
 /// 单个账户的资产详情页（小青账「资产详情」复刻）。
 ///
@@ -132,6 +133,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
     }
 
     return CustomScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: <Widget>[
         SliverToBoxAdapter(
           child: _AccountCardHeader(
@@ -153,7 +155,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
               child: Text(
                 '$_selectedYear年暂无流水',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: AppPalette.textSecondary,
                     ),
               ),
             ),
@@ -219,17 +221,15 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
   }
 
   Future<void> _pickYear() async {
-    final int? year = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) => YearPickerSheet(
-        initialYear: _selectedYear,
-        minYear: _selectedYear - 2,
-        maxYear: _selectedYear + 9,
-      ),
+    final CalendarSelection? sel = await CalendarSheet.show(
+      context,
+      mode: CalendarSheetMode.year,
+      initialYear: _selectedYear,
+      firstDate: DateTime(_selectedYear - 2, 1, 1),
+      lastDate: DateTime(_selectedYear + 9, 12, 31),
     );
-    if (year != null && year != _selectedYear) {
-      setState(() => _selectedYear = year);
+    if (sel is CalendarYear && sel.year != _selectedYear) {
+      setState(() => _selectedYear = sel.year);
     }
   }
 
@@ -283,19 +283,15 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
                 Text(
                   '该账户余额由借还记录自动计算，暂不支持手动修改。',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: AppPalette.textSecondary,
                       ),
                 ),
               ] else ...<Widget>[
                 const SizedBox(height: AppDimens.spaceMd),
-                TextField(
+                KeypadField(
                   controller: balanceController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: type.isDebt ? '当前欠款' : '余额',
-                    prefixText: '¥ ',
-                  ),
+                  labelText: type.isDebt ? '当前欠款' : '余额',
+                  prefixText: '¥ ',
                 ),
                 const SizedBox(height: AppDimens.spaceMd),
                 DropdownButtonFormField<AccountType>(
@@ -474,7 +470,10 @@ class _AccountCardHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppDimens.radiusLg),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Theme.of(context).colorScheme.shadow.withValues(alpha: isDark ? 0.28 : 0.045),
+              color: Theme.of(context)
+                  .colorScheme
+                  .shadow
+                  .withValues(alpha: isDark ? 0.28 : 0.045),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
@@ -491,7 +490,7 @@ class _AccountCardHeader extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(
+                      color: AppPalette.primary.withValues(
                         alpha: isDark ? 0.18 : 0.12,
                       ),
                       shape: BoxShape.circle,
@@ -500,7 +499,7 @@ class _AccountCardHeader extends StatelessWidget {
                     child: Icon(
                       accountIcon(account.type),
                       size: 20,
-                      color: AppColors.primary,
+                      color: AppPalette.primary,
                     ),
                   ),
                   const SizedBox(width: AppDimens.spaceMd),
@@ -520,7 +519,7 @@ class _AccountCardHeader extends StatelessWidget {
                         Text(
                           account.type.label,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
+                            color: AppPalette.textSecondary,
                           ),
                         ),
                       ],
@@ -536,7 +535,7 @@ class _AccountCardHeader extends StatelessWidget {
                     child: Text(
                       '编辑',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: AppPalette.textSecondary,
                       ),
                     ),
                   ),
@@ -551,7 +550,7 @@ class _AccountCardHeader extends StatelessWidget {
                   _ => isDebt ? '当前欠款(元)' : '当前余额(元)',
                 },
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: AppPalette.textSecondary,
                 ),
               ),
               const SizedBox(height: AppDimens.spaceXs),
@@ -559,7 +558,7 @@ class _AccountCardHeader extends StatelessWidget {
                 Money.fromMinor(account.balanceMinor),
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: isDebt ? AppColors.expense : null,
+                  color: isDebt ? AppPalette.expense : null,
                 ),
               ),
             ],
@@ -686,14 +685,14 @@ class _MonthSection extends StatelessWidget {
                 Text(
                   '支出 ${Money.fromMinor(stats.expenseMinor).format()}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.expense,
+                    color: AppPalette.expense,
                   ),
                 ),
                 const SizedBox(width: AppDimens.spaceMd),
                 Text(
                   '收入 ${Money.fromMinor(stats.incomeMinor).format()}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.income,
+                    color: AppPalette.income,
                   ),
                 ),
               ],
@@ -748,7 +747,7 @@ class _DayHeader extends StatelessWidget {
       child: Text(
         accountLedgerDateLabel(dateAt),
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
+              color: AppPalette.textSecondary,
             ),
       ),
     );
@@ -785,7 +784,7 @@ class _MonthSummary extends StatelessWidget {
       child: Text(
         text,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: AppColors.textSecondary,
+          color: AppPalette.textSecondary,
         ),
       ),
     );

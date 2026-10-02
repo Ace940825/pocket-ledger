@@ -223,6 +223,7 @@ Future<void> showInventoryEditor(
       builder: (BuildContext ctx, StateSetter setState) => AlertDialog(
         title: Text(item == null ? '登记物品' : '编辑物品'),
         content: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
+import 'amount_keypad.dart';
 
 /// 金额输入框。
 ///
@@ -31,7 +32,7 @@ class AmountField extends StatelessWidget {
       children: <Widget>[
         Container(
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: AppPalette.surfaceLight,
             borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           ),
           child: Row(
@@ -42,7 +43,7 @@ class AmountField extends StatelessWidget {
                 width: 3,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppPalette.primary,
                   borderRadius: BorderRadius.circular(1.5),
                 ),
               ),
@@ -50,14 +51,24 @@ class AmountField extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: controller,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  readOnly: true,
+                  showCursor: false,
+                  enableInteractiveSelection: false,
                   textAlignVertical: TextAlignVertical.center,
                   validator: validator,
+                  onTap: () async {
+                    final String? r = await showAmountKeypad(
+                      context: context,
+                      initial: controller.text,
+                      allowDecimal: true,
+                      title: label,
+                    );
+                    if (r != null) controller.text = r;
+                  },
                   decoration: InputDecoration(
                     hintText: label,
                     hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textTertiary,
+                          color: AppPalette.textTertiary,
                         ),
                     border: InputBorder.none,
                     filled: false,
@@ -77,7 +88,7 @@ class AmountField extends StatelessWidget {
             child: Text(
               helperText!,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
+                    color: AppPalette.textTertiary,
                   ),
             ),
           ),
@@ -105,7 +116,18 @@ class IntField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      keyboardType: TextInputType.number,
+      readOnly: true,
+      showCursor: false,
+      enableInteractiveSelection: false,
+      onTap: () async {
+        final String? r = await showAmountKeypad(
+          context: context,
+          initial: controller.text,
+          allowDecimal: false,
+          title: label,
+        );
+        if (r != null) controller.text = r;
+      },
       decoration: InputDecoration(
         labelText: label,
         suffixText: suffixText,

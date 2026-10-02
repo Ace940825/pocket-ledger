@@ -10,6 +10,7 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/amount_keypad.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
 import '../../investment/data/investment_repository.dart';
@@ -91,6 +92,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         children: <Widget>[
           Expanded(
             child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.all(AppDimens.spaceLg),
               children: isDebt
                   ? _debtSections(account)
@@ -132,7 +134,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 Text(
                   '由名下未结清借还记录自动计算，不可手动修改',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
+                        color: AppPalette.textTertiary,
                       ),
                 ),
               ],
@@ -177,7 +179,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     ? '由名下持仓市值自动计算，不可手动修改'
                     : '暂无持仓，显示当前账户余额',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
+                      color: AppPalette.textTertiary,
                     ),
               ),
             ],
@@ -224,16 +226,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 _fieldLabel('账户余额'),
-                TextField(
+                KeypadField(
                   controller: _balanceController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.done,
+                  allowDecimal: true,
                   decoration: _filledDecoration().copyWith(
                     suffixIcon: Icon(
                       Icons.account_balance_wallet_outlined,
                       size: 20,
-                      color: AppColors.textTertiary,
+                      color: AppPalette.textTertiary,
                     ),
                   ),
                 ),
@@ -269,16 +269,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 ),
                 const SizedBox(height: AppDimens.spaceMd),
                 _fieldLabel('账户余额'),
-                TextField(
+                KeypadField(
                   controller: _balanceController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.done,
+                  allowDecimal: true,
                   decoration: _filledDecoration().copyWith(
                     suffixIcon: Icon(
                       Icons.account_balance_wallet_outlined,
                       size: 20,
-                      color: AppColors.textTertiary,
+                      color: AppPalette.textTertiary,
                     ),
                   ),
                 ),
@@ -310,21 +308,17 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 _fieldLabel('信用额度'),
-                TextField(
+                KeypadField(
                   controller: _creditLimitController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.next,
+                  allowDecimal: true,
                   decoration: _filledDecoration(),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: AppDimens.spaceMd),
                 _fieldLabel('当前欠款'),
-                TextField(
+                KeypadField(
                   controller: _balanceController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.done,
+                  allowDecimal: true,
                   decoration: _filledDecoration(),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -337,14 +331,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     Icon(
                       Icons.info_outline,
                       size: 14,
-                      color: AppColors.textTertiary,
+                      color: AppPalette.textTertiary,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         '当前欠款 和 信用额度 输入一个即可自动识别计算',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textTertiary,
+                              color: AppPalette.textTertiary,
                             ),
                       ),
                     ),
@@ -363,18 +357,16 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 _fieldLabel('账单日期'),
-                TextField(
+                KeypadField(
                   controller: _billingDayController,
-                  keyboardType: const TextInputType.numberWithOptions(),
-                  textInputAction: TextInputAction.next,
+                  allowDecimal: false,
                   decoration: _dayDecoration(),
                 ),
                 const SizedBox(height: AppDimens.spaceMd),
                 _fieldLabel('还款日期'),
-                TextField(
+                KeypadField(
                   controller: _dueDayController,
-                  keyboardType: const TextInputType.numberWithOptions(),
-                  textInputAction: TextInputAction.done,
+                  allowDecimal: false,
                   decoration: _dayDecoration(),
                 ),
               ],
@@ -435,13 +427,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.10),
+                    color: AppPalette.primary.withValues(alpha: 0.10),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     accountIcon(account.type),
                     size: 20,
-                    color: AppColors.primary,
+                    color: AppPalette.primary,
                   ),
                 ),
                 const SizedBox(width: AppDimens.spaceMd),
@@ -457,7 +449,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 Icon(
                   Icons.chevron_right,
                   size: 22,
-                  color: AppColors.textTertiary,
+                  color: AppPalette.textTertiary,
                 ),
               ],
             ),
@@ -561,14 +553,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
+                color: AppPalette.textSecondary,
               ),
         ),
       );
 
   InputDecoration _filledDecoration() => InputDecoration(
         filled: true,
-        fillColor: AppColors.textTertiary.withValues(alpha: 0.08),
+        fillColor: AppPalette.textTertiary.withValues(alpha: 0.08),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppDimens.spaceMd,
           vertical: AppDimens.spaceSm + 2,
@@ -594,7 +586,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           vertical: AppDimens.spaceSm + 4,
         ),
         decoration: BoxDecoration(
-          color: AppColors.textTertiary.withValues(alpha: 0.08),
+          color: AppPalette.textTertiary.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
         child: Text(
@@ -602,7 +594,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               ? '—'
               : Money.fromMinor(balanceMinor).format(),
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppColors.textSecondary,
+                color: AppPalette.textSecondary,
               ),
         ),
       );
@@ -653,7 +645,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 Text(
                   '是否加入总资产计算',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
+                        color: AppPalette.textTertiary,
                       ),
                 ),
               ],
@@ -661,7 +653,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           ),
           Switch(
             value: _includeInTotal,
-            activeColor: AppColors.primary,
+            activeColor: AppPalette.primary,
             onChanged: (bool v) => setState(() => _includeInTotal = v),
           ),
         ],
@@ -676,7 +668,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           height: 48,
           child: FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
+              backgroundColor: AppPalette.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
@@ -798,7 +790,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: AppPalette.surfaceLight,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
@@ -831,15 +823,15 @@ class _StatusPill extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary
-              : AppColors.textTertiary.withValues(alpha: 0.12),
+              ? AppPalette.primary
+              : AppPalette.textTertiary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
-            color: selected ? Theme.of(context).colorScheme.onPrimary : AppColors.textSecondary,
+            color: selected ? Theme.of(context).colorScheme.onPrimary : AppPalette.textSecondary,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),

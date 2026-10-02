@@ -10,7 +10,7 @@ import '../../../../providers/app_providers.dart';
 import '../../../../shared/widgets/form_fields.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/date_picker_sheet.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -49,6 +49,7 @@ class _TransferPageState extends ConsumerState<TransferPage> {
       body: Form(
         key: _formKey,
         child: ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.all(AppDimens.spaceLg),
           children: <Widget>[
             _AccountPicker(
@@ -107,16 +108,28 @@ class _TransferPageState extends ConsumerState<TransferPage> {
   }
 
   Future<void> _pickDate() async {
-    final DateTime? picked = await DateTimePickerSheet.show(
+    final CalendarSelection? picked = await CalendarSheet.show(
       context,
+      mode: CalendarSheetMode.day,
       initialDate: _occurredAt,
       firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+      lastDate: DateTime(2107, 12, 31),
       showTime: true,
+      showQuickChips: true,
+      weekStart: CalendarWeekStart.sunday,
     );
-    if (picked != null) {
-      setState(() => _occurredAt = picked);
+    if (picked == null) return;
+    // day 模式返回单日（含所选时分）；若经粒度 chip 选了周期，取其起点日并保留原时分。
+    final DateTime resolved;
+    if (picked is CalendarDay) {
+      resolved = picked.date;
+    } else if (picked is CalendarPeriod) {
+      final DateTime s = picked.start;
+      resolved = DateTime(s.year, s.month, s.day, _occurredAt.hour, _occurredAt.minute);
+    } else {
+      return;
     }
+    setState(() => _occurredAt = resolved);
   }
 
   Future<void> _save() async {
