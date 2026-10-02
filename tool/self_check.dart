@@ -20,6 +20,12 @@ import 'package:pocket_ledger/sync/sync_adapter.dart';
 int _passed = 0;
 final List<String> _failures = <String>[];
 
+/// 混入 SyncColumns 但**刻意不参与云同步**的本地表（见 tables.dart
+/// 对应类注释）：Tags/TagCategories 是纯本地偏好，不进 SyncTables.all
+/// 与 RecordCodec.decode。若未来要把某张表纳入同步，请从此集合移除，
+/// 并补齐 RecordCodec 解码方法与 SyncTables 常量。
+const Set<String> _localOnlyTables = <String>{'Tags', 'TagCategories'};
+
 void check(bool condition, String description) {
   if (condition) {
     _passed++;
@@ -215,6 +221,10 @@ void _checkRecordCodecCoverage() {
   final Map<String, Set<String>> tableFields = <String, Set<String>>{};
   for (final RegExpMatch m in tableRe.allMatches(tablesSrc)) {
     final String tableName = m.group(1)!;
+    // 刻意不参与云同步的本地表（见 tables.dart 对应注释）：虽混入
+    // SyncColumns，但不进 SyncTables.all 与 RecordCodec，属纯本地偏好
+    // （同 RecordTemplates 的处理方式），不纳入覆盖检查。
+    if (_localOnlyTables.contains(tableName)) continue;
     final Set<String> fields = <String>{};
     for (final RegExpMatch c in colRe.allMatches(m.group(2)!)) {
       final String field = c.group(1)!;

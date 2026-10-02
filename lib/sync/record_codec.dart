@@ -211,6 +211,8 @@ abstract final class RecordCodec {
         excludeFromBudget:
             Value<bool>((p['excludeFromBudget'] as bool?) ?? false),
         isReimbursable: Value<bool>((p['isReimbursable'] as bool?) ?? false),
+        reimbursementAccountId:
+            Value<String?>(p['reimbursementAccountId'] as String?),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),
@@ -269,6 +271,7 @@ abstract final class RecordCodec {
         colorValue: Value<int?>(p['colorValue'] as int?),
         sortOrder: Value<int>((p['sortOrder'] as int?) ?? 0),
         isArchived: Value<bool>((p['isArchived'] as bool?) ?? false),
+        isSystem: Value<bool>((p['isSystem'] as bool?) ?? false),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),
@@ -331,6 +334,11 @@ abstract final class RecordCodec {
         excludeFromStats: Value<bool>(p['excludeFromStats'] as bool? ?? false),
         accountId: Value<String?>(p['accountId'] as String?),
         toAccountId: Value<String?>(p['toAccountId'] as String?),
+        // 报销收入实时同步（schema v16/v17）：收入流水关联 + 抵扣台账。
+        // 漏掉会导致「报销收入 → 关联账单」与撤收入反向恢复在别的设备失效。
+        incomeTransactionId:
+            Value<String?>(p['incomeTransactionId'] as String?),
+        incomeAllocs: Value<String?>(p['incomeAllocs'] as String?),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),
@@ -355,6 +363,19 @@ abstract final class RecordCodec {
         deadlineAt: Value<int?>(p['deadlineAt'] as int?),
         note: Value<String?>(p['note'] as String?),
         isAchieved: Value<bool>((p['isAchieved'] as bool?) ?? false),
+        // 小青账储蓄计划（schema v19-v22）：归档/模式/排期/弹性存钱法/扣款账户
+        isArchived: Value<bool>((p['isArchived'] as bool?) ?? false),
+        mode: Value<String?>(p['mode'] as String?),
+        repeatCycle: Value<String?>(p['repeatCycle'] as String?),
+        endNote: Value<String?>(p['endNote'] as String?),
+        depositCount: Value<int>((p['depositCount'] as int?) ?? 0),
+        startedAt: Value<int?>(p['startedAt'] as int?),
+        elasticMode: Value<int>((p['elasticMode'] as int?) ?? 1),
+        elasticBaseMinor: Value<int?>(p['elasticBaseMinor'] as int?),
+        elasticStepMinor: Value<int?>(p['elasticStepMinor'] as int?),
+        elasticPercentHundred:
+            Value<int?>(p['elasticPercentHundred'] as int?),
+        sourceAccountId: Value<String?>(p['sourceAccountId'] as String?),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),
