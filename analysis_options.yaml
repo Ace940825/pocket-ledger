@@ -10,6 +10,9 @@ analyzer:
   exclude:
     - "build/**"
     - "lib/generated/**"
+    # 嵌套包（custom_lint 插件）有自己的 package_config 与分析上下文，
+    # 主工程 analyze 不扫描（CI 未对其 pub get，扫了必报 uri_does_not_exist）
+    - "packages/**"
     # 命令行脚本（自检工具），不适用产品级 UI lint 规则
     - "tool/**"
     - android/**
