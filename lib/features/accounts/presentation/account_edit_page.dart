@@ -22,9 +22,9 @@ import '../../investment/providers/investment_providers.dart';
 ///   **借出 / 借入金额**（派生余额，只读展示——由名下未结清借还记录
 ///   自动计算，保存时仓储层同事务重算，不可手改）；
 /// - **投资（基金 / 股票 / 期货 / 现货等）**：基本信息「账户名称」+
-///   **投资余额**（派生余额，只读展示——有持仓时取名下持仓市值合计、
-///   否则保留账户原余额；随持仓自动更新，不可手改）；与应收应付同款
-///   「派生不变量」约束；
+///   **投资余额**（派生余额，只读展示——有持仓时取「现金余额 + 名下持仓
+///   市值合计」、否则保留账户现金余额；随持仓自动更新，不可手改）；与应收
+///   应付同款「派生不变量」约束：落库只记现金，市值由展示层叠加；
 /// - **借记卡（银行账户）**：「资产类型」卡（银行图标 + 银行名，点击改名）+
 ///   基本信息（备注信息 / 银行卡号）+ **资金**（账户余额可手动校正）；
 /// - **资金账户（现金 / 微信 / 支付宝等，借记卡除外）**：「资产类型」卡
@@ -74,6 +74,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     // 投资账户（基金 / 股票 / 期货 / 现货等）：余额随名下持仓市值派生，
     // 只读展示，与借还同款「派生不变量」约束。
     final bool isInvestment = account.type.category == AccountCategory.investment;
+    // 定期存款：真实余额（非持仓派生），允许手动校正，与资金账户同口径。
+    final bool isTimeDeposit = account.type == AccountType.timeDeposit;
     // 资金账户（现金 / 微信 / 支付宝 / 公积金等，借记卡单独布局）。
     final bool isFund = !isDebit &&
         !isDebt &&
@@ -98,11 +100,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   ? _debtSections(account)
                   : isDebit
                       ? _debitSections(account)
-                      : isInvestment
-                          ? _investmentSections(account)
-                          : isFund
-                              ? _fundSections(account)
-                              : _lendSections(account, isLend),
+                      : isTimeDeposit
+                          ? _fundSections(account)
+                          : isInvestment
+                              ? _investmentSections(account)
+                              : isFund
+                                  ? _fundSections(account)
+                                  : _lendSections(account, isLend),
             ),
           ),
           _saveButton(account),
@@ -147,15 +151,20 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 
   // ---- 投资（基金 / 股票 / 期货 / 现货等）布局，与应收应付（借还）统一 ----
   //
-  // 基本信息：账户名称（可改）+ 投资余额（只读，有持仓时取名下持仓市值
-  // 合计、否则保留账户原余额；随持仓自动更新，不可手改，防派生不变量被覆盖）。
+  // 基本信息：账户名称（可改）+ 投资余额（只读，展示「现金余额 + 名下持仓
+  // 市值合计」；随持仓自动更新，不可手改，防派生不变量被覆盖；落库仅记现金）。
 
   List<Widget> _investmentSections(Account account) {
     final List<InvestmentHolding>? holdings =
         ref.watch(investmentListProvider).valueOrNull;
-    final int balance = _investmentBalanceFrom(holdings, account);
-    final bool hasHoldings = holdings != null &&
-        holdings.any((InvestmentHolding h) => h.accountId == account.id);
+    int market = 0;
+    if (holdings != null) {
+      for (final InvestmentHolding h in holdings) {
+        if (h.accountId == account.id) market += h.marketValueMinor;
+      }
+    }
+    final int display = account.balanceMinor + market;
+    final bool hasHoldings = market != 0;
     return <Widget>[
       _sectionLabel('基本信息'),
       _Card(
@@ -172,12 +181,12 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               ),
               const SizedBox(height: AppDimens.spaceMd),
               _fieldLabel('投资余额'),
-              _readOnlyAmount(balance),
+              _readOnlyAmount(display),
               const SizedBox(height: AppDimens.spaceXs),
               Text(
                 hasHoldings
-                    ? '由名下持仓市值自动计算，不可手动修改'
-                    : '暂无持仓，显示当前账户余额',
+                    ? '现金 ${Money.fromMinor(account.balanceMinor)} · 持仓市值 ${Money.fromMinor(market)}（不可手动修改）'
+                    : '暂无持仓，显示当前账户现金余额',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppPalette.textTertiary,
                     ),
@@ -191,22 +200,18 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     ];
   }
 
-  /// 投资账户有效余额：有持仓则取名下持仓市值合计，否则保留账户原余额。
-  /// 编辑页展示与「保存」共用，确保读屏值与落库值一致。
+  /// 投资账户「展示余额」：现金余额 + 名下持仓市值合计（仅用于只读展示）。
+  /// 落库仍只记现金（balanceMinor），绝不可把市值写回覆盖现金。
   int _investmentBalanceFrom(
     List<InvestmentHolding>? holdings,
     Account account,
   ) {
     if (holdings == null) return account.balanceMinor;
     int market = 0;
-    bool has = false;
     for (final InvestmentHolding h in holdings) {
-      if (h.accountId == account.id) {
-        market += h.marketValueMinor;
-        has = true;
-      }
+      if (h.accountId == account.id) market += h.marketValueMinor;
     }
-    return has ? market : account.balanceMinor;
+    return account.balanceMinor + market;
   }
 
   // ---- 借记卡（银行账户）布局，参照小青账截图 ----
@@ -734,18 +739,25 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               status: _status,
               includeInTotal: _includeInTotal,
             );
-      } else if (account.type.category == AccountCategory.investment) {
-        // 投资账户：余额随名下持仓市值派生（有持仓则写回市值，否则保留
-        // 现值），不暴露手动余额输入，防派生不变量被覆盖。
-        final int effective = _investmentBalanceFrom(
-          ref.read(investmentListProvider).valueOrNull,
-          account,
-        );
+      } else if (account.type == AccountType.timeDeposit) {
+        // 定期存款：余额为真实值（允许手动校正），与资金账户同口径保存。
         await ref.read(accountRepositoryProvider).update(
               id: account.id,
               name: name,
               type: account.type,
-              balanceMinor: effective,
+              balanceMinor: Money.tryParse(_balanceController.text).minor,
+              status: _status,
+              includeInTotal: _includeInTotal,
+            );
+      } else if (account.type.category == AccountCategory.investment) {
+        // 投资账户：现金余额（balanceMinor）是存储唯一口径，不随持仓市值
+        // 变化；展示层用 displayBalanceWithMarket 叠加市值。此处只保留现金
+        // 现值，绝不可把市值写回覆盖现金（此前 bug：编辑即把余额覆盖成市值）。
+        await ref.read(accountRepositoryProvider).update(
+              id: account.id,
+              name: name,
+              type: account.type,
+              balanceMinor: account.balanceMinor,
               status: _status,
               includeInTotal: _includeInTotal,
             );

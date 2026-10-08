@@ -49,6 +49,9 @@ class TransactionRepository {
     bool isReimbursable = false,
     String? reimbursementAccountId,
     List<String>? attachmentUrls,
+    double? latitude,
+    double? longitude,
+    String? placeName,
   }) {
     if (amountMinor <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -96,6 +99,9 @@ class TransactionRepository {
           excludeFromBudget: Value<bool>(excludeFromBudget),
           isReimbursable: Value<bool>(isReimbursable),
           reimbursementAccountId: Value<String?>(reimbursementAccountId),
+          latitude: Value<double?>(latitude),
+          longitude: Value<double?>(longitude),
+          placeName: Value<String?>(placeName),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -128,6 +134,9 @@ class TransactionRepository {
         'isReimbursable': isReimbursable,
         'reimbursementAccountId': reimbursementAccountId,
         'attachmentUrls': attachmentUrlsJson,
+        'latitude': latitude,
+        'longitude': longitude,
+        'placeName': placeName,
       };
       if (fromAmountMinor != null) {
         payload['fromAmountMinor'] = fromAmountMinor;
@@ -175,6 +184,14 @@ class TransactionRepository {
     int? feeMinor,
     int? discountMinor,
     List<String>? attachmentUrls,
+    List<String>? tags,
+    bool? excludeFromStats,
+    bool? excludeFromBudget,
+    bool? isReimbursable,
+    String? reimbursementAccountId,
+    double? latitude,
+    double? longitude,
+    String? placeName,
   }) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final TxnType newType = type ?? original.type;
@@ -191,6 +208,9 @@ class TransactionRepository {
     final List<String>? newAttachmentList =
         attachmentUrls ?? _decodeAttachmentUrls(original.attachmentUrls);
     final String? newAttachmentUrls = _encodeAttachmentUrls(newAttachmentList);
+    final String? newTagsJson = tags == null
+        ? original.tags
+        : (tags!.isEmpty ? null : jsonEncode(tags!));
 
     if (newAmount <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -251,17 +271,22 @@ class TransactionRepository {
           occurredAt: Value<int>(occurredAt ?? original.occurredAt),
           note: Value<String?>(note ?? original.note),
           attachmentUrls: Value<String?>(newAttachmentUrls),
-          tags: Value<String?>(original.tags),
+          tags: Value<String?>(newTagsJson),
           sourceModule: Value<SourceModule>(identity.sourceModule),
           relatedId: Value<String?>(original.relatedId),
           transferGroupId: Value<String?>(identity.transferGroupId),
           feeMinor: Value<int>(newFee),
           discountMinor: Value<int>(newDiscount),
-          excludeFromStats: Value<bool>(original.excludeFromStats),
-          excludeFromBudget: Value<bool>(original.excludeFromBudget),
-          isReimbursable: Value<bool>(original.isReimbursable),
+          excludeFromStats:
+              Value<bool>(excludeFromStats ?? original.excludeFromStats),
+          excludeFromBudget:
+              Value<bool>(excludeFromBudget ?? original.excludeFromBudget),
+          isReimbursable: Value<bool>(isReimbursable ?? original.isReimbursable),
           reimbursementAccountId:
-              Value<String?>(original.reimbursementAccountId),
+              Value<String?>(reimbursementAccountId ?? original.reimbursementAccountId),
+          latitude: Value<double?>(latitude ?? original.latitude),
+          longitude: Value<double?>(longitude ?? original.longitude),
+          placeName: Value<String?>(placeName ?? original.placeName),
           deleted: Value<bool>(original.deleted),
           updatedAt: Value<int>(now),
           syncedAt: Value<int?>(original.syncedAt),
@@ -278,7 +303,7 @@ class TransactionRepository {
         now,
         fromAmountMinor: newFromAmountMinor,
         discountMinor: newDiscount,
-        reimbursementAccountId: original.reimbursementAccountId,
+        reimbursementAccountId: reimbursementAccountId ?? original.reimbursementAccountId,
       );
 
       await _enqueue(
@@ -298,12 +323,16 @@ class TransactionRepository {
           'note': note ?? original.note,
           // 必须是推导后的值：否则云端会把「撒谎的旧标记」同步回来。
           'sourceModule': identity.sourceModule.index,
-          'tags': original.tags,
-          'excludeFromStats': original.excludeFromStats,
-          'excludeFromBudget': original.excludeFromBudget,
-          'isReimbursable': original.isReimbursable,
-          'reimbursementAccountId': original.reimbursementAccountId,
+          'tags': newTagsJson,
+          'excludeFromStats': excludeFromStats ?? original.excludeFromStats,
+          'excludeFromBudget': excludeFromBudget ?? original.excludeFromBudget,
+          'isReimbursable': isReimbursable ?? original.isReimbursable,
+          'reimbursementAccountId':
+              reimbursementAccountId ?? original.reimbursementAccountId,
           'attachmentUrls': newAttachmentUrls,
+          'latitude': latitude ?? original.latitude,
+          'longitude': longitude ?? original.longitude,
+          'placeName': placeName ?? original.placeName,
           'feeMinor': newFee,
           'discountMinor': newDiscount,
         },
@@ -548,6 +577,9 @@ class TransactionRepository {
     int? feeMinor,
     int? discountMinor,
     List<String>? attachmentUrls,
+    double? latitude,
+    double? longitude,
+    String? placeName,
   }) async {
     if (fromAccountId == toAccountId) {
       throw const ValidationFailure('转出与转入账户不能相同');
@@ -610,6 +642,9 @@ class TransactionRepository {
         feeMinor: feeMinor,
         discountMinor: discountMinor,
         attachmentUrls: attachmentUrls,
+        latitude: latitude,
+        longitude: longitude,
+        placeName: placeName,
       ),
     );
   }

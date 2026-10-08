@@ -8,6 +8,8 @@ import 'dart:ui' show PathMetric;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -21,6 +23,7 @@ import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../investment/providers/investment_providers.dart';
 import '../../../features/accounts/data/account_icon.dart';
 import '../../../features/accounts/data/bank_data.dart';
 import '../../../features/accounts/providers/accounts_providers.dart';
@@ -53,12 +56,25 @@ import '../providers/recording_settings_provider.dart';
 import '../record_tab.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import 'account_picker_sheet.dart';
+import '../../investment/data/investment_repository.dart';
 import 'bill_selection_page.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../tags/presentation/tag_sheet.dart';
 import 'recording_settings_sheet.dart';
 import 'record_template_sheet.dart';
 import '../../../shared/widgets/app_toast.dart';
+
+/// 投资成交回执：保存成功后弹窗展示的只读数据快照。
+typedef _InvReceipt = ({
+  String hid,
+  bool isBuy,
+  int quantityMicros,
+  int priceMinor,
+  int feeMinor,
+  int amountMinor,
+  String accountId,
+  String name,
+});
 
 /// 退款模式：全额退回 / AA 付款分摊。
 enum RefundMode { full, aa }
@@ -297,8 +313,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   _FeeInputType _lendFeeInputType = _FeeInputType.fee;
   final TextEditingController _lendFeeController = TextEditingController();
   final FocusNode _lendFeeFocusNode = FocusNode();
+  /// 免息期（天）。信用卡类债务在免息期内还款不计利息；0 = 无免息期。
+  final TextEditingController _graceDaysController = TextEditingController();
   String? _lendFeeAmount;
   String? _lendDiscountAmount;
+
+  // ---- 投资 tab 状态 ----
+  bool _invIsBuy = true;
+  String? _invHoldingId;
+  String? _invSymbol;
+  String? _invName;
+  InvestmentType _invType = InvestmentType.fund;
+  final TextEditingController _invAmountController = TextEditingController();
+  final TextEditingController _invPriceController = TextEditingController();
+  final TextEditingController _invFeeController = TextEditingController();
+  String? _invAccountId;
+  final TextEditingController _invNoteController = TextEditingController();
+  /// 投资成交回执快照：保存成功后弹出确认，关闭 record sheet 前清空。
+  _InvReceipt? _invReceipt;
 
   // 报销
   // 报销收入默认「不计入收支」（收回垫付不是真实收入，可手动关）。
@@ -349,6 +381,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   // 图片附件：本地持久化后的绝对路径列表（存于 appDocs/attachments）。
   final List<String> _attachmentPaths = <String>[];
+
+  // 位置（记一笔可选附加当前 GPS 位置，逆地理编码成地名，落 Transactions 新列）。
+  // 仅支出 / 收入 / 转账 / 退款 / 报销等创建 Transactions 的 Tab 生效。
+  double? _locLat;
+  double? _locLng;
+  String? _locName;
+  bool _locating = false;
 
   // 转账
   String? _feeAmount;
@@ -524,6 +563,22 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         _rbToAccountId = txn.accountId;
         _rbAmountController.text = _amount;
       }
+      // 编辑态回填：标签 / 不计收支 / 不计预算 / 报销标记与报销账户。
+      // 之前这些键被 !_isEdit 隐藏，编辑时无法改写；现需回填真实原值，
+      // 否则保存会因状态为默认 false/null 而把已有标记清空。
+      _tags.clear();
+      if (txn.tags != null && txn.tags!.isNotEmpty) {
+        final List<dynamic>? decoded = jsonDecode(txn.tags!) as List<dynamic>?;
+        if (decoded != null) _tags.addAll(decoded.cast<String>());
+      }
+      _excludeFromStats = txn.excludeFromStats;
+      _excludeFromBudget = txn.excludeFromBudget;
+      _isReimbursable = txn.isReimbursable;
+      _reimbAccountId = txn.reimbursementAccountId;
+      // 位置：编辑时回填原流水附加的 GPS 坐标与地名（无则仍为空）。
+      _locLat = txn.latitude;
+      _locLng = txn.longitude;
+      _locName = txn.placeName;
     });
     _pageController.jumpToPage(index);
   }
@@ -578,6 +633,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             Money.fromMinor(rec.discountMinor).decimal.toStringAsFixed(2);
         _lendFeeInputType = _FeeInputType.discount;
         _lendFeeController.text = _lendDiscountAmount!;
+      }
+      if (rec.graceDays > 0) {
+        _graceDaysController.text = rec.graceDays.toString();
       }
     });
     _pageController.jumpToPage(index);
@@ -656,6 +714,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     _feeFocusNode.dispose();
     _lendFeeFocusNode.dispose();
     _lendFeeController.dispose();
+    _graceDaysController.dispose();
     _noteController.dispose();
     _counterpartyController.dispose();
     _rbPayerController.dispose();
@@ -769,6 +828,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return Money.tryParse(_lendDiscountAmount!).minor;
   }
 
+  /// 免息期（天）。未输入时返回 0（无免息期）。
+  int get _lendGraceDays {
+    final String text = _graceDaysController.text.trim();
+    if (text.isEmpty) return 0;
+    return int.tryParse(text) ?? 0;
+  }
+
   /// 报销收入金额（分）。未输入时返回 0。
   int get _rbAmountMinor {
     final String text = _rbAmountController.text.trim();
@@ -788,9 +854,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     if (_isEdit) {
       andMore = false;
     }
+    // 投资 Tab 的金额存在投资专用字段（_invAmountMinor），主金额框为空是常态，
+    // 通用金额校验会误拦——投资金额由 _saveInvestment 内部自行校验。
     final int minor =
         _tab == RecordTab.reimbursement ? _rbAmountMinor : _amountMinor;
-    if (minor <= 0) {
+    if (minor <= 0 && _tab != RecordTab.investment) {
       _toast('请输入大于 0 的金额');
       return;
     }
@@ -823,6 +891,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   occurredAt: occurredAt,
                   discountMinor: _discountMinor,
                   attachmentUrls: List<String>.of(_attachmentPaths),
+                  tags: _tags,
+                  excludeFromStats: _excludeFromStats,
+                  excludeFromBudget: _excludeFromBudget,
+                  isReimbursable: _isReimbursable,
+                  reimbursementAccountId: _reimbAccountId,
+                  latitude: _locLat,
+                  longitude: _locLng,
+                  placeName: _locName,
                 );
             savedId = _editingTxn!.id;
             break;
@@ -846,6 +922,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 reimbursementAccountId:
                     _isReimbursable ? _reimbAccountId : null,
                 attachmentUrls: _attachmentPaths,
+                latitude: _locLat,
+                longitude: _locLng,
+                placeName: _locName,
               );
           // 勾选「可报销」且指定了报销账户：同步建一条待报销记录，
           // 让报销资产页能跟踪这笔垫付（transactionId 关联本条流水）。
@@ -896,6 +975,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   feeMinor: _feeMinor,
                   discountMinor: _discountMinor,
                   attachmentUrls: List<String>.of(_attachmentPaths),
+                  latitude: _locLat,
+                  longitude: _locLng,
+                  placeName: _locName,
                 );
             savedId = _editingTxn!.id;
             break;
@@ -910,6 +992,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 occurredAt: occurredAt,
                 note: _noteController.text.trim(),
                 attachmentUrls: _attachmentPaths,
+                latitude: _locLat,
+                longitude: _locLng,
+                placeName: _locName,
               );
         case RecordTab.refund:
           // 编辑模式：更新原退款流水（保留 sourceModule=refund / relatedId）。
@@ -922,6 +1007,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               note: _noteController.text.trim(),
               occurredAt: occurredAt,
               attachmentUrls: List<String>.of(_attachmentPaths),
+              latitude: _locLat,
+              longitude: _locLng,
+              placeName: _locName,
             );
             savedId = _editingTxn!.id;
             break;
@@ -982,6 +1070,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 sourceModule: SourceModule.refund,
                 relatedId: relatedId,
                 attachmentUrls: _attachmentPaths,
+                latitude: _locLat,
+                longitude: _locLng,
+                placeName: _locName,
               );
         case RecordTab.lend:
           // 编辑模式：直接更新原借还记录（保留 status / repaidMinor 等原值），
@@ -1001,7 +1092,21 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               toAccountId: _toAccountId,
               feeMinor: _lendFeeMinor,
               discountMinor: _lendDiscountMinor,
+              graceDays: _lendGraceDays,
             );
+            // 编辑后强制刷新借还列表与负债账户详情页流水
+            // （drift 流偶发不重发，导致改日期后页面无变化）。
+            ref.invalidate(lendListProvider);
+            final int lendYr =
+                DateTime.fromMillisecondsSinceEpoch(occurredAt).year;
+            if (_accountId != null && _accountId!.isNotEmpty) {
+              ref.invalidate(accountTransactionsByYearProvider(
+                  (accountId: _accountId!, year: lendYr)));
+            }
+            if (_toAccountId != null && _toAccountId!.isNotEmpty) {
+              ref.invalidate(accountTransactionsByYearProvider(
+                  (accountId: _toAccountId!, year: lendYr)));
+            }
             savedId = _editingLend!.id;
             break;
           }
@@ -1073,12 +1178,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       : counterparty,
                   amountMinor: minor,
                   occurredAt: occurredAt,
-                  dueAt: null,
+                  dueAt: _dueAt,
                   note: _noteController.text.trim(),
                   accountId: _accountId,
                   toAccountId: _toAccountId,
                   feeMinor: _lendFeeMinor,
                   discountMinor: _lendDiscountMinor,
+                  graceDays: _lendGraceDays,
                 );
           }
         case RecordTab.reimbursement:
@@ -1092,6 +1198,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               note: _noteController.text.trim(),
               occurredAt: occurredAt,
               attachmentUrls: List<String>.of(_attachmentPaths),
+              latitude: _locLat,
+              longitude: _locLng,
+              placeName: _locName,
             );
             savedId = _editingTxn!.id;
             break;
@@ -1120,6 +1229,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         case RecordTab.installment:
           // 分期 Tab 选择后立即跳转独立页面，不会执行到这里。
           return;
+        case RecordTab.investment:
+          final _InvReceipt? r = await _saveInvestment();
+          if (r != null) {
+            savedId = r.hid;
+            _invReceipt = r;
+          }
+          break;
       }
 
       // 附件：写库成功后异步上传到云端，让其他设备也能查看原图。
@@ -1129,6 +1245,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       }
 
       if (!mounted) return;
+      // 投资成交回执：保存成功后弹出确认（连续记账不弹，直接清空继续）。
+      if (_invReceipt != null && !andMore) {
+        await _showInvestmentReceipt(_invReceipt!);
+        _invReceipt = null;
+      }
       // 清空 pending 运算状态，避免影响下一笔。
       _pendingAmount = '';
       _pendingOperator = null;
@@ -1166,6 +1287,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           _excludeFromStats = false;
           _excludeFromBudget = false;
           _attachmentPaths.clear();
+          _locLat = null;
+          _locLng = null;
+          _locName = null;
+          _invAmountController.clear();
+          _invPriceController.clear();
+          _invFeeController.clear();
+          _invNoteController.clear();
+          _invAccountId = null;
+          _invHoldingId = null;
+          _invSymbol = null;
+          _invName = null;
+          _invIsBuy = true;
         });
         return;
       }
@@ -1230,6 +1363,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         // 报销收入不参与预算（表单无预算开关，恒排除；收支侧由上方开关控制）。
         excludeFromBudget: true,
         attachmentUrls: _attachmentPaths,
+        latitude: _locLat,
+        longitude: _locLng,
+        placeName: _locName,
       );
     }
 
@@ -1709,7 +1845,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       case RecordTab.refund:
       case RecordTab.savings:
       case RecordTab.installment:
-        // 报销 / 退款 / 存钱 / 分期均使用独立布局，不走 legacy 表单。
+      case RecordTab.investment:
+        // 报销 / 退款 / 存钱 / 分期 / 投资均使用独立布局，不走 legacy 表单。
         return const <Widget>[SizedBox.shrink()];
     }
   }
@@ -1954,6 +2091,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     bool allowNone = false,
     String? noneSubtitle,
   }) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final String? result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -3031,6 +3169,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 弹出底部选择器，列出当前方向下的应收/应付真实账户，不再显示资金、投资等账户。
   /// 使用 A 模板账户选择弹窗（网格卡片 + 列表切换 + 确认）。
   Future<void> _showLendCounterpartyPicker() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final String? result = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
@@ -3326,6 +3465,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 打开手续费计算弹窗（借还页），回填利息 / 优惠。
   Future<void> _openLendFeeCalculator() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final FeeCalculatorResult? result =
         await showModalBottomSheet<FeeCalculatorResult>(
       context: context,
@@ -3483,7 +3623,64 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
-  /// V1 公式格（浅绿卡片 + 标题 + 两行等式）。
+  /// 借还页「免息期」输入（ForestSage V1 · 浅绿卡片 + 数字框）。
+  /// 信用卡类债务在免息期内还款不计利息；留空 / 0 = 无免息期。
+  Widget _buildGraceDaysField() {
+    final ThemeData theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.651),
+        border: Border.all(color: AppPalette.sage100.withValues(alpha: 0.8)),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.timer_outlined, size: 16, color: _Sage.greenDeep),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              '免息期',
+              style: TextStyle(fontSize: 13, color: AppPalette.ink2),
+            ),
+          ),
+          SizedBox(
+            width: 64,
+            child: TextField(
+              controller: _graceDaysController,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 14, color: AppPalette.ink2),
+              decoration: const InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                hintText: '0',
+                hintStyle: TextStyle(color: AppPalette.ink3),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text('天', style: TextStyle(fontSize: 13, color: AppPalette.ink3)),
+        ],
+      ),
+    );
+  }
+
+  /// 借还（借入 / 借出）到期日：可空、可清除。
+  /// 取值存入 [_dueAt]（UTC epoch 毫秒，与 [LendRepository].[occurredAt] 同口径），
+  /// 供还款本地提醒按到期日排程。仅「借入 / 借出」本金分支展示，还债 / 减免无到期日。
+  Widget _buildLendDueDateField() {
+    final DateTime? due =
+        _dueAt == null ? null : DateTime.fromMillisecondsSinceEpoch(_dueAt!, isUtc: true);
+    return DateField(
+      label: '到期日',
+      value: due,
+      allowClear: true,
+      onChanged: (DateTime? d) => setState(() {
+        _dueAt = d == null ? null : d.toUtc().millisecondsSinceEpoch;
+      }),
+    );
+  }
   Widget _buildSageFormulaCell(BuildContext context, List<String> cell) {
     return Container(
       padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
@@ -3680,6 +3877,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             _buildLendFeeRow(),
             const SizedBox(height: 10), // --sp-2
             _buildLendFeeHint(),
+            const SizedBox(height: 10), // --sp-2
+            _buildGraceDaysField(),
+            const SizedBox(height: 10), // --sp-2
+            _buildLendDueDateField(),
           ];
         }
         // 只有「借入/借出 + 资产账户」分支带利息区，才需要撑满首屏让
@@ -3702,7 +3903,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       case RecordTab.refund:
       case RecordTab.savings:
       case RecordTab.installment:
-        // 存钱 / 分期已分别走独立布局或内嵌页面，不在 legacy body 渲染。
+      case RecordTab.investment:
+        // 存钱 / 分期 / 投资已分别走独立布局或内嵌页面，不在 legacy body 渲染。
         return const SizedBox.shrink();
     }
   }
@@ -3758,6 +3960,545 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           const SizedBox(height: AppDimens.spaceSm),
           _buildSavingsGoalZone(),
         ],
+      ),
+    );
+  }
+
+  // ══════════ 投资 tab ══════════
+
+  int _invMinorOf(String text) {
+    final String t = text.trim();
+    if (t.isEmpty) return 0;
+    final Money? m = Money.tryParse(t);
+    return m?.minor ?? 0;
+  }
+  int get _invAmountMinor => _invMinorOf(_invAmountController.text);
+  int get _invPriceMinor => _invMinorOf(_invPriceController.text);
+  int get _invFeeMinor => _invMinorOf(_invFeeController.text);
+
+  /// 投资表单奶油卡：对齐报销/退款 [_rbCard] 视觉规格
+  /// （radius 16 + 常驻投影 + hairline 描边），标签 13pt ink2
+  /// （对齐借还「免息期」行标签规格），其余卡片文字沿用 _Sage 令牌。
+  Widget _SageField({required String label, required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _Sage.card,
+        border: Border.all(color: _Sage.hairline),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: _Sage.shadow,
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(label, style: const TextStyle(fontSize: 13, color: _Sage.ink2)),
+          const SizedBox(height: 4),
+          child,
+        ],
+      ),
+    );
+  }
+
+  /// 投资输入框统一装饰：透明填充 + 全状态无边框，避免主题默认填充色
+  /// 在奶油卡内形成「卡中卡」背景块（对齐报销 [KeypadField] 的处理）。
+  InputDecoration _invDeco({String? hint}) => InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: Colors.transparent,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        errorBorder: InputBorder.none,
+        focusedErrorBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 15, color: _Sage.ink3),
+      );
+
+  Widget _SageReadonlyRow({required String label, required String value}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _Sage.greenSoft,
+        border: Border.all(color: _Sage.greenSoftBd),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Text(label, style: const TextStyle(fontSize: 12, color: _Sage.ink3)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: _Sage.greenDeep,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvestmentBody() {
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: Container(
+            color: _Sage.paper,
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(
+                AppDimens.spaceLg,
+                AppDimens.spaceMd,
+                AppDimens.spaceLg,
+                AppDimens.spaceLg,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _buildInvestDirectionToggle(),
+                  const SizedBox(height: 12),
+                  _buildInvestHoldingCard(),
+                  const SizedBox(height: 12),
+                  _buildInvestAmountCard(),
+                  const SizedBox(height: 12),
+                  _buildInvestPriceCard(),
+                  const SizedBox(height: 12),
+                  _buildLendAccountCard(
+                    label: _invIsBuy ? '扣款账户' : '入账账户',
+                    value: _invAccountId,
+                    onChanged: (String? v) => setState(() => _invAccountId = v),
+                    placeholder: '请选择资金账户',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInvestNoteCard(),
+                  const SizedBox(height: 12),
+                  _buildInvestHint(),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ),
+        _buildSaveFooter(),
+      ],
+    );
+  }
+
+  Widget _buildInvestDirectionToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _Sage.greenSoft,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: _buildInvestSegItem(
+              label: '买入',
+              selected: _invIsBuy,
+              onTap: () => setState(() => _invIsBuy = true),
+            ),
+          ),
+          Expanded(
+            child: _buildInvestSegItem(
+              label: '卖出',
+              selected: !_invIsBuy,
+              onTap: () => setState(() => _invIsBuy = false),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvestSegItem({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent, // ignore: no_raw_colors
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: selected ? _Sage.pickShadow : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: selected ? _Sage.greenDeep : _Sage.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvestHoldingCard() {
+    final String title = _invHoldingId != null
+        ? '${_invSymbol ?? ''} ${_invName ?? ''}'.trim()
+        : (_invName != null && _invName!.isNotEmpty
+            ? '新建：${_invSymbol ?? ''} ${_invName!}'.trim()
+            : '选择持仓');
+    final bool picked = _invHoldingId != null;
+    return InkWell(
+      onTap: _showInvestHoldingPicker,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          color: _Sage.card,
+          border: Border.all(
+            color: picked ? _Sage.greenSoftBd : _Sage.hairline,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: picked ? _Sage.pickShadow : _Sage.shadow,
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                gradient: picked ? _Sage.sage : null,
+                color: picked ? null : _Sage.greenSoft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.show_chart_outlined,
+                size: 17,
+                color: picked
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : _Sage.greenDeep,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    '持仓',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: _Sage.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: picked ? _Sage.greenDeep : _Sage.ink3,
+                      fontWeight: picked ? FontWeight.w500 : FontWeight.normal,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 20, color: _Sage.ink3),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showInvestHoldingPicker() async {
+    final AsyncValue<List<InvestmentHolding>> holdings =
+        ref.watch(investmentListProvider);
+    FocusManager.instance.primaryFocus?.unfocus();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => _InvestHoldingPickerSheet(
+        holdings: holdings,
+        initialSymbol: _invSymbol,
+        initialName: _invName,
+        initialType: _invType,
+        onSelectHolding: (InvestmentHolding h) {
+          setState(() {
+            _invHoldingId = h.id;
+            _invSymbol = h.symbol;
+            _invName = h.name;
+            _invType = h.type;
+          });
+        },
+        onConfirmNew: (String symbol, String name, InvestmentType type) {
+          setState(() {
+            _invSymbol = symbol;
+            _invName = name;
+            _invType = type;
+            _invHoldingId = null;
+          });
+        },
+      ),
+    );
+    // 弹层关闭后兜底收起键盘：iOS 上弹层内 TextField 的焦点不会随路由
+    // 释放，键盘会残留在记账表单上（需显式 unfocus）。
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  Widget _buildInvestAmountCard() {
+    return _SageField(
+      label: '金额（净交易额）',
+      // 金额录入走工程标准键盘弹层（对齐报销金额卡），不唤起系统软键盘。
+      child: Row(
+        children: <Widget>[
+          const Text(
+            '¥',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: _Sage.sageB,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: KeypadField(
+              controller: _invAmountController,
+              allowDecimal: true,
+              title: '金额（净交易额）',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+                color: _Sage.ink,
+              ),
+              decoration: _invDeco(hint: '0.00'),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvestPriceCard() {
+    final int amt = _invAmountMinor;
+    final int price = _invPriceMinor;
+    final int fee = _invFeeMinor;
+    final double shares = price > 0 ? amt / price : 0.0;
+    final int net = _invIsBuy ? amt + fee : (amt - fee < 0 ? 0 : amt - fee);
+    return Column(
+      children: <Widget>[
+        _SageField(
+          label: '当前单价',
+          // 单价允许 4 位小数（AmountKeypad.maxDecimalDigits 预留场景）。
+          child: KeypadField(
+            controller: _invPriceController,
+            allowDecimal: true,
+            maxDecimalDigits: 4,
+            title: '当前单价',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: _Sage.ink,
+            ),
+            decoration: _invDeco(hint: '0.0000'),
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _SageReadonlyRow(
+          label: _invIsBuy ? '可得份额' : '赎回份额',
+          value: '${shares.toStringAsFixed(4)} 份',
+        ),
+        const SizedBox(height: 12),
+        _SageField(
+          label: '手续费',
+          child: KeypadField(
+            controller: _invFeeController,
+            allowDecimal: true,
+            title: '手续费',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: _Sage.ink,
+            ),
+            decoration: _invDeco(hint: '0.00'),
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _SageReadonlyRow(
+          label: _invIsBuy ? '实际扣款' : '实际到账',
+          value: Money.fromMinor(net).format(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInvestNoteCard() {
+    return _SageField(
+      label: '备注',
+      // 备注是文本字段，保留系统键盘；仅统一透明填充与字号。
+      child: TextField(
+        controller: _invNoteController,
+        style: const TextStyle(fontSize: 15, color: _Sage.ink),
+        decoration: _invDeco(hint: '选填'),
+      ),
+    );
+  }
+
+  Widget _buildInvestHint() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _Sage.greenSoft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(Icons.info_outline, size: 16, color: _Sage.greenDeep),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '份额 = 金额 ÷ 单价（手续费不占用金额）；买入另加手续费扣款，'
+              '卖出从到账中扣手续费。投资买卖不计入收支统计 / 预算。',
+              style: TextStyle(fontSize: 12, height: 1.5, color: _Sage.ink2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 投资保存：买入 / 卖出分别走 [InvestmentRepository.recordBuy/recordSell]。
+  /// 成功后返回成交回执快照（_save 弹窗确认后关闭 sheet）；失败返回 null。
+  Future<_InvReceipt?> _saveInvestment() async {
+    if (_invAccountId == null) {
+      _toast('请选择资金账户');
+      return null;
+    }
+    final int amount = _invAmountMinor;
+    final int price = _invPriceMinor;
+    final int fee = _invFeeMinor;
+    if (amount <= 0) {
+      _toast('请输入金额');
+      return null;
+    }
+    if (price <= 0) {
+      _toast('请输入单价');
+      return null;
+    }
+    // 份额 = 金额 ÷ 单价 × 1e6（与仓储口径一致：先乘后除）。
+    final int deltaMicros = (amount * InvestmentRepository.quantityScale) ~/ price;
+    if (deltaMicros <= 0) {
+      _toast('金额不足以成交份额');
+      return null;
+    }
+    final String bookId = ref.read(currentBookIdProvider);
+    final int occurredAt = _occurredAt.toUtc().millisecondsSinceEpoch;
+    final String note = _invNoteController.text.trim();
+    if (_invIsBuy) {
+      if (_invHoldingId == null &&
+          (_invSymbol == null ||
+              _invSymbol!.isEmpty ||
+              _invName == null ||
+              _invName!.isEmpty)) {
+        _toast('请选择或新建持仓');
+        return null;
+      }
+      final String hid = await ref.read(investmentRepositoryProvider).recordBuy(
+        bookId: bookId,
+        holdingId: _invHoldingId,
+        symbol: _invSymbol ?? '',
+        name: _invName ?? '',
+        type: _invType,
+        amountMinor: amount,
+        priceMinor: price,
+        feeMinor: fee,
+        accountId: _invAccountId!,
+        note: note.isEmpty ? null : note,
+        occurredAt: occurredAt,
+      );
+      return (
+        hid: hid,
+        isBuy: true,
+        quantityMicros: deltaMicros,
+        priceMinor: price,
+        feeMinor: fee,
+        amountMinor: amount,
+        accountId: _invAccountId!,
+        name: _invName ?? _invSymbol ?? '',
+      );
+    } else {
+      if (_invHoldingId == null) {
+        _toast('卖出需选择已有持仓');
+        return null;
+      }
+      await ref.read(investmentRepositoryProvider).recordSell(
+        bookId: bookId,
+        holdingId: _invHoldingId!,
+        amountMinor: amount,
+        priceMinor: price,
+        feeMinor: fee,
+        accountId: _invAccountId!,
+        note: note.isEmpty ? null : note,
+        occurredAt: occurredAt,
+      );
+      return (
+        hid: _invHoldingId!,
+        isBuy: false,
+        quantityMicros: deltaMicros,
+        priceMinor: price,
+        feeMinor: fee,
+        amountMinor: amount,
+        accountId: _invAccountId!,
+        name: _invName ?? _invSymbol ?? '',
+      );
+    }
+  }
+
+  /// 份额整数放大 1e6，转可读字符串：固定 4 位小数（与表单「可得份额」一致）。
+  String _fmtInvQty(int micros) {
+    final double q = micros / InvestmentRepository.quantityScale;
+    return q.toStringAsFixed(4);
+  }
+
+  /// 投资成交回执弹窗：展示方向 / 份额 / 单价 / 手续费 / 实际扣款(到账)，
+  /// 以及证券账户当前「现金 + 持仓市值」双层余额。现金与持仓均走**同步直查**
+  /// （DAO getById / 仓储 listByAccount）：StreamProvider 的 `.future` 在写库后
+  /// 可能拿到重发前的旧快照（竞态），直查天然读到已提交事务的最新值。
+  Future<void> _showInvestmentReceipt(_InvReceipt r) async {
+    final Account? account =
+        await ref.read(accountsDaoProvider).getById(r.accountId);
+    // 第一个 await 之后页面可能已被关闭（用户回滑），此时禁再碰 ref/context。
+    if (!mounted) return;
+    final List<InvestmentHolding> holdings =
+        await ref.read(investmentRepositoryProvider).listByAccount(r.accountId);
+    int market = 0;
+    for (final InvestmentHolding h in holdings) {
+      market += h.marketValueMinor;
+    }
+    if (!mounted) return;
+    final int cash = account?.balanceMinor ?? 0;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => _InvestmentReceiptCard(
+        isBuy: r.isBuy,
+        quantityMicros: r.quantityMicros,
+        priceMinor: r.priceMinor,
+        feeMinor: r.feeMinor,
+        amountMinor: r.amountMinor,
+        cashMinor: cash,
+        marketMinor: market,
+        accountName: account?.name ?? r.name,
       ),
     );
   }
@@ -5398,6 +6139,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       return;
     }
     final int totalMinor = _refundOriginalTotalMinor;
+    FocusManager.instance.primaryFocus?.unfocus();
     final _AaPaymentResult? result =
         await showModalBottomSheet<_AaPaymentResult>(
       context: context,
@@ -5903,6 +6645,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     Category parent,
     List<Category> children,
   ) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final String? selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: false,
@@ -5942,7 +6685,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         ),
       // 编辑模式：updateTransaction 不支持改报销挂账，隐藏报销相关键，
       // 防止「改了却不落库」的假开关。
-      if (isExpense && !_isEdit)
+      if (isExpense)
         _FunctionItem(
           label: '报销',
           icon: LineIconKind.reimbursement,
@@ -5962,7 +6705,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         ),
       // 报销账户：平时隐藏；勾选「报销」后出现在报销键右侧。
       // 已选时对齐账户键口径：chip 显示账户名并高亮。
-      if (isExpense && _isReimbursable && !_isEdit)
+      if (isExpense && _isReimbursable)
         _FunctionItem(
           label: _reimbAccountId == null
               ? '报销账户'
@@ -5988,9 +6731,21 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         onTap: _onAddImage,
         active: _attachmentPaths.isNotEmpty,
       ),
+      // 位置：仅创建 Transactions 的 Tab 提供（借还 / 存钱 / 分期 / 投资无位置列）。
+      if (_tab == RecordTab.expense ||
+          _tab == RecordTab.income ||
+          _tab == RecordTab.transfer ||
+          _tab == RecordTab.refund ||
+          _tab == RecordTab.reimbursement)
+        _FunctionItem(
+          label: _locName ?? (_locLat == null ? '位置' : '已定位'),
+          icon: LineIconKind.location,
+          onTap: _locLat == null ? _pickLocation : _showLocationOptions,
+          active: _locLat != null,
+        ),
       // 标签 / 不计收支 / 不计预算：编辑模式不支持改写（updateTransaction
       // 保留原值），隐藏避免假开关；新增模式正常显示。
-      if (!_isEdit)
+      if (true)
         _FunctionItem(
           label: _tags.isEmpty ? '标签' : '标签 ${_tags.length}',
           icon: LineIconKind.tag,
@@ -6003,14 +6758,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         onTap: () {},
       ),
       // 不计收支 / 不计预算：两颗常驻显示，各自独立切换，互不干涉。
-      if (showAccountStats && !_isEdit)
+      if (showAccountStats)
         _FunctionItem(
           label: '不计收支',
           icon: LineIconKind.excludeStats,
           onTap: () => setState(() => _excludeFromStats = !_excludeFromStats),
           active: _excludeFromStats,
         ),
-      if (showAccountStats && !_isEdit)
+      if (showAccountStats)
         _FunctionItem(
           label: '不计预算',
           icon: LineIconKind.excludeBudget,
@@ -6085,6 +6840,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     if (mounted && _keyboardExpanded) {
       setState(() => _keyboardExpanded = false);
     }
+    FocusManager.instance.primaryFocus?.unfocus();
     final (String?, String)? result =
         await showModalBottomSheet<(String?, String)>(
       context: context,
@@ -6116,24 +6872,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       // 「输入优惠金额」模式：主页面金额不动，仅记录优惠。
       setState(() => _discountAmount = value.trim());
     }
-    // 从优惠弹窗返回：自动弹出金额键盘继续记账（弹窗内曾临时收起）。
-    if (mounted) {
-      FocusManager.instance.primaryFocus?.unfocus();
-      if (!_keyboardExpanded) {
-        setState(() => _keyboardExpanded = true);
-      }
-    }
+    // 从优惠弹窗返回：保持金额键盘收起（打开前已临时收起），不再强制展开，
+    // 修复「返回后键盘不消失」。
   }
 
   /// 支出 / 收入功能键「账户」：A 模板账户选择弹窗。
   /// 可不选（「不选择具体账户」清空账户）；标题随当前 tab 变化。
   Future<void> _onSelectAccount() async {
     final bool isExpense = _tab == RecordTab.expense;
+    FocusManager.instance.primaryFocus?.unfocus();
     final String? selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
-      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => AccountPickerSheet(
         // 实时 watch 账户流：资金类账户（排除应收 / 应付对方虚拟账户）
@@ -6165,11 +6915,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 报销账户选择：仅列出「报销」类型账户（与报销页 _buildReimbursementForm
   /// 的 allowedTypes 同口径），支持「不选择具体账户」清除已选。
   Future<void> _onSelectReimbAccount() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final String? selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
-      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => AccountPickerSheet(
         // 实时 watch 账户流：仅「报销」类型账户（与报销页表单同口径）
@@ -6209,6 +6958,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 仅点 ✕（或下滑关闭）才回到记账页。
   Future<void> _onAddImage() async {
     while (mounted) {
+      FocusManager.instance.primaryFocus?.unfocus();
       final ImageSource? source = await showModalBottomSheet<ImageSource>(
         context: context,
         backgroundColor: Colors.transparent,
@@ -6263,7 +7013,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           setState(() => _attachmentPaths.add(stored));
         }
       }
-      // 不 return：循环回到弹窗，展示已选图片，用户点 ✕ 才退出。
+      // 添加完成：直接返回记一笔编辑页（不再循环回选图弹窗）。
+      return;
     }
   }
 
@@ -6293,6 +7044,96 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     } catch (e) {
       _toast('图片保存失败：$e');
       return null;
+    }
+  }
+
+  /// 获取当前 GPS 坐标并逆地理编码成地名，写入 [_locLat]/[_locLng]/[_locName]。
+  /// 定位权限被拒或获取失败时给出 toast 提示，不阻断记账流程。
+  Future<void> _pickLocation() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) _toast('定位权限被拒绝，无法附加位置');
+        return;
+      }
+      final Position pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+      // 逆地理编码：行政/市/区/路逐级拼成地名；失败不影响坐标存储。
+      String? name;
+      try {
+        final List<Placemark> marks = await Geocoding().placemarkFromCoordinates(
+          pos.latitude,
+          pos.longitude,
+        );
+        if (marks.isNotEmpty) {
+          final Placemark m = marks.first;
+          final List<String> parts = <String>[
+            if ((m.administrativeArea ?? '').isNotEmpty) m.administrativeArea!,
+            if ((m.locality ?? '').isNotEmpty) m.locality!,
+            if ((m.subLocality ?? '').isNotEmpty) m.subLocality!,
+            if ((m.thoroughfare ?? '').isNotEmpty) m.thoroughfare!,
+          ];
+          if (parts.isNotEmpty) name = parts.join('');
+        }
+      } catch (_) {
+        // 逆地理编码失败：地名留空，坐标仍保存。
+      }
+      if (mounted) {
+        setState(() {
+          _locLat = pos.latitude;
+          _locLng = pos.longitude;
+          _locName = name;
+        });
+      }
+    } catch (e) {
+      if (mounted) _toast('获取位置失败：$e');
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  /// 已附加位置时点击：弹出「重新定位 / 清除位置」选择。
+  Future<void> _showLocationOptions() async {
+    final bool? clear = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('位置'),
+        content: Text(
+          _locName != null && _locName!.isNotEmpty
+              ? _locName!
+              : '${_locLat!.toStringAsFixed(4)}, ${_locLng!.toStringAsFixed(4)}',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('清除位置'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('重新定位'),
+          ),
+        ],
+      ),
+    );
+    if (clear == null) return;
+    if (clear) {
+      setState(() {
+        _locLat = null;
+        _locLng = null;
+        _locName = null;
+      });
+    } else {
+      await _pickLocation();
     }
   }
 
@@ -6515,6 +7356,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       case RecordTab.refund:
       case RecordTab.savings:
       case RecordTab.installment:
+      case RecordTab.investment:
         // 模板模式不开放这些 Tab，理论不可达；兜底直接返回。
         return;
     }
@@ -7013,6 +7855,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             return _KeepAlivePage(
               key: ValueKey<RecordTab>(tab),
               builder: (_) => _buildRefundBody(),
+            );
+          } else if (tab == RecordTab.investment) {
+            return _KeepAlivePage(
+              key: ValueKey<RecordTab>(tab),
+              builder: (_) => _buildInvestmentBody(),
             );
           } else if (tab.usesNewLayout) {
             return _KeepAlivePage(
@@ -7601,10 +8448,14 @@ class _DiscountSheetState extends State<DiscountSheet> {
     final double amt = _toDouble(_amt);
     final double paid = _toDouble(_paid);
     if (_lastEdited == 'paid') {
-      // 录实付：钳制 ≤ 原价（优惠前为 0 时任何实付都钳为 0），反推优惠
+      // 录实付：钳制 ≤ 原价（优惠前为 0 时任何实付都钳为 0），反推优惠。
+      // 未触发钳制时**不回写本字段**——保留原始输入串（含正在输入的
+      // 小数点，如 "15."），否则 _fmt 会立刻抹掉小数点、永远录不进小数。
       double p = paid;
-      if (p > base) p = base;
-      _paid = _fmt(p);
+      if (p > base) {
+        p = base;
+        _paid = _fmt(p);
+      }
       _amt = _fmt(base - p);
     } else if (_lastEdited == 'base') {
       // 录原价（模式二）：实付为手动输入、不联动；
@@ -7618,10 +8469,13 @@ class _DiscountSheetState extends State<DiscountSheet> {
         _amt = _fmt(base - p);
       }
     } else {
-      // 录优惠：钳制 ≤ 原价（优惠前为 0 时任何优惠都钳为 0），反推优惠后
+      // 录优惠：钳制 ≤ 原价（优惠前为 0 时任何优惠都钳为 0），反推优惠后。
+      // 同上：未触发钳制时保留原始输入串，不经过 _fmt。
       double a = amt;
-      if (a > base) a = base;
-      _amt = _fmt(a);
+      if (a > base) {
+        a = base;
+        _amt = _fmt(a);
+      }
       _paid = _fmt(base - a);
     }
   }
@@ -7642,6 +8496,12 @@ class _DiscountSheetState extends State<DiscountSheet> {
     setState(() {});
   }
 
+  /// 收尾规整：去掉录入串末尾悬挂的小数点（如 "15." → "15"）。
+  /// 确认时录入已完成，回传主页面的必须是可解析的完整数值
+  /// （Money.tryParse 对 "15." 这类串不保证可解析）。
+  String _normalize(String v) =>
+      v.endsWith('.') ? v.substring(0, v.length - 1) : v;
+
   /// 确认回传 (原价, 优惠)：
   /// - 「输入原价和实付」模式：原价是用户显式定义的交易金额，需回传给主页面
   ///   同步金额（amountMinor = 原价，优惠 = 原价 − 实付）；原价为空时不同步
@@ -7650,11 +8510,14 @@ class _DiscountSheetState extends State<DiscountSheet> {
   ///   优惠（base 为 null）。
   void _confirm() {
     final String? base =
-        _mode == 'original' && _base.trim().isNotEmpty ? _base.trim() : null;
-    Navigator.of(context).pop((base, _amt));
+        _mode == 'original' && _base.trim().isNotEmpty
+            ? _normalize(_base.trim())
+            : null;
+    Navigator.of(context).pop((base, _normalize(_amt)));
   }
 
   Future<void> _openAlgo() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final String? choice = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: ForestBg.paper,
@@ -9338,4 +10201,354 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
       ),
     );
   }
+}
+
+/// 持仓选择 / 新建底部弹层。
+///
+/// 控制器生命周期归本 StatefulWidget：[dispose] 时释放——元素卸载必然发生在
+/// 退场动画结束之后，杜绝「await showModalBottomSheet 完成时（pop 即 resolve、
+/// 早于退场动画）外层立即 dispose 控制器，而 TextField 仍挂着它」导致的
+/// "TextEditingController was used after being disposed" 及元素树收尾级联崩溃
+/// （_dependents.isEmpty 断言 / wrong build scope）。
+class _InvestHoldingPickerSheet extends StatefulWidget {
+  const _InvestHoldingPickerSheet({
+    required this.holdings,
+    required this.initialSymbol,
+    required this.initialName,
+    required this.initialType,
+    required this.onSelectHolding,
+    required this.onConfirmNew,
+  });
+
+  final AsyncValue<List<InvestmentHolding>> holdings;
+  final String? initialSymbol;
+  final String? initialName;
+  final InvestmentType initialType;
+  final void Function(InvestmentHolding holding) onSelectHolding;
+  final void Function(String symbol, String name, InvestmentType type)
+      onConfirmNew;
+
+  @override
+  State<_InvestHoldingPickerSheet> createState() =>
+      _InvestHoldingPickerSheetState();
+}
+
+class _InvestHoldingPickerSheetState extends State<_InvestHoldingPickerSheet> {
+  late final TextEditingController _symbolCtrl =
+      TextEditingController(text: widget.initialSymbol);
+  late final TextEditingController _nameCtrl =
+      TextEditingController(text: widget.initialName);
+  // 防双击二次 pop：退场动画期间弹层仍可点，二次 pop 会弹穿到底层记账页，
+  // 引发 "Looking up a deactivated widget's ancestor is unsafe" 级联。
+  bool _closed = false;
+  InvestmentType _type = InvestmentType.fund;
+
+  @override
+  void initState() {
+    super.initState();
+    _type = widget.initialType;
+  }
+
+  @override
+  void dispose() {
+    _symbolCtrl.dispose();
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  void _close() {
+    if (_closed) return;
+    _closed = true;
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // 键盘避让：弹层内「代码/名称」输入框唤起系统键盘时，
+      // 弹层整体升到键盘上方（否则输入框被键盘盖住无法看到输入）。
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _Sage.paper,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(20),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text('选择持仓',
+                  style:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              widget.holdings.when(
+                data: (List<InvestmentHolding> list) => Column(
+                  children: <Widget>[
+                    for (final InvestmentHolding h in list)
+                      ListTile(
+                        title: Text('${h.symbol} ${h.name}'),
+                        subtitle: Text(
+                          '${(h.quantityMicros / 1000000).toStringAsFixed(2)} 份 · ${h.type.label}',
+                        ),
+                        onTap: () {
+                          widget.onSelectHolding(h);
+                          _close();
+                        },
+                      ),
+                    if (list.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text('暂无持仓，可下方新建'),
+                      ),
+                  ],
+                ),
+                loading: () => const LinearProgressIndicator(),
+                error: (Object e, _) => Text('加载失败：$e'),
+              ),
+              const Divider(height: 24),
+              const Text('新建持仓',
+                  style:
+                      TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              TextField(
+                decoration:
+                    const InputDecoration(labelText: '代码（如 110022）'),
+                controller: _symbolCtrl,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                decoration:
+                    const InputDecoration(labelText: '名称（如 沪深300ETF）'),
+                controller: _nameCtrl,
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<InvestmentType>(
+                value: _type,
+                decoration: const InputDecoration(labelText: '品种'),
+                items: <DropdownMenuItem<InvestmentType>>[
+                  for (final InvestmentType t in InvestmentType.values)
+                    DropdownMenuItem<InvestmentType>(
+                      value: t,
+                      child: Text(t.label),
+                    ),
+                ],
+                onChanged: (InvestmentType? v) =>
+                    setState(() => _type = v ?? InvestmentType.fund),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final String symbol = _symbolCtrl.text.trim();
+                    final String name = _nameCtrl.text.trim();
+                    if (symbol.isEmpty || name.isEmpty) return;
+                    widget.onConfirmNew(symbol, name, _type);
+                    _close();
+                  },
+                  child: const Text('确认新建'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 投资成交回执卡片（底部弹窗内容）。
+class _InvestmentReceiptCard extends StatelessWidget {
+  const _InvestmentReceiptCard({
+    required this.isBuy,
+    required this.quantityMicros,
+    required this.priceMinor,
+    required this.feeMinor,
+    required this.amountMinor,
+    required this.cashMinor,
+    required this.marketMinor,
+    required this.accountName,
+  });
+
+  final bool isBuy;
+  final int quantityMicros;
+  final int priceMinor;
+  final int feeMinor;
+  final int amountMinor;
+  final int cashMinor;
+  final int marketMinor;
+  final String accountName;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final String verb = isBuy ? '买入' : '卖出';
+    // 账户余额影响：买入扣款（负）、卖出到账（正）。
+    final int signedNet = isBuy
+        ? -(amountMinor + feeMinor)
+        : (amountMinor - feeMinor);
+    final Color accent = isBuy ? AppPalette.expense : AppPalette.income;
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(AppDimens.spaceMd),
+        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(Icons.receipt_long_outlined, color: AppPalette.textSecondary),
+                const SizedBox(width: AppDimens.spaceSm),
+                Text(
+                  '成交回执',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+                  ),
+                  child: Text(
+                    verb,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppDimens.spaceLg),
+            _ReceiptRow('份额', _fmtQty(quantityMicros)),
+            _ReceiptRow('单价', Money.fromMinor(priceMinor).format()),
+            _ReceiptRow('手续费', Money.fromMinor(feeMinor).format()),
+            _ReceiptRow(
+              isBuy ? '实际扣款' : '实际到账',
+              Money.fromMinor(signedNet).formatSigned(),
+              valueColor: accent,
+            ),
+            const Divider(height: AppDimens.spaceLg),
+            Text(
+              '$accountName · 现金 + 市值',
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(color: AppPalette.textTertiary),
+            ),
+            const SizedBox(height: AppDimens.spaceSm),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _ReceiptStat(
+                    '现金',
+                    Money.fromMinor(cashMinor).format(),
+                  ),
+                ),
+                Expanded(
+                  child: _ReceiptStat(
+                    '持仓市值',
+                    Money.fromMinor(marketMinor).format(),
+                  ),
+                ),
+                Expanded(
+                  child: _ReceiptStat(
+                    '合计',
+                    Money.fromMinor(cashMinor + marketMinor).format(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppDimens.spaceLg),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('完成'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _fmtQty(int micros) {
+    final double q = micros / InvestmentRepository.quantityScale;
+    // 固定 4 位小数，与表单「可得份额」口径一致。
+    return q.toStringAsFixed(4);
+  }
+}
+
+class _ReceiptRow extends StatelessWidget {
+  const _ReceiptRow(this.label, this.value, {this.valueColor});
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: <Widget>[
+            Text(
+              label,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: AppPalette.textSecondary),
+            ),
+            const Spacer(),
+            Text(
+              value,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: valueColor,
+                  ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _ReceiptStat extends StatelessWidget {
+  const _ReceiptStat(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            label,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: AppPalette.textTertiary),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      );
 }

@@ -6,13 +6,18 @@ plugins {
 
 android {
     namespace = "com.pocketledger.pocket_ledger"
-    compileSdk = flutter.compileSdkVersion
+    // file_picker → flutter_plugin_android_lifecycle 要求 compileSdk ≥ 36，
+    // Flutter 默认值（34）不够，这里显式覆盖（compileSdk 可高于 targetSdk，不影响运行时行为）。
+    compileSdk = 36
     // 覆盖 Flutter 默认要求的 28.2.13670358（本地仅装到接近补丁版 28.2.13676358）
     ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        // flutter_local_notifications 要求开启 core library desugaring
+        // （插件内部用了 java.time 等 Java 8+ API，需脱糖才能跑在低版本 Android 上）。
+        coreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -43,4 +48,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
 }

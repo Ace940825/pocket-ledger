@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
@@ -70,24 +70,33 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
           ),
       ];
 
-      final String content =
-          _asJson ? buildJson(rows) : buildCsv(rows);
+      final String content = _asJson ? buildJson(rows) : buildCsv(rows);
 
-      final Directory dir = await getApplicationDocumentsDirectory();
       final String stamp = _timeStamp();
       final String ext = _asJson ? 'json' : 'csv';
-      final File file =
-          File('${dir.path}/账单导出_$stamp.$ext');
+      // 弹系统「存储到文件」面板：用户自选本地路径与文件名，直接落盘。
+      final String? picked = await FilePicker.platform.saveFile(
+        dialogTitle: '保存账单导出',
+        fileName: '账单导出_$stamp.$ext',
+        allowedExtensions: <String>[ext],
+      );
+      if (picked == null) {
+        if (mounted) showAppToast(context, '已取消保存');
+        return;
+      }
+      // iOS 保存面板不强制扩展名，缺失时补足，避免存成无后缀文件。
+      final String outPath = picked.toLowerCase().endsWith('.$ext')
+          ? picked
+          : '$picked.$ext';
+      final File file = File(outPath);
       await file.writeAsString(content);
 
       setState(() {
         _content = content;
-        _path = file.path;
+        _path = outPath;
         _count = rows.length;
       });
-      if (mounted) {
-        showAppToast(context, _asJson ? '已导出 JSON' : '已导出 CSV');
-      }
+      if (mounted) showAppToast(context, '已保存到文件');
     } catch (e) {
       if (mounted) showAppToast(context, '导出失败：$e');
     } finally {
@@ -135,8 +144,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                   ),
                   padding: const EdgeInsets.all(AppDimens.spaceMd),
                   child: const Text(
-                    '导出当前账本全部账单（含转账）。文件保存在应用 Documents 目录，'
-                    '可点下方「复制内容」粘贴到微信 / 备忘录，或通过电脑文件共享取出。',
+                    '导出当前账本全部账单（含转账）。点「保存到文件」选本地位置存为 '
+                    'CSV / JSON 文件；下方「复制内容」可把文本粘贴到微信 / 备忘录等作他用。',
                     style: TextStyle(
                       fontSize: 12.5,
                       color: AppPalette.textSecondary,
@@ -366,7 +375,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                     color: AppPalette.white,
                   ),
                 )
-              : const Text('导出到文件'),
+              : const Text('保存到文件'),
         ),
       ),
     );

@@ -68,7 +68,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -342,6 +342,25 @@ class AppDatabase extends _$AppDatabase {
               savingsGoals,
               savingsGoals.sourceAccountId,
             );
+          }
+
+          if (from < 26) {
+            // v26：借还记录新增「免息期」列（天）。信用卡类债务在免息期内还款
+            // 不计利息；历史数据为 0（无免息期）。UI 入口在借还录入表单补充。
+            await _addColumnIfMissing(
+              m,
+              lendRecords,
+              lendRecords.graceDays,
+            );
+          }
+
+          if (from < 27) {
+            // v27：流水新增「位置」三列（纬度 / 经度 / 逆地理编码地名）。
+            // 记一笔时可附加当前 GPS 位置，仅本地存储、不参与云端同步。
+            // 历史数据为 null，详情页与统计均按「无位置」处理。
+            await _addColumnIfMissing(m, transactions, transactions.latitude);
+            await _addColumnIfMissing(m, transactions, transactions.longitude);
+            await _addColumnIfMissing(m, transactions, transactions.placeName);
           }
 
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等

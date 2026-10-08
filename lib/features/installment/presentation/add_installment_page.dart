@@ -436,6 +436,9 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     return TextField(
       controller: controller,
       readOnly: true,
+      // 只读框禁止获取焦点：部分输入法（Android Gboard 等）点击 readOnly
+      // 字段仍会抢焦点并弹出系统 qwerty 键盘，掩盖工程数字键盘弹层。
+      canRequestFocus: false,
       showCursor: false,
       enableInteractiveSelection: false,
       decoration: _buildFieldDecoration(
@@ -462,6 +465,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       ),
       onChanged: onChanged,
       onTap: () async {
+        FocusManager.instance.primaryFocus?.unfocus();
         final String? r = await showAmountKeypad(
           context: context,
           initial: controller.text,

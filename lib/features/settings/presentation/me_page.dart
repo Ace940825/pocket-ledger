@@ -8,6 +8,8 @@ import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../theme/app_colors.dart';
+import '../../../features/record/presentation/record_sheet.dart';
+import '../../../features/record/record_tab.dart';
 
 /// 记账天数：当前账本最早一条流水所在自然日至今（含首尾），无流水为 0。
 final AutoDisposeStreamProvider<int> recordingDaysProvider =
@@ -386,7 +388,14 @@ class MePage extends ConsumerWidget {
   ) {
     return InkWell(
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      onTap: () => context.push(item.route),
+      onTap: () {
+        // 「存钱」宫格直达记一笔的存钱（投资/储蓄存入）Tab，而非计划列表页。
+        if (item.label == '存钱') {
+          openRecordSheet(context, initialTab: RecordTab.savings);
+        } else {
+          context.push(item.route);
+        }
+      },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[

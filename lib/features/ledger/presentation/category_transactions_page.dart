@@ -12,6 +12,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/transaction_tile.dart';
+import 'widgets/txn_slidable.dart';
 
 /// 分类账单页 · 对齐参考稿（小青账「分类下全部账单」）。
 ///
@@ -387,10 +388,13 @@ class _DayGroup extends StatelessWidget {
                       margin: const EdgeInsets.only(left: 52),
                       color: Theme.of(context).colorScheme.outline,
                     ),
-                  TransactionTile(
-                    transaction: items[i],
-                    onTap: () =>
-                        TransactionDetailSheet.show(context, items[i]),
+                  TxnSlidable(
+                    txn: items[i],
+                    child: TransactionTile(
+                      transaction: items[i],
+                      onTap: () =>
+                          TransactionDetailSheet.show(context, items[i]),
+                    ),
                   ),
                 ],
               ],

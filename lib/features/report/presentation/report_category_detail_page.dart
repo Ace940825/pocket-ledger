@@ -10,6 +10,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
+import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../providers/report_providers.dart';
 
@@ -227,7 +228,7 @@ class _ReportCategoryDetailPageState
           list.fold<int>(0, (int s, Transaction t) => s + _netOf(t));
       out.add(_dayHeader(day, daySum));
       for (final Transaction t in list) {
-        out.add(_txnTile(t, cats, accounts));
+        out.add(TxnSlidable(txn: t, child: _txnTile(t, cats, accounts)));
       }
       out.add(const SizedBox(height: AppDimens.spaceSm));
     }

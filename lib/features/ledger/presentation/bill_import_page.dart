@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../core/constants/app_dimens.dart';
 import '../../../domain/enums.dart';
@@ -53,23 +53,25 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     if (widget.initialDraft != null) _parsed = widget.initialDraft;
   }
 
-  Future<void> _readFile() async {
-    final Directory dir = await getApplicationDocumentsDirectory();
-    File file = File('${dir.path}/import.csv');
-    if (!await file.exists()) file = File('${dir.path}/import.json');
-    if (await file.exists()) {
-      _text.text = await file.readAsString();
-      _parse();
-      if (mounted) showAppToast(context, '已读取文件内容');
-    } else {
-      if (mounted) {
-        showAppToast(
-          context,
-          '未在应用文件夹找到 import.csv / import.json，请粘贴内容，'
-          '或将文件放入应用文件夹（电脑文件共享）后重试',
-        );
-      }
+  /// 弹系统文档选择器，让用户从本地任选 .csv / .json 文件，而不是只认固定文件名。
+  Future<void> _pickFile() async {
+    final FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>['csv', 'json'],
+      dialogTitle: '选择账单文件',
+    );
+    if (result == null) {
+      if (mounted) showAppToast(context, '已取消选择');
+      return;
     }
+    final String? filePath = result.files.single.path;
+    if (filePath == null) {
+      if (mounted) showAppToast(context, '无法读取该文件');
+      return;
+    }
+    _text.text = await File(filePath).readAsString();
+    _parse();
+    if (mounted) showAppToast(context, '已读取文件内容');
   }
 
   void _parse() {
@@ -254,8 +256,8 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                   ),
                   padding: const EdgeInsets.all(AppDimens.spaceMd),
                   child: const Text(
-                    '粘贴本 App 导出的 CSV / JSON 内容，或从应用文件夹读取 '
-                    'import.csv / import.json。账户 / 分类按名称归户，'
+                    '粘贴本 App 导出的 CSV / JSON 内容，或点「选择文件」从本地任选 '
+                    '.csv / .json。账户 / 分类按名称归户，'
                     '缺失项会自动创建（账户默认现金类）。',
                     style: TextStyle(
                       fontSize: 12.5,
@@ -288,9 +290,9 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                   children: <Widget>[
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _readFile,
+                        onPressed: _pickFile,
                         icon: const Icon(Icons.folder_open_outlined, size: 18),
-                        label: const Text('从文件读取'),
+                        label: const Text('选择文件'),
                         style: _outlineStyle(),
                       ),
                     ),

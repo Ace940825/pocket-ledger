@@ -52,11 +52,15 @@ class AmountField extends StatelessWidget {
                 child: TextFormField(
                   controller: controller,
                   readOnly: true,
+                  // 只读框禁止获取焦点：部分输入法（Android Gboard 等）点击
+                  // readOnly 字段仍会抢焦点并弹出系统 qwerty 键盘。
+                  canRequestFocus: false,
                   showCursor: false,
                   enableInteractiveSelection: false,
                   textAlignVertical: TextAlignVertical.center,
                   validator: validator,
                   onTap: () async {
+                    FocusManager.instance.primaryFocus?.unfocus();
                     final String? r = await showAmountKeypad(
                       context: context,
                       initial: controller.text,
@@ -117,9 +121,12 @@ class IntField extends StatelessWidget {
     return TextField(
       controller: controller,
       readOnly: true,
+      // 同 AmountField：只读框禁止获取焦点，防部分输入法弹出系统键盘。
+      canRequestFocus: false,
       showCursor: false,
       enableInteractiveSelection: false,
       onTap: () async {
+        FocusManager.instance.primaryFocus?.unfocus();
         final String? r = await showAmountKeypad(
           context: context,
           initial: controller.text,

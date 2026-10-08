@@ -16,7 +16,11 @@ import '../data/account_icon.dart';
 import '../../../providers/asset_stats_settings.dart';
 import '../../record/record_tab.dart';
 import '../../record/presentation/record_sheet.dart';
+import '../../ledger/presentation/transaction_detail_sheet.dart';
+import '../../ledger/presentation/widgets/txn_slidable.dart';
+import '../../ledger/providers/ledger_providers.dart';
 import '../providers/accounts_providers.dart';
+import '../../investment/providers/investment_providers.dart';
 import 'account_ledger_grouping.dart';
 import 'widgets/account_transaction_tile.dart';
 import 'widgets/asset_stats_settings_sheet.dart';
@@ -129,7 +133,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
         settings.groupByMonthAsset ? const <Object>[] : _flattenByDay(txns);
 
     void tapTransaction(Transaction t) {
-      context.push('/ledger/edit/${t.id}');
+      TransactionDetailSheet.show(context, t);
     }
 
     return CustomScrollView(
@@ -171,11 +175,14 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
                   return _DayHeader(dateAt: item.dateAt);
                 }
                 if (item is Transaction) {
-                  return AccountTransactionTile(
-                    transaction: item,
-                    accountNames: accountNames,
-                    accountId: widget.accountId,
-                    onTap: () => tapTransaction(item),
+                  return TxnSlidable(
+                    txn: item,
+                    child: AccountTransactionTile(
+                      transaction: item,
+                      accountNames: accountNames,
+                      accountId: widget.accountId,
+                      onTap: () => tapTransaction(item),
+                    ),
                   );
                 }
                 // _flattenByDay 只会产出上面两种元素，这里只是兜底。
@@ -444,17 +451,22 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
 }
 
 /// 顶部的账户卡片。
-class _AccountCardHeader extends StatelessWidget {
+class _AccountCardHeader extends ConsumerWidget {
   const _AccountCardHeader({required this.account, required this.onEdit});
 
   final Account account;
   final VoidCallback onEdit;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final bool isDark = theme.brightness == Brightness.dark;
     final bool isDebt = account.type.isDebt;
+    // 证券账户：展示余额 = 现金 + 持仓市值；其余账户即现金余额。
+    final Map<String, int> mv =
+        ref.watch(investmentMarketValueByAccountProvider);
+    final int display = displayBalanceWithMarket(account, mv);
+    final int market = isSecuritiesAccount(account) ? (mv[account.id] ?? 0) : 0;
     final Color cardColor = theme.colorScheme.surface;
 
     return Padding(
@@ -555,12 +567,22 @@ class _AccountCardHeader extends StatelessWidget {
               ),
               const SizedBox(height: AppDimens.spaceXs),
               MoneyText(
-                Money.fromMinor(account.balanceMinor),
+                Money.fromMinor(display),
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: isDebt ? AppPalette.expense : null,
                 ),
               ),
+              if (market > 0) ...<Widget>[
+                const SizedBox(height: AppDimens.spaceXs),
+                Text(
+                  '现金 ${Money.fromMinor(account.balanceMinor).format()} · '
+                  '市值 ${Money.fromMinor(market).format()}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppPalette.textSecondary,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -715,11 +737,14 @@ class _MonthSection extends StatelessWidget {
       widgets.add(_DayHeader(dateAt: day.dateAt));
       for (final Transaction t in day.transactions) {
         widgets.add(
-          AccountTransactionTile(
-            transaction: t,
-            accountNames: accountNames,
-            accountId: accountId,
-            onTap: () => onTapTransaction(t),
+          TxnSlidable(
+            txn: t,
+            child: AccountTransactionTile(
+              transaction: t,
+              accountNames: accountNames,
+              accountId: accountId,
+              onTap: () => onTapTransaction(t),
+            ),
           ),
         );
       }

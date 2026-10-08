@@ -14,6 +14,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/txn_icon.dart';
+import 'widgets/txn_slidable.dart';
 
 /// 「账单列表」页（我的 → 账单管理 → 账单列表，小青账布局）。
 ///
@@ -113,11 +114,14 @@ class _BillListPageState extends ConsumerState<BillListPage> {
                       if (index == 0) {
                         return _detailHeader(list.length);
                       }
-                      return _BillTile(
+                      return TxnSlidable(
                         txn: list[index - 1],
-                        category: categories[list[index - 1].categoryId],
-                        account: accounts[list[index - 1].accountId],
-                        toAccount: accounts[list[index - 1].toAccountId],
+                        child: _BillTile(
+                          txn: list[index - 1],
+                          category: categories[list[index - 1].categoryId],
+                          account: accounts[list[index - 1].accountId],
+                          toAccount: accounts[list[index - 1].toAccountId],
+                        ),
                       );
                     },
                   );

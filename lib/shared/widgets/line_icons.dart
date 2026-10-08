@@ -40,6 +40,7 @@ enum LineIconKind {
   close, // 关闭（×）
   info, // 信息（圆圈 i）
   person, // 人数（头像 + 肩线，表示「人/收款对象」）
+  location, // 位置（定位针）
   // ── 餐饮细分（记一笔·餐饮子类）──
   breakfast, // 早餐（煎蛋）
   lunch, // 午餐（便当盒）
@@ -332,6 +333,8 @@ class _LineIconPainter extends CustomPainter {
         _calendar(path);
       case LineIconKind.settings:
         _settings(path);
+      case LineIconKind.location:
+        _location(path);
       case LineIconKind.food:
         _food(path);
       case LineIconKind.bus:
@@ -656,6 +659,17 @@ class _LineIconPainter extends CustomPainter {
     _line(p, 15.4, 15.4, 17, 17);
     _line(p, 17, 7, 15.4, 8.6);
     _line(p, 8.6, 15.4, 7, 17);
+  }
+
+  /// 位置：水滴形定位针 + 中心圆（线稿）。
+  void _location(Path p) {
+    p.moveTo(12, 2);
+    p.cubicTo(4.5, 2, 3, 8.5, 3, 12.5);
+    p.cubicTo(3, 16, 8, 20, 12, 22);
+    p.cubicTo(16, 20, 21, 16, 21, 12.5);
+    p.cubicTo(21, 8.5, 19.5, 2, 12, 2);
+    p.close();
+    p.addOval(Rect.fromCircle(center: const Offset(12, 10.5), radius: 3));
   }
 
   // ── 分类简笔画（A3 线稿设计稿路径移植）──

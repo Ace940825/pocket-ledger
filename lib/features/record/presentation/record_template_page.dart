@@ -877,6 +877,7 @@ class RecordTemplateCard extends ConsumerWidget {
       case RecordTab.refund:
       case RecordTab.savings:
       case RecordTab.installment:
+      case RecordTab.investment:
         return nameOf(template.accountId) ?? tab.label;
     }
   }

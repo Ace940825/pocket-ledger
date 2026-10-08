@@ -13,6 +13,7 @@ import '../providers/accounts_providers.dart';
 import 'bank_select_page.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/calculator_sheet.dart';
 import '../../../shared/widgets/day_pick_sheet.dart';
 
 /// 账户表单页。
@@ -134,7 +135,15 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             status: _status,
             includeInTotal: _includeInTotal,
           );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        // 连退两层：账户表单页 + 账户类型选择页（AddAccountPage），
+        // 建成后直接回到来源页（账户页 / 记一笔的账户选择弹窗），
+        // 不再停留在「选择账户类型」中间页。
+        final NavigatorState nav = Navigator.of(context);
+        nav
+          ..pop()
+          ..pop();
+      }
     } on AppFailure catch (e) {
       if (mounted) {
         showAppToast(context, e.message);
@@ -220,18 +229,14 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           ),
         )
         ..add(const Divider(height: 1, indent: AppDimens.spaceMd))
-        ..add(
+          ..add(
           _TextField(
             controller: _balanceController,
             label: amountLabel,
             prefixText: '¥ ',
             useKeypad: true,
+            enableCalculator: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            suffix: const Icon(
-              Icons.calculate_outlined,
-              size: 18,
-              color: AppPalette.textTertiary,
-            ),
           ),
         );
     } else if (_isReimbursement) {
@@ -257,12 +262,8 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             label: _isDebt ? '当前欠款' : '账户余额',
             prefixText: '¥ ',
             useKeypad: true,
+            enableCalculator: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            suffix: const Icon(
-              Icons.calculate_outlined,
-              size: 18,
-              color: AppPalette.textTertiary,
-            ),
           ),
         );
     }
@@ -293,6 +294,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           label: '当前欠款',
           prefixText: '¥ ',
           useKeypad: true,
+          enableCalculator: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
         ),
@@ -339,12 +341,8 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           label: '账户余额',
           prefixText: '¥ ',
           useKeypad: true,
+          enableCalculator: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          suffix: const Icon(
-            Icons.account_balance_wallet_outlined,
-            size: 18,
-            color: AppPalette.textTertiary,
-          ),
         ),
       ];
     }
@@ -707,6 +705,10 @@ class _TextField extends StatelessWidget {
   /// 工程内键盘是否允许小数点。
   final bool allowDecimal;
 
+  /// 是否在金额键盘之外额外提供「计算器」入口（点计算器图标弹表达式计算器，
+  /// 四则运算/AA 分摊结果回填本字段）。用于建户余额、借还本金等需要加减计算的输入。
+  final bool enableCalculator;
+
   const _TextField({
     required this.controller,
     required this.label,
@@ -717,10 +719,33 @@ class _TextField extends StatelessWidget {
     this.onChanged,
     this.useKeypad = false,
     this.allowDecimal = true,
+    this.enableCalculator = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    // 计算器图标：点击打开表达式计算器，结果（元）回填。
+    Widget? suffixIcon = suffix;
+    if (enableCalculator) {
+      suffixIcon = IconButton(
+        icon: const Icon(Icons.calculate_outlined,
+            size: 20, color: AppPalette.primary),
+        tooltip: '计算器',
+        onPressed: () async {
+          final double? r = await showModalBottomSheet<double>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => CalculatorSheet(initial: controller.text),
+          );
+          if (r != null) {
+            final String s = _formatCalcResult(r);
+            controller.text = s;
+            onChanged?.call(s);
+          }
+        },
+      );
+    }
     return TextField(
       controller: controller,
       keyboardType: useKeypad ? null : keyboardType,
@@ -746,12 +771,21 @@ class _TextField extends StatelessWidget {
         labelText: label,
         hintText: hint,
         prefixText: prefixText,
-        suffixIcon: suffix,
+        suffixIcon: suffixIcon,
         border: InputBorder.none,
         contentPadding: const EdgeInsets.all(AppDimens.spaceMd),
       ),
     );
   }
+}
+
+/// 把计算器返回的 double 规整为金额字符串（去掉多余的 0 与悬挂小数点），
+/// 与工程内 [Money.tryParse] 兼容（如 1150.00 -> '1150'、1150.50 -> '1150.5'）。
+String _formatCalcResult(double v) {
+  final String s = v.toStringAsFixed(2);
+  return s.contains('.')
+      ? s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')
+      : s;
 }
 
 class _ReadOnlyField extends StatelessWidget {

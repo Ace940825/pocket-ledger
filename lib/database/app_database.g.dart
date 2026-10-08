@@ -2305,6 +2305,24 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> reimbursementAccountId =
       GeneratedColumn<String>('reimbursement_account_id', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _latitudeMeta =
+      const VerificationMeta('latitude');
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+      'latitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _longitudeMeta =
+      const VerificationMeta('longitude');
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+      'longitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _placeNameMeta =
+      const VerificationMeta('placeName');
+  @override
+  late final GeneratedColumn<String> placeName = GeneratedColumn<String>(
+      'place_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         updatedAt,
@@ -2331,7 +2349,10 @@ class $TransactionsTable extends Transactions
         excludeFromStats,
         excludeFromBudget,
         isReimbursable,
-        reimbursementAccountId
+        reimbursementAccountId,
+        latitude,
+        longitude,
+        placeName
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2468,6 +2489,18 @@ class $TransactionsTable extends Transactions
           reimbursementAccountId.isAcceptableOrUnknown(
               data['reimbursement_account_id']!, _reimbursementAccountIdMeta));
     }
+    if (data.containsKey('latitude')) {
+      context.handle(_latitudeMeta,
+          latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta));
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(_longitudeMeta,
+          longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta));
+    }
+    if (data.containsKey('place_name')) {
+      context.handle(_placeNameMeta,
+          placeName.isAcceptableOrUnknown(data['place_name']!, _placeNameMeta));
+    }
     return context;
   }
 
@@ -2530,6 +2563,12 @@ class $TransactionsTable extends Transactions
       reimbursementAccountId: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
           data['${effectivePrefix}reimbursement_account_id']),
+      latitude: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}latitude']),
+      longitude: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}longitude']),
+      placeName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}place_name']),
     );
   }
 
@@ -2601,6 +2640,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
 
   /// 报销账户：报销支出关联的「报销」类型账户；未选择时为 null。
   final String? reimbursementAccountId;
+  final double? latitude;
+  final double? longitude;
+  final String? placeName;
   const Transaction(
       {required this.updatedAt,
       required this.deleted,
@@ -2626,7 +2668,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       required this.excludeFromStats,
       required this.excludeFromBudget,
       required this.isReimbursable,
-      this.reimbursementAccountId});
+      this.reimbursementAccountId,
+      this.latitude,
+      this.longitude,
+      this.placeName});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2680,6 +2725,15 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       map['reimbursement_account_id'] =
           Variable<String>(reimbursementAccountId);
     }
+    if (!nullToAbsent || latitude != null) {
+      map['latitude'] = Variable<double>(latitude);
+    }
+    if (!nullToAbsent || longitude != null) {
+      map['longitude'] = Variable<double>(longitude);
+    }
+    if (!nullToAbsent || placeName != null) {
+      map['place_name'] = Variable<String>(placeName);
+    }
     return map;
   }
 
@@ -2724,6 +2778,15 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       reimbursementAccountId: reimbursementAccountId == null && nullToAbsent
           ? const Value.absent()
           : Value(reimbursementAccountId),
+      latitude: latitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(latitude),
+      longitude: longitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(longitude),
+      placeName: placeName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(placeName),
     );
   }
 
@@ -2759,6 +2822,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       isReimbursable: serializer.fromJson<bool>(json['isReimbursable']),
       reimbursementAccountId:
           serializer.fromJson<String?>(json['reimbursementAccountId']),
+      latitude: serializer.fromJson<double?>(json['latitude']),
+      longitude: serializer.fromJson<double?>(json['longitude']),
+      placeName: serializer.fromJson<String?>(json['placeName']),
     );
   }
   @override
@@ -2793,6 +2859,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'isReimbursable': serializer.toJson<bool>(isReimbursable),
       'reimbursementAccountId':
           serializer.toJson<String?>(reimbursementAccountId),
+      'latitude': serializer.toJson<double?>(latitude),
+      'longitude': serializer.toJson<double?>(longitude),
+      'placeName': serializer.toJson<String?>(placeName),
     };
   }
 
@@ -2821,7 +2890,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           bool? excludeFromStats,
           bool? excludeFromBudget,
           bool? isReimbursable,
-          Value<String?> reimbursementAccountId = const Value.absent()}) =>
+          Value<String?> reimbursementAccountId = const Value.absent(),
+          Value<double?> latitude = const Value.absent(),
+          Value<double?> longitude = const Value.absent(),
+          Value<String?> placeName = const Value.absent()}) =>
       Transaction(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -2853,6 +2925,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         reimbursementAccountId: reimbursementAccountId.present
             ? reimbursementAccountId.value
             : this.reimbursementAccountId,
+        latitude: latitude.present ? latitude.value : this.latitude,
+        longitude: longitude.present ? longitude.value : this.longitude,
+        placeName: placeName.present ? placeName.value : this.placeName,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -2901,6 +2976,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       reimbursementAccountId: data.reimbursementAccountId.present
           ? data.reimbursementAccountId.value
           : this.reimbursementAccountId,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      placeName: data.placeName.present ? data.placeName.value : this.placeName,
     );
   }
 
@@ -2931,7 +3009,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('excludeFromStats: $excludeFromStats, ')
           ..write('excludeFromBudget: $excludeFromBudget, ')
           ..write('isReimbursable: $isReimbursable, ')
-          ..write('reimbursementAccountId: $reimbursementAccountId')
+          ..write('reimbursementAccountId: $reimbursementAccountId, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('placeName: $placeName')
           ..write(')'))
         .toString();
   }
@@ -2962,7 +3043,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         excludeFromStats,
         excludeFromBudget,
         isReimbursable,
-        reimbursementAccountId
+        reimbursementAccountId,
+        latitude,
+        longitude,
+        placeName
       ]);
   @override
   bool operator ==(Object other) =>
@@ -2992,7 +3076,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.excludeFromStats == this.excludeFromStats &&
           other.excludeFromBudget == this.excludeFromBudget &&
           other.isReimbursable == this.isReimbursable &&
-          other.reimbursementAccountId == this.reimbursementAccountId);
+          other.reimbursementAccountId == this.reimbursementAccountId &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.placeName == this.placeName);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -3021,6 +3108,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<bool> excludeFromBudget;
   final Value<bool> isReimbursable;
   final Value<String?> reimbursementAccountId;
+  final Value<double?> latitude;
+  final Value<double?> longitude;
+  final Value<String?> placeName;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.updatedAt = const Value.absent(),
@@ -3048,6 +3138,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.excludeFromBudget = const Value.absent(),
     this.isReimbursable = const Value.absent(),
     this.reimbursementAccountId = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.placeName = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -3076,6 +3169,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.excludeFromBudget = const Value.absent(),
     this.isReimbursable = const Value.absent(),
     this.reimbursementAccountId = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.placeName = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -3111,6 +3207,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<bool>? excludeFromBudget,
     Expression<bool>? isReimbursable,
     Expression<String>? reimbursementAccountId,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<String>? placeName,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3140,6 +3239,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (isReimbursable != null) 'is_reimbursable': isReimbursable,
       if (reimbursementAccountId != null)
         'reimbursement_account_id': reimbursementAccountId,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (placeName != null) 'place_name': placeName,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3170,6 +3272,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<bool>? excludeFromBudget,
       Value<bool>? isReimbursable,
       Value<String?>? reimbursementAccountId,
+      Value<double?>? latitude,
+      Value<double?>? longitude,
+      Value<String?>? placeName,
       Value<int>? rowid}) {
     return TransactionsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -3198,6 +3303,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       isReimbursable: isReimbursable ?? this.isReimbursable,
       reimbursementAccountId:
           reimbursementAccountId ?? this.reimbursementAccountId,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      placeName: placeName ?? this.placeName,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3283,6 +3391,15 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       map['reimbursement_account_id'] =
           Variable<String>(reimbursementAccountId.value);
     }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (placeName.present) {
+      map['place_name'] = Variable<String>(placeName.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3317,6 +3434,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('excludeFromBudget: $excludeFromBudget, ')
           ..write('isReimbursable: $isReimbursable, ')
           ..write('reimbursementAccountId: $reimbursementAccountId, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('placeName: $placeName, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3446,9 +3566,16 @@ class $LendRecordsTable extends LendRecords
       defaultValue: const Constant(0));
   static const VerificationMeta _discountMinorMeta =
       const VerificationMeta('discountMinor');
+  static const VerificationMeta _graceDaysMeta =
+      const VerificationMeta('graceDays');
   @override
   late final GeneratedColumn<int> discountMinor = GeneratedColumn<int>(
       'discount_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  late final GeneratedColumn<int> graceDays = GeneratedColumn<int>(
+      'grace_days', aliasedName, false,
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
@@ -3472,7 +3599,8 @@ class $LendRecordsTable extends LendRecords
         accountId,
         toAccountId,
         feeMinor,
-        discountMinor
+        discountMinor,
+        graceDays,
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3570,10 +3698,12 @@ class $LendRecordsTable extends LendRecords
           feeMinor.isAcceptableOrUnknown(data['fee_minor']!, _feeMinorMeta));
     }
     if (data.containsKey('discount_minor')) {
-      context.handle(
-          _discountMinorMeta,
-          discountMinor.isAcceptableOrUnknown(
-              data['discount_minor']!, _discountMinorMeta));
+      context.handle(_discountMinorMeta,
+          discountMinor.isAcceptableOrUnknown(data['discount_minor']!, _discountMinorMeta));
+    }
+    if (data.containsKey('grace_days')) {
+      context.handle(_graceDaysMeta,
+          graceDays.isAcceptableOrUnknown(data['grace_days']!, _graceDaysMeta));
     }
     return context;
   }
@@ -3624,6 +3754,8 @@ class $LendRecordsTable extends LendRecords
           .read(DriftSqlType.int, data['${effectivePrefix}fee_minor'])!,
       discountMinor: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}discount_minor'])!,
+      graceDays: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}grace_days'])!,
     );
   }
 
@@ -3668,6 +3800,7 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
 
   /// 优惠 / 减免（分）。借入/借出时的减免金额。
   final int discountMinor;
+  final int graceDays;
   const LendRecord(
       {required this.updatedAt,
       required this.deleted,
@@ -3687,7 +3820,8 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       this.accountId,
       this.toAccountId,
       required this.feeMinor,
-      required this.discountMinor});
+      required this.discountMinor,
+      required this.graceDays});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -3726,6 +3860,7 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
     }
     map['fee_minor'] = Variable<int>(feeMinor);
     map['discount_minor'] = Variable<int>(discountMinor);
+    map['grace_days'] = Variable<int>(graceDays);
     return map;
   }
 
@@ -3757,6 +3892,7 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
           : Value(toAccountId),
       feeMinor: Value(feeMinor),
       discountMinor: Value(discountMinor),
+      graceDays: Value(graceDays),
     );
   }
 
@@ -3785,6 +3921,7 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       toAccountId: serializer.fromJson<String?>(json['toAccountId']),
       feeMinor: serializer.fromJson<int>(json['feeMinor']),
       discountMinor: serializer.fromJson<int>(json['discountMinor']),
+      graceDays: serializer.fromJson<int>(json['graceDays']),
     );
   }
   @override
@@ -3812,6 +3949,7 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       'toAccountId': serializer.toJson<String?>(toAccountId),
       'feeMinor': serializer.toJson<int>(feeMinor),
       'discountMinor': serializer.toJson<int>(discountMinor),
+      'graceDays': serializer.toJson<int>(graceDays),
     };
   }
 
@@ -3834,7 +3972,8 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
           Value<String?> accountId = const Value.absent(),
           Value<String?> toAccountId = const Value.absent(),
           int? feeMinor,
-          int? discountMinor}) =>
+          int? discountMinor,
+          int? graceDays}) =>
       LendRecord(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -3855,6 +3994,7 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
         toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
         feeMinor: feeMinor ?? this.feeMinor,
         discountMinor: discountMinor ?? this.discountMinor,
+        graceDays: graceDays ?? this.graceDays,
       );
   LendRecord copyWithCompanion(LendRecordsCompanion data) {
     return LendRecord(
@@ -3885,6 +4025,9 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       discountMinor: data.discountMinor.present
           ? data.discountMinor.value
           : this.discountMinor,
+      graceDays: data.graceDays.present
+          ? data.graceDays.value
+          : this.graceDays,
     );
   }
 
@@ -3910,6 +4053,7 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
           ..write('toAccountId: $toAccountId, ')
           ..write('feeMinor: $feeMinor, ')
           ..write('discountMinor: $discountMinor')
+          ..write('graceDays: $graceDays')
           ..write(')'))
         .toString();
   }
@@ -3934,7 +4078,8 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       accountId,
       toAccountId,
       feeMinor,
-      discountMinor);
+      discountMinor,
+      graceDays);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3957,7 +4102,8 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
           other.accountId == this.accountId &&
           other.toAccountId == this.toAccountId &&
           other.feeMinor == this.feeMinor &&
-          other.discountMinor == this.discountMinor);
+          other.discountMinor == this.discountMinor &&
+          other.graceDays == this.graceDays);
 }
 
 class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
@@ -3980,6 +4126,7 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
   final Value<String?> toAccountId;
   final Value<int> feeMinor;
   final Value<int> discountMinor;
+  final Value<int> graceDays;
   final Value<int> rowid;
   const LendRecordsCompanion({
     this.updatedAt = const Value.absent(),
@@ -4001,6 +4148,7 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
     this.toAccountId = const Value.absent(),
     this.feeMinor = const Value.absent(),
     this.discountMinor = const Value.absent(),
+    this.graceDays = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LendRecordsCompanion.insert({
@@ -4023,6 +4171,7 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
     this.toAccountId = const Value.absent(),
     this.feeMinor = const Value.absent(),
     this.discountMinor = const Value.absent(),
+    this.graceDays = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -4052,6 +4201,7 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
     Expression<String>? toAccountId,
     Expression<int>? feeMinor,
     Expression<int>? discountMinor,
+    Expression<int>? graceDays,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4074,6 +4224,7 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
       if (toAccountId != null) 'to_account_id': toAccountId,
       if (feeMinor != null) 'fee_minor': feeMinor,
       if (discountMinor != null) 'discount_minor': discountMinor,
+      if (graceDays != null) 'grace_days': graceDays,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4098,6 +4249,7 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
       Value<String?>? toAccountId,
       Value<int>? feeMinor,
       Value<int>? discountMinor,
+      Value<int>? graceDays,
       Value<int>? rowid}) {
     return LendRecordsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -4119,6 +4271,7 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
       toAccountId: toAccountId ?? this.toAccountId,
       feeMinor: feeMinor ?? this.feeMinor,
       discountMinor: discountMinor ?? this.discountMinor,
+      graceDays: graceDays ?? this.graceDays,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4185,6 +4338,9 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
     if (discountMinor.present) {
       map['discount_minor'] = Variable<int>(discountMinor.value);
     }
+    if (graceDays.present) {
+      map['grace_days'] = Variable<int>(graceDays.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4213,6 +4369,7 @@ class LendRecordsCompanion extends UpdateCompanion<LendRecord> {
           ..write('toAccountId: $toAccountId, ')
           ..write('feeMinor: $feeMinor, ')
           ..write('discountMinor: $discountMinor, ')
+          ..write('graceDays: $graceDays, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();

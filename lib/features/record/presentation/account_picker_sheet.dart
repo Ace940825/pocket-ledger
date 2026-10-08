@@ -19,6 +19,7 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../investment/providers/investment_providers.dart';
 import '../providers/recording_settings_provider.dart';
 import 'default_asset_settings_sheet.dart';
 
@@ -189,7 +190,6 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
         decoration: BoxDecoration(
           color: ForestBg.paper,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: ForestElevation.sheet,
         ),
         child: SafeArea(
           top: false,
@@ -309,6 +309,9 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
   // ── 账户主体（网格或列表） ──
   Widget _buildBody() {
     final List<Account> items = _items;
+    // 证券账户的持仓市值聚合（按 accountId）；余额展示 = 现金 + 市值。
+    final Map<String, int> mv =
+        ref.watch(investmentMarketValueByAccountProvider);
     if (items.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppDimens.spaceLg),
@@ -343,7 +346,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
               final Account account = items[index];
               final bool selected = _selected == account.name;
               final Money money = Money.fromMinor(
-                account.balanceMinor,
+                displayBalanceWithMarket(account, mv),
                 currency: account.currency,
               );
               return _ListRow(
@@ -381,6 +384,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                 return _AccountTile(
                   account: account,
                   selected: selected,
+                  mv: mv,
                   onTap: () => _pick(account.name),
                 );
               }).toList(),
@@ -556,11 +560,13 @@ class _ListRow extends StatelessWidget {
 class _AccountTile extends StatelessWidget {
   final Account account;
   final bool selected;
+  final Map<String, int> mv;
   final VoidCallback onTap;
 
   const _AccountTile({
     required this.account,
     required this.selected,
+    required this.mv,
     required this.onTap,
   });
 
@@ -578,7 +584,7 @@ class _AccountTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Money money = Money.fromMinor(
-      account.balanceMinor,
+      displayBalanceWithMarket(account, mv),
       currency: account.currency,
     );
 
@@ -598,6 +604,7 @@ class _AccountTile extends StatelessWidget {
       child: _CardInner(
         account: account,
         selected: selected,
+        mv: mv,
         money: money,
         amountColor: _amountColor(money),
       ),
@@ -638,12 +645,14 @@ class _AccountTile extends StatelessWidget {
 class _CardInner extends StatelessWidget {
   final Account account;
   final bool selected;
+  final Map<String, int> mv;
   final Money money;
   final Color amountColor;
 
   const _CardInner({
     required this.account,
     required this.selected,
+    required this.mv,
     required this.money,
     required this.amountColor,
   });

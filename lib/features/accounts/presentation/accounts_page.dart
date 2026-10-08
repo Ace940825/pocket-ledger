@@ -19,6 +19,8 @@ import '../data/account_group_collapse.dart';
 import '../data/account_group_order.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
+import '../../investment/providers/investment_providers.dart';
+import '../../../providers/app_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
 
 /// 账户列表页（分组卡片布局）。
@@ -30,7 +32,7 @@ import '../../../shared/widgets/app_toast.dart';
 /// - 应收类卡片列出报销/借出等真实应收账户（未指向固定报销账户的待收回只在报销页体现，不进账户列表），并在借出下方展开**未指定借出账户**的每个对方账户（如小米）的应收余额（指定了账户的已含在账户余额里，不重复展示）；
 /// - 应付类卡片展示「借入」入口，并在下方展开**未指定借入账户**的每个对方账户（如小明）的应付余额（同上，避免与账户余额双计）；
 /// - 点击分组头部折叠/展开，长按头部拖动排序；
-/// - 账户行支持左滑「隐藏 / 编辑 / 删除」，点击进资产详情页。
+/// - 账户行支持左滑「隐藏 / 编辑 / 删除」，点击进资产详情页，长按整行拖动排序。
 /// - 新增账户走独立页面 `/accounts/add`。
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
@@ -198,6 +200,9 @@ class _Body extends ConsumerWidget {
     final Map<String, int> borrowInBalances =
         ref.watch(lendCounterpartyBalancesProvider(LendDirection.borrowIn)).valueOrNull ??
             const <String, int>{};
+    // 证券/投资类账户的持仓市值聚合（按 accountId）；展示余额 = 现金 + 此值。
+    final Map<String, int> mv =
+        ref.watch(investmentMarketValueByAccountProvider);
 
     return accounts.when(
       data: (List<Account> list) {
@@ -236,6 +241,7 @@ class _Body extends ConsumerWidget {
           payables: payables,
           lendOutMinor: lendOutMinor,
           borrowInMinor: borrowInMinor,
+          mv: mv,
         );
 
         return CustomScrollView(
@@ -259,15 +265,17 @@ class _Body extends ConsumerWidget {
                   isDebt: g.isDebt,
                   child: _buildGroupBody(
                     g.title,
+                    ref: ref,
                     capitals: capitals,
                     investments: investments,
                     debts: debts,
                     receivables: receivables,
                     payables: payables,
-                              lendOutMinor: lendOutMinor,
+                    lendOutMinor: lendOutMinor,
                     borrowInMinor: borrowInMinor,
                     lendOutBalances: lendOutBalances,
                     borrowInBalances: borrowInBalances,
+                    mv: mv,
                   ),
                 );
               },
@@ -292,6 +300,7 @@ class _Body extends ConsumerWidget {
 
   Widget _buildGroupBody(
     String title, {
+    required WidgetRef ref,
     required List<Account> capitals,
     required List<Account> investments,
     required List<Account> debts,
@@ -301,35 +310,42 @@ class _Body extends ConsumerWidget {
     required int borrowInMinor,
     required Map<String, int> lendOutBalances,
     required Map<String, int> borrowInBalances,
+    required Map<String, int> mv,
   }) {
     return switch (title) {
       '资金类' => _AccountBody(
           accounts: capitals,
           isDebt: false,
+          mv: mv,
           emptyHint: '还没有资金账户，点右上角新增',
           onOpenDetail: onOpenDetail,
           onEditAccount: onEditAccount,
           onArchiveAccount: onArchiveAccount,
           onDeleteAccount: onDeleteAccount,
+          onReorder: _reorderGroup(ref, capitals),
         ),
       '投资类' => _AccountBody(
           accounts: investments,
           isDebt: false,
+          mv: mv,
           emptyHint: '还没有投资账户，点右上角新增',
           onOpenDetail: onOpenDetail,
           onEditAccount: onEditAccount,
           onArchiveAccount: onArchiveAccount,
           onDeleteAccount: onDeleteAccount,
+          onReorder: _reorderGroup(ref, investments),
         ),
-      '负债类' => _AccountBody(
-          accounts: debts,
-          isDebt: true,
-          emptyHint: '还没有负债账户，点右上角新增',
-          onOpenDetail: onOpenDetail,
-          onEditAccount: onEditAccount,
-          onArchiveAccount: onArchiveAccount,
-          onDeleteAccount: onDeleteAccount,
-        ),
+              '负债类' => _AccountBody(
+                  accounts: debts,
+                  isDebt: true,
+                  mv: mv,
+                  emptyHint: '还没有负债账户，点右上角新增',
+                  onOpenDetail: onOpenDetail,
+                  onEditAccount: onEditAccount,
+                  onArchiveAccount: onArchiveAccount,
+                  onDeleteAccount: onDeleteAccount,
+                  onReorder: _reorderGroup(ref, debts),
+                ),
       '应收类' => _ReceivableBody(
           accounts: receivables,
           lendOutMinor: lendOutMinor,
@@ -338,6 +354,7 @@ class _Body extends ConsumerWidget {
           onEditAccount: onEditAccount,
           onArchiveAccount: onArchiveAccount,
           onDeleteAccount: onDeleteAccount,
+          onReorder: _reorderGroup(ref, receivables),
         ),
       '应付类' => _PayableBody(
           accounts: payables,
@@ -347,8 +364,30 @@ class _Body extends ConsumerWidget {
           onEditAccount: onEditAccount,
           onArchiveAccount: onArchiveAccount,
           onDeleteAccount: onDeleteAccount,
+          onReorder: _reorderGroup(ref, payables),
         ),
       _ => const SizedBox.shrink(),
+    };
+  }
+
+  /// 组内拖拽重排：把 [group] 按拖拽结果重排后，仅回写本组的 sortOrder。
+  ///
+  /// 账户列表页按分类分组展示、各组内部再按 sortOrder 升序，
+  /// 组间 sortOrder 是否交错不影响视觉顺序，故只重排传入的本组账户。
+  void Function(int oldIndex, int newIndex) _reorderGroup(
+    WidgetRef ref,
+    List<Account> group,
+  ) {
+    return (int oldIndex, int newIndex) async {
+      final List<String> ids = group.map((Account a) => a.id).toList();
+      if (ids.length <= 1) return;
+      if (oldIndex < 0 || oldIndex >= ids.length) return;
+      int target = newIndex;
+      if (target > oldIndex) target -= 1;
+      if (target < 0 || target >= ids.length) return;
+      final String moved = ids.removeAt(oldIndex);
+      ids.insert(target, moved);
+      await ref.read(accountsDaoProvider).reorder(ids);
     };
   }
 
@@ -361,6 +400,7 @@ class _Body extends ConsumerWidget {
     required List<Account> payables,
     required int lendOutMinor,
     required int borrowInMinor,
+    required Map<String, int> mv,
   }) {
     final List<_GroupConfig> result = <_GroupConfig>[];
     for (final String title in order) {
@@ -373,6 +413,7 @@ class _Body extends ConsumerWidget {
         payables: payables,
         lendOutMinor: lendOutMinor,
         borrowInMinor: borrowInMinor,
+        mv: mv,
       );
       if (g != null && g.isVisible) {
         result.add(g);
@@ -405,6 +446,7 @@ class _GroupConfig {
     required List<Account> payables,
     required int lendOutMinor,
     required int borrowInMinor,
+    required Map<String, int> mv,
   }) =>
       switch (title) {
         '资金类' => _GroupConfig(
@@ -417,8 +459,11 @@ class _GroupConfig {
           ),
         '投资类' => _GroupConfig(
             title: '投资类',
-            totalMinor:
-                investments.fold(0, (int s, Account a) => s + a.balanceMinor),
+            // 分组合计 = 各证券账户「展示余额」之和（现金 + 持仓市值）。
+            totalMinor: investments.fold(
+              0,
+              (int s, Account a) => s + displayBalanceWithMarket(a, mv),
+            ),
             isVisible: true,
             isDebt: false,
           ),
@@ -475,11 +520,22 @@ class _GroupCard extends StatelessWidget {
   final bool isDebt;
   final Widget child;
 
+  /// 分组头部小图标：一眼区分五类资产属性。
+  static IconData _iconOf(String title) => switch (title) {
+        '资金类' => Icons.wallet_outlined,
+        '负债类' => Icons.credit_card_outlined,
+        '投资类' => Icons.trending_up_outlined,
+        '应收类' => Icons.south_west_outlined,
+        '应付类' => Icons.north_east_outlined,
+        _ => Icons.circle_outlined,
+      };
+
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final Color amountColor =
         isDebt ? AppPalette.expense : AppPalette.textPrimary;
+    final Color iconColor = isDebt ? AppPalette.expense : AppPalette.primary;
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -489,7 +545,8 @@ class _GroupCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // 头部：点击折叠/展开；长按头部触发分组排序（不显示拖拽手柄/折叠箭头）
+          // 头部：点击折叠/展开；长按头部触发分组排序
+          // （显式 textPrimary——主题重构后 titleSmall 默认色太浅，浅卡上几乎不可读）
           ReorderableDelayedDragStartListener(
             index: index,
             child: InkWell(
@@ -501,11 +558,24 @@ class _GroupCard extends StatelessWidget {
                 padding: const EdgeInsets.all(AppDimens.spaceMd),
                 child: Row(
                   children: <Widget>[
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: iconColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(
+                          AppDimens.radiusSm,
+                        ),
+                      ),
+                      child: Icon(_iconOf(title), size: 16, color: iconColor),
+                    ),
+                    const SizedBox(width: AppDimens.spaceSm),
                     Expanded(
                       child: Text(
                         title,
                         style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                          color: AppPalette.textPrimary,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -513,7 +583,7 @@ class _GroupCard extends StatelessWidget {
                       Money.fromMinor(totalMinor),
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: amountColor,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -548,15 +618,20 @@ class _AccountBody extends StatelessWidget {
     required this.onEditAccount,
     required this.onArchiveAccount,
     required this.onDeleteAccount,
+    required this.onReorder,
+    this.mv = const <String, int>{},
   });
 
   final List<Account> accounts;
   final bool isDebt;
   final String emptyHint;
+  /// 证券账户的持仓市值聚合（按 accountId）；非空时用于展示「现金 + 市值」。
+  final Map<String, int> mv;
   final void Function(Account) onOpenDetail;
   final void Function(Account) onEditAccount;
   final void Function(Account) onArchiveAccount;
   final void Function(Account) onDeleteAccount;
+  final void Function(int oldIndex, int newIndex) onReorder;
 
   @override
   Widget build(BuildContext context) {
@@ -567,76 +642,122 @@ class _AccountBody extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
+    return ReorderableListView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: accounts.length,
-      separatorBuilder: (BuildContext _, int __) => const Divider(height: 1),
-      itemBuilder: (BuildContext context, int index) {
-        final Account a = accounts[index];
-        return Slidable(
-          key: ValueKey<String>(a.id),
-          groupTag: 'account_rows',
-          endActionPane: ActionPane(
-            motion: const DrawerMotion(),
-            extentRatio: 0.42,
-            children: <Widget>[
-              _SlideAction(
-                icon: Icons.visibility_off_outlined,
-                label: '隐藏',
-                color: AppPalette.textTertiary,
-                onPressed: () => onArchiveAccount(a),
-              ),
-              _SlideAction(
-                icon: Icons.edit_outlined,
-                label: '编辑',
-                color: AppPalette.info,
-                onPressed: () => onEditAccount(a),
-              ),
-              _SlideAction(
-                icon: Icons.delete_outline,
-                label: '删除',
-                color: AppPalette.danger,
-                onPressed: () => onDeleteAccount(a),
-              ),
-            ],
-          ),
-          child: ListTile(
-            onTap: () => onOpenDetail(a),
-            leading: CircleAvatar(
-              backgroundColor: (isDebt ? AppPalette.expense : AppPalette.primary)
-                  .withValues(alpha: 0.12),
-              child: Icon(
-                accountIcon(a.type),
-                size: 20,
-                color: isDebt ? AppPalette.expense : AppPalette.primary,
-              ),
-            ),
-            title: Row(
+      buildDefaultDragHandles: false,
+      padding: EdgeInsets.zero,
+      onReorder: onReorder,
+      children: <Widget>[
+        for (int i = 0; i < accounts.length; i++)
+          Slidable(
+            key: ValueKey<String>(accounts[i].id),
+            groupTag: 'account_rows',
+            endActionPane: ActionPane(
+              motion: const DrawerMotion(),
+              extentRatio: 0.42,
               children: <Widget>[
-                Flexible(
-                  child: Text(
-                    a.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                _SlideAction(
+                  icon: Icons.visibility_off_outlined,
+                  label: '隐藏',
+                  color: AppPalette.textTertiary,
+                  onPressed: () => onArchiveAccount(accounts[i]),
                 ),
-                const SizedBox(width: AppDimens.spaceSm),
-                _SideTag(isDebt: isDebt),
+                _SlideAction(
+                  icon: Icons.edit_outlined,
+                  label: '编辑',
+                  color: AppPalette.info,
+                  onPressed: () => onEditAccount(accounts[i]),
+                ),
+                _SlideAction(
+                  icon: Icons.delete_outline,
+                  label: '删除',
+                  color: AppPalette.danger,
+                  onPressed: () => onDeleteAccount(accounts[i]),
+                ),
               ],
             ),
-            subtitle: Text(a.type.label),
-            trailing: MoneyText(
-              Money.fromMinor(a.balanceMinor),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: isDebt ? AppPalette.expense : AppPalette.textPrimary,
-                    fontWeight: FontWeight.w600,
+            child: Column(
+              children: <Widget>[
+                // 长按整行拖动排序（替代常驻拖拽手柄，行内视觉更干净）
+                ReorderableDelayedDragStartListener(
+                  index: i,
+                  child: ListTile(
+                    // 与分组头部 Padding(spaceMd) 对齐：金额右缘同线
+                    // （ListTile 默认水平 16，比头部 12 多 4px，会向左错位）
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppDimens.spaceMd,
+                    ),
+                    onTap: () => onOpenDetail(accounts[i]),
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          (isDebt ? AppPalette.expense : AppPalette.primary)
+                              .withValues(alpha: 0.12),
+                      child: Icon(
+                        accountIcon(accounts[i].type),
+                        size: 20,
+                        color:
+                            isDebt ? AppPalette.expense : AppPalette.primary,
+                      ),
+                    ),
+                    title: Text(
+                      accounts[i].name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: _accountSubtitle(context, accounts[i]),
+                    trailing: MoneyText(
+                      Money.fromMinor(_accountDisplay(accounts[i])),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(
+                            // 零展示余额弱化为弱文字，突出有结余的账户
+                            color: _accountDisplay(accounts[i]) == 0
+                                ? AppPalette.textTertiary
+                                : isDebt
+                                    ? AppPalette.expense
+                                    : AppPalette.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
                   ),
+                ),
+                // 分隔线缩进到文字起点（12 + 头像 40 + 间距 16 = 68）
+                const Divider(height: 1, indent: 68),
+              ],
             ),
           ),
-        );
-      },
+      ],
     );
+  }
+
+  /// 该行账户的「展示余额」：证券账户 = 现金 + 持仓市值，其余 = 现金。
+  int _accountDisplay(Account a) => displayBalanceWithMarket(a, mv);
+
+  /// 副标题：证券账户在有持仓时显示「现金 ¥X · 市值 ¥Y」拆分，
+  /// 否则退化为账户类型标签。
+  Widget _accountSubtitle(BuildContext context, Account a) {
+    if (isSecuritiesAccount(a)) {
+      final int market = mv[a.id] ?? 0;
+      if (market > 0) {
+        return Text(
+          '现金 ${Money.fromMinor(a.balanceMinor).format()} · '
+          '市值 ${Money.fromMinor(market).format()}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: AppPalette.textSecondary),
+        );
+      }
+    }
+    return Text(a.type.label);
   }
 }
 
@@ -687,29 +808,6 @@ class _SlideAction extends StatelessWidget {
   }
 }
 
-/// 「资产 / 负债」小标签。
-class _SideTag extends StatelessWidget {
-  const _SideTag({required this.isDebt});
-
-  final bool isDebt;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color color = isDebt ? AppPalette.expense : AppPalette.primary;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-      ),
-      child: Text(
-        isDebt ? '负债' : '资产',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
-      ),
-    );
-  }
-}
-
 /// 应收类展开内容：先列出真实应收账户，再展示往来汇总。
 class _ReceivableBody extends StatelessWidget {
   const _ReceivableBody({
@@ -720,6 +818,7 @@ class _ReceivableBody extends StatelessWidget {
     required this.onEditAccount,
     required this.onArchiveAccount,
     required this.onDeleteAccount,
+    required this.onReorder,
   });
 
   final List<Account> accounts;
@@ -729,6 +828,7 @@ class _ReceivableBody extends StatelessWidget {
   final void Function(Account) onEditAccount;
   final void Function(Account) onArchiveAccount;
   final void Function(Account) onDeleteAccount;
+  final void Function(int oldIndex, int newIndex) onReorder;
 
   @override
   Widget build(BuildContext context) {
@@ -750,6 +850,7 @@ class _ReceivableBody extends StatelessWidget {
             onEditAccount: onEditAccount,
             onArchiveAccount: onArchiveAccount,
             onDeleteAccount: onDeleteAccount,
+            onReorder: onReorder,
           ),
         if (accounts.isNotEmpty && lendOutMinor != 0)
           const Divider(height: 1),
@@ -777,6 +878,7 @@ class _PayableBody extends StatelessWidget {
     required this.onEditAccount,
     required this.onArchiveAccount,
     required this.onDeleteAccount,
+    required this.onReorder,
   });
 
   final List<Account> accounts;
@@ -786,6 +888,7 @@ class _PayableBody extends StatelessWidget {
   final void Function(Account) onEditAccount;
   final void Function(Account) onArchiveAccount;
   final void Function(Account) onDeleteAccount;
+  final void Function(int oldIndex, int newIndex) onReorder;
 
   @override
   Widget build(BuildContext context) {
@@ -807,6 +910,7 @@ class _PayableBody extends StatelessWidget {
             onEditAccount: onEditAccount,
             onArchiveAccount: onArchiveAccount,
             onDeleteAccount: onDeleteAccount,
+            onReorder: onReorder,
           ),
         if (accounts.isNotEmpty && borrowInMinor != 0)
           const Divider(height: 1),
@@ -883,6 +987,11 @@ class _CounterpartyRow extends StatelessWidget {
       padding: const EdgeInsets.only(left: 56),
       child: ListTile(
         dense: true,
+        // 右缘对齐分组头部（12）；左侧补 16 保持文字位置不变
+        contentPadding: const EdgeInsets.only(
+          left: AppDimens.spaceLg,
+          right: AppDimens.spaceMd,
+        ),
         title: Text(
           name,
           style: Theme.of(context).textTheme.bodyMedium,
@@ -919,6 +1028,8 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
+      // 右缘对齐分组头部（12），头像 x=12 与账户行一致
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
       leading: CircleAvatar(
         backgroundColor: amountColor.withValues(alpha: 0.12),
         child: Icon(icon, size: 20, color: amountColor),
@@ -943,14 +1054,30 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-class _NetAssetsHeader extends StatelessWidget {
+class _NetAssetsHeader extends ConsumerWidget {
   const _NetAssetsHeader({required this.value});
 
   final AsyncValue<int> value;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
+    final int totalAssets = ref.watch(totalAssetsProvider).valueOrNull ?? 0;
+    final int totalDebt = ref.watch(totalLiabilitiesProvider).valueOrNull ?? 0;
+    final int net = value.valueOrNull ?? 0;
+    final TextStyle? base = value.isLoading
+        ? theme.textTheme.headlineSmall?.copyWith(
+            color: ForestAssetText.emphasis.withValues(alpha: 0.4),
+            fontWeight: FontWeight.w600,
+          )
+        : theme.textTheme.headlineSmall?.copyWith(
+            // 负净值（资不抵债）用暖红警示，正/零用森林绿
+            color: net < 0
+                ? ForestAssetSemantic.expense
+                : ForestAssetText.emphasis,
+            fontWeight: FontWeight.w600,
+          );
+
     return Container(
       margin: const EdgeInsets.all(AppDimens.spaceLg),
       padding: const EdgeInsets.all(AppDimens.spaceLg),
@@ -970,14 +1097,76 @@ class _NetAssetsHeader extends StatelessWidget {
           ),
           const SizedBox(height: AppDimens.spaceXs),
           Text(
-            Money.fromMinor(value.valueOrNull ?? 0).format(),
-            style: theme.textTheme.headlineSmall?.copyWith(
-            color: ForestAssetText.emphasis,
-            fontWeight: FontWeight.w600,
+            value.isLoading ? '--' : Money.fromMinor(net).format(),
+            style: base,
+          ),
+          const SizedBox(height: AppDimens.spaceMd),
+          // 总资产 / 总负债摘要：一眼看出净值的两个构成
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimens.spaceMd,
+              vertical: AppDimens.spaceSm,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.35), // ignore: no_raw_colors
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: _NetHeaderItem(
+                    label: '总资产',
+                    amountMinor: totalAssets,
+                    color: ForestAssetText.primary,
+                    labelColor: ForestAssetText.secondary,
+                  ),
+                ),
+                Expanded(
+                  child: _NetHeaderItem(
+                    label: '总负债',
+                    amountMinor: totalDebt,
+                    color: ForestAssetAccent.amberText,
+                    labelColor: ForestAssetText.secondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 净资产卡内的「总资产 / 总负债」单项。
+class _NetHeaderItem extends StatelessWidget {
+  const _NetHeaderItem({
+    required this.label,
+    required this.amountMinor,
+    required this.color,
+    required this.labelColor,
+  });
+
+  final String label;
+  final int amountMinor;
+  final Color color;
+  final Color labelColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: labelColor)),
+        const SizedBox(height: 2),
+        MoneyText(
+          Money.fromMinor(amountMinor),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ],
     );
   }
 }

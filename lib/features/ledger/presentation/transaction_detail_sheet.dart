@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -127,6 +128,11 @@ class TransactionDetailSheet extends ConsumerWidget {
                     const SizedBox(height: 14),
                     // 卡片二 · 附件
                     _buildAttachmentCard(attachments),
+                  ],
+                  // 卡片二·b · 位置（仅当该流水附加了 GPS 坐标时显示）。
+                  if (transaction.latitude != null) ...<Widget>[
+                    const SizedBox(height: 14),
+                    _buildLocationCard(context),
                   ],
                   // 借还模块流水（借出本金 / 还债 / 债务消减 / 坏账计提）
                   // 不显示报销 / 退款卡：债务备忘没有报销与退款语义。
@@ -438,6 +444,71 @@ class TransactionDetailSheet extends ConsumerWidget {
           children: <Widget>[
             for (final String src in attachments) _buildPhoto(src),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 卡片二·b · 位置：展示该流水附加的 GPS 地名（或坐标）与经纬度。
+  /// 点击复制坐标（便于分享 / 地图检索）。无位置时不渲染（由调用方门控）。
+  Widget _buildLocationCard(BuildContext context) {
+    final double lat = transaction.latitude!;
+    final double lng = transaction.longitude!;
+    final String coords =
+        '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
+    return _Card(
+      title: '位置',
+      child: InkWell(
+        onTap: () {
+          // 复制坐标到剪贴板，方便粘贴到地图检索。
+          final String text = transaction.placeName != null &&
+                  transaction.placeName!.isNotEmpty
+              ? '${transaction.placeName} ($coords)'
+              : coords;
+          Clipboard.setData(ClipboardData(text: text));
+          showAppToast(context, '已复制位置');
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          child: Row(
+            children: <Widget>[
+              const LineIcon(
+                LineIconKind.location,
+                size: 22,
+                color: ForestGreen.deep,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    if (transaction.placeName != null &&
+                        transaction.placeName!.isNotEmpty)
+                      Text(
+                        transaction.placeName!,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: ForestNeutral.textPrimary,
+                        ),
+                      ),
+                    Text(
+                      coords,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: ForestNeutral.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const LineIcon(
+                LineIconKind.chevronRight,
+                size: 16,
+                color: ForestNeutral.textTertiary,
+              ),
+            ],
+          ),
         ),
       ),
     );

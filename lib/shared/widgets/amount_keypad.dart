@@ -524,12 +524,17 @@ class KeypadField extends StatelessWidget {
     return TextField(
       controller: controller,
       readOnly: true,
+      // 只读框必须同时禁止获取焦点：部分输入法（Android Gboard 等）点击
+      // readOnly 字段仍会抢焦点并弹出系统 qwerty 键盘，掩盖工程数字键盘弹层。
+      canRequestFocus: false,
       showCursor: false,
       enableInteractiveSelection: false,
       style: style,
       textAlign: textAlign,
       decoration: dec,
       onTap: () async {
+        // 弹层打开前先收起任何残留的系统键盘（如刚编辑完备注）。
+        FocusManager.instance.primaryFocus?.unfocus();
         final String? r = await showAmountKeypad(
           context: context,
           initial: controller.text,

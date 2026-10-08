@@ -44,6 +44,7 @@ class LendRepository {
     String? toAccountId,
     int feeMinor = 0,
     int discountMinor = 0,
+    int graceDays = 0,
   }) async {
     if (counterparty.trim().isEmpty) {
       throw const ValidationFailure('对方不能为空');
@@ -73,6 +74,7 @@ class LendRepository {
               toAccountId: Value<String?>(toAccountId),
               feeMinor: Value<int>(feeMinor),
               discountMinor: Value<int>(discountMinor),
+              graceDays: Value<int>(graceDays),
               updatedAt: Value<int>(now),
               dirty: const Value<bool>(true),
             ),
@@ -96,6 +98,7 @@ class LendRepository {
           'toAccountId': toAccountId,
           'feeMinor': feeMinor,
           'discountMinor': discountMinor,
+          'graceDays': graceDays,
         },
       );
       // 本金落流水（报销同款「指定 / 非指定」口径）：挂账账户 =
@@ -134,6 +137,7 @@ class LendRepository {
     String? toAccountId,
     int feeMinor = 0,
     int discountMinor = 0,
+    int graceDays = 0,
   }) async {
     if (counterparty.trim().isEmpty) {
       throw const ValidationFailure('对方不能为空');
@@ -165,6 +169,7 @@ class LendRepository {
           toAccountId: Value<String?>(toAccountId),
           feeMinor: Value<int>(feeMinor),
           discountMinor: Value<int>(discountMinor),
+          graceDays: Value<int>(graceDays),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -188,6 +193,7 @@ class LendRepository {
           'toAccountId': toAccountId,
           'feeMinor': feeMinor,
           'discountMinor': discountMinor,
+          'graceDays': graceDays,
         },
       );
       // 流水联动：本金流水与借还记录保持同步——
@@ -503,6 +509,7 @@ class LendRepository {
           'toAccountId': r.toAccountId,
           'feeMinor': r.feeMinor,
           'discountMinor': r.discountMinor,
+          'graceDays': r.graceDays,
         },
       );
       affected.add(_OffsetHit(id: r.id, amount: apply));

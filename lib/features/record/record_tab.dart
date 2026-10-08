@@ -13,7 +13,8 @@ enum RecordTab {
   reimbursement,
   refund,
   savings,
-  installment;
+  installment,
+  investment;
 
   String get label => switch (this) {
         RecordTab.expense => '支出',
@@ -24,6 +25,7 @@ enum RecordTab {
         RecordTab.refund => '退款',
         RecordTab.savings => '存钱',
         RecordTab.installment => '分期',
+        RecordTab.investment => '投资',
       };
 
   IconData get icon => switch (this) {
@@ -35,6 +37,7 @@ enum RecordTab {
         RecordTab.refund => Icons.assignment_return_outlined,
         RecordTab.savings => Icons.savings_outlined,
         RecordTab.installment => Icons.calendar_month_outlined,
+        RecordTab.investment => Icons.trending_up_rounded,
       };
 
   /// 是否使用小青账统一布局：顶部滚动表单 + 底部固定功能栏/金额栏/日期备注栏/键盘。

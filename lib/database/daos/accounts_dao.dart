@@ -164,4 +164,21 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
           ..limit(limit))
         .get();
   }
+
+  /// 批量重排账户顺序（仅写 [sortOrder]，不动余额/类型等）。
+  ///
+  /// [orderedIds] 为「某一分组内」重新排序后的账户 ID 列表；按其在列表中的
+  /// 位置写入递增的 sortOrder。由于账户列表页按分类分组展示、各组内部再按
+  /// sortOrder 升序，组间 sortOrder 是否交错不影响视觉顺序，故只需重排本组。
+  Future<void> reorder(List<String> orderedIds) {
+    return batch((Batch batch) {
+      for (int i = 0; i < orderedIds.length; i++) {
+        batch.update(
+          accounts,
+          AccountsCompanion(sortOrder: Value<int>(i)),
+          where: ($AccountsTable tbl) => tbl.id.equals(orderedIds[i]),
+        );
+      }
+    });
+  }
 }

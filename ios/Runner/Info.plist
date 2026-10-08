@@ -53,5 +53,8 @@
 	<string>用于保存导出的报表与附件</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>使用面容 ID 解锁应用与确认敏感操作</string>
+	<!-- 位置：记一笔时可选附加当前 GPS 坐标（逆地理编码成地名） -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>用于为账单附加当前位置（仅本地存储，不上传）</string>
 </dict>
 </plist>

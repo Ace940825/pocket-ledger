@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'core/config/env.dart';
 import 'theme/theme.dart';
 import 'routing/app_router.dart';
+import 'features/lend/presentation/lend_reminder_bootstrapper.dart';
 
 class App extends ConsumerWidget {
   const App({super.key});
@@ -16,15 +17,17 @@ class App extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final GoRouter router = ref.watch(appRouterProvider);
 
-    return MaterialApp.router(
-      title: Env.appName,
-      theme: AppThemeData.light,
-      darkTheme: AppThemeData.dark,
-      themeMode: ThemeMode.system,
-      routerConfig: router,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      debugShowCheckedModeBanner: false,
+    return LendReminderBootstrapper(
+      child: MaterialApp.router(
+        title: Env.appName,
+        theme: AppThemeData.light,
+        darkTheme: AppThemeData.dark,
+        themeMode: ThemeMode.system,
+        routerConfig: router,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        debugShowCheckedModeBanner: false,
+      ),
     );
   }
 }

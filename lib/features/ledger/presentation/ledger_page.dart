@@ -1,11 +1,9 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_dimens.dart';
-import '../../../../core/errors/failures.dart';
 import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/app_toast.dart';
 import '../../../../shared/widgets/calendar_sheet.dart';
@@ -19,6 +17,7 @@ import '../providers/ledger_providers.dart';
 import 'ledger_filter_page.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/transaction_tile.dart';
+import 'widgets/txn_slidable.dart';
 
 /// 账单页（小青账布局）：
 /// 顶部居中标题「账单」+ 右侧搜索；副标题行左侧周期切换、右侧筛选入口；
@@ -123,21 +122,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         if (showHeader) _dayHeader(txn.occurredAt, list),
-                        Slidable(
-                          key: ValueKey<String>(txn.id),
-                          endActionPane: ActionPane(
-                            motion: const DrawerMotion(),
-                            children: <Widget>[
-                              SlidableAction(
-                                onPressed: (_) => _delete(context, txn),
-                                backgroundColor: AppPalette.expense,
-                                foregroundColor:
-                                    Theme.of(context).colorScheme.onPrimary,
-                                icon: Icons.delete_outline,
-                                label: '删除',
-                              ),
-                            ],
-                          ),
+                        TxnSlidable(
+                          txn: txn,
                           child: TransactionTile(
                             transaction: txn,
                             onTap: () =>
@@ -896,19 +882,6 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     final DateTime db =
         DateTime.fromMillisecondsSinceEpoch(b, isUtc: true).toLocal();
     return da.year == db.year && da.month == db.month && da.day == db.day;
-  }
-
-  Future<void> _delete(BuildContext context, Transaction txn) async {
-    try {
-      await ref.read(transactionRepositoryProvider).remove(txn.id);
-      if (context.mounted) {
-        showAppToast(context, '已删除');
-      }
-    } on AppFailure catch (e) {
-      if (context.mounted) {
-        showAppToast(context, e.message);
-      }
-    }
   }
 }
 

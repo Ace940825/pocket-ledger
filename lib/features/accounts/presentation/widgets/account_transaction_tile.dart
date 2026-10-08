@@ -84,7 +84,12 @@ class AccountTransactionTile extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    DateFormat('HH:mm').format(occurred),
+                    DateFormat('HH:mm').format(occurred) +
+                        (transaction.note?.isNotEmpty == true
+                            ? ' · ${transaction.note}'
+                            : ''),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: AppPalette.textSecondary,
                     ),
@@ -199,11 +204,11 @@ class _CircleIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
         color: tint.withValues(alpha: isDark ? 0.18 : 0.12),
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(12),
       ),
       alignment: Alignment.center,
       child: child,

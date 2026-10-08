@@ -78,7 +78,10 @@ enum AccountType {
   otherDebt, // 23
 
   // ---- 应付类（追加） ----
-  borrow; // 24
+  borrow, // 24
+
+  // ---- 投资类：定期存款（追加，real 余额、非持仓派生） ----
+  timeDeposit; // 25
 
   String get label => switch (this) {
         AccountType.cash => '现金',
@@ -92,7 +95,7 @@ enum AccountType {
         AccountType.providentFund => '公积金',
         AccountType.medicalInsurance => '医保卡',
         AccountType.transitCard => '公交卡',
-        AccountType.giftCard => '购物卡',
+        AccountType.giftCard => '储值卡',
         AccountType.fund => '基金',
         AccountType.stock => '股票',
         AccountType.futures => '期货',
@@ -106,6 +109,7 @@ enum AccountType {
         AccountType.douyinMonthly => '抖音月付',
         AccountType.otherDebt => '其他账户',
         AccountType.borrow => '借入',
+        AccountType.timeDeposit => '定期',
       };
 
   /// 所属大类。
@@ -125,7 +129,8 @@ enum AccountType {
         AccountType.fund ||
         AccountType.stock ||
         AccountType.futures ||
-        AccountType.spot =>
+        AccountType.spot ||
+        AccountType.timeDeposit =>
           AccountCategory.investment,
         AccountType.reimbursement ||
         AccountType.lend =>

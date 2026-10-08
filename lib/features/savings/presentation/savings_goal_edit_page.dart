@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart';
 import '../providers/savings_providers.dart';
+import '../../../shared/models/money.dart';
 
 /// 存钱计划编辑页（参照小青账「存钱计划」编辑页截图）：
 ///
@@ -39,6 +41,7 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
 
   late final TextEditingController _nameController;
   late final TextEditingController _noteController;
+  late final TextEditingController _targetController;
   String? _sourceAccountId; // 转出/扣款账户（落库 goal.sourceAccountId）
   late String? _targetAccountId; // 转入/入款账户（落库 goal.accountId）
   bool _sourceDefaultScheduled = false; // 冷启动首帧未就绪时，账户流到达后补填默认
@@ -48,6 +51,9 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
     super.initState();
     _nameController = TextEditingController(text: widget.goal.name);
     _noteController = TextEditingController(text: widget.goal.note ?? '');
+    _targetController = TextEditingController(
+      text: Money.fromMinor(widget.goal.targetMinor).decimal.toStringAsFixed(2),
+    );
     _targetAccountId = widget.goal.accountId;
     // 转出/扣款账户：优先回显已保存值，未保存则回落 App 默认资产账户。
     _sourceAccountId =
@@ -93,6 +99,7 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
   void dispose() {
     _nameController.dispose();
     _noteController.dispose();
+    _targetController.dispose();
     super.dispose();
   }
 
@@ -130,6 +137,18 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
                       hint: '备注(最多150字符)',
                       maxLength: 150,
                       maxLines: 3,
+                    ),
+                    const SizedBox(height: 12),
+                    _roundedField(
+                      controller: _targetController,
+                      hint: '目标金额',
+                      maxLength: 12,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: <TextInputFormatter>[
+                        FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d+\.?\d{0,2}')),
+                      ],
                     ),
                   ],
                 ),
@@ -323,11 +342,15 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
     required String hint,
     required int maxLength,
     int maxLines = 1,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       controller: controller,
       maxLength: maxLength,
       maxLines: maxLines,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
         counterText: '',
@@ -583,12 +606,17 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
       showAppToast(context, '名称不能为空');
       return;
     }
+    final Money target = Money.tryParse(_targetController.text);
+    if (target.minor <= 0) {
+      showAppToast(context, '目标金额必须大于 0');
+      return;
+    }
     try {
       await ref.read(savingsRepositoryProvider).update(
             id: widget.goal.id,
             name: name,
-            // 金额 / 已存 / 截止日保持原值（编辑页不提供修改入口）。
-            targetMinor: widget.goal.targetMinor,
+            // 目标金额现可在编辑页修改（见上方目标金额输入框）。
+            targetMinor: target.minor,
             currentMinor: widget.goal.currentMinor,
             accountId: _targetAccountId,
             sourceAccountId: _sourceAccountId,

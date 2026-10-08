@@ -11,6 +11,7 @@ import '../../../shared/widgets/app_toast.dart';
 import '../../../core/errors/failures.dart';
 import '../data/savings_repository.dart';
 import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/calculator_sheet.dart';
 import '../providers/savings_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -99,6 +100,24 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     _amountFocus.unfocus();
     _rateFocus.unfocus();
     setState(() => _kbTarget = null);
+  }
+
+  /// 通用计算器入口：弹表达式计算器（四则运算 / AA 分摊），结果（元）回填对应字段。
+  /// [target] 同 [_kbTarget]：'amount' = 每期/目标金额，'rate' = 递增系数。
+  Future<void> _openCalculator(String target) async {
+    final TextEditingController ctrl =
+        target == 'amount' ? _amountController : _elasticRateController;
+    final double? r = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CalculatorSheet(initial: ctrl.text),
+    );
+    if (r != null) {
+      final String s = _fmtCalc(r);
+      ctrl.text = s;
+      ctrl.selection = TextSelection.collapsed(offset: s.length);
+    }
   }
 
   @override
@@ -590,6 +609,13 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
               size: 22, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+        // 通用计算器入口：点图标弹表达式计算器，四则运算 / AA 分摊结果回填本字段。
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.calculate_outlined, size: 20),
+          color: _greenDeep,
+          tooltip: '计算器',
+          onPressed: () => _openCalculator('amount'),
+        ),
         filled: true,
         fillColor: AppPalette.surfaceMist,
         border: OutlineInputBorder(
@@ -642,6 +668,13 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                   ),
                   prefixIconConstraints:
                       const BoxConstraints(minWidth: 0, minHeight: 0),
+                  // 通用计算器入口：递增系数也可用表达式计算器录入。
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.calculate_outlined, size: 20),
+                    color: _greenDeep,
+                    tooltip: '计算器',
+                    onPressed: () => _openCalculator('rate'),
+                  ),
                   filled: true,
                   fillColor: AppPalette.surfaceMist,
                   border: OutlineInputBorder(
@@ -1465,6 +1498,14 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
       Navigator.of(context).pop();
     }
   }
+}
+
+/// 计算器结果（double）转金额字符串：保留两位小数、去掉悬挂的 0 与小数点。
+String _fmtCalc(double v) {
+  final String s = v.toStringAsFixed(2);
+  return s.contains('.')
+      ? s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')
+      : s;
 }
 
 /// 工程内数字键盘（存钱创建页专用，样式对齐记账页按键）：

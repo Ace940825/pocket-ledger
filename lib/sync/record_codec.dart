@@ -301,6 +301,7 @@ abstract final class RecordCodec {
         toAccountId: Value<String?>(p['toAccountId'] as String?),
         feeMinor: Value<int>((p['feeMinor'] as int?) ?? 0),
         discountMinor: Value<int>((p['discountMinor'] as int?) ?? 0),
+        graceDays: Value<int>((p['graceDays'] as int?) ?? 0),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),

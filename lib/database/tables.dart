@@ -30,7 +30,7 @@ class Books extends Table with SyncColumns {
 }
 
 /// 账户：现金、借记卡、信用卡、电子钱包、微信、支付宝、
-/// 公积金、医保卡、公交卡、购物卡、基金、股票、期货、现货、
+/// 公积金、医保卡、公交卡、储值卡、基金、股票、期货、现货、定期、
 /// 报销、借出、借入、花呗、借呗、白条、美团月付、抖音月付等。
 class Accounts extends Table with SyncColumns {
   TextColumn get id => text()();
@@ -158,6 +158,15 @@ class Transactions extends Table with SyncColumns {
   /// 报销账户：报销支出关联的「报销」类型账户；未选择时为 null。
   TextColumn get reimbursementAccountId => text().nullable()();
 
+  /// 位置：纬度（度）。记一笔时可选附加当前 GPS 位置，仅本地存储。
+  RealColumn get latitude => real().nullable()();
+
+  /// 位置：经度（度）。
+  RealColumn get longitude => real().nullable()();
+
+  /// 位置：逆地理编码地名（如「北京市朝阳区xx路」），可为空。
+  TextColumn get placeName => text().nullable()();
+
   @override
   Set<Column> get primaryKey => <Column>{id};
 }
@@ -189,6 +198,9 @@ class LendRecords extends Table with SyncColumns {
 
   /// 优惠 / 减免（分）。借入/借出时的减免金额。
   IntColumn get discountMinor => integer().withDefault(const Constant(0))();
+
+  /// 免息期（天）。信用卡类债务在免息期内还款不计利息；0 表示无免息期。
+  IntColumn get graceDays => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => <Column>{id};

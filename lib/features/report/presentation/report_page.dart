@@ -18,6 +18,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/ledger_filter_page.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
+import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../record/presentation/record_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart' show appPrefs;
@@ -1569,9 +1570,12 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
           )
         else
           for (final Transaction t in visible)
-            TransactionTile(
-              transaction: t,
-              onTap: () => TransactionDetailSheet.show(context, t),
+            TxnSlidable(
+              txn: t,
+              child: TransactionTile(
+                transaction: t,
+                onTap: () => TransactionDetailSheet.show(context, t),
+              ),
             ),
       ],
     );

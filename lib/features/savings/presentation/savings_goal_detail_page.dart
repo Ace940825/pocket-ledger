@@ -1477,6 +1477,10 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
           relatedId: goal.id,
         );
       }
+      // 强制刷新：主储蓄页计划卡进度 + 本详情页排期/进度
+      // （drift 流偶发不重发，导致改金额后主页不刷新）。
+      ref.invalidate(savingsListProvider);
+      ref.invalidate(savingsDepositsProvider(goal.id));
       if (mounted) {
         showAppToast(
           context,

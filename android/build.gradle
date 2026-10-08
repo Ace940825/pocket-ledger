@@ -12,6 +12,22 @@ subprojects {
 subprojects {
     project.evaluationDependsOn(":app")
 }
+// 部分插件（如 file_picker → flutter_plugin_android_lifecycle 2.0.35）要求
+// compileSdk ≥ 36，而插件子工程默认跟随本机 Flutter 的 compileSdkVersion（34）。
+// 这里在子工程评估完成后统一把 compileSdk 提到 36（只影响编译期 API，不影响运行时行为）。
+// 注意：上面 evaluationDependsOn(":app") 会当场评估 :app，对已评估项目再注册
+// afterEvaluate 会抛异常，故用 state.executed 守卫跳过（:app 自身已显式写 compileSdk=36）。
+subprojects {
+    if (!project.state.executed) {
+        afterEvaluate { project ->
+            if (project.extensions.findByName("android") != null) {
+                project.android {
+                    compileSdk = 36
+                }
+            }
+        }
+    }
+}
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

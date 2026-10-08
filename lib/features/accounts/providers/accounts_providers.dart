@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
+import '../../investment/data/investment_repository.dart';
+import '../../investment/providers/investment_providers.dart';
 import '../data/account_repository.dart';
 
 /// 账户仓储实例。供账户页、资产详情页等需要新增/编辑/删除账户的页面注入。
@@ -55,25 +57,97 @@ final AutoDisposeStreamProvider<List<Account>> accountsProvider =
   return ref.watch(accountsDaoProvider).watchByBook(bookId);
 });
 
-/// 净资产 = 所有账户余额之和（信用卡余额为负，自动体现负债）
-final AutoDisposeStreamProvider<int> netAssetsProvider =
-    StreamProvider.autoDispose<int>((Ref ref) {
-  final String bookId = ref.watch(currentBookIdProvider);
-  return ref.watch(accountsDaoProvider).watchNetAssets(bookId);
+/// 净资产 = 所有账户「展示余额」之和。
+///
+/// 展示余额：证券/投资类账户 = 现金余额 + 名下持仓市值；其余账户 = 现金余额。
+/// 负债方向账户（信用卡/借入等）正余额即欠款，从净资产里扣。
+/// 口径集中在 [displayBalanceWithMarket]，避免与账户列表/详情页分叉。
+/// 合并「账户」与「持仓」两个流（均为 AsyncValue）实时重算，持仓变动即刷新。
+final AutoDisposeProvider<AsyncValue<int>> netAssetsProvider =
+    Provider.autoDispose<AsyncValue<int>>((Ref ref) {
+  final AsyncValue<List<Account>> accountsAv = ref.watch(accountsProvider);
+  final AsyncValue<List<InvestmentHolding>> holdingsAv =
+      ref.watch(investmentListProvider);
+  return accountsAv.when(
+    data: (List<Account> list) => holdingsAv.when(
+      data: (List<InvestmentHolding> holdings) {
+        final Map<String, int> mv = _marketByAccount(holdings);
+        int net = 0;
+        for (final Account a in list) {
+          final int display = displayBalanceWithMarket(a, mv);
+          net += a.type.isLiabilitySide ? -display : display;
+        }
+        return AsyncData<int>(net);
+      },
+      loading: () => const AsyncLoading<int>(),
+      error: (Object e, StackTrace st) => AsyncError<int>(e, st),
+    ),
+    loading: () => const AsyncLoading<int>(),
+    error: (Object e, StackTrace st) => AsyncError<int>(e, st),
+  );
 });
 
-final AutoDisposeStreamProvider<int> totalAssetsProvider =
-    StreamProvider.autoDispose<int>((Ref ref) {
-  final String bookId = ref.watch(currentBookIdProvider);
-  return ref.watch(accountsDaoProvider).watchTotalAssets(bookId);
+final AutoDisposeProvider<AsyncValue<int>> totalAssetsProvider =
+    Provider.autoDispose<AsyncValue<int>>((Ref ref) {
+  final AsyncValue<List<Account>> accountsAv = ref.watch(accountsProvider);
+  final AsyncValue<List<InvestmentHolding>> holdingsAv =
+      ref.watch(investmentListProvider);
+  return accountsAv.when(
+    data: (List<Account> list) => holdingsAv.when(
+      data: (List<InvestmentHolding> holdings) {
+        final Map<String, int> mv = _marketByAccount(holdings);
+        int total = 0;
+        for (final Account a in list) {
+          if (a.type.isLiabilitySide) continue;
+          final int display = displayBalanceWithMarket(a, mv);
+          if (display > 0) total += display;
+        }
+        return AsyncData<int>(total);
+      },
+      loading: () => const AsyncLoading<int>(),
+      error: (Object e, StackTrace st) => AsyncError<int>(e, st),
+    ),
+    loading: () => const AsyncLoading<int>(),
+    error: (Object e, StackTrace st) => AsyncError<int>(e, st),
+  );
 });
 
-/// 总负债（所有信用卡账户欠款之和，正数）。
-final AutoDisposeStreamProvider<int> totalLiabilitiesProvider =
-    StreamProvider.autoDispose<int>((Ref ref) {
-  final String bookId = ref.watch(currentBookIdProvider);
-  return ref.watch(accountsDaoProvider).watchTotalLiabilities(bookId);
+/// 总负债（所有负债方向账户的「展示余额」正部分之和，正数）。
+final AutoDisposeProvider<AsyncValue<int>> totalLiabilitiesProvider =
+    Provider.autoDispose<AsyncValue<int>>((Ref ref) {
+  final AsyncValue<List<Account>> accountsAv = ref.watch(accountsProvider);
+  final AsyncValue<List<InvestmentHolding>> holdingsAv =
+      ref.watch(investmentListProvider);
+  return accountsAv.when(
+    data: (List<Account> list) => holdingsAv.when(
+      data: (List<InvestmentHolding> holdings) {
+        final Map<String, int> mv = _marketByAccount(holdings);
+        int total = 0;
+        for (final Account a in list) {
+          if (!a.type.isLiabilitySide) continue;
+          final int display = displayBalanceWithMarket(a, mv);
+          if (display > 0) total += display;
+        }
+        return AsyncData<int>(total);
+      },
+      loading: () => const AsyncLoading<int>(),
+      error: (Object e, StackTrace st) => AsyncError<int>(e, st),
+    ),
+    loading: () => const AsyncLoading<int>(),
+    error: (Object e, StackTrace st) => AsyncError<int>(e, st),
+  );
 });
+
+/// 按账户 ID 聚合持仓市值（分）；空账户 ID 或零市值忽略。
+Map<String, int> _marketByAccount(List<InvestmentHolding> holdings) {
+  final Map<String, int> mv = <String, int>{};
+  for (final InvestmentHolding h in holdings) {
+    final String? accId = h.accountId;
+    if (accId == null) continue;
+    mv[accId] = (mv[accId] ?? 0) + h.marketValueMinor;
+  }
+  return mv;
+}
 
 /// 分类 ID → 分类的映射，供流水平铺展示时避免 N 次查询。
 final AutoDisposeStreamProvider<Map<String, Category>> categoryMapProvider =

@@ -247,6 +247,7 @@ List<AccountType> _typesForTab(int index) => switch (index) {
           AccountType.stock,
           AccountType.futures,
           AccountType.spot,
+          AccountType.timeDeposit,
         ],
       // 应收
       3 => <AccountType>[

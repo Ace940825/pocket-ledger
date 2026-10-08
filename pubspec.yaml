@@ -48,11 +48,23 @@ dependencies:
   flutter_secure_storage: ^10.3.1
   local_auth: ^2.3.0
 
+  # 位置：记一笔附加当前位置（GPS 坐标 + 逆地理编码地名）
+  geolocator: ^13.0.0
+  # 逆地理编码：geolocator 12+ 把 placemarkFromCoordinates 移到了独立 geocoding 包
+  geocoding: ^5.0.0
+
+  # 本地通知：借还还款到期提醒（免费账号可用，非 APNs 推送）
+  flutter_local_notifications: ^18.0.0
+  # 本地通知 zonedSchedule 依赖的时区计算
+  timezone: ^0.10.0
+
   # 本地轻量键值存储（记账页面设置、视图模式记忆等统一持久化）
   shared_preferences: ^2.5.0
 
   # 文件与分享
   csv: ^6.0.0
+  # 导入 / 导出走系统文件选择器（导出 saveFile 落本地、导入 pickFiles 选文件）
+  file_picker: ^8.0.0
 
   # 图片附件：从相册/相机选取票据与物品照片
   image_picker: ^1.1.2

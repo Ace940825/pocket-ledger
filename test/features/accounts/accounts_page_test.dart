@@ -8,6 +8,7 @@ import 'package:pocket_ledger/features/accounts/data/account_group_collapse.dart
 import 'package:pocket_ledger/features/accounts/data/account_group_order.dart';
 import 'package:pocket_ledger/features/accounts/presentation/accounts_page.dart';
 import 'package:pocket_ledger/features/accounts/providers/accounts_providers.dart';
+import 'package:pocket_ledger/features/investment/providers/investment_providers.dart';
 import 'package:pocket_ledger/features/lend/providers/lend_providers.dart';
 
 /// 账户列表页（分组卡片布局）的整页渲染测试。
@@ -47,7 +48,10 @@ void main() {
       overrides: <Override>[
         accountsProvider
             .overrideWith((Ref ref) => Stream<List<Account>>.value(accounts)),
-        netAssetsProvider.overrideWith((Ref ref) => Stream<int>.value(0)),
+        netAssetsProvider.overrideWith((Ref ref) => const AsyncData<int>(0)),
+        // 证券账户市值聚合：测试不接真实库，置空即可。
+        investmentMarketValueByAccountProvider
+            .overrideWith((Ref ref) => const <String, int>{}),
         lendOutOngoingProvider
             .overrideWith((Ref ref) => Stream<int>.value(lendOutMinor)),
         borrowInOngoingProvider

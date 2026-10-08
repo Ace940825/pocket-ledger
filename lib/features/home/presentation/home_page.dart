@@ -16,6 +16,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../budget/providers/budget_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
+import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../record/presentation/record_sheet.dart';
@@ -77,10 +78,13 @@ class HomePage extends ConsumerWidget {
                   children: list
                       .take(5)
                       .map(
-                        (Transaction txn) => TransactionTile(
-                          transaction: txn,
-                          onTap: () =>
-                              TransactionDetailSheet.show(context, txn),
+                        (Transaction txn) => TxnSlidable(
+                          txn: txn,
+                          child: TransactionTile(
+                            transaction: txn,
+                            onTap: () =>
+                                TransactionDetailSheet.show(context, txn),
+                          ),
                         ),
                       )
                       .toList(growable: false),
@@ -248,7 +252,7 @@ class _AssetsCard extends StatelessWidget {
   }
 }
 
-/// 卡片2：本月预算（蓝底）。
+/// 卡片2：本月预算（森林绿渐变底）。
 class _BudgetCard extends StatelessWidget {
   const _BudgetCard({required this.summary, required this.onTap});
 
@@ -261,7 +265,8 @@ class _BudgetCard extends StatelessWidget {
     final bool empty = summary.total == 0;
     return _TappableSurface(
       onTap: onTap,
-      background: AppPalette.info,
+      background: ForestAssetBg.deep,
+      gradient: ForestAssetBg.card,
       child: empty
           ? Center(
               child: Padding(
@@ -270,8 +275,8 @@ class _BudgetCard extends StatelessWidget {
                 ),
                 child: Text(
                   '暂未设置预算，点此去设置',
-                  style:
-                      theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onPrimary),
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(color: ForestAssetText.primary),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -281,16 +286,17 @@ class _BudgetCard extends StatelessWidget {
               children: <Widget>[
                 Text(
                   '剩余预算',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onPrimary.withValues(alpha: 0.85)),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                      color: ForestAssetText.primary.withValues(alpha: 0.85)),
                 ),
                 const SizedBox(height: 2),
                 AnimatedMoneyText(
                   Money.fromMinor(
                       summary.remaining >= 0 ? summary.remaining : 0),
-                  color: theme.colorScheme.onPrimary,
+                  color: ForestAssetText.emphasis,
                   style: theme.textTheme.headlineSmall?.copyWith(
-                      color: theme.colorScheme.onPrimary, fontWeight: FontWeight.w600),
+                      color: ForestAssetText.emphasis,
+                      fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
                 Row(
@@ -299,8 +305,9 @@ class _BudgetCard extends StatelessWidget {
                       child: _MiniStat(
                         label: '总预算',
                         valueMinor: summary.total,
-                        labelColor: theme.colorScheme.onPrimary.withValues(alpha: 0.85),
-                        valueColor: theme.colorScheme.onPrimary,
+                        labelColor:
+                            ForestAssetText.primary.withValues(alpha: 0.85),
+                        valueColor: ForestAssetText.emphasis,
                       ),
                     ),
                     const SizedBox(width: AppDimens.spaceMd),
@@ -308,8 +315,9 @@ class _BudgetCard extends StatelessWidget {
                       child: _MiniStat(
                         label: '已用',
                         valueMinor: summary.spent,
-                        labelColor: theme.colorScheme.onPrimary.withValues(alpha: 0.85),
-                        valueColor: theme.colorScheme.onPrimary,
+                        labelColor:
+                            ForestAssetText.primary.withValues(alpha: 0.85),
+                        valueColor: ForestAssetAccent.amberText,
                       ),
                     ),
                   ],
@@ -320,7 +328,7 @@ class _BudgetCard extends StatelessWidget {
   }
 }
 
-/// 卡片3：本月收支（浅底）。
+/// 卡片3：本月收支（森林绿渐变底）。
 class _IncomeExpenseCard extends StatelessWidget {
   const _IncomeExpenseCard({
     required this.income,
@@ -336,24 +344,27 @@ class _IncomeExpenseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final int balance = income - expense;
+    final Color balanceColor =
+        balance >= 0 ? ForestAssetText.emphasis : ForestAssetSemantic.expense;
     return _TappableSurface(
       onTap: onTap,
-      background: theme.colorScheme.surfaceContainerHighest,
+      background: ForestAssetBg.deep,
+      gradient: ForestAssetBg.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
             '本月结余',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: ForestAssetText.primary.withValues(alpha: 0.85),
             ),
           ),
           const SizedBox(height: 2),
           AnimatedMoneyText(
             Money.fromMinor(balance),
-            color: balance >= 0 ? AppPalette.income : AppPalette.expense,
+            color: balanceColor,
             style: theme.textTheme.headlineSmall?.copyWith(
-              color: balance >= 0 ? AppPalette.income : AppPalette.expense,
+              color: balanceColor,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -364,8 +375,8 @@ class _IncomeExpenseCard extends StatelessWidget {
                 child: _MiniStat(
                   label: '收入',
                   valueMinor: income,
-                  labelColor: theme.colorScheme.onSurfaceVariant,
-                  valueColor: AppPalette.income,
+                  labelColor: ForestAssetText.primary.withValues(alpha: 0.85),
+                  valueColor: ForestAssetGreen.deep,
                 ),
               ),
               const SizedBox(width: AppDimens.spaceMd),
@@ -373,8 +384,8 @@ class _IncomeExpenseCard extends StatelessWidget {
                 child: _MiniStat(
                   label: '支出',
                   valueMinor: expense,
-                  labelColor: theme.colorScheme.onSurfaceVariant,
-                  valueColor: AppPalette.expense,
+                  labelColor: ForestAssetText.primary.withValues(alpha: 0.85),
+                  valueColor: ForestAssetSemantic.expense,
                 ),
               ),
             ],
