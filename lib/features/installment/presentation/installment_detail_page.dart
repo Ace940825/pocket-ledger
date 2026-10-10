@@ -141,7 +141,7 @@ class InstallmentDetailPage extends ConsumerWidget {
                           ? () => _settlePlanEarly(
                               context, ref, plan, remainingPrincipal)
                           : null,
-                      onRefund: postedTxnIds.isEmpty
+                      onRefund: plan == null || postedTxnIds.isEmpty
                           ? null
                           : () => _refundPostedOrders(
                               context, ref, plan, postedTxnIds),
