@@ -6439,6 +6439,32 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     setState(() => _accountId = aid);
   }
 
+  /// 框内嵌快捷键胶囊（金额卡口径：sunken 框内奶油白圆胶囊）。
+  Widget _refundInlineChip(String label, {required VoidCallback onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: _Sage.card,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: _Sage.ink,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 「原账单备注」快捷键：把备注自动填充为原账单的备注。
   ///
   /// 取第一笔备注非空的原账单（多选时与原账单栏「首条备注」口径一致）；
@@ -6505,7 +6531,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ),
               ),
               const SizedBox(width: 12),
-              // 中：账户胶囊（深沙底；选中绿描边），点击同样进入选择弹窗。
+              // 中：账户框（sunken 底；选中绿描边），框内左侧账户文案点击
+              // 进入选择弹窗，右侧「原账单账户」胶囊嵌在框内（金额卡同口径），
+              // 一键把账户填充为原账单的资产账户。
               Expanded(
                 child: Material(
                   color: Colors.transparent,
@@ -6515,8 +6543,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     borderRadius: BorderRadius.circular(13),
                     child: Container(
                       height: 42,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.only(left: 14, right: 5),
                       decoration: BoxDecoration(
                         color: ForestBg.sunken,
                         borderRadius: BorderRadius.circular(13),
@@ -6524,44 +6551,30 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             ? null
                             : Border.all(color: _Sage.sageB, width: 1.4),
                       ),
-                      child: Text(
-                        selected?.name ?? '请选择入款账户',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight:
-                              selected == null ? FontWeight.w400 : FontWeight.w600,
-                          color: selected == null ? _Sage.ink3 : _Sage.ink,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              // 右：「原账单账户」快捷键（深沙底 + 发丝线描边，方案 A 中性钮），
-              // 一键把账户填充为原账单的资产账户；手动改选走左侧胶囊。
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _fillRefundOriginalAccount,
-                  borderRadius: BorderRadius.circular(13),
-                  child: Container(
-                    height: 42,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: ForestBg.sunken,
-                      borderRadius: BorderRadius.circular(13),
-                      border: Border.all(color: _Sage.hairline),
-                    ),
-                    child: const Text(
-                      '原账单账户',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _Sage.ink,
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              selected?.name ?? '请选择入款账户',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: selected == null
+                                    ? FontWeight.w400
+                                    : FontWeight.w600,
+                                color: selected == null
+                                    ? _Sage.ink3
+                                    : _Sage.ink,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _refundInlineChip(
+                            '原账单账户',
+                            onTap: _fillRefundOriginalAccount,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -6887,12 +6900,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
-  /// 退款备注卡（方案 A 奶油卡：深沙圆角图标位 + 无边框输入 + 快捷键，
-  /// 图标位口径与时间卡 / 账户卡一致）。
+  /// 退款备注卡（方案 A 奶油卡：深沙圆角图标位 + sunken 输入框，
+  /// 「原账单备注」快捷键嵌入框内右侧——金额卡同口径）。
   Widget _buildRefundNoteField() {
     return _rbCard(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           Container(
             width: 34,
@@ -6911,37 +6924,47 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 7),
-              child: TextField(
-              controller: _noteController,
-              decoration: InputDecoration(
-                isDense: true,
-                // 显式覆盖所有状态边框 + 透明填充，
-                // 避免主题默认填充色在奶油卡内形成额外背景块。
-                filled: true,
-                fillColor: Colors.transparent,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                hintText: '备注（选填）',
-                hintStyle: const TextStyle(fontSize: 14, color: _Sage.ink3),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
+              decoration: BoxDecoration(
+                color: ForestBg.sunken,
+                borderRadius: BorderRadius.circular(13),
               ),
-              style: const TextStyle(fontSize: 14, color: _Sage.ink),
-              maxLines: 2,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-            ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: _refundMiniButton(
-              '原账单备注',
-              onTap: _fillRefundOriginalNote,
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      controller: _noteController,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        // 显式覆盖所有状态边框 + 透明填充，
+                        // 避免主题默认填充色在 sunken 框内形成额外背景块。
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        hintText: '备注（选填）',
+                        hintStyle:
+                            const TextStyle(fontSize: 14, color: _Sage.ink3),
+                      ),
+                      style:
+                          const TextStyle(fontSize: 14, color: _Sage.ink),
+                      maxLines: 2,
+                      minLines: 1,
+                      onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _refundInlineChip(
+                    '原账单备注',
+                    onTap: _fillRefundOriginalNote,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
