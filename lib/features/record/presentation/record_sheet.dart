@@ -6263,16 +6263,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       const SizedBox(height: AppDimens.spaceMd),
       _buildRefundNoteField(),
       const SizedBox(height: AppDimens.spaceMd),
-      // 账户标题行：右侧「原账单账户」快捷键，点击自动填充原账单账户。
-      Row(
-        children: <Widget>[
-          Expanded(child: _buildSectionTitle('账户')),
-          _refundMiniButton(
-            '原账单账户',
-            onTap: _fillRefundOriginalAccount,
-          ),
-        ],
-      ),
+      // 账户卡内已带「原账单账户」快捷键，标题行不再重复放置。
+      _buildSectionTitle('账户'),
       const SizedBox(height: AppDimens.spaceSm),
       _buildRefundAccountRow(),
       const SizedBox(height: AppDimens.spaceMd),
@@ -6496,7 +6488,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           ),
           child: Row(
             children: <Widget>[
-              // 左：账户胶囊（深沙底；选中绿描边），点击同样进入选择弹窗。
+              // 左：深沙圆角图标位（与时间卡 / 备注卡同口径）。
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: ForestBg.sunken,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Center(
+                  child: LineIcon(
+                    LineIconKind.account,
+                    size: 17,
+                    color: _Sage.ink2,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // 中：账户胶囊（深沙底；选中绿描边），点击同样进入选择弹窗。
               Expanded(
                 child: Material(
                   color: Colors.transparent,
@@ -6877,23 +6886,33 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
-  /// 退款备注卡（方案 A 奶油卡内无边框输入，保留线稿信息图标）。
+  /// 退款备注卡（方案 A 奶油卡：深沙圆角图标位 + 无边框输入 + 快捷键，
+  /// 图标位口径与时间卡 / 账户卡一致）。
   Widget _buildRefundNoteField() {
     return _rbCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.only(top: 9),
-            child: LineIcon(
-              LineIconKind.info,
-              size: 17,
-              color: _Sage.ink3,
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: ForestBg.sunken,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Center(
+              child: LineIcon(
+                LineIconKind.info,
+                size: 17,
+                color: _Sage.ink2,
+              ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
-            child: TextField(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 7),
+              child: TextField(
               controller: _noteController,
               decoration: InputDecoration(
                 isDense: true,
@@ -6913,6 +6932,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               style: const TextStyle(fontSize: 14, color: _Sage.ink),
               maxLines: 2,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
             ),
           ),
           const SizedBox(width: 10),
