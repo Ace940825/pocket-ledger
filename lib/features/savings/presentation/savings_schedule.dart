@@ -86,6 +86,7 @@ class SavingsSchedule {
       case SavingsMode.elastic:
         return countFromEndNote(endNote, 12);
       case SavingsMode.flexible:
+      case SavingsMode.rolling36:
         return 0; // 无固定周期
     }
   }
@@ -279,6 +280,7 @@ class SavingsSchedule {
               : date.add(Duration(days: stepDays));
         }
       case SavingsMode.flexible:
+      case SavingsMode.rolling36:
       case null:
         addEntry(start, 0);
     }

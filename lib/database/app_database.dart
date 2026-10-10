@@ -68,7 +68,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 29;
+  int get schemaVersion => 31;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -81,6 +81,8 @@ class AppDatabase extends _$AppDatabase {
           await _ensureInstallmentAutoPaidTable();
           // 行情候选库（自动补全元数据缓存）。
           await _ensureSecurityMetaTable();
+          // 36 期滚存计划配置表（原生 SQL，见 _ensureRollingPlansTable）。
+          await _ensureRollingPlansTable();
         },
         onUpgrade: (Migrator m, int from, int to) async {
           // 每个版本必须在此追加 step-by-step 迁移。
@@ -382,6 +384,21 @@ class AppDatabase extends _$AppDatabase {
             await _ensureSecurityMetaTable();
           }
 
+          if (from < 30) {
+            // v30：36 期滚存计划配置表（原生 SQL 建表，避开 build_runner
+            // 代码生成）。存储滚存计划的全部参数 + 利率调整记录 JSON。
+            // 与 [SavingsGoals] 通过 goal_id 关联；本表为纯本地数据，
+            // 不参与云端同步（与 security_meta 同级）。
+            await _ensureRollingPlansTable();
+          }
+
+          if (from < 31) {
+            // v31：滚存计划表补 amount_overrides 列（金额调整记录 JSON，
+            // 支持后期追加 / 变更每月定投金额）。表本体 v30 已建，
+            // [_ensureRollingPlansTable] 内部幂等补列。
+            await _ensureRollingPlansTable();
+          }
+
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
           // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
           await _createIndexes();
@@ -461,6 +478,45 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// 幂等建表：36 期滚存计划配置表（原生 SQL，不参与 drift 代码生成）。
+  ///
+  /// 存储滚存计划的全部参数（首期本金 / 年利率 / 期限 / 期数 / 取整策略 /
+  /// 自动滚存 / 追投 / 滚存轮数 / 目标额 / 利率调整记录 JSON）。与
+  /// [SavingsGoals] 通过 goal_id 关联，纯本地、不参与云端同步。范式同
+  /// [ _ensureSecurityMetaTable]（避开 build_runner 代码生成）。
+  Future<void> _ensureRollingPlansTable() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS savings_rolling_plans ('
+      'id TEXT NOT NULL PRIMARY KEY, '
+      'goal_id TEXT NOT NULL, '
+      'book_id TEXT NOT NULL, '
+      'base_minor INTEGER NOT NULL, '
+      'annual_rate_bp INTEGER NOT NULL, '
+      'term_months INTEGER NOT NULL, '
+      'periods INTEGER NOT NULL, '
+      'round_strategy INTEGER NOT NULL, '
+      'auto_roll INTEGER NOT NULL, '
+      'roll_add_new INTEGER NOT NULL, '
+      'roll_rounds INTEGER NOT NULL, '
+      'roll_target_minor INTEGER, '
+      'rate_overrides TEXT, '
+      'amount_overrides TEXT, '
+      'updated_at INTEGER NOT NULL)',
+    );
+    // v31 加列：v30 建的表没有 amount_overrides（金额调整记录 JSON）。
+    // 幂等探测：列已存在则跳过（同 [_addColumnIfMissing] 的防重原则）。
+    final List<QueryRow> cols = await customSelect(
+      'PRAGMA table_info(savings_rolling_plans)',
+    ).get();
+    final bool hasAmountCol =
+        cols.any((QueryRow r) => r.read<String>('name') == 'amount_overrides');
+    if (!hasAmountCol) {
+      await customStatement(
+        'ALTER TABLE savings_rolling_plans ADD COLUMN amount_overrides TEXT',
+      );
+    }
+  }
+
   /// 幂等建表：先探测表是否已存在，不存在才 `CREATE TABLE`。
   ///
   /// 用于「新增整张表」的版本迁移（[ _addColumnIfMissing] 只处理加列）。
@@ -518,6 +574,10 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_savings_deposits_goal '
       'ON savings_deposits(goal_id, day_index)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_rolling_plans_goal '
+      'ON savings_rolling_plans(goal_id)',
     );
   }
 }

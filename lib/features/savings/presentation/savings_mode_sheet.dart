@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
+import '../../../shared/widgets/line_icons.dart';
 
 import 'savings_modes.dart';
 
@@ -92,8 +93,12 @@ class SavingsModeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-      borderRadius: BorderRadius.circular(16),
+      // 全站统一奶油卡 + 发丝线描边（替代灰底透明卡，且不再用 withValues）。
+      color: AppPalette.cream,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppPalette.hairline),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -109,15 +114,20 @@ class SavingsModeCard extends StatelessWidget {
                   color: AppPalette.softGreen, // ForestGreen.soft
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(mode.icon, size: 24, color: AppPalette.deepGreen),
+                child:
+                    LineIcon(mode.icon, size: 24, color: AppPalette.deepGreen),
               ),
               const SizedBox(height: 10),
               Text(
                 mode.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                // 显式补 onSurface：titleSmall 无主题色定义时实测渲染过浅，
+                // 模式名与纸底几乎同色（真机灰度验证暴露）。
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 4),
               Text(

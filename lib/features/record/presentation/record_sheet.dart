@@ -175,7 +175,10 @@ class _Sage {
 
   // --shadow-pick: 0 4px 16px rgba(95,154,110,.18),0 0 0 1px rgba(95,154,110,.25)
   static List<BoxShadow> pickShadow = <BoxShadow>[
-    BoxShadow(color: AppPalette.sage600.withValues(alpha: 0.18), blurRadius: 16, offset: Offset(0, 4)),
+    BoxShadow(
+        color: AppPalette.sage600.withValues(alpha: 0.18),
+        blurRadius: 16,
+        offset: Offset(0, 4)),
     BoxShadow(
       color: AppPalette.sage600.withValues(alpha: 0.251),
       blurRadius: 0,
@@ -391,6 +394,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   _FeeInputType _lendFeeInputType = _FeeInputType.fee;
   final TextEditingController _lendFeeController = TextEditingController();
   final FocusNode _lendFeeFocusNode = FocusNode();
+
   /// 免息期（天）。信用卡类债务在免息期内还款不计利息；0 = 无免息期。
   final TextEditingController _graceDaysController = TextEditingController();
   String? _lendFeeAmount;
@@ -411,6 +415,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   int _invHoldingQtyMicros = 0;
   String? _invAccountId;
   final TextEditingController _invNoteController = TextEditingController();
+
   /// 投资成交回执快照：保存成功后弹出确认，关闭 record sheet 前清空。
   _InvReceipt? _invReceipt;
 
@@ -643,9 +648,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     // 记录编辑（金额 / 账户改动经 lendRepository.update 联动本金流水与
     // 余额），而不是按普通收支编辑造成两边数据脱钩。
     if (txn.sourceModule == SourceModule.lend && txn.relatedId != null) {
-      final LendRecord? rec = await ref
-          .read(lendRepositoryProvider)
-          .getById(txn.relatedId!);
+      final LendRecord? rec =
+          await ref.read(lendRepositoryProvider).getById(txn.relatedId!);
       if (!mounted) return;
       if (rec != null) {
         await _applyLendEdit(rec);
@@ -664,17 +668,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       TxnType.expense => RecordTab.expense,
       TxnType.transfer => RecordTab.transfer,
       TxnType.income => switch (txn.sourceModule) {
-        SourceModule.refund => RecordTab.refund,
-        SourceModule.reimbursement => RecordTab.reimbursement,
-        _ => RecordTab.income,
-      },
+          SourceModule.refund => RecordTab.refund,
+          SourceModule.reimbursement => RecordTab.reimbursement,
+          _ => RecordTab.income,
+        },
     };
     // 退款：尽量回填关联原账单（单选 relatedId），金额走自定义输入。
     Transaction? refundOrig;
     if (tab == RecordTab.refund && txn.relatedId != null) {
-      refundOrig = await ref
-          .read(transactionsDaoProvider)
-          .getById(txn.relatedId!);
+      refundOrig =
+          await ref.read(transactionsDaoProvider).getById(txn.relatedId!);
     }
     final int index = _tabs.indexOf(tab).clamp(0, _tabs.length - 1);
     setState(() {
@@ -758,8 +761,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       _toast('关联持仓不存在或已被删除');
       return false;
     }
-    final (int, int, int)? meta =
-        InvestmentRepository.parseTradeMeta(txn.note);
+    final (int, int, int)? meta = InvestmentRepository.parseTradeMeta(txn.note);
     final bool isBuy = txn.type == TxnType.expense;
     final int oldFee = meta?.$2 ?? 0;
     final int oldPriceMinor = meta?.$1 ?? 0;
@@ -788,16 +790,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       _invPriceController.text = oldPriceMinor > 0
           ? Money.fromMinor(oldPriceMinor).decimal.toStringAsFixed(2)
           : '';
-      _invFeeController.text = oldFee > 0
-          ? Money.fromMinor(oldFee).decimal.toStringAsFixed(2)
-          : '';
+      _invFeeController.text =
+          oldFee > 0 ? Money.fromMinor(oldFee).decimal.toStringAsFixed(2) : '';
       if (rules.quantityDriven) {
         // 备注份额为基本单位（股/张/克/枚），输入框按输入单位（手等）反折算。
         _invQtyController.text = oldQtyMicros > 0
-            ? _trimQtyText(
-                oldQtyMicros /
-                    InvestmentRepository.quantityScale /
-                    rules.unitsPerInput)
+            ? _trimQtyText(oldQtyMicros /
+                InvestmentRepository.quantityScale /
+                rules.unitsPerInput)
             : '';
       } else {
         _invAmountController.text = oldAmountMinor > 0
@@ -1266,17 +1266,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           // 编辑模式：更新原退款流水（保留 sourceModule=refund / relatedId）。
           if (_editingTxn != null) {
             await ref.read(transactionRepositoryProvider).updateTransaction(
-              original: _editingTxn!,
-              type: TxnType.income,
-              amountMinor: minor,
-              accountId: _accountId,
-              note: _noteController.text.trim(),
-              occurredAt: occurredAt,
-              attachmentUrls: List<String>.of(_attachmentPaths),
-              latitude: _locLat,
-              longitude: _locLng,
-              placeName: _locName,
-            );
+                  original: _editingTxn!,
+                  type: TxnType.income,
+                  amountMinor: minor,
+                  accountId: _accountId,
+                  note: _noteController.text.trim(),
+                  occurredAt: occurredAt,
+                  attachmentUrls: List<String>.of(_attachmentPaths),
+                  latitude: _locLat,
+                  longitude: _locLng,
+                  placeName: _locName,
+                );
             savedId = _editingTxn!.id;
             break;
           }
@@ -1315,16 +1315,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
           // 系统分类「退款」：ensureNamed 自动重建（isSystem=1，用户分类
           // 选择器隐藏），退款流水统一归到「退款」类目下。
-          final String refundCategoryId = await ref
-              .read(categoryRepositoryProvider)
-              .ensureNamed(
-                bookId: bookId,
-                name: '退款',
-                type: CategoryType.income,
-                iconKey: 'refund',
-                colorValue: 0xFF8E8A7E,
-                isSystem: true,
-              );
+          final String refundCategoryId =
+              await ref.read(categoryRepositoryProvider).ensureNamed(
+                    bookId: bookId,
+                    name: '退款',
+                    type: CategoryType.income,
+                    iconKey: 'refund',
+                    colorValue: 0xFF8E8A7E,
+                    isSystem: true,
+                  );
           savedId = await ref.read(transactionRepositoryProvider).add(
                 bookId: bookId,
                 type: TxnType.income,
@@ -1345,21 +1344,21 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           // 不重跑 add / repay / debtReduction 的业务逻辑。
           if (_editingLend != null) {
             await ref.read(lendRepositoryProvider).update(
-              id: _editingLend!.id,
-              direction: _lendDir,
-              status: _editingLend!.status,
-              counterparty: _counterpartyController.text.trim(),
-              amountMinor: minor,
-              repaidMinor: _editingLend!.repaidMinor,
-              occurredAt: occurredAt,
-              dueAt: _dueAt,
-              note: _noteController.text.trim(),
-              accountId: _accountId,
-              toAccountId: _toAccountId,
-              feeMinor: _lendFeeMinor,
-              discountMinor: _lendDiscountMinor,
-              graceDays: _lendGraceDays,
-            );
+                  id: _editingLend!.id,
+                  direction: _lendDir,
+                  status: _editingLend!.status,
+                  counterparty: _counterpartyController.text.trim(),
+                  amountMinor: minor,
+                  repaidMinor: _editingLend!.repaidMinor,
+                  occurredAt: occurredAt,
+                  dueAt: _dueAt,
+                  note: _noteController.text.trim(),
+                  accountId: _accountId,
+                  toAccountId: _toAccountId,
+                  feeMinor: _lendFeeMinor,
+                  discountMinor: _lendDiscountMinor,
+                  graceDays: _lendGraceDays,
+                );
             // 编辑后强制刷新借还列表与负债账户详情页流水
             // （drift 流偶发不重发，导致改日期后页面无变化）。
             ref.invalidate(lendListProvider);
@@ -1457,17 +1456,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           // 编辑模式：更新原报销收入流水（保留 sourceModule / 关联台账不动）。
           if (_editingTxn != null) {
             await ref.read(transactionRepositoryProvider).updateTransaction(
-              original: _editingTxn!,
-              type: TxnType.income,
-              amountMinor: minor,
-              accountId: _rbToAccountId,
-              note: _noteController.text.trim(),
-              occurredAt: occurredAt,
-              attachmentUrls: List<String>.of(_attachmentPaths),
-              latitude: _locLat,
-              longitude: _locLng,
-              placeName: _locName,
-            );
+                  original: _editingTxn!,
+                  type: TxnType.income,
+                  amountMinor: minor,
+                  accountId: _rbToAccountId,
+                  note: _noteController.text.trim(),
+                  occurredAt: occurredAt,
+                  attachmentUrls: List<String>.of(_attachmentPaths),
+                  latitude: _locLat,
+                  longitude: _locLng,
+                  placeName: _locName,
+                );
             savedId = _editingTxn!.id;
             break;
           }
@@ -1646,13 +1645,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         : await txnRepo.getByIds(_rbHistIds.toList());
     // 第一遍：按勾选顺序做封顶分摊计划。勾选「完成报销(结束此报销)」的
     // 账单（_rbFinishIds）整笔核销翻「已报销」，不占用本次收入金额。
-    final List<({Transaction bill, Reimbursement? linked, bool finish, int alloc, int remaining})>
-        plan = <({Transaction bill, Reimbursement? linked, bool finish, int alloc, int remaining})>[];
+    final List<
+        ({
+          Transaction bill,
+          Reimbursement? linked,
+          bool finish,
+          int alloc,
+          int remaining
+        })> plan = <({
+      Transaction bill,
+      Reimbursement? linked,
+      bool finish,
+      int alloc,
+      int remaining
+    })>[];
     for (final Transaction t in bills) {
       final bool finish = _rbFinishIds.contains(t.id);
       final Reimbursement? linked = await reimbRepo.byTransaction(t.id);
-      if (linked != null &&
-          linked.status == ReimbursementStatus.reimbursed) {
+      if (linked != null && linked.status == ReimbursementStatus.reimbursed) {
         // 已全额报销的账单不再重复抵扣，金额全部留在收入里。
         continue;
       }
@@ -1695,12 +1705,16 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     // 第二遍：落地抵扣。台账记收入实际分摊额（可超额），报销账户垫付
     // 核销按封顶额——超额部分是进收款账户的新钱，不动报销账户。
     int writeOffMinor = 0;
-    for (final ({Transaction bill, Reimbursement? linked, bool finish, int alloc, int remaining}) p
-        in plan) {
+    for (final ({
+      Transaction bill,
+      Reimbursement? linked,
+      bool finish,
+      int alloc,
+      int remaining
+    }) p in plan) {
       final Reimbursement? linked = p.linked;
-      final String billTitle = p.bill.note?.trim().isNotEmpty == true
-          ? p.bill.note!.trim()
-          : '报销';
+      final String billTitle =
+          p.bill.note?.trim().isNotEmpty == true ? p.bill.note!.trim() : '报销';
       if (linked != null) {
         // 全额 → 自动翻「已报销」；部分 → 待收金额减少，保持「待报销」。
         await reimbRepo.deduct(
@@ -1930,7 +1944,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       resolved = picked.date;
     } else if (picked is CalendarPeriod) {
       final DateTime s = picked.start;
-      resolved = DateTime(s.year, s.month, s.day, _occurredAt.hour, _occurredAt.minute);
+      resolved = DateTime(
+          s.year, s.month, s.day, _occurredAt.hour, _occurredAt.minute);
     } else {
       return;
     }
@@ -2139,7 +2154,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               final double viewportHeight =
                   viewport.maxHeight - 2 * AppDimens.spaceLg;
               return SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.all(AppDimens.spaceLg),
                 // 点击表单空白处（按钮/输入框之外的区域）→ 移除焦点：
                 // 借还利息/转账费用框退回主金额录入，备注框收起系统键盘。
@@ -2271,12 +2287,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               child: InkWell(
                 // 空列表也打开选择器（弹窗内「＋添加」兜底），不禁用点击。
                 onTap: () => _showTransferAccountPicker(
-                          label: label,
-                          // 选择器实时 watch 账户流并套用同一过滤口径
-                          filter: match,
-                          selectedId: safe,
-                          onChanged: onChanged,
-                        ),
+                  label: label,
+                  // 选择器实时 watch 账户流并套用同一过滤口径
+                  filter: match,
+                  selectedId: safe,
+                  onChanged: onChanged,
+                ),
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 child: Container(
                   height: 48,
@@ -2286,7 +2302,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   decoration: BoxDecoration(
                     color: AppPalette.surfaceLight,
                     borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                    border: Border.all(color: Theme.of(context).colorScheme.outline),
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.outline),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -2322,7 +2339,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               decoration: BoxDecoration(
                 color: AppPalette.surfaceLight,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                border: Border.all(color: Theme.of(context).colorScheme.outline),
+                border:
+                    Border.all(color: Theme.of(context).colorScheme.outline),
               ),
               child: Text(
                 label,
@@ -2495,7 +2513,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final Money? money = account == null
         ? null
         : Money.fromMinor(account.balanceMinor, currency: account.currency);
-    final Widget avatar = _buildFlowAvatar(context,
+    final Widget avatar = _buildFlowAvatar(
+      context,
       icon: accountIcon(account?.type ?? AccountType.cash),
       picked: account != null,
     );
@@ -2538,20 +2557,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return InkWell(
       // 空列表也打开选择器：弹窗内有「暂无账户，点击右上角添加」兜底。
       onTap: () => _showTransferAccountPicker(
-            label: label,
-            // 选择器实时 watch 账户流：资金类账户（排除应收 / 应付）
-            filter: fundAccountsOnly,
-            selectedId: account?.id,
-            // 同账户不能互转：把对方当前所选账户作为冲突项传入。
-            conflictId: isOut ? _toAccountId : _accountId,
-            onChanged: (String? v) => setState(() {
-              if (isOut) {
-                _accountId = v;
-              } else {
-                _toAccountId = v;
-              }
-            }),
-          ),
+        label: label,
+        // 选择器实时 watch 账户流：资金类账户（排除应收 / 应付）
+        filter: fundAccountsOnly,
+        selectedId: account?.id,
+        // 同账户不能互转：把对方当前所选账户作为冲突项传入。
+        conflictId: isOut ? _toAccountId : _accountId,
+        onChanged: (String? v) => setState(() {
+          if (isOut) {
+            _accountId = v;
+          } else {
+            _toAccountId = v;
+          }
+        }),
+      ),
       borderRadius: BorderRadius.circular(ForestRadius.md),
       child: Container(
         height: height,
@@ -2565,7 +2584,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           boxShadow: <BoxShadow>[
             // 转出卡泛珊瑚红微光、转入卡泛绿微光（与设计稿同语言）。
             BoxShadow(
-              color: isOut ? AppPalette.expenseDark.withValues(alpha: 0.122) : AppPalette.stockDown.withValues(alpha: 0.122),
+              color: isOut
+                  ? AppPalette.expenseDark.withValues(alpha: 0.122)
+                  : AppPalette.stockDown.withValues(alpha: 0.122),
               blurRadius: 9,
               offset: const Offset(0, 3),
             ),
@@ -2581,7 +2602,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   }
 
   /// 黏土账户头像：未选 = 米白黏土 + 线稿图标；已选 = sage 渐变 + 白图标。
-  Widget _buildFlowAvatar(BuildContext context, {required IconData icon, required bool picked}) {
+  Widget _buildFlowAvatar(BuildContext context,
+      {required IconData icon, required bool picked}) {
     return Container(
       width: 48,
       height: 48,
@@ -2595,11 +2617,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: picked ? Colors.transparent : Theme.of(context).colorScheme.surface.withValues(alpha: 0.6),
+          color: picked
+              ? Colors.transparent
+              : Theme.of(context).colorScheme.surface.withValues(alpha: 0.6),
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: picked ? AppPalette.sage600.withValues(alpha: 0.42) : AppPalette.ink.withValues(alpha: 0.188),
+            color: picked
+                ? AppPalette.sage600.withValues(alpha: 0.42)
+                : AppPalette.ink.withValues(alpha: 0.188),
             blurRadius: picked ? 16 : 10,
             offset: const Offset(0, 4),
           ),
@@ -2616,7 +2642,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   center: Alignment(-0.24, -0.4),
                   radius: 1.4,
                   colors: <Color>[
-                    Theme.of(context).colorScheme.surface.withValues(alpha: picked ? 0.35 : 0.9),
+                    Theme.of(context)
+                        .colorScheme
+                        .surface
+                        .withValues(alpha: picked ? 0.35 : 0.9),
                     Theme.of(context).colorScheme.surface.withValues(alpha: 0),
                   ],
                 ),
@@ -2627,7 +2656,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             child: Icon(
               icon,
               size: 22,
-              color: picked ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.deepInk,
+              color: picked
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : ForestNeutral.deepInk,
             ),
           ),
         ],
@@ -2659,7 +2690,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               ),
             ],
           ),
-          child: Icon(Icons.sync_alt, size: 20, color: Theme.of(context).colorScheme.onPrimary),
+          child: Icon(Icons.sync_alt,
+              size: 20, color: Theme.of(context).colorScheme.onPrimary),
         ),
       ),
     );
@@ -3020,7 +3052,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           style: TextStyle(
             fontSize: 15,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
+            color:
+                selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
             letterSpacing: selected ? 4 : 3,
           ),
         ),
@@ -3084,7 +3117,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               child: Icon(
                 action.icon(_lendDir),
                 size: 20,
-                color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
+                color: selected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : _Sage.ink2,
               ),
             ),
             const SizedBox(height: 5),
@@ -3156,31 +3191,31 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           // 空列表也允许打开选择器：弹窗内有「暂无账户，点击右上角添加」
           // 兜底（＋添加可创建借入/借出账户），禁用点击会卡死无账户场景。
           onTap: () => _showTransferAccountPicker(
-                    label: label,
-                    // 选择器实时 watch 账户流并套用同一过滤口径
-                    filter: match,
-                    selectedId: safe,
-                    // 借入/借出账户可不选（对方已填时仅建债务不动资金）；
-                    // 「资产账户」是还债/收债的资金通道，保存必选。
-                    allowNone: label != '资产账户',
-                    noneSubtitle: '仅计入收支账单，不计入资产',
-                    onChanged: (String? v) {
-                      onChanged(v);
-                      // 选择借入/借出账户时，若对方未填写则自动填入账户名。
-                      if (autoFillCounterparty &&
-                          label != '资产账户' &&
-                          _counterpartyController.text.trim().isEmpty &&
-                          v != null) {
-                        final Account? acc = shown.cast<Account?>().firstWhere(
-                              (Account? a) => a?.id == v,
-                              orElse: () => null,
-                            );
-                        if (acc != null) {
-                          _counterpartyController.text = acc.name;
-                        }
-                      }
-                    },
-                  ),
+            label: label,
+            // 选择器实时 watch 账户流并套用同一过滤口径
+            filter: match,
+            selectedId: safe,
+            // 借入/借出账户可不选（对方已填时仅建债务不动资金）；
+            // 「资产账户」是还债/收债的资金通道，保存必选。
+            allowNone: label != '资产账户',
+            noneSubtitle: '仅计入收支账单，不计入资产',
+            onChanged: (String? v) {
+              onChanged(v);
+              // 选择借入/借出账户时，若对方未填写则自动填入账户名。
+              if (autoFillCounterparty &&
+                  label != '资产账户' &&
+                  _counterpartyController.text.trim().isEmpty &&
+                  v != null) {
+                final Account? acc = shown.cast<Account?>().firstWhere(
+                      (Account? a) => a?.id == v,
+                      orElse: () => null,
+                    );
+                if (acc != null) {
+                  _counterpartyController.text = acc.name;
+                }
+              }
+            },
+          ),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             width: double.infinity,
@@ -3216,7 +3251,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                               ? Icons.account_balance_wallet_outlined
                               : Icons.account_box_outlined,
                           size: 17,
-                          color: picked ? Theme.of(context).colorScheme.onPrimary : _Sage.greenDeep,
+                          color: picked
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : _Sage.greenDeep,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -3249,9 +3286,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             const SizedBox(height: 2),
                             Text(
                               selected?.name ??
-                                  (shown.isEmpty
-                                      ? '暂无账户，点击创建'
-                                      : placeholder),
+                                  (shown.isEmpty ? '暂无账户，点击创建' : placeholder),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: picked ? _Sage.greenDeep : _Sage.ink3,
@@ -3360,7 +3395,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     child: Icon(
                       Icons.account_box_outlined,
                       size: 17,
-                      color: picked ? Theme.of(context).colorScheme.onPrimary : _Sage.greenDeep,
+                      color: picked
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : _Sage.greenDeep,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -3454,8 +3491,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         },
         // 点「不选择具体账户」时 onConfirm 收到 null，用空字符串区分
         // 「明确选择不选择」（''）与「下滑关闭」（null）。
-        onConfirm: (Account? acc) =>
-            Navigator.of(ctx).pop(acc?.name ?? ''),
+        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.name ?? ''),
       ),
     );
 
@@ -3665,7 +3701,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           label,
           style: TextStyle(
             fontSize: 12.5,
-            color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
+            color:
+                selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
@@ -3675,7 +3712,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 借还计算器按钮（ForestSage V1 · 纸感细线）。
   /// 优惠模式下整体降透明度并禁用（优惠不支持计算）。
-  Widget _buildLendCalculatorButton(BuildContext context, {required bool enabled}) {
+  Widget _buildLendCalculatorButton(BuildContext context,
+      {required bool enabled}) {
     return InkWell(
       onTap: enabled ? _openLendFeeCalculator : null,
       borderRadius: BorderRadius.circular(18),
@@ -3914,7 +3952,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             ),
           ),
           const SizedBox(width: 6),
-          const Text('天', style: TextStyle(fontSize: 13, color: AppPalette.ink3)),
+          const Text('天',
+              style: TextStyle(fontSize: 13, color: AppPalette.ink3)),
         ],
       ),
     );
@@ -3924,8 +3963,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 取值存入 [_dueAt]（UTC epoch 毫秒，与 [LendRepository].[occurredAt] 同口径），
   /// 供还款本地提醒按到期日排程。仅「借入 / 借出」本金分支展示，还债 / 减免无到期日。
   Widget _buildLendDueDateField() {
-    final DateTime? due =
-        _dueAt == null ? null : DateTime.fromMillisecondsSinceEpoch(_dueAt!, isUtc: true);
+    final DateTime? due = _dueAt == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(_dueAt!, isUtc: true);
     return DateField(
       label: '到期日',
       value: due,
@@ -3936,6 +3976,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       }),
     );
   }
+
   Widget _buildSageFormulaCell(BuildContext context, List<String> cell) {
     return Container(
       padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
@@ -4187,14 +4228,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             AppDimens.spaceLg,
             AppDimens.spaceLg,
           ),
-        child: AmountKeypad(
-          value: _amount,
-          enabled: !_saving,
-          onChanged: (String v) => setState(() => _amount = v),
-          onSave: () => _save(),
-          onSaveAndMore: () => _save(andMore: true),
-          fourColumns: true,
-        ),
+          child: AmountKeypad(
+            value: _amount,
+            enabled: !_saving,
+            onChanged: (String v) => setState(() => _amount = v),
+            onSave: () => _save(),
+            onSaveAndMore: () => _save(andMore: true),
+            fourColumns: true,
+          ),
         ),
       ],
     );
@@ -4227,6 +4268,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final Money? m = Money.tryParse(t);
     return m?.minor ?? 0;
   }
+
   int get _invAmountMinor => _invMinorOf(_invAmountController.text);
   int get _invPriceMinor => _invMinorOf(_invPriceController.text);
   int get _invFeeMinor => _invMinorOf(_invFeeController.text);
@@ -4331,7 +4373,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           if (label != null) ...<Widget>[
-            Text(label, style: const TextStyle(fontSize: 13, color: _Sage.ink2)),
+            Text(label,
+                style: const TextStyle(fontSize: 13, color: _Sage.ink2)),
             const SizedBox(height: 4),
           ],
           child,
@@ -4362,9 +4405,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        Text(label,
-            style: TextStyle(
-                fontSize: emphasized ? 13 : 12, color: _Sage.ink2)),
+        Text(label, style: TextStyle(fontSize: 13, color: _Sage.ink2)),
         Text(
           value,
           style: TextStyle(
@@ -4381,7 +4422,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   Widget _sageSubLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 10, bottom: 2),
-      child: Text(text, style: const TextStyle(fontSize: 13, color: _Sage.ink2)),
+      child:
+          Text(text, style: const TextStyle(fontSize: 13, color: _Sage.ink2)),
     );
   }
 
@@ -4423,6 +4465,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     onChanged: (String? v) => setState(() => _invAccountId = v),
                     placeholder: '请选择资金账户',
                   ),
+                  const SizedBox(height: 12),
+                  // 成交日期：与各 Tab 同构，走共享日历组件 CalendarSheet
+                  //（写 _occurredAt，保存经 recordBuy/recordSell/updateTrade 落库）。
+                  _dateField(),
                   const SizedBox(height: 12),
                   _buildInvestNoteCard(),
                   const SizedBox(height: 12),
@@ -4477,7 +4523,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         padding: const EdgeInsets.symmetric(vertical: 10),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent, // ignore: no_raw_colors
+          gradient: selected ? _Sage.sage : null,
+          color: selected ? null : Colors.transparent, // ignore: no_raw_colors
           borderRadius: BorderRadius.circular(11),
           boxShadow: selected ? _Sage.pickShadow : null,
         ),
@@ -4808,9 +4855,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     } else {
       final int p = _invPriceMinor;
       if (p <= 0) return const SizedBox.shrink();
-      text = (_invHoldingQtyMicros * p ~/ InvestmentRepository.quantityScale /
-              100)
-          .toStringAsFixed(2);
+      text =
+          (_invHoldingQtyMicros * p ~/ InvestmentRepository.quantityScale / 100)
+              .toStringAsFixed(2);
     }
     return GestureDetector(
       onTap: () {
@@ -4857,7 +4904,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       // 备注是文本字段，保留系统键盘；仅统一透明填充与字号。
       child: TextField(
         controller: _invNoteController,
-        style: const TextStyle(fontSize: 15, color: _Sage.ink),
+        style: const TextStyle(fontSize: 13, color: _Sage.ink),
         decoration: _invDeco(hint: '选填'),
       ),
     );
@@ -4879,8 +4926,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           Expanded(
             child: Text(
               '$rule 投资买卖不计入收支统计 / 预算。',
-              style: const TextStyle(
-                  fontSize: 12, height: 1.5, color: _Sage.ink2),
+              style:
+                  const TextStyle(fontSize: 12, height: 1.5, color: _Sage.ink2),
             ),
           ),
         ],
@@ -4936,7 +4983,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         // 100 股的整数倍。注意 _invQtyMicros 以「手」为口径（×quantityScale），
         // 之前误用 unitsPerInput*quantityScale 作阈值（那是股档位、放大了 100 倍），
         // 导致任意 <100 手（含 35 手）一律被拒保存。
-        final int lotBase = rules.unitsPerInput * InvestmentRepository.quantityScale;
+        final int lotBase =
+            rules.unitsPerInput * InvestmentRepository.quantityScale;
         if (_invQtyBaseMicros <= 0 || _invQtyBaseMicros % lotBase != 0) {
           _toast('A股买入须整手（每手 ${rules.unitsPerInput} 股）');
           return null;
@@ -4965,22 +5013,21 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     // 编辑模式：updateTrade 在仓储内单事务「回滚旧交易影响 → 应用新值 →
     // 删旧流水记新流水」，支持改持仓/方向/金额/单价/手续费/账户/日期/备注。
     if (_editingTxn != null) {
-      final String hid = await ref
-          .read(investmentRepositoryProvider)
-          .updateTrade(
-            original: _editingTxn!,
-            isBuy: _invIsBuy,
-            holdingId: _invHoldingId ?? _editingTxn!.relatedId,
-            symbol: _invSymbol ?? '',
-            name: _invName ?? '',
-            type: _invType,
-            amountMinor: amount,
-            priceMinor: price,
-            feeMinor: fee,
-            accountId: _invAccountId!,
-            note: note.isEmpty ? null : note,
-            occurredAt: occurredAt,
-          );
+      final String hid =
+          await ref.read(investmentRepositoryProvider).updateTrade(
+                original: _editingTxn!,
+                isBuy: _invIsBuy,
+                holdingId: _invHoldingId ?? _editingTxn!.relatedId,
+                symbol: _invSymbol ?? '',
+                name: _invName ?? '',
+                type: _invType,
+                amountMinor: amount,
+                priceMinor: price,
+                feeMinor: fee,
+                accountId: _invAccountId!,
+                note: note.isEmpty ? null : note,
+                occurredAt: occurredAt,
+              );
       return (
         hid: hid,
         isBuy: _invIsBuy,
@@ -5003,18 +5050,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         return null;
       }
       final String hid = await ref.read(investmentRepositoryProvider).recordBuy(
-        bookId: bookId,
-        holdingId: _invHoldingId,
-        symbol: _invSymbol ?? '',
-        name: _invName ?? '',
-        type: _invType,
-        amountMinor: amount,
-        priceMinor: price,
-        feeMinor: fee,
-        accountId: _invAccountId!,
-        note: note.isEmpty ? null : note,
-        occurredAt: occurredAt,
-      );
+            bookId: bookId,
+            holdingId: _invHoldingId,
+            symbol: _invSymbol ?? '',
+            name: _invName ?? '',
+            type: _invType,
+            amountMinor: amount,
+            priceMinor: price,
+            feeMinor: fee,
+            accountId: _invAccountId!,
+            note: note.isEmpty ? null : note,
+            occurredAt: occurredAt,
+          );
       return (
         hid: hid,
         isBuy: true,
@@ -5032,15 +5079,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         return null;
       }
       await ref.read(investmentRepositoryProvider).recordSell(
-        bookId: bookId,
-        holdingId: _invHoldingId!,
-        amountMinor: amount,
-        priceMinor: price,
-        feeMinor: fee,
-        accountId: _invAccountId!,
-        note: note.isEmpty ? null : note,
-        occurredAt: occurredAt,
-      );
+            bookId: bookId,
+            holdingId: _invHoldingId!,
+            amountMinor: amount,
+            priceMinor: price,
+            feeMinor: fee,
+            accountId: _invAccountId!,
+            note: note.isEmpty ? null : note,
+            occurredAt: occurredAt,
+          );
       return (
         hid: _invHoldingId!,
         isBuy: false,
@@ -5121,7 +5168,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 }
               },
               child: SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(
                   AppDimens.spaceLg,
                   AppDimens.spaceMd,
@@ -5220,24 +5268,30 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     VoidCallback? onPick,
     String pickLabel = '选取',
     bool pickIcon = true,
-  }) => Padding(
+  }) =>
+      Padding(
         padding: const EdgeInsets.only(top: 2),
         child: Row(
           children: <Widget>[
             Container(
-              width: 3.5,
-              height: 14,
+              width: 4,
+              height: 15,
               decoration: BoxDecoration(
-                color: _Sage.sageB,
-                borderRadius: BorderRadius.circular(2),
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[_Sage.sageA, _Sage.sageB],
+                ),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
-            const SizedBox(width: 7),
+            const SizedBox(width: AppDimens.spaceSm),
             Text(
               title,
               style: const TextStyle(
                 fontSize: 14.5,
                 fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
                 color: _Sage.ink,
               ),
             ),
@@ -5272,7 +5326,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         Text(
                           pickLabel,
                           style: const TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: _Sage.ink,
                           ),
@@ -5295,8 +5349,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         final List<Account> shown = list
             .where((Account a) => a.type == AccountType.reimbursement)
             .toList(growable: false);
-        final String? safe =
-            shown.any((Account a) => a.id == _rbAccountId) ? _rbAccountId : null;
+        final String? safe = shown.any((Account a) => a.id == _rbAccountId)
+            ? _rbAccountId
+            : null;
         final Account? selected =
             safe == null ? null : shown.firstWhere((Account a) => a.id == safe);
         final bool picked = selected != null;
@@ -5318,8 +5373,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           child: Row(
             children: <Widget>[
               Container(
-                width: 44,
-                height: 44,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   color: picked ? _Sage.greenSoft : ForestBg.sunken,
                   shape: BoxShape.circle,
@@ -5329,7 +5384,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ),
                 child: Icon(
                   accountIcon(selected?.type ?? AccountType.reimbursement),
-                  size: 20,
+                  size: 16,
                   color: picked ? _Sage.greenDeep : _Sage.ink3,
                 ),
               ),
@@ -5415,7 +5470,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             shape: BoxShape.circle,
           ),
           child: Center(
-            child: Icon(Icons.check, size: 14, color: Theme.of(context).colorScheme.onPrimary),
+            child: Icon(Icons.check,
+                size: 14, color: Theme.of(context).colorScheme.onPrimary),
           ),
         ),
       );
@@ -5437,7 +5493,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               : null,
         ),
         child: sel
-            ? Icon(Icons.check, size: 13, color: Theme.of(context).colorScheme.onPrimary)
+            ? Icon(Icons.check,
+                size: 13, color: Theme.of(context).colorScheme.onPrimary)
             : null,
       );
 
@@ -5626,8 +5683,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             ],
           ],
         ],
-        ),
-      );
+      ),
+    );
   }
 
   /// 「全部结束」琥珀胶囊：一键把所选账单全部标记/取消「完成报销」。
@@ -5690,13 +5747,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 日期/时间 + 右侧金额与排除标注；行下方「完成报销(结束此报销)」圆选。
   Widget _rbBillRow(Transaction t) {
     final Map<String, Category> categories =
-        ref.watch(categoryMapProvider).valueOrNull ?? const <String, Category>{};
+        ref.watch(categoryMapProvider).valueOrNull ??
+            const <String, Category>{};
     final Category? cat = categories[t.categoryId];
-    final Color tint = cat?.colorValue != null
-        ? Color(cat!.colorValue!)
-        : _Sage.greenDeep;
+    final Color tint =
+        cat?.colorValue != null ? Color(cat!.colorValue!) : _Sage.greenDeep;
     final Widget leadIcon = cat?.iconKey != null && cat!.iconKey!.isNotEmpty
-        ? LineIcon(categoryLineKind(cat.iconKey) ?? LineIconKind.star, size: 20, color: tint)
+        ? LineIcon(categoryLineKind(cat.iconKey) ?? LineIconKind.star,
+            size: 20, color: tint)
         : Icon(Icons.receipt_long, size: 20, color: tint);
     final String title =
         cat?.name ?? (t.note?.isNotEmpty == true ? t.note! : '支出');
@@ -5801,8 +5859,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         fontWeight: FontWeight.w700,
                         color: finish ? _Sage.ink2 : _Sage.ink,
                         // 勾选「完成报销」后金额划掉。
-                        decoration:
-                            finish ? TextDecoration.lineThrough : null,
+                        decoration: finish ? TextDecoration.lineThrough : null,
                         decorationColor: _Sage.ink3,
                         decorationThickness: 1.6,
                       ),
@@ -6014,8 +6071,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         .where((Transaction t) => _rbHistIds.contains(t.id))
         .fold<int>(0, (int s, Transaction t) {
       final Reimbursement? linked = rbByTxn[t.id];
-      if (linked != null &&
-          linked.status == ReimbursementStatus.reimbursed) {
+      if (linked != null && linked.status == ReimbursementStatus.reimbursed) {
         return s; // 已全额报销，无未报销余额。
       }
       return s + (linked?.amountMinor ?? t.amountMinor);
@@ -6127,10 +6183,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           const Spacer(),
           Text(
             book.valueOrNull?.name ?? '账本',
-            style: const TextStyle(fontSize: 14, color: _Sage.ink2),
+            style: const TextStyle(fontSize: 13, color: _Sage.ink2),
           ),
           const SizedBox(width: 6),
-          const LineIcon(LineIconKind.chevronRight, size: 14, color: _Sage.ink3),
+          const LineIcon(LineIconKind.chevronRight,
+              size: 14, color: _Sage.ink3),
         ],
       ),
     );
@@ -6159,7 +6216,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   const SizedBox(height: 2),
                   Text(
                     _rbDateLabel(),
-                    style: const TextStyle(fontSize: 12, color: _Sage.ink2),
+                    style: const TextStyle(fontSize: 13, color: _Sage.ink2),
                   ),
                 ],
               ),
@@ -6172,8 +6229,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         ),
       );
 
-  String _rbDateLabel() =>
-      DateFormat('yyyy-MM-dd HH:mm').format(_occurredAt);
+  String _rbDateLabel() => DateFormat('yyyy-MM-dd HH:mm').format(_occurredAt);
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -6215,7 +6271,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       );
 
   /// 鼠尾草风格开关（关=沙底 / 开=渐变）。
-  Widget _sageSwitch(bool v, ValueChanged<bool> onChanged, BuildContext context) => GestureDetector(
+  Widget _sageSwitch(
+          bool v, ValueChanged<bool> onChanged, BuildContext context) =>
+      GestureDetector(
         onTap: () => onChanged(!v),
         child: Container(
           width: 50,
@@ -6238,7 +6296,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: <BoxShadow>[
                       BoxShadow(
-                        color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.2),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .shadow
+                            .withValues(alpha: 0.2),
                         blurRadius: 5,
                         offset: Offset(0, 2),
                       ),
@@ -6273,7 +6334,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   contentPadding: EdgeInsets.zero,
                   isCollapsed: true,
                 ),
-                style: const TextStyle(fontSize: 14, color: _Sage.ink),
+                style: const TextStyle(fontSize: 13, color: _Sage.ink),
                 maxLines: 1,
               ),
             ),
@@ -6374,7 +6435,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return <Widget>[
       _buildSectionTitle(
         '原账单',
-        note: _refundOriginals.isEmpty ? null : '已选 ${_refundOriginals.length} 笔',
+        note:
+            _refundOriginals.isEmpty ? null : '已选 ${_refundOriginals.length} 笔',
       ),
       const SizedBox(height: AppDimens.spaceSm),
       _buildRefundOriginalField(),
@@ -6470,7 +6532,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: primary ? Theme.of(context).colorScheme.onPrimary : _Sage.ink,
+              color:
+                  primary ? Theme.of(context).colorScheme.onPrimary : _Sage.ink,
             ),
           ),
         ),
@@ -6549,13 +6612,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     }
     final List<Account> accounts =
         ref.read(accountsProvider).value ?? const <Account>[];
-    final String aid = _refundOriginals
-        .map((Transaction t) => t.accountId)
-        .firstWhere(
-          (String id) =>
-              id.isNotEmpty && accounts.any((Account a) => a.id == id),
-          orElse: () => '',
-        );
+    final String aid =
+        _refundOriginals.map((Transaction t) => t.accountId).firstWhere(
+              (String id) =>
+                  id.isNotEmpty && accounts.any((Account a) => a.id == id),
+              orElse: () => '',
+            );
     if (aid.isEmpty) {
       _toast('原账单未选择资产账户');
       return;
@@ -6629,6 +6691,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             onChanged: (String? v) => setState(() => _accountId = v),
           );
         }
+
         return Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
@@ -6686,9 +6749,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                                 fontWeight: selected == null
                                     ? FontWeight.w400
                                     : FontWeight.w600,
-                                color: selected == null
-                                    ? _Sage.ink3
-                                    : _Sage.ink,
+                                color:
+                                    selected == null ? _Sage.ink3 : _Sage.ink,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -6823,7 +6885,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-              color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink2,
+              color: selected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : _Sage.ink2,
             ),
           ),
         ),
@@ -7079,8 +7143,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         hintStyle:
                             const TextStyle(fontSize: 14, color: _Sage.ink3),
                       ),
-                      style:
-                          const TextStyle(fontSize: 14, color: _Sage.ink),
+                      style: const TextStyle(fontSize: 13, color: _Sage.ink),
                       maxLines: 2,
                       minLines: 1,
                       onTapOutside: (_) => FocusScope.of(context).unfocus(),
@@ -7130,15 +7193,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 const Text(
                   '时间',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                     color: _Sage.ink,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   DateFormat('yyyy-MM-dd HH:mm').format(_occurredAt),
-                  style: const TextStyle(fontSize: 12.5, color: _Sage.ink2),
+                  style: const TextStyle(fontSize: 13, color: _Sage.ink2),
                 ),
               ],
             ),
@@ -7183,8 +7246,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           const Text(
             '账本',
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
               color: _Sage.ink,
             ),
           ),
@@ -7704,7 +7767,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       // 逆地理编码：行政/市/区/路逐级拼成地名；失败不影响坐标存储。
       String? name;
       try {
-        final List<Placemark> marks = await Geocoding().placemarkFromCoordinates(
+        final List<Placemark> marks =
+            await Geocoding().placemarkFromCoordinates(
           pos.latitude,
           pos.longitude,
         );
@@ -7842,7 +7906,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 border: hovered
                     ? Border.all(color: AppPalette.ctaForest, width: 2.5)
                     : null,
-                color: hovered ? AppPalette.stockDown.withValues(alpha: 0.102) : null,
+                color: hovered
+                    ? AppPalette.stockDown.withValues(alpha: 0.102)
+                    : null,
               ),
               child: _buildAttachmentThumb(path),
             ),
@@ -8575,7 +8641,9 @@ class _CategoryItem extends StatelessWidget {
                 // 设计稿 .cat.on .lb：白字 w700（渐变已换 sageGrad 中饱和绿，
                 // 白字对比达标；此前浅粉彩渐变下用 ForestSage.ink 属权宜之计）
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.textPrimary,
+                color: selected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : ForestNeutral.textPrimary,
               ),
             ),
           ],
@@ -8609,7 +8677,8 @@ class _ClayIconTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 加深黏土底：分类色混入比例 0.32 → 0.5（用户反馈图标整体偏淡）
-    final Color tint = Color.lerp(Colors.white, color, 0.5)!; // ignore: no_raw_colors
+    final Color tint =
+        Color.lerp(Colors.white, color, 0.5)!; // ignore: no_raw_colors
     return Container(
       width: 42,
       height: 42,
@@ -8656,8 +8725,14 @@ class _ClayIconTile extends StatelessWidget {
                     center: Alignment(-0.2, -0.3),
                     radius: 0.9,
                     colors: <Color>[
-                      Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
-                      Theme.of(context).colorScheme.surface.withValues(alpha: 0),
+                      Theme.of(context)
+                          .colorScheme
+                          .surface
+                          .withValues(alpha: 0.92),
+                      Theme.of(context)
+                          .colorScheme
+                          .surface
+                          .withValues(alpha: 0),
                     ],
                   ),
                 ),
@@ -8772,7 +8847,8 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
     if (kind != null) {
       return LineIcon(kind, size: 22, color: color);
     }
-    return LineIcon(categoryLineKind(iconKey) ?? LineIconKind.star, size: 22, color: color);
+    return LineIcon(categoryLineKind(iconKey) ?? LineIconKind.star,
+        size: 22, color: color);
   }
 
   @override
@@ -9105,10 +9181,9 @@ class _DiscountSheetState extends State<DiscountSheet> {
   /// - 「输入优惠金额」模式：优惠前锁定为上一页金额，主页面金额不动，只回传
   ///   优惠（base 为 null）。
   void _confirm() {
-    final String? base =
-        _mode == 'original' && _base.trim().isNotEmpty
-            ? _normalize(_base.trim())
-            : null;
+    final String? base = _mode == 'original' && _base.trim().isNotEmpty
+        ? _normalize(_base.trim())
+        : null;
     Navigator.of(context).pop((base, _normalize(_amt)));
   }
 
@@ -9251,14 +9326,16 @@ class _DiscountSheetState extends State<DiscountSheet> {
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
-                ? AppPalette.sage800.withValues(alpha: 0.251) // rgba(46,91,57,.25)
+                ? AppPalette.sage800
+                    .withValues(alpha: 0.251) // rgba(46,91,57,.25)
                 : ForestNeutral.hairline,
             width: 1.5,
           ),
           boxShadow: selected
               ? <BoxShadow>[
                   BoxShadow(
-                    color: AppPalette.stockDown.withValues(alpha: 0.2), // rgba(60,138,96,.20)
+                    color: AppPalette.stockDown
+                        .withValues(alpha: 0.2), // rgba(60,138,96,.20)
                     blurRadius: 14,
                     offset: Offset(0, 4),
                   ),
@@ -9276,7 +9353,9 @@ class _DiscountSheetState extends State<DiscountSheet> {
               ),
               child: Center(
                 child: selected
-                    ? Icon(Icons.check, size: 12, color: Theme.of(context).colorScheme.onPrimary)
+                    ? Icon(Icons.check,
+                        size: 12,
+                        color: Theme.of(context).colorScheme.onPrimary)
                     : const Text(
                         '¥',
                         style: TextStyle(
@@ -9293,7 +9372,9 @@ class _DiscountSheetState extends State<DiscountSheet> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                color: selected ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.textTertiary,
+                color: selected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : ForestNeutral.textTertiary,
               ),
             ),
             if (algoLabel != null) ...<Widget>[
@@ -9346,7 +9427,8 @@ class _DiscountSheetState extends State<DiscountSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppPalette.sage800.withValues(alpha: 0.2), // rgba(46,91,57,.20)
+                color: AppPalette.sage800
+                    .withValues(alpha: 0.2), // rgba(46,91,57,.20)
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -9407,7 +9489,8 @@ class _DiscountSheetState extends State<DiscountSheet> {
                 border: Border.all(color: ForestNeutral.hairline),
                 boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: AppPalette.sage900.withValues(alpha: 0.078), // rgba(44,51,41,.08)
+                    color: AppPalette.sage900
+                        .withValues(alpha: 0.078), // rgba(44,51,41,.08)
                     blurRadius: 12,
                     offset: Offset(0, 4),
                   ),
@@ -9452,7 +9535,8 @@ class _DiscountSheetState extends State<DiscountSheet> {
                       boxShadow: focused == 'paid'
                           ? <BoxShadow>[
                               BoxShadow(
-                                color: AppPalette.stockDown.withValues(alpha: 0.349), // rgba(46,138,96,.35)
+                                color: AppPalette.stockDown.withValues(
+                                    alpha: 0.349), // rgba(46,138,96,.35)
                                 blurRadius: 0,
                                 spreadRadius: 2,
                               ),
@@ -9765,7 +9849,8 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                         final double h = (c.maxHeight - 6 - 2 * gap) / 3;
                         final double cell = w < h ? w : h;
                         return GridView.count(
-                          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
                           crossAxisCount: 3,
                           shrinkWrap: true,
                           padding: const EdgeInsets.only(top: 6, right: 6),
@@ -9877,7 +9962,9 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                 border: hovered
                     ? Border.all(color: ForestGreen.deep, width: 2.5)
                     : null,
-                color: hovered ? AppPalette.stockDown.withValues(alpha: 0.102) : null,
+                color: hovered
+                    ? AppPalette.stockDown.withValues(alpha: 0.102)
+                    : null,
               ),
               child: _thumb(path),
             ),
@@ -9926,7 +10013,8 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                 shape: BoxShape.circle,
                 border: Border.all(color: ForestBg.paper, width: 1.5),
               ),
-              child: Icon(Icons.close, size: 12, color: Theme.of(context).colorScheme.onPrimary),
+              child: Icon(Icons.close,
+                  size: 12, color: Theme.of(context).colorScheme.onPrimary),
             ),
           ),
         ),
@@ -9969,7 +10057,9 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
               style: TextStyle(
                 fontSize: selected ? 15.5 : 14.5,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                color: selected ? Theme.of(context).colorScheme.onPrimary : ForestSage.label,
+                color: selected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : ForestSage.label,
                 letterSpacing: selected ? 0.06 : 0.04,
               ),
             ),
@@ -10820,16 +10910,11 @@ class _InvestHoldingPickerSheetState
     if (_metaLoading.contains(type)) return;
     _metaLoading.add(type);
     unawaited(
-      ref
-          .read(marketServiceProvider)
-          .ensureCandidates(type)
-          .then((_) {
-            if (mounted) ref.invalidate(securityMetaSearchProvider);
-          })
-          .catchError((Object _) {
-            // 忽略：候选库为空时仅本地持仓补全可用。
-          })
-          .whenComplete(() => _metaLoading.remove(type)),
+      ref.read(marketServiceProvider).ensureCandidates(type).then((_) {
+        if (mounted) ref.invalidate(securityMetaSearchProvider);
+      }).catchError((Object _) {
+        // 忽略：候选库为空时仅本地持仓补全可用。
+      }).whenComplete(() => _metaLoading.remove(type)),
     );
   }
 
@@ -11259,8 +11344,7 @@ class _InvestHoldingPickerSheetState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             TextField(
-              decoration:
-                  const InputDecoration(labelText: '代码（如 110022）'),
+              decoration: const InputDecoration(labelText: '代码（如 110022）'),
               controller: _symbolCtrl,
               focusNode: _symbolFocus,
               textInputAction: TextInputAction.next,
@@ -11268,8 +11352,7 @@ class _InvestHoldingPickerSheetState
             _suggestArea(_symbolCtrl.text),
             const SizedBox(height: 8),
             TextField(
-              decoration:
-                  const InputDecoration(labelText: '名称（如 沪深300ETF）'),
+              decoration: const InputDecoration(labelText: '名称（如 沪深300ETF）'),
               controller: _nameCtrl,
             ),
             _suggestArea(_nameCtrl.text),
@@ -11560,7 +11643,9 @@ class _HoldingTile extends StatelessWidget {
               fontSize: 13.5,
               height: 1.2,
               fontWeight: FontWeight.w700,
-              color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink,
+              color: selected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : _Sage.ink,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -11570,7 +11655,11 @@ class _HoldingTile extends StatelessWidget {
             width: double.infinity,
             alignment: Alignment.centerRight,
             child: Text(
-              pending ? '待建仓' : cleared ? '已清仓' : money.format(),
+              pending
+                  ? '待建仓'
+                  : cleared
+                      ? '已清仓'
+                      : money.format(),
               style: TextStyle(
                 fontSize: 14,
                 height: 1.2,
@@ -11594,7 +11683,10 @@ class _HoldingTile extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                 decoration: BoxDecoration(
                   color: selected
-                      ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.549)
+                      ? Theme.of(context)
+                          .colorScheme
+                          .surface
+                          .withValues(alpha: 0.549)
                       : _Sage.greenSoft,
                   borderRadius: BorderRadius.circular(999),
                 ),
@@ -11617,7 +11709,10 @@ class _HoldingTile extends StatelessWidget {
                   fontSize: 10.5,
                   height: 1.2,
                   color: selected
-                      ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.85)
+                      ? Theme.of(context)
+                          .colorScheme
+                          .onPrimary
+                          .withValues(alpha: 0.85)
                       : _Sage.ink3,
                   fontFeatures: const <FontFeature>[
                     FontFeature.tabularFigures(),
@@ -11714,7 +11809,11 @@ class _HoldingRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              pending ? '待建仓' : cleared ? '已清仓' : money.format(),
+              pending
+                  ? '待建仓'
+                  : cleared
+                      ? '已清仓'
+                      : money.format(),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -11766,9 +11865,8 @@ class _InvestmentReceiptCard extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final String verb = isBuy ? '买入' : '卖出';
     // 账户余额影响：买入扣款（负）、卖出到账（正）。
-    final int signedNet = isBuy
-        ? -(amountMinor + feeMinor)
-        : (amountMinor - feeMinor);
+    final int signedNet =
+        isBuy ? -(amountMinor + feeMinor) : (amountMinor - feeMinor);
     final Color accent = isBuy ? AppPalette.expense : AppPalette.income;
     return SafeArea(
       child: Container(
@@ -11784,7 +11882,8 @@ class _InvestmentReceiptCard extends StatelessWidget {
           children: <Widget>[
             Row(
               children: <Widget>[
-                Icon(Icons.receipt_long_outlined, color: AppPalette.textSecondary),
+                Icon(Icons.receipt_long_outlined,
+                    color: AppPalette.textSecondary),
                 const SizedBox(width: AppDimens.spaceSm),
                 Text(
                   '成交回执',
@@ -11902,10 +12001,7 @@ class _ReceiptRow extends StatelessWidget {
             const Spacer(),
             Text(
               value,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: valueColor,
                   ),

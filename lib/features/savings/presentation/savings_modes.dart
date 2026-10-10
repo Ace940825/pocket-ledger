@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icons.dart';
 
 /// 存钱模式预设（参照小青账「存钱模式选择」）。
 ///
@@ -19,7 +19,7 @@ enum SavingsMode {
     defaultName: '365天存钱挑战',
     presetTargetMinor: 6679500,
     presetDeadlineDays: 365,
-    icon: Icons.savings_outlined,
+    icon: LineIconKind.depositIn,
   ),
   countdown30(
     label: '30天倒数存钱法',
@@ -27,7 +27,7 @@ enum SavingsMode {
     defaultName: '30天倒数存钱',
     presetTargetMinor: 558000,
     presetDeadlineDays: 365,
-    icon: Icons.event_repeat_outlined,
+    icon: LineIconKind.calendar,
   ),
   monthly12(
     label: '12月定额存钱法',
@@ -35,7 +35,7 @@ enum SavingsMode {
     defaultName: '12月定额存钱',
     presetTargetMinor: null,
     presetDeadlineDays: 365,
-    icon: Icons.calendar_month_outlined,
+    icon: LineIconKind.installment,
   ),
   weekday(
     label: '星期存钱法',
@@ -43,7 +43,7 @@ enum SavingsMode {
     defaultName: '星期存钱挑战',
     presetTargetMinor: 1456000,
     presetDeadlineDays: 365,
-    icon: Icons.date_range_outlined,
+    icon: LineIconKind.allowance,
   ),
   weeks52(
     label: '52周存钱法',
@@ -52,7 +52,7 @@ enum SavingsMode {
     // 10+20+…+520 = 10 × (1+2+…+52) = 13,780 元。
     presetTargetMinor: 1378000,
     presetDeadlineDays: 364, // 52 周 = 364 天
-    icon: Icons.view_week_outlined,
+    icon: LineIconKind.trendUp,
   ),
   fixed(
     label: '定额存钱法',
@@ -60,7 +60,7 @@ enum SavingsMode {
     defaultName: '定额存钱计划',
     presetTargetMinor: null,
     presetDeadlineDays: null,
-    icon: Icons.check_circle_outline,
+    icon: LineIconKind.moneyBag,
   ),
   elastic(
     label: '弹性存钱法',
@@ -68,7 +68,7 @@ enum SavingsMode {
     defaultName: '弹性存钱计划',
     presetTargetMinor: null,
     presetDeadlineDays: null,
-    icon: Icons.trending_up_outlined,
+    icon: LineIconKind.settings,
   ),
   flexible(
     label: '灵活存钱法',
@@ -76,7 +76,16 @@ enum SavingsMode {
     defaultName: '灵活存钱目标',
     presetTargetMinor: null,
     presetDeadlineDays: null,
-    icon: Icons.auto_awesome_outlined,
+    icon: LineIconKind.star,
+  ),
+  rolling36(
+    label: '36期滚存法',
+    description: '每月存固定本金，每张3年定期，到期本息取整后自动续存，'
+        '可填利率算利息、支持银行浮动利率调整',
+    defaultName: '36期滚存存钱计划',
+    presetTargetMinor: null,
+    presetDeadlineDays: null,
+    icon: LineIconKind.interest,
   );
 
   const SavingsMode({
@@ -103,8 +112,8 @@ enum SavingsMode {
   /// 预填截止日期（从今天起算的天数）；null = 不设截止。
   final int? presetDeadlineDays;
 
-  /// 选择卡图标。
-  final IconData icon;
+  /// 选择卡图标（A3 线稿）。
+  final LineIconKind icon;
 
   /// 预填备注 = 玩法说明。
   String get presetNote => description;

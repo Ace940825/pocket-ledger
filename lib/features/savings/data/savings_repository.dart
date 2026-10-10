@@ -5,6 +5,8 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../database/sync_enqueue.dart';
 import '../../../domain/enums.dart';
+import '../domain/savings_rolling_plan.dart';
+import 'savings_rolling_repository.dart';
 
 /// 储蓄目标仓储。
 ///
@@ -521,5 +523,64 @@ class SavingsRepository {
         updatedAt: now,
       );
     });
+  }
+
+  /// 创建「36 期滚存法」计划：在一个事务内写入 [SavingsGoals]（mode=
+  /// 'rolling36'，开放式目标 targetMinor=0）+ 滚存计划配置行。
+  ///
+  /// [plan] 只需携带业务参数（首期本金 / 利率 / 期限 / 期数 / 取整 / 滚存 /
+  /// 利率调整记录）；id / goalId / bookId / updatedAt 由本方法补全。
+  Future<String> createRolling({
+    required String bookId,
+    required String name,
+    String? note,
+    required SavingsRollingPlan plan,
+  }) async {
+    final String goalId = const Uuid().v7();
+    final String planId = const Uuid().v7();
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final SavingsRollingPlan fullPlan = plan.copyWith(
+      id: planId,
+      goalId: goalId,
+      bookId: bookId,
+      updatedAt: now,
+    );
+    await _db.transaction<void>(() async {
+      await _db.into(_db.savingsGoals).insert(
+            SavingsGoalsCompanion.insert(
+              updatedAt: now,
+              id: goalId,
+              bookId: bookId,
+              name: name.trim(),
+              // 滚存计划为开放式：目标金额不参与进度，置 0。
+              targetMinor: 0,
+              mode: const Value<String>('rolling36'),
+              repeatCycle: const Value<String>('每月1日'),
+              endNote: const Value<String?>(null),
+              note: Value<String?>(note),
+              startedAt: Value<int>(now),
+              dirty: const Value<bool>(true),
+              elasticMode: const Value<int>(1),
+            ),
+          );
+      await enqueueSyncOp(
+        _db,
+        table: 'savings_goals',
+        recordId: goalId,
+        opType: SyncOpType.insert,
+        updatedAt: now,
+        payload: <String, Object?>{
+          'name': name.trim(),
+          'mode': 'rolling36',
+        },
+      );
+      await SavingsRollingRepository(_db).upsert(fullPlan);
+    });
+    return goalId;
+  }
+
+  /// 删除「36 期滚存法」计划：删除 goal 时级联清理滚存配置行。
+  Future<void> deleteRolling(String goalId) async {
+    await SavingsRollingRepository(_db).deleteByGoalId(goalId);
   }
 }

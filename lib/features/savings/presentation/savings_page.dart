@@ -11,10 +11,13 @@ import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
 import '../../../shared/widgets/section_header.dart';
 import '../data/savings_repository.dart';
+import '../domain/rolling_calculator.dart';
+import '../domain/savings_rolling_plan.dart';
 import '../providers/savings_providers.dart';
 import 'savings_goal_detail_page.dart';
 import 'savings_goal_edit_page.dart';
 import 'savings_mode_create_page.dart';
+import 'savings_rolling_create_page.dart';
 import 'savings_mode_sheet.dart';
 import 'savings_modes.dart';
 import 'savings_schedule.dart';
@@ -57,6 +60,15 @@ class SavingsPage extends ConsumerWidget {
 
   /// 模式卡点击 → 进对应模式的独立创建页。
   Future<void> _openCreate(BuildContext context, SavingsMode mode) async {
+    // 36 期滚存法使用独立的多参数创建页（含实时收益预览 + 利率调整记录）。
+    if (mode == SavingsMode.rolling36) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const SavingsRollingCreatePage(),
+        ),
+      );
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SavingsModeCreatePage(mode: mode),
@@ -175,12 +187,20 @@ Future<void> _setArchived(
 /// 点卡片进计划详情页（逐期存入排期 / 日历 / 进度，管理动作在详情页）；
 /// 横向留白交给宿主页面（记账页自身有页边距），纵向固定 8。
 class SavingsGoalTile extends ConsumerWidget {
-  const SavingsGoalTile({super.key, required this.goal, this.onTap});
+  const SavingsGoalTile({
+    super.key,
+    required this.goal,
+    this.onTap,
+    this.headerTrailing,
+  });
 
   final SavingsGoal goal;
 
   /// 覆盖点击行为（详情页内复用本卡时传 no-op）；默认跳计划详情页。
   final VoidCallback? onTap;
+
+  /// 头行「编辑」胶囊左侧的附加动作（详情页滚存计划传「调整」入口）。
+  final Widget? headerTrailing;
 
   /// goal.mode 字符串反查枚举（历史数据 / 未知值 → null）。
   SavingsMode? get _mode {
@@ -204,8 +224,21 @@ class SavingsGoalTile extends ConsumerWidget {
       SavingsMode.weeks52 ||
       SavingsMode.elastic =>
         '递增模式',
+      SavingsMode.rolling36 => '滚存模式',
       null => null,
     };
+
+    // 有期限的滚存计划：目标金额未设（targetMinor = 0）时显「预计到期总额」
+    // （模拟引擎实时估算，利率 / 金额 / 周期调整后随 provider 刷新）。
+    int displayMinor = goal.targetMinor;
+    if (mode == SavingsMode.rolling36) {
+      final SavingsRollingPlan? plan =
+          ref.watch(rollingPlanProvider(goal.id)).value;
+      if (plan != null) {
+        displayMinor =
+            (RollingCalculator.simulate(plan).finalMaturityYuan * 100).round();
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -223,7 +256,7 @@ class SavingsGoalTile extends ConsumerWidget {
             children: <Widget>[
               _headerRow(context, mode),
               const SizedBox(height: 12),
-              _bodyRow(context, categoryLabel),
+              _bodyRow(context, categoryLabel, displayMinor),
               const SizedBox(height: 12),
               _metaRow(context, ref),
             ],
@@ -257,6 +290,11 @@ class SavingsGoalTile extends ConsumerWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        // 附加动作（详情页滚存计划的「调整」入口，可空）。
+        if (headerTrailing != null) ...<Widget>[
+          headerTrailing!,
+          const SizedBox(width: 8),
+        ],
         // 「编辑」胶囊：灰底圆角，点击跳转独立编辑页（名称 / 备注 / 快捷属性）。
         InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -278,7 +316,9 @@ class SavingsGoalTile extends ConsumerWidget {
   }
 
   /// 行2：头像 + 名称 + 备注行 ｜ 大字目标金额 + 模式胶囊·已存入。
-  Widget _bodyRow(BuildContext context, String? categoryLabel) {
+  /// [displayMinor]：滚存计划 = 预计到期总额（预估），其余 = 目标金额。
+  Widget _bodyRow(
+      BuildContext context, String? categoryLabel, int displayMinor) {
     final ThemeData theme = Theme.of(context);
     final String? note =
         (goal.note == null || goal.note!.isEmpty) ? null : goal.note;
@@ -334,9 +374,8 @@ class SavingsGoalTile extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: <Widget>[
             Text(
-              Money.fromMinor(goal.targetMinor).format(),
-              style:
-                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              Money.fromMinor(displayMinor).format(),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
             // 模式胶囊（递增/递减/定额）+ 已存入金额同行。
@@ -345,8 +384,8 @@ class SavingsGoalTile extends ConsumerWidget {
               children: <Widget>[
                 if (categoryLabel != null) ...<Widget>[
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppPalette.softGreen,
                       borderRadius: BorderRadius.circular(6),

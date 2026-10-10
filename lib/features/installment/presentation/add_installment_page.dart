@@ -322,17 +322,23 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           children: <Widget>[
             Container(
               width: 4,
-              height: 16,
+              height: 15,
               decoration: BoxDecoration(
-                color: AppPalette.primary,
-                borderRadius: BorderRadius.circular(2),
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[AppPalette.sageMist, AppPalette.sageRibbon],
+                ),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
             const SizedBox(width: AppDimens.spaceSm),
             Text(
               title,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
                     color: AppPalette.textPrimary,
                   ),
             ),
@@ -343,7 +349,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           padding: const EdgeInsets.all(AppDimens.spaceMd),
           decoration: BoxDecoration(
             color: AppPalette.surfaceLight,
-            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,7 +365,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     for (int i = 0; i < children.length; i++) {
       result.add(children[i]);
       if (i < children.length - 1) {
-        result.add(const Divider(height: 24, indent: 0));
+        result.add(const Divider(
+            height: 24, thickness: 1, color: AppPalette.hairline));
       }
     }
     return result;
@@ -409,7 +416,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       enabledBorder: border,
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        borderSide: const BorderSide(color: AppPalette.primary),
+        borderSide: const BorderSide(color: AppPalette.sage500),
       ),
       disabledBorder: border,
       errorBorder: OutlineInputBorder(
@@ -457,13 +464,13 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             height: 24,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppPalette.primary.withValues(alpha: 0.12),
+              color: AppPalette.sage500.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppDimens.radiusSm),
             ),
             child: Text(
               '¥',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppPalette.primary,
+                    color: AppPalette.sage700,
                     fontWeight: FontWeight.w700,
                   ),
             ),
@@ -702,7 +709,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             const Divider(height: 1),
             Flexible(
               child: ListView.builder(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 shrinkWrap: true,
                 itemCount: options.length,
                 itemBuilder: (BuildContext ctx, int index) {
@@ -710,7 +718,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   return ListTile(
                     title: Text(option),
                     trailing: option == selected
-                        ? const Icon(Icons.check, color: AppPalette.primary)
+                        ? const Icon(Icons.check, color: AppPalette.sage600)
                         : null,
                     onTap: () => Navigator.of(ctx).pop(option),
                   );
@@ -812,10 +820,12 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           children: <Widget>[
             CircleAvatar(
               radius: 14,
-              backgroundColor: AppPalette.primary,
+              backgroundColor: AppPalette.sage500,
               child: Text(
                 '账',
-                style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 12),
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontSize: 12),
               ),
             ),
             const SizedBox(width: AppDimens.spaceSm),
@@ -905,9 +915,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         return SafeArea(
           child: StatefulBuilder(
             builder: (BuildContext ctx, StateSetter setSheetState) {
-              final List<Category> items = drilled == null
-                  ? parents
-                  : childrenOf(drilled!);
+              final List<Category> items =
+                  drilled == null ? parents : childrenOf(drilled!);
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -917,8 +926,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       children: <Widget>[
                         if (drilled != null)
                           InkWell(
-                            onTap: () =>
-                                setSheetState(() => drilled = null),
+                            onTap: () => setSheetState(() => drilled = null),
                             borderRadius: BorderRadius.circular(16),
                             child: const Padding(
                               padding: EdgeInsets.all(4),
@@ -965,7 +973,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                                 : (category.id == _categoryId
                                     ? const Icon(
                                         Icons.check,
-                                        color: AppPalette.primary,
+                                        color: AppPalette.sage600,
                                       )
                                     : null),
                             onTap: () {
@@ -985,7 +993,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                           trailing: category.id == _categoryId
                               ? const Icon(
                                   Icons.check,
-                                  color: AppPalette.primary,
+                                  color: AppPalette.sage600,
                                 )
                               : null,
                           onTap: () => Navigator.of(ctx).pop(category.id),
@@ -1016,8 +1024,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         AppDimens.spaceLg,
       ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline)),
+        color: AppPalette.surfaceLight,
+        border: Border(top: BorderSide(color: AppPalette.hairline)),
       ),
       child: Row(
         children: <Widget>[
@@ -1135,7 +1143,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             const Divider(height: 1),
             Flexible(
               child: ListView.builder(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 shrinkWrap: true,
                 itemCount: _periods,
                 itemBuilder: (BuildContext ctx, int index) {
@@ -1279,7 +1288,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
           width: 48,
           height: 30,
           child: Center(
-            child:             KeypadField(
+            child: KeypadField(
               controller: _controller,
               allowDecimal: false,
               textAlign: TextAlign.center,

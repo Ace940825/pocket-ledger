@@ -3,10 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import '../data/savings_repository.dart';
+import '../data/savings_rolling_repository.dart';
+import '../domain/savings_rolling_plan.dart';
+
+/// 储蓄详情期卡形态（网格 / 列表）SharedPreferences 键。
+/// 其他计划与滚存时间轴共用：切换即写、进页即读，跨页 / 重启保持记忆。
+const String kSavingsCardGridPref = 'savings_detail_card_grid';
 
 final Provider<SavingsRepository> savingsRepositoryProvider =
     Provider<SavingsRepository>(
   (Ref ref) => SavingsRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// 36 期滚存计划仓储。
+final Provider<SavingsRollingRepository> savingsRollingRepositoryProvider =
+    Provider<SavingsRollingRepository>(
+  (Ref ref) => SavingsRollingRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// 按 goalId 实时监听滚存计划配置（详情页 / 编辑页用）。
+final StreamProviderFamily<SavingsRollingPlan?, String> rollingPlanProvider =
+    StreamProvider.family<SavingsRollingPlan?, String>(
+  (Ref ref, String goalId) =>
+      ref.watch(savingsRollingRepositoryProvider).watchByGoalId(goalId),
 );
 
 final StreamProvider<List<SavingsGoal>> savingsListProvider =
@@ -26,8 +45,8 @@ final StreamProvider<List<SavingsGoal>> savingsArchivedProvider =
 
 /// 某计划的逐期存入台账（详情页期卡「已存入 / 未存入」标记）。
 final StreamProviderFamily<List<SavingsDeposit>, String>
-    savingsDepositsProvider = StreamProvider.family<List<SavingsDeposit>,
-        String>(
+    savingsDepositsProvider =
+    StreamProvider.family<List<SavingsDeposit>, String>(
   (Ref ref, String goalId) =>
       ref.watch(savingsRepositoryProvider).watchDeposits(goalId),
 );

@@ -12,15 +12,19 @@ import '../../../shared/widgets/app_toast.dart' show showAppToast;
 import '../../../routing/app_router.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
+import '../../record/providers/recording_settings_provider.dart' show appPrefs;
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/calendar_month_view.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/module_list_scaffold.dart' show confirmDelete;
 import '../data/savings_repository.dart';
+import '../domain/rolling_calculator.dart';
+import '../domain/savings_rolling_plan.dart';
 import '../providers/savings_providers.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import 'savings_page.dart';
 import 'savings_modes.dart';
+import 'savings_rolling_detail_widgets.dart';
 import '../../../domain/enums.dart';
 import '../../ledger/data/transaction_repository.dart';
 import '../../categories/data/category_repository.dart';
@@ -74,6 +78,20 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
   bool _calendarExpanded = false;
 
   @override
+  void initState() {
+    super.initState();
+    // 期卡形态记忆：读全局偏好（与其他计划 / 滚存时间轴共用一键），
+    // 切换时写回，重新进入 / 重启保持上次选择。
+    _grid = appPrefs.getBool(kSavingsCardGridPref) ?? true;
+  }
+
+  /// 形态切换并持久化。
+  void _toggleGrid() {
+    setState(() => _grid = !_grid);
+    appPrefs.setBool(kSavingsCardGridPref, _grid);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final AsyncValue<List<SavingsGoal>> goals = ref.watch(savingsListProvider);
     final List<SavingsGoal> list = goals.value ?? const <SavingsGoal>[];
@@ -116,6 +134,26 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     final bool isFlexible = goal.mode == SavingsMode.flexible.name;
     final bool noSchedule = isFlexible;
     final bool noEnd = goal.endNote == null;
+    // 36 期滚存法：无逐期排期，用专用「汇总卡 + 滚存时间轴」展示。
+    final bool isRolling = goal.mode == SavingsMode.rolling36.name;
+    // 滚存计划配置（异步监听，详情页用）。
+    final AsyncValue<SavingsRollingPlan?> rolling =
+        ref.watch(rollingPlanProvider(widget.goalId));
+    // 滚存排期（计划加载完成后生成）：逐月应存额 = baseAtPeriod(月序)，
+    // 供「日历」卡（每月存入金额）与「存钱进度」卡（结束日期）复用。
+    final SavingsRollingPlan? rollingPlan = isRolling ? rolling.value : null;
+    final List<SavingsScheduleEntry> rollingEntries =
+        (isRolling && rollingPlan != null)
+            ? _rollingEntries(goal, rollingPlan)
+            : const <SavingsScheduleEntry>[];
+    // 滚存进度目标 = 模拟期限内计划现金投入总额（滚存目标为开放式 targetMinor=0，
+    // 不能直接用 goal.targetMinor 算进度）。
+    final int rollingTargetMinor = (isRolling && rollingPlan != null)
+        ? RollingCalculator.simulate(rollingPlan).cashPrincipalMinor
+        : 0;
+    // 滚存各月「实际累计」已废弃：时间轴卡片「累计」= 单张存单自己的
+    // 到期本息（每期新存单是独立存单，不跨期累加），由 RollingTimelineCard
+    // 内部按存单折算。
 
     // 年份集合 + 当前选择归位。
     final Set<int> years =
@@ -145,20 +183,48 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: <Widget>[
-          // 顶部计划卡（与列表一致，点击不弹面板）。
-          SavingsGoalTile(goal: goal, onTap: () {}),
+          // 顶部计划卡（与列表一致，点击不弹面板）；
+          // 滚存计划把「调整」入口挂在「编辑」旁（原汇总卡头行迁入）。
+          SavingsGoalTile(
+            goal: goal,
+            onTap: () {},
+            headerTrailing: (isRolling && rollingPlan != null)
+                ? _adjustPill(rollingPlan)
+                : null,
+          ),
           const SizedBox(height: 4),
           // 「日历」卡（默认折叠，点标题行展开 / 收起）；
-          // 仅灵活存钱法无逐期排期，隐藏。
-          if (!noSchedule) _calendarCard(deposits, entries),
-          if (!noSchedule) const SizedBox(height: 12),
-          // 「存钱进度」卡。
-          _progressCard(context, goal, entries, noEnd: noEnd || isFlexible),
-          const SizedBox(height: 12),
+          // 仅灵活存钱法无逐期排期，隐藏；滚存法用滚存排期（逐月应存）渲染。
+          if (!noSchedule && (!isRolling || rollingEntries.isNotEmpty))
+            _calendarCard(deposits, isRolling ? rollingEntries : entries),
+          if (!noSchedule && (!isRolling || rollingEntries.isNotEmpty))
+            const SizedBox(height: 12),
+          // 「存钱进度」卡：滚存法按「计划现金投入总额」算进度，
+          // 结束日期取排期末期（模拟期限）。
+          if (!isRolling)
+            _progressCard(context, goal, entries, noEnd: noEnd || isFlexible)
+          else if (rollingTargetMinor > 0)
+            _progressCard(
+              context,
+              goal,
+              rollingEntries,
+              noEnd: false,
+              targetMinorOverride: rollingTargetMinor,
+            ),
+          if ((!isRolling || rollingTargetMinor > 0))
+            const SizedBox(height: 12),
           // 灵活存钱法：无逐期排期，提供醒目「存入一笔」入口；
           // 进度按实际存入金额计算。其余模式（含不结束的滚动排期）：
           // 年份筛选 + 期卡网格/列表。
-          if (noSchedule)
+          if (isRolling) ...<Widget>[
+            const SizedBox(height: 12),
+            _rollingSection(
+              rolling,
+              goal,
+              rollingEntries,
+              depositedByIndex,
+            ),
+          ] else if (noSchedule)
             _flexibleDepositButton(context, goal)
           else ...<Widget>[
             Row(
@@ -206,7 +272,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                     size: 20,
                     color: AppPalette.deepGreen,
                   ),
-                  onPressed: () => setState(() => _grid = !_grid),
+                  onPressed: _toggleGrid,
                 ),
               ],
             ),
@@ -320,16 +386,20 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
   /// 「存钱进度」卡：已存 / 剩余 + 进度条 + 开始 / 结束日期。
   /// 灵活存钱法 [isFlexible]=true 时不设结束期，结束显示「—」，
   /// 进度按实际存入金额占目标百分比计算。
+  /// [targetMinorOverride]：滚存法专用——计划为开放式（targetMinor=0），
+  /// 传「模拟期限内计划现金投入总额」作为进度分母。
   Widget _progressCard(
     BuildContext context,
     SavingsGoal goal,
     List<SavingsScheduleEntry> entries, {
     required bool noEnd,
+    int? targetMinorOverride,
   }) {
     final ThemeData theme = Theme.of(context);
-    final double progress = goal.targetMinor == 0
+    final int targetMinor = targetMinorOverride ?? goal.targetMinor;
+    final double progress = targetMinor == 0
         ? 0
-        : (goal.currentMinor / goal.targetMinor).clamp(0.0, 1.0);
+        : (goal.currentMinor / targetMinor).clamp(0.0, 1.0);
     final DateTime start = SavingsSchedule.startOf(goal);
     final DateTime? end =
         noEnd ? null : (entries.isEmpty ? null : entries.last.date);
@@ -363,7 +433,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
               ),
               Text(
                 '剩余: ${Money.fromMinor(
-                  (goal.targetMinor - goal.currentMinor).clamp(0, 1 << 40),
+                  (targetMinor - goal.currentMinor).clamp(0, 1 << 40),
                 ).format(showSymbol: false)}',
                 style:
                     const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -379,7 +449,8 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 10,
-                    backgroundColor: AppPalette.softGreen.withValues(alpha: 0.4),
+                    backgroundColor:
+                        AppPalette.softGreen.withValues(alpha: 0.4),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       AppPalette.deepGreen,
                     ),
@@ -422,6 +493,130 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 36 期滚存法专属：汇总卡 + 滚存时间轴（结果来自 [RollingCalculator.simulate]）。
+  /// 滚存排期：从计划起始日起逐月一条（日历卡与进度卡共用）。
+  /// 每月应存 = [SavingsRollingPlan.baseAtPeriod]（含金额调整生效后的月投入），
+  /// 日期 = 起始日同日（月末溢出 clamp 到当月最后一天），
+  /// 期数 = [RollingCalculator.simulate] 的模拟月数（覆盖滚存停止方式）。
+  List<SavingsScheduleEntry> _rollingEntries(
+    SavingsGoal goal,
+    SavingsRollingPlan plan,
+  ) {
+    final DateTime start = SavingsSchedule.startOf(goal);
+    final int months = RollingCalculator.simulate(plan).simulatedMonths;
+    final List<SavingsScheduleEntry> list = <SavingsScheduleEntry>[];
+    int cum = 0;
+    for (int m = 1; m <= months; m++) {
+      final DateTime anchor = DateTime(start.year, start.month + m - 1, 1);
+      final int lastDay = DateTime(anchor.year, anchor.month + 1, 0).day;
+      final DateTime date = DateTime(
+        anchor.year,
+        anchor.month,
+        start.day.clamp(1, lastDay),
+      );
+      final int amount = plan.baseAtPeriod(m);
+      cum += amount;
+      list.add(
+        SavingsScheduleEntry(
+          index: m,
+          date: date,
+          amountMinor: amount,
+          cumulativeMinor: cum,
+        ),
+      );
+    }
+    return list;
+  }
+
+  Widget _rollingSection(
+    AsyncValue<SavingsRollingPlan?> rolling,
+    SavingsGoal goal,
+    List<SavingsScheduleEntry> rollingEntries,
+    Map<int, SavingsDeposit> depositedByIndex,
+  ) {
+    return rolling.when(
+      data: (SavingsRollingPlan? plan) {
+        if (plan == null) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text('未找到滚存计划配置'),
+          );
+        }
+        // 汇总卡已移除：参数 / 调整入口在顶部计划卡（「编辑」旁），
+        // 模拟结果由时间轴卡片 + 顶部卡「预计到期总额」承载。
+        return RollingTimelineCard(
+          plan: plan,
+          goal: goal,
+          entries: rollingEntries,
+          depositedByIndex: depositedByIndex,
+          // _onEntryTap 首参为 goal，这里闭包补上（tear-off 三参 ≠ 两参回调）。
+          onEntryTap: (SavingsScheduleEntry entry, SavingsDeposit? deposit) =>
+              _onEntryTap(goal, entry, deposit),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (Object e, StackTrace _) => Center(child: Text('加载滚存计划失败：$e')),
+    );
+  }
+
+  /// 「调整」胶囊（顶部计划卡「编辑」旁）：打开计划调整弹层，
+  /// 保存后落库并 invalidate 强制重查（watchByGoalId 未声明 readsFrom）。
+  Future<void> _openRollingAdjust(SavingsRollingPlan plan) async {
+    final SavingsRollingPlan? updated =
+        await showModalBottomSheet<SavingsRollingPlan>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext _) => RollingAdjustSheet(initial: plan),
+    );
+    if (updated == null || !mounted) return;
+    try {
+      await ref.read(savingsRollingRepositoryProvider).upsert(updated);
+      ref.invalidate(rollingPlanProvider(plan.goalId));
+    } catch (e) {
+      // 失败必须可见：吞掉异常用户看到的就是「点了没反应」。
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('保存失败：$e')),
+      );
+    }
+  }
+
+  /// 「调整」入口胶囊（softGreen 底 + tune 图标，同原汇总卡头行样式）。
+  Widget _adjustPill(SavingsRollingPlan plan) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => _openRollingAdjust(plan),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppPalette.softGreen,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppPalette.sage300),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.tune, size: 15, color: AppPalette.deepGreen),
+            SizedBox(width: 4),
+            Text(
+              '调整',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppPalette.deepGreen,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2009,8 +2204,7 @@ class _SavingsCalendarViewState extends State<SavingsCalendarView> {
       lastMonth: last,
       initialMonth: DateTime(now.year, now.month, 1),
       dayCellBuilder: (BuildContext c, DateTime date, bool inMonth) => inMonth
-          ? _savingsCell(
-              theme, date, today, schedByDay[date], depByDay[date])
+          ? _savingsCell(theme, date, today, schedByDay[date], depByDay[date])
           : null, // 补位日走共享组件默认淡灰渲染
     );
   }
@@ -2031,7 +2225,8 @@ class _SavingsCalendarViewState extends State<SavingsCalendarView> {
       '${date.day}',
       style: TextStyle(
         fontSize: 13.5,
-        fontWeight: sched != null || isToday ? FontWeight.w700 : FontWeight.w400,
+        fontWeight:
+            sched != null || isToday ? FontWeight.w700 : FontWeight.w400,
         color: theme.colorScheme.onSurface,
       ),
     );
@@ -2124,8 +2319,7 @@ class _EntryCard extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final bool deposited = deposit != null;
     // 存入额：已存入显台账实际额（可与计划额不同），未存入显计划额。
-    final int savedMinor =
-        deposited ? deposit!.amountMinor : entry.amountMinor;
+    final int savedMinor = deposited ? deposit!.amountMinor : entry.amountMinor;
     final bool anyAmount = savedMinor <= 0;
     final int cumMinor = cumulativeMinor ?? entry.cumulativeMinor;
 
@@ -2262,8 +2456,7 @@ class _EntryListTile extends StatelessWidget {
     final String amountText = entry.amountMinor <= 0
         ? '任意'
         : Money.fromMinor(entry.amountMinor).format(showSymbol: false);
-    final int savedMinor =
-        deposited ? deposit!.amountMinor : entry.amountMinor;
+    final int savedMinor = deposited ? deposit!.amountMinor : entry.amountMinor;
     final String savedText = savedMinor <= 0
         ? '任意'
         : Money.fromMinor(savedMinor).format(showSymbol: false);
