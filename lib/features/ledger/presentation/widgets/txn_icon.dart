@@ -74,9 +74,17 @@ LineIconKind? txnLineIconKind(Transaction txn, Category? category) {
   if (txn.sourceModule == SourceModule.refund) {
     return LineIconKind.refundArrow;
   }
-  if (txn.type == TxnType.income &&
-      txn.sourceModule == SourceModule.reimbursement) {
+  if (txn.sourceModule == SourceModule.reimbursement &&
+      txn.type == TxnType.income) {
     return LineIconKind.reimburseIncome;
+  }
+  // 投资记账流水 → 上升折线；分期入账流水 → 日历 + ¥。
+  // （放在分类 iconKey 之后：流水挂了明确分类时仍按分类显示。）
+  if (txn.sourceModule == SourceModule.installment) {
+    return LineIconKind.installment;
+  }
+  if (txn.sourceModule == SourceModule.investment) {
+    return LineIconKind.trendUp;
   }
   if (txn.sourceModule == SourceModule.lend) {
     final LineIconKind? byPrefix = _kindByNotePrefix(txn.note);

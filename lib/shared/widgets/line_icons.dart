@@ -133,6 +133,7 @@ enum LineIconKind {
   videoIncome, // 视频收入（摄像机）
   securities, // 证券收入（K线）
   interest, // 利息收入（百分号硬币）
+  installment, // 分期（日历 + ¥，逐期入账）
 }
 
 /// 分类 iconKey → 线稿图标映射（对齐 A3 线稿设计稿的分类简笔画）。
@@ -331,6 +332,8 @@ class _LineIconPainter extends CustomPainter {
         _template(path);
       case LineIconKind.calendar:
         _calendar(path);
+      case LineIconKind.installment:
+        _installment(path);
       case LineIconKind.settings:
         _settings(path);
       case LineIconKind.location:
@@ -647,6 +650,19 @@ class _LineIconPainter extends CustomPainter {
     _line(p, 16, 3.5, 16, 6.5);
     _line(p, 8.5, 13.5, 9.5, 13.5);
     _line(p, 14.5, 13.5, 15.5, 13.5);
+  }
+
+  /// 分期：日历框（横线 + 双耳）+ 框内「¥」（逐期入账）。
+  void _installment(Path p) {
+    p.addRRect(RRect.fromLTRBXY(4, 5.5, 20, 20.5, 2.5, 2.5));
+    _line(p, 4, 10, 20, 10);
+    _line(p, 8, 3.5, 8, 6.5);
+    _line(p, 16, 3.5, 16, 6.5);
+    // 框内「¥」：两斜肩 + 竖笔 + 短横杠。
+    _line(p, 9.8, 12.6, 12, 15.4);
+    _line(p, 14.2, 12.6, 12, 15.4);
+    _line(p, 12, 15.4, 12, 18.4);
+    _line(p, 10.4, 16.6, 13.6, 16.6);
   }
 
   void _settings(Path p) {
