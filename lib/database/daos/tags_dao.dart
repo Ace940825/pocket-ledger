@@ -91,8 +91,11 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
     return into(tagCategories).insert(companion);
   }
 
-  Future<bool> updateCategory(TagCategoriesCompanion companion) {
-    return update(tagCategories).replace(companion);
+  /// 定向更新（只写 companion 中出现的列）。勿用 replace()——整行替换
+  /// 会把缺省列写成默认值，必需列缺失时直接抛 InvalidDataException。
+  Future<int> updateCategory(TagCategoriesCompanion companion) {
+    return (update(tagCategories)..where(($TagCategoriesTable tbl) => tbl.id.equals(companion.id.value)))
+        .write(companion);
   }
 
   /// 软删除分组（连同其下标签一并软删）。
@@ -165,8 +168,11 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
     return into(tags).insert(companion);
   }
 
-  Future<bool> updateTag(TagsCompanion companion) {
-    return update(tags).replace(companion);
+  /// 定向更新（只写 companion 中出现的列）。勿用 replace()——整行替换
+  /// 会把缺省列写成默认值，必需列缺失时直接抛 InvalidDataException。
+  Future<int> updateTag(TagsCompanion companion) {
+    return (update(tags)..where(($TagsTable tbl) => tbl.id.equals(companion.id.value)))
+        .write(companion);
   }
 
   /// 软删除单个标签。

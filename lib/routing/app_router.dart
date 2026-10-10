@@ -70,6 +70,9 @@ abstract final class Routes {
   static const String transfer = '/transfer';
   static const String lend = '/lend';
   static const String reimbursement = '/reimbursement';
+
+  /// 报销账户分支视图（卡片总览 → 单账户账单列表）。
+  static const String reimbursementAccount = '/reimbursement/account';
   static const String reimbursementBillPicker = '/reimbursement/bill-picker';
   static const String savings = '/savings';
   static const String installment = '/installment';
@@ -231,6 +234,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         builder: (_, __) => const ReimbursementPage(),
       ),
       GoRoute(
+        path: '${Routes.reimbursementAccount}/:accountId',
+        builder: (_, GoRouterState state) => ReimbursementPage(
+          accountId: state.pathParameters['accountId'],
+        ),
+      ),
+      GoRoute(
         path: Routes.reimbursementBillPicker,
         builder: (_, GoRouterState state) => ReimbursementBillPickerPage(
           args: state.extra! as ReimbBillPickerArgs,
@@ -315,23 +324,28 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           final RecordTab initialTab;
           final String? editLendId;
           final String? refundSourceId;
+          final String? reimburseSourceId;
           if (extra is RecordSheetLaunchArgs) {
             initialTab = extra.initialTab;
             editLendId = extra.editLendId;
             refundSourceId = extra.refundSourceId;
+            reimburseSourceId = extra.reimburseSourceId;
           } else if (extra is RecordTab) {
             initialTab = extra;
             editLendId = null;
             refundSourceId = null;
+            reimburseSourceId = null;
           } else {
             initialTab = RecordTab.expense;
             editLendId = null;
             refundSourceId = null;
+            reimburseSourceId = null;
           }
           return RecordSheet(
             initialTab: initialTab,
             editLendId: editLendId,
             refundSourceId: refundSourceId,
+            reimburseSourceId: reimburseSourceId,
           );
         },
       ),

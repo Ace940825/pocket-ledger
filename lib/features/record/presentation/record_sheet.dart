@@ -57,6 +57,7 @@ import '../record_tab.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import 'account_picker_sheet.dart';
 import '../../investment/data/investment_repository.dart';
+import '../../investment/data/market/security_meta_repository.dart';
 import 'bill_selection_page.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../tags/presentation/tag_sheet.dart';
@@ -74,7 +75,38 @@ typedef _InvReceipt = ({
   int amountMinor,
   String accountId,
   String name,
+  String unit,
 });
+
+/// 各投资品种的记账输入规则。
+///
+/// - 数量驱动：先填「数量 × 单价」推成交金额——股票按手（1手=100股、
+///   买入须整手）、债券按张、期货/期权按手、贵金属按克、加密货币按枚。
+/// - 金额驱动：先填「金额 ÷ 单价」推份额——场外基金申购、外汇、其他。
+class _InvRules {
+  const _InvRules({
+    required this.quantityDriven,
+    this.inputUnit = '',
+    this.maxDecimalDigits = 0,
+    this.unitsPerInput = 1,
+    this.baseUnit = '份',
+  });
+
+  /// true=按数量录入（数量×单价）；false=按金额录入（金额÷单价）。
+  final bool quantityDriven;
+
+  /// 数量输入单位的展示名（手/张/克/枚），金额驱动为空串。
+  final String inputUnit;
+
+  /// 数量允许的小数位（0=只能整数，如股票整手、债券整张）。
+  final int maxDecimalDigits;
+
+  /// 1 个输入单位折合多少基础单位（股票 1 手=100 股，其余为 1）。
+  final int unitsPerInput;
+
+  /// 基础单位（持仓份额的存储口径展示名：股/张/手/克/枚/份）。
+  final String baseUnit;
+}
 
 /// 退款模式：全额退回 / AA 付款分摊。
 enum RefundMode { full, aa }
@@ -173,6 +205,7 @@ class RecordSheetLaunchArgs {
     this.initialTab,
     this.editLendId, {
     this.refundSourceId,
+    this.reimburseSourceId,
   });
   final RecordTab initialTab;
   final String? editLendId;
@@ -180,6 +213,11 @@ class RecordSheetLaunchArgs {
   /// 退款 Tab 预关联的原账单 ID（账单详情卡「退款」键入口）：
   /// 非空时进入退款 Tab 并自动关联该账单，退款金额与账户留空待填。
   final String? refundSourceId;
+
+  /// 报销 Tab 预关联的原账单 ID（账单详情卡「报销」键入口）：
+  /// 非空时进入报销 Tab 并自动勾选该账单为报销账单，
+  /// 同时预填该账单的报销账户（未指定则留空）。
+  final String? reimburseSourceId;
 }
 
 Future<void> openRecordSheet(
@@ -187,6 +225,7 @@ Future<void> openRecordSheet(
   RecordTab initialTab = RecordTab.expense,
   String? editLendId,
   String? refundSourceId,
+  String? reimburseSourceId,
 }) async {
   await context.push<void>(
     Routes.record,
@@ -194,6 +233,7 @@ Future<void> openRecordSheet(
       initialTab,
       editLendId,
       refundSourceId: refundSourceId,
+      reimburseSourceId: reimburseSourceId,
     ),
   );
 }
@@ -207,6 +247,7 @@ class RecordSheet extends ConsumerStatefulWidget {
     this.editTxnId,
     this.editLendId,
     this.refundSourceId,
+    this.reimburseSourceId,
   });
 
   final RecordTab initialTab;
@@ -230,6 +271,11 @@ class RecordSheet extends ConsumerStatefulWidget {
   /// 非空且非编辑模式时进入退款 Tab 并自动关联该账单，
   /// 退款金额与账户留空待用户填写。
   final String? refundSourceId;
+
+  /// 报销 Tab 预关联的原账单 ID（账单详情卡「报销」键入口）：
+  /// 非空且非编辑模式时进入报销 Tab 并自动勾选该账单为报销账单，
+  /// 同时预填该账单的报销账户。
+  final String? reimburseSourceId;
 
   /// 模板模式（账单模板页「添加」入口）：
   /// - Tab 收窄为 支出 / 收入 / 转账 / 借还 四个；
@@ -327,6 +373,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   final TextEditingController _invAmountController = TextEditingController();
   final TextEditingController _invPriceController = TextEditingController();
   final TextEditingController _invFeeController = TextEditingController();
+  final TextEditingController _invQtyController = TextEditingController();
+
+  /// 选中持仓的数量（quantityMicros 口径）；卖出「全部」快捷填充用。
+  int _invHoldingQtyMicros = 0;
   String? _invAccountId;
   final TextEditingController _invNoteController = TextEditingController();
   /// 投资成交回执快照：保存成功后弹出确认，关闭 record sheet 前清空。
@@ -457,6 +507,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         widget.refundSourceId != null) {
       // 账单详情卡「退款」键入口：预关联原账单，金额/账户空置待填。
       _loadRefundSource(widget.refundSourceId!);
+    } else if (widget.initialTab == RecordTab.reimbursement &&
+        widget.reimburseSourceId != null) {
+      // 账单详情卡「报销」键入口：预勾选该账单 + 预填其报销账户。
+      _loadReimburseSource(widget.reimburseSourceId!);
     }
   }
 
@@ -477,6 +531,22 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       _refundAmountAuto = false;
       _refundAmountController.clear();
       _accountId = null;
+    });
+  }
+
+  /// 报销预关联：加载原账单勾入 [_rbHistIds]（报销账单卡直接显示该行），
+  /// 并预填该账单的报销账户到 [_rbAccountId]（未指定报销账户则留空）。
+  Future<void> _loadReimburseSource(String sourceId) async {
+    final Transaction? txn =
+        await ref.read(transactionsDaoProvider).getById(sourceId);
+    if (!mounted) return;
+    if (txn == null) {
+      _toast('原账单不存在或已被删除');
+      return;
+    }
+    setState(() {
+      _rbHistIds.add(txn.id);
+      _rbAccountId = txn.reimbursementAccountId;
     });
   }
 
@@ -720,6 +790,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     _rbPayerController.dispose();
     _rbAmountController.dispose();
     _rbAmountFocusNode.dispose();
+    _invQtyController.dispose();
     _refundAmountController.dispose();
     _flowAnim.dispose();
     _swapAnim.dispose();
@@ -1293,6 +1364,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           _invAmountController.clear();
           _invPriceController.clear();
           _invFeeController.clear();
+          _invQtyController.clear();
+          _invHoldingQtyMicros = 0;
           _invNoteController.clear();
           _invAccountId = null;
           _invHoldingId = null;
@@ -3976,6 +4049,90 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   int get _invPriceMinor => _invMinorOf(_invPriceController.text);
   int get _invFeeMinor => _invMinorOf(_invFeeController.text);
 
+  /// 当前品种的交易规则（股票卖出放宽为 2 位小数，支持零股清仓）。
+  _InvRules get _invRules {
+    final _InvRules r = _invRulesOf(_invType);
+    if (_invType == InvestmentType.stock && !_invIsBuy) {
+      return _InvRules(
+        quantityDriven: r.quantityDriven,
+        inputUnit: r.inputUnit,
+        maxDecimalDigits: 2,
+        unitsPerInput: r.unitsPerInput,
+        baseUnit: r.baseUnit,
+      );
+    }
+    return r;
+  }
+
+  static _InvRules _invRulesOf(InvestmentType t) {
+    switch (t) {
+      case InvestmentType.stock:
+        // A股按手交易：1手=100股，买入须整手（零股只能卖出）。
+        return const _InvRules(
+          quantityDriven: true,
+          inputUnit: '手',
+          unitsPerInput: 100,
+          baseUnit: '股',
+        );
+      case InvestmentType.bond:
+        // 交易所债券按张交易（10张=1手）。
+        return const _InvRules(
+          quantityDriven: true,
+          inputUnit: '张',
+          baseUnit: '张',
+        );
+      case InvestmentType.futures:
+      case InvestmentType.option:
+        // 期货/期权按手成交（单价记每手价格/每手权利金）。
+        return const _InvRules(
+          quantityDriven: true,
+          inputUnit: '手',
+          baseUnit: '手',
+        );
+      case InvestmentType.metal:
+        // 贵金属按克交易，支持两位小数。
+        return const _InvRules(
+          quantityDriven: true,
+          inputUnit: '克',
+          maxDecimalDigits: 2,
+          baseUnit: '克',
+        );
+      case InvestmentType.crypto:
+        // 加密货币按枚交易，支持六位小数（BTC 最小拆分粒度记账足够）。
+        return const _InvRules(
+          quantityDriven: true,
+          inputUnit: '枚',
+          maxDecimalDigits: 6,
+          baseUnit: '枚',
+        );
+      case InvestmentType.fund:
+      case InvestmentType.forex:
+      case InvestmentType.other:
+        // 场外基金申购/外汇/其他：按金额成交，份额=金额÷单价。
+        return const _InvRules(quantityDriven: false, baseUnit: '份');
+    }
+  }
+
+  /// 数量输入 → 输入单位 × 1e6（空/非法返回 0）。
+  int get _invQtyMicros {
+    final String t = _invQtyController.text.trim();
+    if (t.isEmpty) return 0;
+    final double? v = double.tryParse(t);
+    if (v == null || v <= 0) return 0;
+    return (v * InvestmentRepository.quantityScale).round();
+  }
+
+  /// 折算到基础单位（股/张/克/枚）的 quantityMicros（持仓存储口径）。
+  int get _invQtyBaseMicros => _invQtyMicros * _invRules.unitsPerInput;
+
+  /// 数量驱动的成交金额（分）= 基础数量 × 单价 ÷ 1e6（先乘后除保精度）。
+  int get _invQtyAmountMinor {
+    final int q = _invQtyBaseMicros;
+    final int p = _invPriceMinor;
+    if (q <= 0 || p <= 0) return 0;
+    return q * p ~/ InvestmentRepository.quantityScale;
+  }
+
   /// 投资表单奶油卡：对齐报销/退款 [_rbCard] 视觉规格
   /// （radius 16 + 常驻投影 + hairline 描边），标签 13pt ink2
   /// （对齐借还「免息期」行标签规格），其余卡片文字沿用 _Sage 令牌。
@@ -4061,9 +4218,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   const SizedBox(height: 12),
                   _buildInvestHoldingCard(),
                   const SizedBox(height: 12),
-                  _buildInvestAmountCard(),
-                  const SizedBox(height: 12),
-                  _buildInvestPriceCard(),
+                  ..._buildInvestTradeCards(),
                   const SizedBox(height: 12),
                   _buildLendAccountCard(
                     label: _invIsBuy ? '扣款账户' : '入账账户',
@@ -4215,24 +4370,23 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   }
 
   Future<void> _showInvestHoldingPicker() async {
-    final AsyncValue<List<InvestmentHolding>> holdings =
-        ref.watch(investmentListProvider);
     FocusManager.instance.primaryFocus?.unfocus();
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => _InvestHoldingPickerSheet(
-        holdings: holdings,
-        initialSymbol: _invSymbol,
-        initialName: _invName,
-        initialType: _invType,
+        selectedId: _invHoldingId,
+        selectedSymbol: _invSymbol,
+        selectedName: _invName,
+        selectedType: _invType,
         onSelectHolding: (InvestmentHolding h) {
           setState(() {
             _invHoldingId = h.id;
             _invSymbol = h.symbol;
             _invName = h.name;
             _invType = h.type;
+            _invHoldingQtyMicros = h.quantityMicros;
           });
         },
         onConfirmNew: (String symbol, String name, InvestmentType type) {
@@ -4241,6 +4395,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             _invName = name;
             _invType = type;
             _invHoldingId = null;
+            _invHoldingQtyMicros = 0;
           });
         },
       ),
@@ -4280,64 +4435,222 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               onChanged: (_) => setState(() {}),
             ),
           ),
+          _invFillAllChip(_invRules),
         ],
       ),
     );
   }
 
+  /// 交易输入卡组：按品种规则在两种录入模式间切换。
+  ///
+  /// - 数量驱动（股票/债券/期货/期权/贵金属/加密货币）：单价 → 数量(单位)
+  ///   → 只读成交金额 → 手续费 → 实际扣款/到账。
+  /// - 金额驱动（基金/外汇/其他）：金额 → 单价 → 只读份额 → 手续费 → 净额。
+  List<Widget> _buildInvestTradeCards() {
+    final _InvRules rules = _invRules;
+    if (!rules.quantityDriven) {
+      return <Widget>[
+        _buildInvestAmountCard(),
+        const SizedBox(height: 12),
+        _buildInvestPriceCard(),
+      ];
+    }
+    return <Widget>[
+      _buildInvestPriceField(),
+      const SizedBox(height: 12),
+      _buildInvestQtyCard(rules),
+      const SizedBox(height: 10),
+      _SageReadonlyRow(
+        label: '成交金额',
+        value: Money.fromMinor(_invQtyAmountMinor).format(),
+      ),
+      const SizedBox(height: 12),
+      ..._buildInvestFeeAndNet(_invQtyAmountMinor),
+    ];
+  }
+
+  Widget _buildInvestPriceField() {
+    return _SageField(
+      label: '当前单价',
+      // 单价允许 4 位小数（AmountKeypad.maxDecimalDigits 预留场景）。
+      child: KeypadField(
+        controller: _invPriceController,
+        allowDecimal: true,
+        maxDecimalDigits: 4,
+        title: '当前单价',
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: _Sage.ink,
+        ),
+        decoration: _invDeco(hint: '0.0000'),
+        onChanged: (_) => setState(() {}),
+      ),
+    );
+  }
+
+  /// 基础数量格式化（去尾随 0）：整手换算副标题用（1手 → 100，2.5手 → 250）。
+  String _fmtInvQtyTrim(int micros) {
+    final double q = micros / InvestmentRepository.quantityScale;
+    String s = q.toStringAsFixed(4);
+    if (s.contains('.')) {
+      s = s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+    }
+    return s.isEmpty ? '0' : s;
+  }
+
+  /// 数量录入卡：单位跟随品种（手/张/克/枚），股票显示整手换算，
+  /// 卖出且已选持仓时提供「全部」一键填满。
+  Widget _buildInvestQtyCard(_InvRules rules) {
+    final int baseMicros = _invQtyBaseMicros;
+    final String? sub;
+    if (rules.unitsPerInput > 1) {
+      sub = baseMicros > 0
+          ? '= ${_fmtInvQtyTrim(baseMicros)} ${rules.baseUnit}'
+          : '1 ${rules.inputUnit} = ${rules.unitsPerInput} ${rules.baseUnit}';
+    } else {
+      sub = null;
+    }
+    return _SageField(
+      label: '数量（${rules.inputUnit}）',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: KeypadField(
+                  controller: _invQtyController,
+                  allowDecimal: true,
+                  maxDecimalDigits: rules.maxDecimalDigits,
+                  title: '数量（${rules.inputUnit}）',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    color: _Sage.ink,
+                  ),
+                  decoration: _invDeco(hint: '0'),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              _invFillAllChip(rules),
+            ],
+          ),
+          if (sub != null) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(
+              sub,
+              style: const TextStyle(fontSize: 11, color: _Sage.ink3),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 手续费 + 实际扣款/到账（买入=金额+手续费；卖出=金额−手续费）。
+  List<Widget> _buildInvestFeeAndNet(int amt) {
+    final int fee = _invFeeMinor;
+    final int net = _invIsBuy ? amt + fee : (amt - fee < 0 ? 0 : amt - fee);
+    return <Widget>[
+      _SageField(
+        label: '手续费',
+        child: KeypadField(
+          controller: _invFeeController,
+          allowDecimal: true,
+          title: '手续费',
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: _Sage.ink,
+          ),
+          decoration: _invDeco(hint: '0.00'),
+          onChanged: (_) => setState(() {}),
+        ),
+      ),
+      const SizedBox(height: 10),
+      _SageReadonlyRow(
+        label: _invIsBuy ? '实际扣款' : '实际到账',
+        value: Money.fromMinor(net).format(),
+      ),
+    ];
+  }
+
   Widget _buildInvestPriceCard() {
     final int amt = _invAmountMinor;
     final int price = _invPriceMinor;
-    final int fee = _invFeeMinor;
     final double shares = price > 0 ? amt / price : 0.0;
-    final int net = _invIsBuy ? amt + fee : (amt - fee < 0 ? 0 : amt - fee);
     return Column(
       children: <Widget>[
-        _SageField(
-          label: '当前单价',
-          // 单价允许 4 位小数（AmountKeypad.maxDecimalDigits 预留场景）。
-          child: KeypadField(
-            controller: _invPriceController,
-            allowDecimal: true,
-            maxDecimalDigits: 4,
-            title: '当前单价',
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: _Sage.ink,
-            ),
-            decoration: _invDeco(hint: '0.0000'),
-            onChanged: (_) => setState(() {}),
-          ),
-        ),
+        _buildInvestPriceField(),
         const SizedBox(height: 10),
         _SageReadonlyRow(
           label: _invIsBuy ? '可得份额' : '赎回份额',
           value: '${shares.toStringAsFixed(4)} 份',
         ),
         const SizedBox(height: 12),
-        _SageField(
-          label: '手续费',
-          child: KeypadField(
-            controller: _invFeeController,
-            allowDecimal: true,
-            title: '手续费',
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: _Sage.ink,
-            ),
-            decoration: _invDeco(hint: '0.00'),
-            onChanged: (_) => setState(() {}),
-          ),
-        ),
-        const SizedBox(height: 10),
-        _SageReadonlyRow(
-          label: _invIsBuy ? '实际扣款' : '实际到账',
-          value: Money.fromMinor(net).format(),
-        ),
+        ..._buildInvestFeeAndNet(amt),
       ],
     );
+  }
+
+  /// 卖出「全部」快捷填充：数量型按持仓数量折输入单位；金额型按
+  /// 持仓数量×单价折成交金额。仅卖出且已选已有持仓时显示。
+  Widget _invFillAllChip(_InvRules rules) {
+    if (_invIsBuy || _invHoldingQtyMicros <= 0) {
+      return const SizedBox.shrink();
+    }
+    final String text;
+    if (rules.quantityDriven) {
+      final double v = _invHoldingQtyMicros /
+          rules.unitsPerInput /
+          InvestmentRepository.quantityScale;
+      text = _trimNum(v, rules.maxDecimalDigits);
+    } else {
+      final int p = _invPriceMinor;
+      if (p <= 0) return const SizedBox.shrink();
+      text = (_invHoldingQtyMicros * p ~/ InvestmentRepository.quantityScale /
+              100)
+          .toStringAsFixed(2);
+    }
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (rules.quantityDriven) {
+            _invQtyController.text = text;
+          } else {
+            _invAmountController.text = text;
+          }
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(left: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: _Sage.greenSoft,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _Sage.hairline),
+        ),
+        child: const Text(
+          '全部',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: _Sage.greenDeep,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 数字转字符串：按最大小数位格式化并去掉尾随 0（2.500 → 2.5）。
+  String _trimNum(double v, int maxDigits) {
+    String s = v.toStringAsFixed(maxDigits);
+    if (s.contains('.')) {
+      s = s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+    }
+    return s;
   }
 
   Widget _buildInvestNoteCard() {
@@ -4353,27 +4666,53 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   }
 
   Widget _buildInvestHint() {
+    final String rule = _investRuleHint();
     return Container(
       decoration: BoxDecoration(
         color: _Sage.greenSoft,
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.all(12),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(Icons.info_outline, size: 16, color: _Sage.greenDeep),
-          SizedBox(width: 8),
+          const Icon(Icons.info_outline, size: 16, color: _Sage.greenDeep),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '份额 = 金额 ÷ 单价（手续费不占用金额）；买入另加手续费扣款，'
-              '卖出从到账中扣手续费。投资买卖不计入收支统计 / 预算。',
-              style: TextStyle(fontSize: 12, height: 1.5, color: _Sage.ink2),
+              '$rule 投资买卖不计入收支统计 / 预算。',
+              style: const TextStyle(
+                  fontSize: 12, height: 1.5, color: _Sage.ink2),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// 按品种输出交易规则提示。
+  String _investRuleHint() {
+    switch (_invType) {
+      case InvestmentType.stock:
+        return 'A股按手交易：1手=100股，买入须为整手，卖出支持零股清仓；'
+            '成交金额=手数×100×单价。';
+      case InvestmentType.bond:
+        return '债券按张交易（10张=1手）：成交金额=张数×每张价格。';
+      case InvestmentType.futures:
+        return '期货按手成交：成交金额=手数×每手价格；保证金与杠杆可在备注中记录。';
+      case InvestmentType.option:
+        return '期权按手成交：成交金额=手数×每手权利金。';
+      case InvestmentType.metal:
+        return '贵金属按克交易（支持两位小数）：成交金额=克数×克价。';
+      case InvestmentType.crypto:
+        return '加密货币按枚交易（支持六位小数）：成交金额=数量×单价。';
+      case InvestmentType.fund:
+        return '按金额申购：份额=金额÷单价（手续费不占用金额）。';
+      case InvestmentType.forex:
+        return '按金额记录外汇买卖：头寸=金额÷单价。';
+      case InvestmentType.other:
+        return '份额=金额÷单价（手续费不占用金额）。';
+    }
   }
 
   /// 投资保存：买入 / 卖出分别走 [InvestmentRepository.recordBuy/recordSell]。
@@ -4383,10 +4722,29 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       _toast('请选择资金账户');
       return null;
     }
-    final int amount = _invAmountMinor;
+    final _InvRules rules = _invRules;
+    final bool qtyDriven = rules.quantityDriven;
+    final int amount = qtyDriven ? _invQtyAmountMinor : _invAmountMinor;
     final int price = _invPriceMinor;
     final int fee = _invFeeMinor;
-    if (amount <= 0) {
+    if (qtyDriven) {
+      // 数量型输入单位即「手/张/克/枚」；整手校验须在折算后的基础单位上进行。
+      if (_invQtyMicros <= 0) {
+        _toast('请输入数量');
+        return null;
+      }
+      if (_invType == InvestmentType.stock && _invIsBuy) {
+        // A股买入须整手：基础股数（_invQtyBaseMicros，已 ×unitsPerInput）必须是
+        // 100 股的整数倍。注意 _invQtyMicros 以「手」为口径（×quantityScale），
+        // 之前误用 unitsPerInput*quantityScale 作阈值（那是股档位、放大了 100 倍），
+        // 导致任意 <100 手（含 35 手）一律被拒保存。
+        final int lotBase = rules.unitsPerInput * InvestmentRepository.quantityScale;
+        if (_invQtyBaseMicros <= 0 || _invQtyBaseMicros % lotBase != 0) {
+          _toast('A股买入须整手（每手 ${rules.unitsPerInput} 股）');
+          return null;
+        }
+      }
+    } else if (amount <= 0) {
       _toast('请输入金额');
       return null;
     }
@@ -4394,10 +4752,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       _toast('请输入单价');
       return null;
     }
-    // 份额 = 金额 ÷ 单价 × 1e6（与仓储口径一致：先乘后除）。
-    final int deltaMicros = (amount * InvestmentRepository.quantityScale) ~/ price;
+    // 数量型直接取输入的基础数量（先乘后除，避免金额÷单价反推丢精度）；
+    // 金额型 = 金额 ÷ 单价 × 1e6（与仓储口径一致）。
+    final int deltaMicros = qtyDriven
+        ? _invQtyBaseMicros
+        : (amount * InvestmentRepository.quantityScale) ~/ price;
     if (deltaMicros <= 0) {
-      _toast('金额不足以成交份额');
+      _toast(qtyDriven ? '数量不足以成交' : '金额不足以成交份额');
       return null;
     }
     final String bookId = ref.read(currentBookIdProvider);
@@ -4434,6 +4795,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         amountMinor: amount,
         accountId: _invAccountId!,
         name: _invName ?? _invSymbol ?? '',
+        unit: rules.baseUnit,
       );
     } else {
       if (_invHoldingId == null) {
@@ -4459,6 +4821,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         amountMinor: amount,
         accountId: _invAccountId!,
         name: _invName ?? _invSymbol ?? '',
+        unit: rules.baseUnit,
       );
     }
   }
@@ -4499,6 +4862,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         cashMinor: cash,
         marketMinor: market,
         accountName: account?.name ?? r.name,
+        unitLabel: r.unit,
       ),
     );
   }
@@ -10203,63 +10567,360 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
   }
 }
 
-/// 持仓选择 / 新建底部弹层。
+/// 持仓选择 / 新建底部弹层（对齐账户选择弹窗布局）。
+///
+/// 结构：拖拽条 + 标题栏（关闭 / 标题 / 网格·列表切换 / ＋ 新建）+
+/// 持仓卡片网格（或紧凑列表）+ 底部「投资管理」。点「＋ 新建」在弹层内
+/// 切到新建表单视图（返回键回到选择视图），确认后直接选中新标的。
+/// 持仓列表实时 watch 投资流：弹层内新建后立即出现在网格中，无需重开。
 ///
 /// 控制器生命周期归本 StatefulWidget：[dispose] 时释放——元素卸载必然发生在
 /// 退场动画结束之后，杜绝「await showModalBottomSheet 完成时（pop 即 resolve、
 /// 早于退场动画）外层立即 dispose 控制器，而 TextField 仍挂着它」导致的
 /// "TextEditingController was used after being disposed" 及元素树收尾级联崩溃
 /// （_dependents.isEmpty 断言 / wrong build scope）。
-class _InvestHoldingPickerSheet extends StatefulWidget {
+class _InvestHoldingPickerSheet extends ConsumerStatefulWidget {
   const _InvestHoldingPickerSheet({
-    required this.holdings,
-    required this.initialSymbol,
-    required this.initialName,
-    required this.initialType,
+    required this.selectedId,
+    required this.selectedSymbol,
+    required this.selectedName,
+    required this.selectedType,
     required this.onSelectHolding,
     required this.onConfirmNew,
   });
 
-  final AsyncValue<List<InvestmentHolding>> holdings;
-  final String? initialSymbol;
-  final String? initialName;
-  final InvestmentType initialType;
+  /// 已选中持仓 id（null/空 = 未选，或选的是「新建未落库」标的）。
+  final String? selectedId;
+
+  /// 「新建未落库」标的的代码/名称（用于网格高亮匹配）。
+  final String? selectedSymbol;
+  final String? selectedName;
+
+  /// 「新建未落库」标的的品种（合成卡片角标显示用；null = 未知品种）。
+  final InvestmentType? selectedType;
   final void Function(InvestmentHolding holding) onSelectHolding;
   final void Function(String symbol, String name, InvestmentType type)
       onConfirmNew;
 
   @override
-  State<_InvestHoldingPickerSheet> createState() =>
+  ConsumerState<_InvestHoldingPickerSheet> createState() =>
       _InvestHoldingPickerSheetState();
 }
 
-class _InvestHoldingPickerSheetState extends State<_InvestHoldingPickerSheet> {
+class _InvestHoldingPickerSheetState
+    extends ConsumerState<_InvestHoldingPickerSheet> {
   late final TextEditingController _symbolCtrl =
-      TextEditingController(text: widget.initialSymbol);
+      TextEditingController(text: widget.selectedSymbol);
   late final TextEditingController _nameCtrl =
-      TextEditingController(text: widget.initialName);
+      TextEditingController(text: widget.selectedName);
   // 防双击二次 pop：退场动画期间弹层仍可点，二次 pop 会弹穿到底层记账页，
   // 引发 "Looking up a deactivated widget's ancestor is unsafe" 级联。
   bool _closed = false;
-  InvestmentType _type = InvestmentType.fund;
+
+  /// true = 新建表单视图（点「＋ 新建」进入，返回键回到选择视图）。
+  bool _showForm = false;
+
+  /// 品种不预设：null = 未选择，点「确认新建」时校验。
+  InvestmentType? _type;
+
+  /// 点了确认但品种未选时提示（inline，不用 snackbar）。
+  bool _typeMissing = false;
+
+  /// 「代码」输入框焦点：不用 autofocus（会在弹层入场动画期间同时弹键盘，
+  /// viewInsets 逐帧推挤整层重排导致明显掉帧），改为入场稳定后再请求。
+  final FocusNode _symbolFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _type = widget.initialType;
+    // 品种不预设（用户要求）：即使从记账表单带入类型也保持未选中。
+    // 代码/名称输入监听：驱动「已有持仓自动补齐」建议列表刷新。
+    _symbolCtrl.addListener(_onFieldChanged);
+    _nameCtrl.addListener(_onFieldChanged);
+  }
+
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _symbolCtrl.dispose();
     _nameCtrl.dispose();
+    _symbolFocus.dispose();
     super.dispose();
+  }
+
+  /// 进入新建表单：延迟约一帧入场时间再弹键盘，避免与切视图重排/弹层
+  /// 动画叠加掉帧；若用户已手动聚焦（键盘已起）则不再抢焦点。
+  void _enterForm() {
+    setState(() => _showForm = true);
+    _triggerMetaLoad(_type);
+    Future<void>.delayed(const Duration(milliseconds: 320), () {
+      if (!mounted || !_showForm) return;
+      if (FocusManager.instance.primaryFocus != null) return;
+      _symbolFocus.requestFocus();
+    });
+  }
+
+  /// 返回选择视图：收起键盘（选择视图无输入框，键盘悬空难看）。
+  void _backToPicker() {
+    _symbolFocus.unfocus();
+    setState(() => _showForm = false);
+  }
+
+  // ── 自动补齐：本地持仓 ∪ 远程候选库（基金/币来自免费第三方接口） ──
+
+  /// 后台已触发的候选库加载（防重复）。
+  final Set<InvestmentType> _metaLoading = <InvestmentType>{};
+
+  /// 触发基金/币候选库后台加载（首拉/每周），完成后刷新补全 provider。
+  void _triggerMetaLoad(InvestmentType? type) {
+    if (type == null) return;
+    if (type != InvestmentType.fund && type != InvestmentType.crypto) return;
+    if (_metaLoading.contains(type)) return;
+    _metaLoading.add(type);
+    unawaited(
+      ref
+          .read(marketServiceProvider)
+          .ensureCandidates(type)
+          .then((_) {
+            if (mounted) ref.invalidate(securityMetaSearchProvider);
+          })
+          .catchError((Object _) {
+            // 忽略：候选库为空时仅本地持仓补全可用。
+          })
+          .whenComplete(() => _metaLoading.remove(type)),
+    );
+  }
+
+  /// 匹配规则：代码前缀 > 代码包含 / 名称包含；已完整填写的持仓不再提示。
+  List<InvestmentHolding> _suggestionsFor(String query) {
+    final String q = query.trim();
+    if (q.isEmpty) return const <InvestmentHolding>[];
+    final String uq = q.toUpperCase();
+    final List<InvestmentHolding> starts = <InvestmentHolding>[];
+    final List<InvestmentHolding> contains = <InvestmentHolding>[];
+    for (final InvestmentHolding h in _items) {
+      final String sym = h.symbol.toUpperCase();
+      final bool exact = sym == uq && h.name == q;
+      if (exact) continue;
+      if (sym.startsWith(uq)) {
+        starts.add(h);
+      } else if (sym.contains(uq) || h.name.contains(q)) {
+        contains.add(h);
+      }
+      if (starts.length >= 3) break;
+    }
+    return <InvestmentHolding>[...starts, ...contains].take(3).toList();
+  }
+
+  /// 应用持仓建议：一键填全代码 + 名称 + 品种，并收起键盘。
+  void _applySuggestion(InvestmentHolding h) {
+    _symbolCtrl.text = h.symbol;
+    _nameCtrl.text = h.name;
+    setState(() {
+      _type = h.type;
+      _typeMissing = false;
+    });
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  /// 应用远程候选：同款填空逻辑。
+  void _applyCandidate(SecurityCandidate c) {
+    _symbolCtrl.text = c.symbol;
+    _nameCtrl.text = c.name;
+    setState(() {
+      _type = c.type;
+      _typeMissing = false;
+    });
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  /// 字段下方的建议列表：本地持仓命中优先，叠加远程候选库（基金/币）命中。
+  Widget _suggestArea(String query) {
+    final String q = query.trim();
+    final List<InvestmentHolding> holdings = _suggestionsFor(query);
+    if (q.isEmpty) return const SizedBox.shrink();
+    // 输入即触发候选库加载（仅基金/币）。
+    _triggerMetaLoad(_type);
+    final AsyncValue<List<SecurityCandidate>> meta =
+        ref.watch(securityMetaSearchProvider(MetaQuery(q, _type)));
+
+    return meta.when(
+      data: (List<SecurityCandidate> cands) {
+        final Set<String> held = <String>{
+          for (final InvestmentHolding h in holdings) h.symbol.toUpperCase(),
+        };
+        final List<Widget> rows = <Widget>[
+          for (final InvestmentHolding h in holdings) _buildHoldingRow(h),
+          for (final SecurityCandidate c in cands)
+            if (!held.contains(c.symbol.toUpperCase())) _buildCandidateRow(c),
+        ];
+        if (rows.isEmpty) return const SizedBox.shrink();
+        return _suggestBox(rows);
+      },
+      loading: () => holdings.isEmpty
+          ? const SizedBox.shrink()
+          : _suggestBox(holdings.map(_buildHoldingRow).toList()),
+      error: (Object _, StackTrace? __) => holdings.isEmpty
+          ? const SizedBox.shrink()
+          : _suggestBox(holdings.map(_buildHoldingRow).toList()),
+    );
+  }
+
+  Widget _suggestBox(List<Widget> rows) {
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: _Sage.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _Sage.hairline),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: rows),
+    );
+  }
+
+  Widget _buildHoldingRow(InvestmentHolding h) => _buildSuggestRow(h);
+
+  Widget _buildCandidateRow(SecurityCandidate c) {
+    return InkWell(
+      onTap: () => _applyCandidate(c),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: <Widget>[
+            Text(
+              c.symbol,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _Sage.ink,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                c.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, color: _Sage.ink2),
+              ),
+            ),
+            Text(
+              c.type.label,
+              style: const TextStyle(fontSize: 12, color: _Sage.ink3),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.north_west, size: 14, color: _Sage.ink3),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestRow(InvestmentHolding h) {
+    return InkWell(
+      onTap: () => _applySuggestion(h),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: <Widget>[
+            Text(
+              h.symbol,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _Sage.ink,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                h.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, color: _Sage.ink2),
+              ),
+            ),
+            Text(
+              h.type.label,
+              style: const TextStyle(fontSize: 12, color: _Sage.ink3),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.north_west, size: 14, color: _Sage.ink3),
+          ],
+        ),
+      ),
+    );
   }
 
   void _close() {
     if (_closed) return;
     _closed = true;
     Navigator.of(context).pop();
+  }
+
+  /// 网格 / 列表切换记忆（与账户选择弹窗共用同一偏好键，口径一致）。
+  bool get _listView =>
+      ref.watch(recordingSettingsProvider).accountPickerListView;
+
+  void _toggleListView() {
+    ref
+        .read(recordingSettingsProvider.notifier)
+        .setAccountPickerListView(!_listView);
+  }
+
+  /// 实时持仓列表：弹层内新建后网格立即出现，无需重开。
+  ///
+  /// 「新建未落库」的标的不写库（真实持仓在成交落库时由 recordBuy 创建），
+  /// 此处以合成卡片置顶展示并高亮；成交保存后由 DB 流自动替换为真实行，
+  /// 若取消记账则合成卡片随之消失，不产生脏数据。
+  List<InvestmentHolding> get _items {
+    final List<InvestmentHolding> dbItems =
+        ref.watch(investmentListProvider).valueOrNull ??
+            const <InvestmentHolding>[];
+    final String? id = widget.selectedId;
+    if (id != null && id.isNotEmpty) return dbItems;
+    final String? sym = widget.selectedSymbol?.trim();
+    final String? nm = widget.selectedName?.trim();
+    if (sym == null || sym.isEmpty || nm == null || nm.isEmpty) {
+      return dbItems;
+    }
+    final String uSym = sym.toUpperCase();
+    // 已有同代码+同名的落库持仓时不再重复展示（高亮会落在真实行上）。
+    final bool exists = dbItems.any(
+      (InvestmentHolding h) => h.symbol.toUpperCase() == uSym && h.name == nm,
+    );
+    if (exists) return dbItems;
+    return <InvestmentHolding>[
+      InvestmentHolding(
+        updatedAt: 0,
+        deleted: false,
+        dirty: false,
+        id: '',
+        bookId: '',
+        symbol: uSym,
+        name: nm,
+        type: widget.selectedType ?? InvestmentType.other,
+        quantityMicros: 0,
+        avgCostMinor: 0,
+        currentPriceMinor: 0,
+        currency: 'CNY',
+      ),
+      ...dbItems,
+    ];
+  }
+
+  /// 高亮匹配：已落库持仓按 id 记忆；「新建未落库」按代码+名称匹配。
+  bool _isSelected(InvestmentHolding h) {
+    final String? id = widget.selectedId;
+    if (id != null && id.isNotEmpty) return h.id == id;
+    final String? sym = widget.selectedSymbol?.trim();
+    final String? nm = widget.selectedName?.trim();
+    if (sym == null || sym.isEmpty || nm == null || nm.isEmpty) return false;
+    return h.symbol == sym.toUpperCase() && h.name == nm;
   }
 
   @override
@@ -10274,88 +10935,651 @@ class _InvestHoldingPickerSheetState extends State<_InvestHoldingPickerSheet> {
         decoration: BoxDecoration(
           color: _Sage.paper,
           borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(20),
+            top: Radius.circular(24),
           ),
         ),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: SingleChildScrollView(
+        child: SafeArea(
+          top: false,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const Text('选择持仓',
-                  style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              widget.holdings.when(
-                data: (List<InvestmentHolding> list) => Column(
-                  children: <Widget>[
-                    for (final InvestmentHolding h in list)
-                      ListTile(
-                        title: Text('${h.symbol} ${h.name}'),
-                        subtitle: Text(
-                          '${(h.quantityMicros / 1000000).toStringAsFixed(2)} 份 · ${h.type.label}',
-                        ),
-                        onTap: () {
-                          widget.onSelectHolding(h);
-                          _close();
-                        },
-                      ),
-                    if (list.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text('暂无持仓，可下方新建'),
-                      ),
-                  ],
+              // 拖拽条
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(top: 10),
+                decoration: BoxDecoration(
+                  color: _Sage.greenSoftBd,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                loading: () => const LinearProgressIndicator(),
-                error: (Object e, _) => Text('加载失败：$e'),
               ),
-              const Divider(height: 24),
-              const Text('新建持仓',
-                  style:
-                      TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              TextField(
-                decoration:
-                    const InputDecoration(labelText: '代码（如 110022）'),
-                controller: _symbolCtrl,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                decoration:
-                    const InputDecoration(labelText: '名称（如 沪深300ETF）'),
-                controller: _nameCtrl,
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<InvestmentType>(
-                value: _type,
-                decoration: const InputDecoration(labelText: '品种'),
-                items: <DropdownMenuItem<InvestmentType>>[
-                  for (final InvestmentType t in InvestmentType.values)
-                    DropdownMenuItem<InvestmentType>(
-                      value: t,
-                      child: Text(t.label),
-                    ),
-                ],
-                onChanged: (InvestmentType? v) =>
-                    setState(() => _type = v ?? InvestmentType.fund),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    final String symbol = _symbolCtrl.text.trim();
-                    final String name = _nameCtrl.text.trim();
-                    if (symbol.isEmpty || name.isEmpty) return;
-                    widget.onConfirmNew(symbol, name, _type);
+              _buildHeader(),
+              _showForm ? _buildForm() : _buildBody(),
+              if (!_showForm) _buildOps(),
+              const SizedBox(height: 14),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── 标题栏：关闭 / 标题 / 网格·列表切换 / ＋ 新建 ──
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+      child: Row(
+        children: <Widget>[
+          _PickerIconBtn(
+            icon: _showForm ? Icons.arrow_back : Icons.close,
+            onTap: () {
+              if (_showForm) {
+                _backToPicker();
+              } else {
+                _close();
+              }
+            },
+          ),
+          const SizedBox(width: 10),
+          Text(
+            _showForm ? '新建持仓' : '选择持仓',
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.02,
+              color: _Sage.ink,
+            ),
+          ),
+          const Spacer(),
+          if (!_showForm) ...<Widget>[
+            _PickerPillBtn(
+              label: _listView ? '≡ 网格' : '≡ 列表',
+              ghost: true,
+              onTap: _toggleListView,
+            ),
+            const SizedBox(width: 8),
+            _PickerPillBtn(
+              label: '＋ 新建',
+              primary: true,
+              onTap: _enterForm,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── 持仓主体（网格或列表），布局口径同账户选择弹窗 ──
+  Widget _buildBody() {
+    final List<InvestmentHolding> items = _items;
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        child: Text(
+          '暂无持仓，点右上角「＋ 新建」',
+          textAlign: TextAlign.center,
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: _Sage.ink3),
+        ),
+      );
+    }
+
+    // 主体高度与账户弹窗统一：最多 2 行卡（94*2+6=194），超出内部滚动。
+    final int rows = (items.length + 1) ~/ 2;
+    final double bodyHeight = rows >= 2 ? 94 * 2 + 6 : 94.0 * rows;
+
+    if (_listView) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(14, 3, 14, 6),
+        child: SizedBox(
+          height: bodyHeight,
+          child: ListView.separated(
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const Divider(
+              height: 1,
+              indent: 56,
+            ),
+            itemBuilder: (BuildContext ctx, int index) {
+              final InvestmentHolding h = items[index];
+              final bool selected = _isSelected(h);
+              return _HoldingRow(
+                holding: h,
+                selected: selected,
+                pending: h.id.isEmpty,
+                onTap: () {
+                  // 合成的「新建未落库」卡片：本就是表单当前选中项，
+                  // 点击仅关闭，不把空 id 回写表单。
+                  if (h.id.isEmpty) {
+                    _close();
+                    return;
+                  }
+                  widget.onSelectHolding(h);
+                  _close();
+                },
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 3, 14, 6),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          const double gap = 6; // 网格间距
+          const double cardHeight = 94;
+          final double cardWidth = (constraints.maxWidth - gap) / 2;
+          return SizedBox(
+            height: bodyHeight,
+            child: GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: gap,
+              crossAxisSpacing: gap,
+              childAspectRatio: cardWidth / cardHeight,
+              padding: EdgeInsets.zero,
+              children: items.map((InvestmentHolding h) {
+                final bool selected = _isSelected(h);
+                return _HoldingTile(
+                  holding: h,
+                  selected: selected,
+                  pending: h.id.isEmpty,
+                  onTap: () {
+                    // 合成的「新建未落库」卡片：本就是表单当前选中项，
+                    // 点击仅关闭，不把空 id 回写表单。
+                    if (h.id.isEmpty) {
+                      _close();
+                      return;
+                    }
+                    widget.onSelectHolding(h);
                     _close();
                   },
-                  child: const Text('确认新建'),
+                );
+              }).toList(),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── 新建表单视图（点「＋ 新建」切入） ──
+  Widget _buildForm() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            TextField(
+              decoration:
+                  const InputDecoration(labelText: '代码（如 110022）'),
+              controller: _symbolCtrl,
+              focusNode: _symbolFocus,
+              textInputAction: TextInputAction.next,
+            ),
+            _suggestArea(_symbolCtrl.text),
+            const SizedBox(height: 8),
+            TextField(
+              decoration:
+                  const InputDecoration(labelText: '名称（如 沪深300ETF）'),
+              controller: _nameCtrl,
+            ),
+            _suggestArea(_nameCtrl.text),
+            const SizedBox(height: 12),
+            // 品种选择：内联 chips 而非 Dropdown——Dropdown 打开的是独立路由
+            // 菜单，会抢走输入框焦点把键盘收起；chips 不走路由，键盘保持弹出。
+            // 横向单行排列、可向左滑动（用户要求），不预设选中。
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: <Widget>[
+                  for (final InvestmentType t in InvestmentType.displayOrder)
+                    _buildTypeChip(t),
+                ],
+              ),
+            ),
+            if (_typeMissing) ...<Widget>[
+              const SizedBox(height: 8),
+              const Text(
+                '请先选择品种',
+                style: TextStyle(fontSize: 12, color: _Sage.ink2),
+              ),
+            ],
+            const SizedBox(height: 16),
+            _PickerConfirmBtn(
+              label: '确认新建',
+              onTap: () {
+                final String symbol = _symbolCtrl.text.trim();
+                final String name = _nameCtrl.text.trim();
+                if (symbol.isEmpty || name.isEmpty) return;
+                // 局部变量承接：_type 是非 final 字段，无法空值提升。
+                final InvestmentType? type = _type;
+                if (type == null) {
+                  setState(() => _typeMissing = true);
+                  return;
+                }
+                widget.onConfirmNew(symbol, name, type);
+                _close();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 品种选择 chip：选中绿渐变白字，未选奶油底描边。InkWell 不请求焦点，
+  /// 点击时键盘不会收起，输入框焦点原样保留。
+  Widget _buildTypeChip(InvestmentType t) {
+    final bool selected = _type == t;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () {
+          setState(() {
+            _type = t;
+            _typeMissing = false;
+          });
+          _triggerMetaLoad(t);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: selected ? _Sage.sage : null,
+            color: selected ? null : _Sage.card,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? Colors.transparent : _Sage.hairline,
+            ),
+          ),
+          child: Text(
+            t.label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : _Sage.ink2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── 底部操作区：投资管理（持仓列表实时刷新，无需手动重新加载） ──
+  Widget _buildOps() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: _PickerManageBtn(
+        label: '投资管理',
+        onTap: () {
+          if (!mounted) return;
+          context.push(Routes.investment);
+        },
+      ),
+    );
+  }
+}
+
+// ───────────────────── 弹层小组件（命名避开账户弹窗私有件） ─────────────────────
+
+/// 圆形图标按钮（关闭 / 返回）。
+class _PickerIconBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _PickerIconBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(17),
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: _Sage.card,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(color: _Sage.hairline, width: 1),
+          ),
+          child: Icon(icon, size: 15, color: _Sage.ink3),
+        ),
+      );
+}
+
+/// 药丸按钮（网格·列表切换 / ＋ 新建）。
+class _PickerPillBtn extends StatelessWidget {
+  final String label;
+  final bool ghost;
+  final bool primary;
+  final VoidCallback? onTap;
+
+  const _PickerPillBtn({
+    required this.label,
+    this.ghost = false,
+    this.primary = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isPrimary = primary && !ghost;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 13),
+        decoration: BoxDecoration(
+          gradient: isPrimary ? _Sage.sage : null,
+          color: isPrimary ? null : _Sage.card,
+          border: Border.all(
+            color: isPrimary ? Colors.transparent : _Sage.hairline,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: isPrimary ? _Sage.pickShadow : null,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: isPrimary
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : _Sage.greenDeep,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 底部通栏按钮（投资管理）。
+class _PickerManageBtn extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+
+  const _PickerManageBtn({required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: double.infinity,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(13),
+          child: Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: _Sage.card,
+              border: Border.all(color: _Sage.hairline, width: 1),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: _Sage.greenDeep,
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+/// 表单确认按钮（确认新建）。
+class _PickerConfirmBtn extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+
+  const _PickerConfirmBtn({required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: Container(
+          height: 42,
+          decoration: BoxDecoration(
+            gradient: _Sage.sage,
+            borderRadius: BorderRadius.circular(13),
+            boxShadow: _Sage.pickShadow,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
+        ),
+      );
+}
+
+/// 持仓网格卡（对齐账户卡布局）：名称 / 市值大字 / 品种标签 + 份额。
+class _HoldingTile extends StatelessWidget {
+  final InvestmentHolding holding;
+  final bool selected;
+
+  /// 合成的「新建未落库」卡片：市值位显示「待建仓」而非「已清仓」。
+  final bool pending;
+  final VoidCallback onTap;
+
+  const _HoldingTile({
+    required this.holding,
+    required this.selected,
+    this.pending = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool cleared = holding.quantityMicros == 0 && !pending;
+    final Money money = Money.fromMinor(holding.marketValueMinor);
+
+    final Widget card = Container(
+      constraints: const BoxConstraints(minHeight: 94),
+      padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
+      decoration: BoxDecoration(
+        gradient: selected ? _Sage.sage : null,
+        color: selected ? null : _Sage.card,
+        border: Border.all(
+          color: selected ? _Sage.greenSoftBd : _Sage.hairline,
+          width: 1,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: selected ? _Sage.pickShadow : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '${holding.symbol} ${holding.name}',
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+              color: selected ? Theme.of(context).colorScheme.onPrimary : _Sage.ink,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const Spacer(),
+          Container(
+            width: double.infinity,
+            alignment: Alignment.centerRight,
+            child: Text(
+              pending ? '待建仓' : cleared ? '已清仓' : money.format(),
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.2,
+                fontWeight: FontWeight.w800,
+                color: pending || cleared
+                    ? (selected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : _Sage.ink3)
+                    : (selected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : _Sage.greenDeep),
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: <Widget>[
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.549)
+                      : _Sage.greenSoft,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  holding.type.label,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                    color: selected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : _Sage.greenDeep,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${holding.quantity.toStringAsFixed(2)} 份',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  height: 1.2,
+                  color: selected
+                      ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.85)
+                      : _Sage.ink3,
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures(),
+                  ],
                 ),
               ),
             ],
           ),
+        ],
+      ),
+    );
+
+    if (!selected) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: card,
+      );
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: <Widget>[
+          card,
+          Positioned(
+            top: 10,
+            right: 12,
+            child: Icon(
+              Icons.check_circle,
+              size: 18,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 持仓列表行（紧凑）：图标 + 代码名称 + 右侧市值 + 选中勾。
+class _HoldingRow extends StatelessWidget {
+  final InvestmentHolding holding;
+  final bool selected;
+
+  /// 合成的「新建未落库」卡片：市值位显示「待建仓」而非「已清仓」。
+  final bool pending;
+  final VoidCallback onTap;
+
+  const _HoldingRow({
+    required this.holding,
+    required this.selected,
+    this.pending = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool cleared = holding.quantityMicros == 0 && !pending;
+    final Money money = Money.fromMinor(holding.marketValueMinor);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _Sage.greenSoft,
+                borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+              ),
+              child: const Icon(
+                Icons.show_chart_outlined,
+                color: _Sage.greenDeep,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '${holding.symbol} ${holding.name}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _Sage.ink,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              pending ? '待建仓' : cleared ? '已清仓' : money.format(),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: pending || cleared ? _Sage.ink3 : _Sage.greenDeep,
+                fontFeatures: const <FontFeature>[
+                  FontFeature.tabularFigures(),
+                ],
+              ),
+            ),
+            if (selected) ...<Widget>[
+              const SizedBox(width: 8),
+              const Icon(Icons.check_circle, size: 20, color: _Sage.greenDeep),
+            ],
+          ],
         ),
       ),
     );
@@ -10373,6 +11597,7 @@ class _InvestmentReceiptCard extends StatelessWidget {
     required this.cashMinor,
     required this.marketMinor,
     required this.accountName,
+    required this.unitLabel,
   });
 
   final bool isBuy;
@@ -10383,6 +11608,9 @@ class _InvestmentReceiptCard extends StatelessWidget {
   final int cashMinor;
   final int marketMinor;
   final String accountName;
+
+  /// 数量单位（份/股/张/手/克/枚），跟随品种交易规则。
+  final String unitLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -10433,7 +11661,10 @@ class _InvestmentReceiptCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppDimens.spaceLg),
-            _ReceiptRow('份额', _fmtQty(quantityMicros)),
+            _ReceiptRow(
+              unitLabel == '份' ? '份额' : '数量',
+              '${_fmtQtySmart(quantityMicros)} $unitLabel',
+            ),
             _ReceiptRow('单价', Money.fromMinor(priceMinor).format()),
             _ReceiptRow('手续费', Money.fromMinor(feeMinor).format()),
             _ReceiptRow(
@@ -10488,6 +11719,16 @@ class _InvestmentReceiptCard extends StatelessWidget {
     final double q = micros / InvestmentRepository.quantityScale;
     // 固定 4 位小数，与表单「可得份额」口径一致。
     return q.toStringAsFixed(4);
+  }
+
+  /// 数量智能格式化：最多 6 位小数、去尾随 0（100 股→100，0.5 克→0.5）。
+  String _fmtQtySmart(int micros) {
+    final double q = micros / InvestmentRepository.quantityScale;
+    String s = q.toStringAsFixed(6);
+    if (s.contains('.')) {
+      s = s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+    }
+    return s.isEmpty ? '0' : s;
   }
 }
 

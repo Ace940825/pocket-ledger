@@ -8,6 +8,7 @@ import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
+import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
@@ -55,11 +56,11 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   String _roundingLabel = '四舍五入';
   String _remainderLabel = '首期';
   String _precisionLabel = '小数点后2位';
-  String _principalTimingLabel = '分期时计入';
+  String _principalTimingLabel = '逐期扣款';
 
   /// 利息扣除方式：按期均摊、首期全部扣除、尾期全部扣除。
   String _interestDeductLabel = '按期均摊';
-  String _interestTimingLabel = '分期时计入';
+  String _interestTimingLabel = '逐期扣款';
 
   String? _accountId;
   String? _categoryId;
@@ -73,6 +74,11 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       RepeatUnit.month,
       firstDue: _firstDueAt,
     );
+    // 进入表单不自动聚焦：记一笔切到本 Tab / 路由进入时，主动收起
+    // 任何残留焦点（含上一 Tab 遗留的系统键盘），保证进来键盘是收起的。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
   }
 
   @override
@@ -210,7 +216,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                         icon: Icons.account_balance_wallet_outlined,
                         onTap: () => _showOptionSheet(
                           title: '本金计入方式',
-                          options: const <String>['分期时计入', '分期时全部计入'],
+                          options: const <String>['逐期扣款', '一次性扣款'],
                           selected: _principalTimingLabel,
                           onSelected: (String v) =>
                               setState(() => _principalTimingLabel = v),
@@ -249,7 +255,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                         icon: Icons.savings_outlined,
                         onTap: () => _showOptionSheet(
                           title: '利息计入方式',
-                          options: const <String>['分期时计入', '分期时全部计入'],
+                          options: const <String>['逐期扣款', '一次性扣款'],
                           selected: _interestTimingLabel,
                           onSelected: (String v) =>
                               setState(() => _interestTimingLabel = v),
@@ -757,9 +763,13 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       builder: (BuildContext ctx) => AccountPickerSheet(
         selectedId: _accountId,
         title: '选择负债账户',
-        // 负债账户可不选（addPlan.accountId 可空）：仅建分期计划，不关联账户。
-        showNoneRow: true,
-        noneSubtitle: '暂不关联负债账户',
+        // 分期只能用负债账户付款（2026-10-09 口径）：只列负债方向账户
+        // （信用卡/花呗/借呗/白条等），到期自动入账落在该账户上。
+        filter: (List<Account> all) => all
+            .where((Account a) => a.type.isLiabilitySide)
+            .toList(growable: false),
+        // 负债账户必选：没有付款账户就无法自动入账。
+        showNoneRow: false,
         // 点添加/资产管理：不关闭当前弹窗，把目标页压在上面。
         onAdd: () {
           if (mounted) context.push(Routes.accountAdd);
@@ -856,11 +866,18 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     );
   }
 
+  /// 分类选择器（小青账同款两级钻取）：
+  /// 一级列表 → 点「有子分类」的一级进入二级列表（标题变分类名 + 返回键），
+  /// 点「无子分类」的一级直接选中。
   Future<void> _showCategoryPicker(List<Category> categories) async {
     FocusManager.instance.primaryFocus?.unfocus();
     final List<Category> parents = categories
         .where((Category c) => c.parentId == null && !c.isSystem)
         .toList(growable: false);
+    List<Category> childrenOf(Category parent) => categories
+        .where((Category c) => c.parentId == parent.id && !c.isSystem)
+        .toList(growable: false);
+
     final String? result = await showModalBottomSheet<String>(
       context: context,
       shape: RoundedRectangleBorder(
@@ -868,42 +885,107 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           top: Radius.circular(AppDimens.radiusLg),
         ),
       ),
-      builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(AppDimens.spaceMd),
-              child: Text(
-                '选择分类',
-                style: Theme.of(ctx).textTheme.titleSmall,
-              ),
-            ),
-            const Divider(height: 1),
-            Flexible(
-              child: ListView.builder(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                shrinkWrap: true,
-                itemCount: parents.length,
-                itemBuilder: (BuildContext ctx, int index) {
-                  final Category category = parents[index];
-                  return ListTile(
-                    leading: category.iconKey != null
-                        ? Icon(categoryIconData(category.iconKey))
-                        : null,
-                    title: Text(category.name),
-                    trailing: category.id == _categoryId
-                        ? const Icon(Icons.check, color: AppPalette.primary)
-                        : null,
-                    onTap: () => Navigator.of(ctx).pop(category.id),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: AppDimens.spaceMd),
-          ],
-        ),
-      ),
+      builder: (BuildContext ctx) {
+        // 钻取状态：null = 一级列表，否则显示该一级的二级分类。
+        Category? drilled;
+        return SafeArea(
+          child: StatefulBuilder(
+            builder: (BuildContext ctx, StateSetter setSheetState) {
+              final List<Category> items = drilled == null
+                  ? parents
+                  : childrenOf(drilled!);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.all(AppDimens.spaceMd),
+                    child: Row(
+                      children: <Widget>[
+                        if (drilled != null)
+                          InkWell(
+                            onTap: () =>
+                                setSheetState(() => drilled = null),
+                            borderRadius: BorderRadius.circular(16),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.arrow_back_ios_new,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        if (drilled != null)
+                          const SizedBox(width: AppDimens.spaceSm),
+                        Expanded(
+                          child: Text(
+                            drilled?.name ?? '选择分类',
+                            style: Theme.of(ctx).textTheme.titleSmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: ListView.builder(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      shrinkWrap: true,
+                      itemCount: items.length,
+                      itemBuilder: (BuildContext ctx, int index) {
+                        final Category category = items[index];
+                        if (drilled == null) {
+                          final bool hasChildren =
+                              childrenOf(category).isNotEmpty;
+                          return ListTile(
+                            leading: category.iconKey != null
+                                ? Icon(categoryIconData(category.iconKey))
+                                : null,
+                            title: Text(category.name),
+                            trailing: hasChildren
+                                ? Icon(
+                                    Icons.chevron_right,
+                                    size: 20,
+                                    color: AppPalette.textTertiary,
+                                  )
+                                : (category.id == _categoryId
+                                    ? const Icon(
+                                        Icons.check,
+                                        color: AppPalette.primary,
+                                      )
+                                    : null),
+                            onTap: () {
+                              if (hasChildren) {
+                                setSheetState(() => drilled = category);
+                              } else {
+                                Navigator.of(ctx).pop(category.id);
+                              }
+                            },
+                          );
+                        }
+                        return ListTile(
+                          leading: category.iconKey != null
+                              ? Icon(categoryIconData(category.iconKey))
+                              : null,
+                          title: Text(category.name),
+                          trailing: category.id == _categoryId
+                              ? const Icon(
+                                  Icons.check,
+                                  color: AppPalette.primary,
+                                )
+                              : null,
+                          onTap: () => Navigator.of(ctx).pop(category.id),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: AppDimens.spaceMd),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
     FocusManager.instance.primaryFocus?.unfocus();
     if (result != null && mounted) {
@@ -965,6 +1047,11 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     }
     if (_periods <= 0 || _periods > 120) {
       _toast('期数需在 1 - 120 之间');
+      return;
+    }
+    if (_accountId == null) {
+      // 分期付款账户必选：到期自动入账要落在该负债账户上。
+      _toast('请选择负债账户');
       return;
     }
 
@@ -1142,6 +1229,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
   }
 
   void _decrease() {
+    FocusManager.instance.primaryFocus?.unfocus();
     final int current = _parseCurrent();
     final int next = (current - 1).clamp(widget.min, widget.max);
     _controller.text = '$next';
@@ -1151,6 +1239,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
   }
 
   void _increase() {
+    FocusManager.instance.primaryFocus?.unfocus();
     final int current = _parseCurrent();
     final int next = (current + 1).clamp(widget.min, widget.max);
     _controller.text = '$next';

@@ -117,14 +117,16 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 
   // ---- 借出 / 借入（应收 / 应付）布局 ----
 
+  /// 借出 / 借入（应收 / 应付）布局（参照小青账：区块标题收进卡片内部，
+  /// 金额为派生只读字段）。
   List<Widget> _lendSections(Account account, bool isLend) => <Widget>[
-        _sectionLabel('基本信息'),
         _Card(
           child: Padding(
             padding: const EdgeInsets.all(AppDimens.spaceMd),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                _cardTitle('基本信息'),
                 _fieldLabel(isLend ? '借款给谁' : '向谁借'),
                 TextField(
                   controller: _nameController,
@@ -166,13 +168,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     final int display = account.balanceMinor + market;
     final bool hasHoldings = market != 0;
     return <Widget>[
-      _sectionLabel('基本信息'),
       _Card(
         child: Padding(
           padding: const EdgeInsets.all(AppDimens.spaceMd),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              _cardTitle('基本信息'),
               _fieldLabel('账户名称'),
               TextField(
                 controller: _nameController,
@@ -462,24 +464,21 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         ),
       );
 
-  /// 「其他」区块：资产状态三态 + 计入总资产开关（两种模式共用）。
-  Widget _otherSection() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          _sectionLabel('其他'),
-          _Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppDimens.spaceMd),
-              child: Column(
-                children: <Widget>[
-                  _statusRow(),
-                  const SizedBox(height: AppDimens.spaceMd),
-                  _includeRow(),
-                ],
-              ),
-            ),
+  /// 「其他」区块：资产状态三态 + 计入总资产开关（两种模式共用，
+  /// 参照小青账：区块标题收进卡片内部）。
+  Widget _otherSection() => _Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimens.spaceMd),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _cardTitle('其他'),
+              _statusRow(),
+              const SizedBox(height: AppDimens.spaceMd),
+              _includeRow(),
+            ],
           ),
-        ],
+        ),
       );
 
   /// 改名对话框：借记卡的「银行名」即账户名。
@@ -546,10 +545,22 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         padding: const EdgeInsets.only(bottom: AppDimens.spaceSm),
         child: Text(
           text,
-          style: Theme.of(context)
-              .textTheme
-              .titleSmall
-              ?.copyWith(fontWeight: FontWeight.w600),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppPalette.textPrimary,
+              ),
+        ),
+      );
+
+  /// 卡片内部区块标题（参照小青账：标题在卡片内第一行）。
+  Widget _cardTitle(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: AppPalette.textPrimary,
+              ),
         ),
       );
 
@@ -599,7 +610,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               ? '—'
               : Money.fromMinor(balanceMinor).format(),
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppPalette.textSecondary,
+                color: AppPalette.textPrimary,
+                fontWeight: FontWeight.w500,
               ),
         ),
       );
@@ -613,7 +625,12 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     ];
     return Row(
       children: <Widget>[
-        const Text('资产状态'),
+        Text(
+          '资产状态',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppPalette.textPrimary,
+              ),
+        ),
         const SizedBox(width: AppDimens.spaceMd),
         Expanded(
           child: Align(
@@ -645,7 +662,12 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text('计入总资产'),
+                Text(
+                  '计入总资产',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppPalette.textPrimary,
+                      ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   '是否加入总资产计算',

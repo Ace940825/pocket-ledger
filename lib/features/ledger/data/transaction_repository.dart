@@ -378,6 +378,24 @@ class TransactionRepository {
     await remove(txn.id);
   }
 
+  /// 按 [relatedId] 软删**全部**关联流水（一个持仓可有多笔买卖）。
+  ///
+  /// 供投资「删除持仓」级联使用：逐笔走 [remove]，余额反向冲销、
+  /// 级联删报销、同步入队均由其自理。无匹配时静默返回（幂等）。
+  /// 注意：会级联回滚每笔流水对资金账户余额的影响（买入扣款加回、
+  /// 卖出收入扣回），删除持仓后账户余额回到未交易前状态。
+  Future<void> removeAllByRelatedId(String relatedId) async {
+    final List<Transaction> rows = await (_db.select(_db.transactions)
+          ..where(
+            (Transactions t) =>
+                t.relatedId.equals(relatedId) & t.deleted.equals(false),
+          ))
+        .get();
+    for (final Transaction txn in rows) {
+      await remove(txn.id);
+    }
+  }
+
   /// 账单迁移：把使用 [fromId] 分类的全部流水改挂到 [toId] 分类。
   ///
   /// 仅修改 categoryId，不影响金额与账户余额，因此无需调整余额 delta。
@@ -546,6 +564,47 @@ class TransactionRepository {
       // 还款时，债务仍停留在已结清、账户未还本金不变（数据不一致）。
       // 本金流水（借入/借出）不受影响：无台账且备注非冲销动词，直接跳过。
       await restoreLendOffsetOnFlowRemoved(_db, txn);
+
+      // 级联软删「借入/借出本金流水」对应的借还记录：在账户页删本金流水
+      // 即视为撤销这笔债务，记录随之软删、指定账户余额重算，避免「删流水
+      // 后借还记录仍驱动余额」的孤儿余额。还债/收债/债务消减/坏账计提流水
+      // 已在上面反向恢复 repaid，不在此删记录。区分依据：本金流水从不写
+      // lend_flow_offsets 台账，冲销流水一定会写。
+      if (txn.sourceModule == SourceModule.lend &&
+          txn.relatedId != null &&
+          txn.type != TxnType.transfer) {
+        final bool hasOffsets = (await _db.customSelect(
+          'SELECT 1 FROM lend_flow_offsets WHERE txn_id = ? LIMIT 1',
+          variables: <Variable<Object>>[Variable<Object>(txn.id)],
+        )
+                .get())
+            .isNotEmpty;
+        if (!hasOffsets) {
+          final LendRecord? rec = await (_db.select(_db.lendRecords)
+                ..where((LendRecords t) =>
+                    t.id.equals(txn.relatedId!) & t.deleted.equals(false)))
+              .getSingleOrNull();
+          if (rec != null) {
+            await (_db.update(_db.lendRecords)
+                  ..where((LendRecords t) => t.id.equals(rec.id)))
+                .write(
+              const LendRecordsCompanion(
+                deleted: Value<bool>(true),
+                dirty: Value<bool>(true),
+              ),
+            );
+            await _enqueue(
+              tableName: 'lend_records',
+              recordId: rec.id,
+              opType: SyncOpType.delete,
+              updatedAt: now,
+            );
+            // 记录软删后按剩余未结清记录重算指定账户余额（幂等）。
+            await reconcileDesignatedLendBalance(_db, rec.accountId);
+            await deleteLendOffsetsForRecord(_db, rec.id);
+          }
+        }
+      }
     });
   }
 

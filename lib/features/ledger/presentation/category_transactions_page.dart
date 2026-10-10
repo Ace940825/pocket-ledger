@@ -379,25 +379,27 @@ class _DayGroup extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(
-              children: <Widget>[
-                for (int i = 0; i < items.length; i++) ...<Widget>[
-                  if (i > 0)
-                    Container(
-                      height: 0.6,
-                      margin: const EdgeInsets.only(left: 52),
-                      color: Theme.of(context).colorScheme.outline,
+            child: TxnSlidableGroup(
+              child: Column(
+                children: <Widget>[
+                  for (int i = 0; i < items.length; i++) ...<Widget>[
+                    if (i > 0)
+                      Container(
+                        height: 0.6,
+                        margin: const EdgeInsets.only(left: 52),
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    TxnSlidable(
+                      txn: items[i],
+                      child: TransactionTile(
+                        transaction: items[i],
+                        onTap: () =>
+                            TransactionDetailSheet.show(context, items[i]),
+                      ),
                     ),
-                  TxnSlidable(
-                    txn: items[i],
-                    child: TransactionTile(
-                      transaction: items[i],
-                      onTap: () =>
-                          TransactionDetailSheet.show(context, items[i]),
-                    ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ],

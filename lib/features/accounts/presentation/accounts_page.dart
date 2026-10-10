@@ -66,14 +66,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     );
   }
 
-  /// 报销账户统一跳报销页（即其「资产详情」），其余类型（含借出/借入账户）
-  /// 进资产详情页。
+  /// 所有账户（含报销账户）统一进资产详情页（报销账户的资产详情含
+  /// 垫付汇总 + 待报销/已报销筛选，即其主视图）。
   void _openDetail(Account a) {
-    final String target = switch (a.type) {
-      AccountType.reimbursement => Routes.reimbursement,
-      _ => '/accounts/${a.id}/transactions',
-    };
-    context.push(target);
+    context.push('/accounts/${a.id}/transactions');
   }
 
   // 左滑「编辑」：应收（借出）/ 应付（借入）/ 投资类（基金、股票、期货、

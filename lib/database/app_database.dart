@@ -68,7 +68,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 27;
+  int get schemaVersion => 29;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -77,6 +77,10 @@ class AppDatabase extends _$AppDatabase {
           await _createIndexes();
           // 借还流水冲销台账（原始 SQL 建表，不参与 drift 代码生成）。
           await _ensureLendFlowOffsetsTable();
+          // 分期「还款自动勾选」溯源表（原生 SQL，范式同上）。
+          await _ensureInstallmentAutoPaidTable();
+          // 行情候选库（自动补全元数据缓存）。
+          await _ensureSecurityMetaTable();
         },
         onUpgrade: (Migrator m, int from, int to) async {
           // 每个版本必须在此追加 step-by-step 迁移。
@@ -363,6 +367,21 @@ class AppDatabase extends _$AppDatabase {
             await _addColumnIfMissing(m, transactions, transactions.placeName);
           }
 
+          if (from < 28) {
+            // v28：分期「还款自动勾选」溯源表（原生 SQL，不参与 drift 代码生成）。
+            // 记录被「还款自动对账」勾选已还的期次，供 reconcile 支持「可进可退」
+            // 回退；用户手动勾选的期次不在此表，永不自动回退。范式参考
+            // [_ensureLendFlowOffsetsTable]（本沙箱 build_runner 因管道耗尽不可用，
+            // 故用原生 SQL 避免改 schema 必须重跑代码生成）。
+            await _ensureInstallmentAutoPaidTable();
+          }
+
+          if (from < 29) {
+            // v29：行情候选库（证券/币全量元数据缓存，支撑新建持仓自动补全）。
+            // 原生 SQL 建表（同分期溯源表范式，避开 build_runner 代码生成）。
+            await _ensureSecurityMetaTable();
+          }
+
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
           // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
           await _createIndexes();
@@ -408,6 +427,37 @@ class AppDatabase extends _$AppDatabase {
       'lend_record_id TEXT NOT NULL, '
       'amount_minor INTEGER NOT NULL, '
       'PRIMARY KEY (txn_id, lend_record_id))',
+    );
+  }
+
+  /// 幂等建表：分期「还款自动勾选」溯源表（原生 SQL，不参与 drift 代码生成）。
+  ///
+  /// 记录哪些期次是被「还款自动对账」勾选已还的（[period_id]），用于支持
+  /// 「可进可退」：当对应还款被删除/减少、周期不再满足阈值时，自动回退这些
+  /// 期次的已还标记；而用户手动勾选的期次不在此表，reconcile 永不触碰，
+  /// 避免误伤。范式参考 [_ensureLendFlowOffsetsTable]（本沙箱 build_runner
+  /// 因管道耗尽不可用，故用原生 SQL 避免改 schema 必须重跑代码生成）。
+  Future<void> _ensureInstallmentAutoPaidTable() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS installment_auto_paid ('
+      'period_id TEXT NOT NULL PRIMARY KEY, '
+      'auto_at INTEGER NOT NULL)',
+    );
+  }
+
+  /// 幂等建表：行情候选库（新建持仓自动补全用）。
+  ///
+  /// 缓存基金全量列表、币全量符号等元数据，首次/每周拉取后落本地，
+  /// 补全直接在本地查（秒级、离线可用）。原生 SQL 范式同分期溯源表
+  /// （避开 build_runner）。复合主键 (symbol, type) 使同代码不同品种不冲突。
+  Future<void> _ensureSecurityMetaTable() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS security_meta ('
+      'symbol TEXT NOT NULL, '
+      'name TEXT NOT NULL, '
+      'type INTEGER NOT NULL, '
+      'updated_at INTEGER NOT NULL, '
+      'PRIMARY KEY (symbol, type))',
     );
   }
 

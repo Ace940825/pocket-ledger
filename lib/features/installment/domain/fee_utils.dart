@@ -53,3 +53,23 @@ FeeDeductionMode feeDeductionModeOf(InstallmentPlan plan) {
   if (fees.every((int e) => e == first)) return FeeDeductionMode.spread;
   return FeeDeductionMode.custom;
 }
+
+/// 「计入方式」统一术语值：逐期扣款 / 一次性扣款。
+///
+/// 本金在当前模型中恒为逐期扣款（每期还款时随期次入账），故为常量。
+const String kPrincipalTimingLabel = '逐期扣款';
+
+/// 利息计入方式文案：按每期利息数组分布推导，无需额外落库字段。
+///
+/// - 首期全部扣除 / 尾期全部扣除 → 一次性扣款；
+/// - 按期均摊（含 0 利息）或不规则分布 → 逐期扣款。
+String feeTimingLabelOf(InstallmentPlan plan) {
+  switch (feeDeductionModeOf(plan)) {
+    case FeeDeductionMode.first:
+    case FeeDeductionMode.last:
+      return '一次性扣款';
+    case FeeDeductionMode.spread:
+    case FeeDeductionMode.custom:
+      return '逐期扣款';
+  }
+}

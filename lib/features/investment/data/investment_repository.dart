@@ -8,6 +8,9 @@ import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../categories/data/category_repository.dart';
 import '../../ledger/data/transaction_repository.dart';
+import 'market/market_service.dart';
+import 'market/quote_models.dart';
+import 'market/security_meta_repository.dart';
 
 /// 投资持仓仓储。
 ///
@@ -199,6 +202,57 @@ class InvestmentRepository {
     });
   }
 
+  /// 全部未删持仓（跨账本），供每日行情刷新遍历。
+  Future<List<InvestmentHolding>> listAllActive() {
+    return (_db.select(_db.investmentHoldings)
+          ..where((InvestmentHoldings t) => t.deleted.equals(false)))
+        .get();
+  }
+
+  /// 每日行情刷新：遍历全部持仓，按类型调免费源抓现价并落库。
+  ///
+  /// 节流：现价 [priceUpdatedAt] 已是「今天」（本地日）的跳过，天然每天至多一次；
+  /// 加密货币价折算成 CNY（[MarketService.fetchUsdCnyRate]）以与基金同币种汇总；
+  /// 单源间隔 ~150ms 限流；任意源/单笔失败均跳过，**不抛异常、不回滚其它**。
+  /// 返回成功更新的持仓数。
+  Future<int> refreshAllPrices() async {
+    final List<InvestmentHolding> holdings = await listAllActive();
+    if (holdings.isEmpty) return 0;
+    final MarketService svc = MarketService(SecurityMetaRepository(_db));
+    final double cnyRate = await svc.fetchUsdCnyRate();
+    int updated = 0;
+    for (final InvestmentHolding h in holdings) {
+      if (_isSameLocalDay(h.priceUpdatedAt)) continue;
+      final Quote? q = await svc.fetchQuote(h.type, h.symbol, cnyRate: cnyRate);
+      if (q == null) continue;
+      try {
+        await updatePrice(h.id, q.priceMinor);
+        updated++;
+      } catch (_) {
+        // 单笔写库失败不阻断其余。
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+    return updated;
+  }
+
+  /// 持仓现价是否已在「今天」更新过（本地日，避免 UTC 跨日误判）。
+  bool _isSameLocalDay(int? updatedAt) {
+    if (updatedAt == null) return false;
+    final DateTime now = DateTime.now();
+    final DateTime ts =
+        DateTime.fromMillisecondsSinceEpoch(updatedAt, isUtc: true).toLocal();
+    return now.year == ts.year &&
+        now.month == ts.month &&
+        now.day == ts.day;
+  }
+
+  /// 删除持仓：软删持仓本体，并级联软删名下全部买卖流水
+  /// （sourceModule=investment + relatedId=持仓id）。
+  ///
+  /// 流水删除走 [TransactionRepository.remove]，账户余额随之反向冲销
+  /// （买入扣款加回、卖出收入扣回），账单明细同步消失，无游离数据。
+  /// 全部在同一事务内完成（Drift 嵌套事务=保存点），任一步失败整体回滚。
   Future<void> remove(String id) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     await _db.transaction<void>(() async {
@@ -217,6 +271,8 @@ class InvestmentRepository {
         opType: SyncOpType.delete,
         updatedAt: now,
       );
+      // 级联删关联买卖流水（余额冲销由 remove 自理）。
+      await _txnRepo.removeAllByRelatedId(id);
     });
   }
 

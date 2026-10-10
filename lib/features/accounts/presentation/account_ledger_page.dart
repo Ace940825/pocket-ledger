@@ -136,7 +136,8 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
       TransactionDetailSheet.show(context, t);
     }
 
-    return CustomScrollView(
+    return TxnSlidableGroup(
+      child: CustomScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: <Widget>[
         SliverToBoxAdapter(
@@ -212,6 +213,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
             ),
           ),
       ],
+      ),
     );
   }
 
@@ -261,95 +263,10 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
     }
   }
 
+  /// 编辑入口：统一跳转账户编辑页（借还账户余额派生只读、
+  /// 状态/计入总资产在「其他」区块内维护）。
   Future<void> _showEditor(Account account) async {
-    // 借出/借入账户的余额由名下未结清借还记录自动计算（启动对账兜底），
-    // 不允许手改余额、不允许改类型——编辑只开放账户名。
-    final bool isLendAccount =
-        account.type == AccountType.lend || account.type == AccountType.borrow;
-    final TextEditingController nameController =
-        TextEditingController(text: account.name);
-    final TextEditingController balanceController = TextEditingController(
-      text: Money.fromMinor(account.balanceMinor).decimal.toStringAsFixed(2),
-    );
-    AccountType type = account.type;
-
-    final bool? saved = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setState) => AlertDialog(
-          title: const Text('编辑账户'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: '账户名称'),
-              ),
-              if (isLendAccount) ...<Widget>[
-                const SizedBox(height: AppDimens.spaceMd),
-                Text(
-                  '该账户余额由借还记录自动计算，暂不支持手动修改。',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppPalette.textSecondary,
-                      ),
-                ),
-              ] else ...<Widget>[
-                const SizedBox(height: AppDimens.spaceMd),
-                KeypadField(
-                  controller: balanceController,
-                  labelText: type.isDebt ? '当前欠款' : '余额',
-                  prefixText: '¥ ',
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                DropdownButtonFormField<AccountType>(
-                  initialValue: type,
-                  decoration: const InputDecoration(labelText: '账户类型'),
-                  items: AccountType.values
-                      .where((AccountType t) => t != AccountType.borrow)
-                      .map(
-                        (AccountType t) => DropdownMenuItem<AccountType>(
-                          value: t,
-                          child: Text(t.label),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (AccountType? v) {
-                    if (v != null) setState(() => type = v);
-                  },
-                ),
-              ],
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('保存'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (saved != true) return;
-
-    try {
-      await ref.read(accountRepositoryProvider).update(
-            id: account.id,
-            name: nameController.text,
-            type: isLendAccount ? account.type : type,
-            balanceMinor: isLendAccount
-                ? account.balanceMinor
-                : Money.tryParse(balanceController.text).minor,
-          );
-    } on AppFailure catch (e) {
-      if (mounted) {
-        showAppToast(context, e.message);
-      }
-    }
+    await context.push('/accounts/${account.id}/edit');
   }
 
   Future<void> _confirmArchive(Account account) async {
@@ -523,8 +440,9 @@ class _AccountCardHeader extends ConsumerWidget {
                           account.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppPalette.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -537,17 +455,25 @@ class _AccountCardHeader extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  TextButton(
-                    onPressed: onEdit,
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      '编辑',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppPalette.textSecondary,
+                  // 编辑胶囊：与报销/借还账户卡同款（浅底圆角 12）。
+                  InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: onEdit,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '编辑',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppPalette.textPrimary,
+                        ),
                       ),
                     ),
                   ),
@@ -626,11 +552,16 @@ class _YearSelectorRow extends StatelessWidget {
                   Text(
                     '$year年',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
+                          color: AppPalette.textPrimary,
                         ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.keyboard_arrow_down, size: 20),
+                  const Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 20,
+                    color: AppPalette.textSecondary,
+                  ),
                 ],
               ),
             ),
@@ -700,7 +631,8 @@ class _MonthSection extends StatelessWidget {
                 Text(
                   '${group.month.month}月',
                   style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.textPrimary,
                   ),
                 ),
                 const Spacer(),

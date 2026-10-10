@@ -42,7 +42,7 @@ final AutoDisposeStreamProvider<int> recordingDaysProvider =
 /// 「我的」Tab：小青账式个人中心布局。
 ///
 /// 绿色渐变头部（问候 + 记账天数 + 右侧功能胶囊 + 记一笔横幅）
-/// + 双卡（云同步 / 关于）+ 分组宫格（常用功能 / 账单资产 / 偏好）。
+/// + 双卡（云同步 / 关于）+ 分组宫格（常用功能 / 管理工具 / 偏好）。
 class MePage extends ConsumerWidget {
   const MePage({super.key});
 
@@ -59,7 +59,7 @@ class MePage extends ConsumerWidget {
           const SizedBox(height: AppDimens.spaceLg),
           _buildTwoCards(context, ref),
           _buildSection(context, '常用功能', _commonFeatures),
-          _buildSection(context, '账单 / 资产', _billAssets),
+          _buildSection(context, '管理工具', _billAssets),
           _buildSection(context, '偏好', _preferences),
           const SizedBox(height: AppDimens.spaceXl),
         ],
@@ -322,15 +322,15 @@ class MePage extends ConsumerWidget {
     (label: '存钱', icon: Icons.savings_outlined, route: Routes.savings),
     (label: '转账', icon: Icons.swap_horiz, route: Routes.transfer),
     (label: '报销', icon: Icons.receipt_outlined, route: Routes.reimbursement),
+    (label: '借还', icon: Icons.handshake_outlined, route: Routes.lend),
     (label: '分期记账', icon: Icons.calendar_month_outlined, route: Routes.installment),
     (label: '投资', icon: Icons.trending_up, route: Routes.investment),
-    (label: '账户管理', icon: Icons.credit_card, route: Routes.accountManage),
   ];
 
   static const List<({String label, IconData icon, String route})>
       _billAssets = <({String label, IconData icon, String route})>[
     (label: '账单管理', icon: Icons.receipt_long_outlined, route: Routes.billManage),
-    (label: '资产', icon: Icons.account_balance_wallet_outlined, route: Routes.accounts),
+    (label: '账户管理', icon: Icons.credit_card, route: Routes.accountManage),
     (label: '物品管理', icon: Icons.inventory_2_outlined, route: Routes.inventory),
     (label: '账单报告', icon: Icons.donut_large_outlined, route: Routes.report),
   ];

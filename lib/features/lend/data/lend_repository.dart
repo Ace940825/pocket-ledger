@@ -111,7 +111,6 @@ class LendRepository {
           bookId: bookId,
           lendId: id,
           direction: direction,
-          counterparty: counterparty.trim(),
           amountMinor: amountMinor,
           accountId: flowAccount,
           occurredAt: occurredAt,
@@ -214,7 +213,7 @@ class LendRepository {
               : TxnType.expense,
           amountMinor: amountMinor,
           accountId: flowAccount,
-          note: _flowNote(direction, counterparty.trim(), note),
+          note: _flowNote(note),
           occurredAt: occurredAt,
         );
       } else if (flowAccount != null && current != null) {
@@ -222,7 +221,6 @@ class LendRepository {
           bookId: current.bookId,
           lendId: id,
           direction: direction,
-          counterparty: counterparty.trim(),
           amountMinor: amountMinor,
           accountId: flowAccount,
           occurredAt: occurredAt,
@@ -289,13 +287,11 @@ class LendRepository {
   Future<void> _reconcileDesignatedBalance(String? accountId) =>
       reconcileDesignatedLendBalance(_db, accountId);
 
-  /// 借还本金流水的备注（与还债/收债流水同款式：'借入-小明'）。
-  String _flowNote(LendDirection direction, String counterparty, String? note) {
-    final String verb = direction == LendDirection.borrowIn ? '借入' : '借出';
+  /// 借还本金流水的备注：只落用户手填内容，不再自动拼「借入-对方」
+  /// 默认备注（列表标题已有「借入/借出」分类，右侧另有账户对展示）。
+  String? _flowNote(String? note) {
     final String? userNote = note?.trim();
-    return userNote == null || userNote.isEmpty
-        ? '$verb-$counterparty'
-        : '$verb-$counterparty\n$userNote';
+    return userNote == null || userNote.isEmpty ? null : userNote;
   }
 
   /// 借还流水的固定分类（无则自动创建）——「借入记借入、还债记还债、
@@ -363,7 +359,6 @@ class LendRepository {
     required String bookId,
     required String lendId,
     required LendDirection direction,
-    required String counterparty,
     required int amountMinor,
     required String accountId,
     required int occurredAt,
@@ -382,7 +377,7 @@ class LendRepository {
         direction: direction,
         kind: _LendFlowKind.principal,
       ),
-      note: _flowNote(direction, counterparty, note),
+      note: _flowNote(note),
       sourceModule: SourceModule.lend,
       relatedId: lendId,
       excludeFromStats: true,
@@ -406,12 +401,11 @@ class LendRepository {
       final Transaction? existing =
           await _findFlowTxn(r.id, includeDeleted: true);
       if (existing != null) continue;
-      await _createFlowTxn(
-        bookId: r.bookId,
-        lendId: r.id,
-        direction: r.direction,
-        counterparty: r.counterparty,
-        amountMinor: r.amountMinor,
+        await _createFlowTxn(
+          bookId: r.bookId,
+          lendId: r.id,
+          direction: r.direction,
+          amountMinor: r.amountMinor,
         accountId: flowAccount,
         occurredAt: r.occurredAt,
         note: r.note,

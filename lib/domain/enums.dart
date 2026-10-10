@@ -250,12 +250,19 @@ enum BudgetPeriod {
 }
 
 /// 投资品种
+///
+/// 顺序即数据库存储索引（EnumIndexConverter），**不可重排、只能在末尾追加**，
+/// 否则已有持仓的类型值会错位。UI 展示顺序见 [displayOrder]。
 enum InvestmentType {
   stock,
   fund,
   bond,
   crypto,
-  other;
+  other,
+  futures,
+  option,
+  forex,
+  metal;
 
   String get label => switch (this) {
         InvestmentType.stock => '股票',
@@ -263,7 +270,24 @@ enum InvestmentType {
         InvestmentType.bond => '债券',
         InvestmentType.crypto => '加密货币',
         InvestmentType.other => '其他',
+        InvestmentType.futures => '期货',
+        InvestmentType.option => '期权',
+        InvestmentType.forex => '外汇',
+        InvestmentType.metal => '贵金属',
       };
+
+  /// 界面展示顺序（与枚举声明顺序解耦，便于按业务习惯排列且不影响存储索引）。
+  static const List<InvestmentType> displayOrder = <InvestmentType>[
+    InvestmentType.stock,
+    InvestmentType.fund,
+    InvestmentType.bond,
+    InvestmentType.futures,
+    InvestmentType.option,
+    InvestmentType.forex,
+    InvestmentType.metal,
+    InvestmentType.crypto,
+    InvestmentType.other,
+  ];
 }
 
 /// 流水来源模块。用于在统一流水表中区分业务归属，

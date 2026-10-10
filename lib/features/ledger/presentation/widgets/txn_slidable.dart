@@ -18,10 +18,20 @@ import '../../providers/ledger_providers.dart';
 /// - 左滑（endActionPane）：迁移 / 编辑 / 删除
 /// - 右滑（startActionPane）：复制
 /// - 点击行本身弹明细弹窗（由 child 的 onTap 承担，本组件不处理点击）。
+/// - 互斥：同一列表同时只允许一行滑开——列表需用 [TxnSlidableGroup]
+///   包一层（内部为 SlidableAutoCloseBehavior），打开新行时旧行自动滑回。
 ///
-/// 用法：`TxnSlidable(txn: t, child: 行组件)`。
+/// 用法：
+/// ```dart
+/// TxnSlidableGroup(
+///   child: ListView(... TxnSlidable(txn: t, child: 行组件) ...),
+/// )
+/// ```
 class TxnSlidable extends ConsumerWidget {
   const TxnSlidable({super.key, required this.txn, required this.child});
+
+  /// 互斥分组标签——同一 [TxnSlidableGroup] 下的行共享此标签。
+  static const String groupTag = 'txn-slidable-group';
 
   final Transaction txn;
   final Widget child;
@@ -30,23 +40,24 @@ class TxnSlidable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Slidable(
       key: ValueKey<String>('slidable-${txn.id}'),
+      groupTag: groupTag,
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
         extentRatio: 0.48,
         children: <Widget>[
-          _TxnSlideAction(
+          TxnSlideAction(
             icon: Icons.drive_file_move_outlined,
             semanticLabel: '迁移',
             color: AppPalette.clayBrown,
             onPressed: () => _migrate(context, ref),
           ),
-          _TxnSlideAction(
+          TxnSlideAction(
             icon: Icons.edit_outlined,
             semanticLabel: '编辑',
             color: AppPalette.info,
             onPressed: () => context.push('/ledger/edit/${txn.id}'),
           ),
-          _TxnSlideAction(
+          TxnSlideAction(
             icon: Icons.delete_outline,
             semanticLabel: '删除',
             color: AppPalette.danger,
@@ -58,7 +69,7 @@ class TxnSlidable extends ConsumerWidget {
         motion: const DrawerMotion(),
         extentRatio: 0.16,
         children: <Widget>[
-          _TxnSlideAction(
+          TxnSlideAction(
             icon: Icons.content_copy,
             semanticLabel: '复制',
             color: AppPalette.primary,
@@ -190,14 +201,30 @@ class TxnSlidable extends ConsumerWidget {
   }
 }
 
-/// 滑出动作按钮——纯图标圆形徽章样式（全应用流水滑动统一视觉）。
+/// 滑动互斥组——包住整个列表（ListView/CustomScrollView 皆可），
+/// 组内 [TxnSlidable] 同时只允许一行滑开，打开其他行时已开行自动滑回。
+class TxnSlidableGroup extends StatelessWidget {
+  const TxnSlidableGroup({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SlidableAutoCloseBehavior(child: child);
+  }
+}
+
+/// 滑出动作按钮——纯图标圆形徽章样式（全应用滑动列表统一视觉）。
 ///
 /// 设计规范：
 /// - 圆形徽章 48×48，底色为动作色 14% 透明度，内圈 1px 20% 描边增加层次
 /// - 图标 24px 居中，语义标签走 Icon.semanticLabel（无障碍可读，视觉零文字）
 /// - 键体上下各留 8 呼吸边距，水平居中
-class _TxnSlideAction extends StatelessWidget {
-  const _TxnSlideAction({
+///
+/// 公开供流水以外的滑动列表复用（如投资持仓卡的编辑/删除）。
+class TxnSlideAction extends StatelessWidget {
+  const TxnSlideAction({
+    super.key,
     required this.icon,
     required this.semanticLabel,
     required this.color,

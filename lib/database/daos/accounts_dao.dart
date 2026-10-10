@@ -115,8 +115,12 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
     return into(accounts).insert(companion);
   }
 
-  Future<bool> updateAccount(AccountsCompanion companion) {
-    return update(accounts).replace(companion);
+  /// 定向更新：只写 companion 中出现的列。
+  /// 勿用 `replace()`——那是整行替换，companion 缺省的必需列（如 bookId）
+  /// 会触发 InvalidDataException，且 iconKey/colorValue 等未带列会被清空。
+  Future<int> updateAccount(AccountsCompanion companion) {
+    return (update(accounts)..where(($AccountsTable tbl) => tbl.id.equals(companion.id.value)))
+        .write(companion);
   }
 
   /// 软删除

@@ -14,6 +14,7 @@ import '../../../../../shared/widgets/category_icons.dart';
 import '../../../../../shared/widgets/line_icons.dart';
 import '../../../../../shared/widgets/money_text.dart';
 import '../../../accounts/providers/accounts_providers.dart';
+import '../../../lend/providers/lend_providers.dart';
 import '../../../reimbursement/data/reimbursement_repository.dart';
 import '../../../reimbursement/providers/reimbursement_providers.dart';
 import 'txn_icon.dart';
@@ -149,7 +150,14 @@ class TransactionTile extends ConsumerWidget {
     // （借入/借出/取现/还款等）挂的 iconKey 有对应钢笔线稿时渲染 LineIcon，
     // 否则退回 Material 兜底/类型默认图标。
     final LineIconKind? lineKind = txnLineIconKind(transaction, category);
-    final String accountLabel = _accountLabel(accounts);
+    // 借还本金/还款流水：反查关联借还记录，右侧按转账样式显示
+    // 「资金账户 ↔ 借还账户」双向账户对（无借还账户时回退单账户名）。
+    final List<LendRecord> lendRecords =
+        transaction.sourceModule == SourceModule.lend &&
+                transaction.relatedId != null
+            ? (ref.watch(lendListProvider).valueOrNull ?? const <LendRecord>[])
+            : const <LendRecord>[];
+    final String accountLabel = _accountLabel(accounts, lendRecords);
 
     // 红色标注：不计收支 / 不计预算（任一开启才显示）。
     final List<String> excludeLabels = <String>[
@@ -247,10 +255,21 @@ class TransactionTile extends ConsumerWidget {
                         ],
                       ],
                     ),
+                    // 备注：夹在分类标题与时间之间独立一行（无备注不占位）。
+                    if (_hasNote) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text(
+                        transaction.note!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppPalette.textTertiary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                     const SizedBox(height: 2),
                     Text(
-                      '${DateFormat('HH:mm').format(occurred)}'
-                      '${_noteSuffix()}$refundFromSuffix',
+                      DateFormat('HH:mm').format(occurred) + refundFromSuffix,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AppPalette.textTertiary,
                       ),
@@ -362,7 +381,10 @@ class TransactionTile extends ConsumerWidget {
     );
   }
 
-  String _accountLabel(Map<String, Account> accounts) {
+  String _accountLabel(
+    Map<String, Account> accounts,
+    List<LendRecord> lendRecords,
+  ) {
     if (transaction.type == TxnType.transfer) {
       final String from = accounts[transaction.accountId]?.name ?? '转出';
       final String to = transaction.toAccountId != null
@@ -370,14 +392,34 @@ class TransactionTile extends ConsumerWidget {
           : '转入';
       return '$from → $to';
     }
+    // 借还流水（借入/借出/还债/收债）：按转账样式显示账户对——
+    // 借出/收债：资金流出我方 → 借出账户；借入/还债：借入账户 → 资金流入我方。
+    if (transaction.sourceModule == SourceModule.lend) {
+      LendRecord? record;
+      for (final LendRecord r in lendRecords) {
+        if (r.id == transaction.relatedId) {
+          record = r;
+          break;
+        }
+      }
+      final String? lendAccountId = record?.accountId;
+      final String myAccount = accounts[transaction.accountId]?.name ?? '';
+      final Account? lendAccount = lendAccountId == null
+          ? null
+          : accounts[lendAccountId];
+      if (lendAccount != null && myAccount.isNotEmpty) {
+        // 资金方向跟流水类型走：支出（借出本金/还债）我方 → 借还账户；
+        // 收入（借入本金/收债）借还账户 → 我方。
+        final bool outflow = transaction.type == TxnType.expense;
+        return outflow
+            ? '$myAccount → ${lendAccount.name}'
+            : '${lendAccount.name} → $myAccount';
+      }
+    }
     return accounts[transaction.accountId]?.name ?? '';
   }
 
-  String _noteSuffix() {
-    final String? note = transaction.note;
-    if (note == null || note.isEmpty) return '';
-    return '  $note';
-  }
+  bool get _hasNote => transaction.note != null && transaction.note!.isNotEmpty;
 
   Color _tintFor(TxnType type) => switch (type) {
         TxnType.income => AppPalette.income,

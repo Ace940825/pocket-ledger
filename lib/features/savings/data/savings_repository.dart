@@ -305,6 +305,45 @@ class SavingsRepository {
         .watch();
   }
 
+  /// 台账实际存入合计（派生不变量口径）。
+  ///
+  /// currentMinor 一律以本值回写——增量算术（±差额）在历史数据漂移、
+  /// 重复台账行等场景下会把误差永久固化；SUM 重算保证每次
+  /// 存入 / 修改 / 撤销后进度与台账严格一致。
+  Future<int> _sumDeposits(String goalId) async {
+    final Expression<int> sumExp = _db.savingsDeposits.amountMinor.sum();
+    final TypedResult row = await (_db.selectOnly(_db.savingsDeposits)
+          ..addColumns(<Expression<int>>[sumExp])
+          ..where(_db.savingsDeposits.goalId.equals(goalId)))
+        .getSingle();
+    return row.read(sumExp) ?? 0;
+  }
+
+  /// 目标累计回写 + 达标判定（含同步入队），口径统一走 [_sumDeposits]。
+  Future<void> _writeCurrentMinor(SavingsGoal goal, int now) async {
+    final int next = await _sumDeposits(goal.id);
+    await (_db.update(_db.savingsGoals)
+          ..where((SavingsGoals t) => t.id.equals(goal.id)))
+        .write(
+      SavingsGoalsCompanion(
+        currentMinor: Value<int>(next),
+        isAchieved: Value<bool>(
+            (goal.endNote != null || goal.mode == 'flexible') &&
+                next >= goal.targetMinor),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+    await enqueueSyncOp(
+      _db,
+      table: 'savings_goals',
+      recordId: goal.id,
+      opType: SyncOpType.update,
+      updatedAt: now,
+      payload: <String, Object?>{'currentMinor': next},
+    );
+  }
+
   /// 标记「第 [dayIndex] 期已存入」：落台账一行 + 目标累计增加
   /// [amountMinor]（可与计划额不同）+ 已执行次数 +1。同一天重复存入拦截。
   Future<void> depositDay({
@@ -343,28 +382,17 @@ class SavingsRepository {
             ),
           );
 
-      final int next = goal.currentMinor + amountMinor;
       await (_db.update(_db.savingsGoals)
             ..where((SavingsGoals t) => t.id.equals(goalId)))
           .write(
         SavingsGoalsCompanion(
-          currentMinor: Value<int>(next),
           depositCount: Value<int>((goal.depositCount + 1).clamp(0, 1 << 30)),
-          isAchieved: Value<bool>(
-              (goal.endNote != null || goal.mode == 'flexible') &&
-                  next >= goal.targetMinor),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
       );
-      await enqueueSyncOp(
-        _db,
-        table: 'savings_goals',
-        recordId: goalId,
-        opType: SyncOpType.update,
-        updatedAt: now,
-        payload: <String, Object?>{'currentMinor': next},
-      );
+      // 累计与达标统一按台账 SUM 重算（自愈历史漂移）。
+      await _writeCurrentMinor(goal, now);
     });
   }
 
@@ -404,28 +432,17 @@ class SavingsRepository {
                 note: Value<String?>(note),
               ),
             );
-        final int next = goal.currentMinor + amountMinor;
         await (_db.update(_db.savingsGoals)
               ..where((SavingsGoals t) => t.id.equals(goalId)))
             .write(
           SavingsGoalsCompanion(
-            currentMinor: Value<int>(next),
             depositCount: Value<int>((goal.depositCount + 1).clamp(0, 1 << 30)),
-            isAchieved: Value<bool>(
-                (goal.endNote != null || goal.mode == 'flexible') &&
-                    next >= goal.targetMinor),
             updatedAt: Value<int>(now),
             dirty: const Value<bool>(true),
           ),
         );
-        await enqueueSyncOp(
-          _db,
-          table: 'savings_goals',
-          recordId: goalId,
-          opType: SyncOpType.update,
-          updatedAt: now,
-          payload: <String, Object?>{'currentMinor': next},
-        );
+        // 累计与达标统一按台账 SUM 重算（自愈历史漂移）。
+        await _writeCurrentMinor(goal, now);
         return;
       }
 
@@ -439,28 +456,7 @@ class SavingsRepository {
         ),
       );
 
-      final int next =
-          (goal.currentMinor - row.amountMinor + amountMinor).clamp(0, 1 << 40);
-      await (_db.update(_db.savingsGoals)
-            ..where((SavingsGoals t) => t.id.equals(goalId)))
-          .write(
-        SavingsGoalsCompanion(
-          currentMinor: Value<int>(next),
-          isAchieved: Value<bool>(
-              (goal.endNote != null || goal.mode == 'flexible') &&
-                  next >= goal.targetMinor),
-          updatedAt: Value<int>(now),
-          dirty: const Value<bool>(true),
-        ),
-      );
-      await enqueueSyncOp(
-        _db,
-        table: 'savings_goals',
-        recordId: goalId,
-        opType: SyncOpType.update,
-        updatedAt: now,
-        payload: <String, Object?>{'currentMinor': next},
-      );
+      await _writeCurrentMinor(goal, now);
     });
   }
 
@@ -488,28 +484,17 @@ class SavingsRepository {
           .getSingleOrNull();
       if (goal == null) return;
 
-      final int next = (goal.currentMinor - row.amountMinor).clamp(0, 1 << 40);
       await (_db.update(_db.savingsGoals)
             ..where((SavingsGoals t) => t.id.equals(goalId)))
           .write(
         SavingsGoalsCompanion(
-          currentMinor: Value<int>(next),
           depositCount: Value<int>((goal.depositCount - 1).clamp(0, 1 << 30)),
-          isAchieved: Value<bool>(
-              (goal.endNote != null || goal.mode == 'flexible') &&
-                  next >= goal.targetMinor),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
       );
-      await enqueueSyncOp(
-        _db,
-        table: 'savings_goals',
-        recordId: goalId,
-        opType: SyncOpType.update,
-        updatedAt: now,
-        payload: <String, Object?>{'currentMinor': next},
-      );
+      // 累计与达标统一按台账 SUM 重算（自愈历史漂移）。
+      await _writeCurrentMinor(goal, now);
     });
   }
 

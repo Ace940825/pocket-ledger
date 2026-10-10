@@ -27,8 +27,11 @@ class BooksDao extends DatabaseAccessor<AppDatabase> with _$BooksDaoMixin {
     return into(books).insert(companion);
   }
 
-  Future<bool> updateBook(BooksCompanion companion) {
-    return update(books).replace(companion);
+  /// 定向更新（只写 companion 中出现的列）。勿用 replace()——整行替换
+  /// 会把缺省列写成默认值，必需列缺失时直接抛 InvalidDataException。
+  Future<int> updateBook(BooksCompanion companion) {
+    return (update(books)..where(($BooksTable tbl) => tbl.id.equals(companion.id.value)))
+        .write(companion);
   }
 
   Future<int> softDelete(String id, int updatedAt) {

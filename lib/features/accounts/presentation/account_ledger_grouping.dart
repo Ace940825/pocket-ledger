@@ -30,18 +30,20 @@ class MonthStats {
   /// 收入 = 普通收入账单（+ 转账转入账单，取决于「收入流水统计」开关）。
   final int incomeMinor;
 
-  /// 其他 = **没有**被折进支出 / 收入的转账腿合计。
+  /// 其他 = 未被折进支出 / 收入的转账腿 + 借还流水净额。
   ///
   /// - 两个转账开关都关：等于全部转账金额（面板默认状态）；
   /// - 只开「支出流水统计」：只剩**转账转入**那条腿（转出已折进支出）；
   /// - 只开「收入流水统计」：只剩**转账转出**那条腿（转入已折进收入）；
   /// - 两个都打开：恒为 `transferUnknown`（正常数据下是 0，转账已全部折进收支）。
+  /// - 借还流水（借出/借入/还债/收债）恒计入：资金流出取正、流入取负，
+  ///   与结余「支出 − 收入」的方向语义一致（见 [computeMonthStats]）。
   final int otherMinor;
 
   /// 是否展示「其他」这一项。
   ///
-  /// 两个收支开关都打开时，转账已全部折进支出 / 收入，「其他」不再有独立含义 ——
-  /// 按参考设计**整项隐藏**（连 `其他:¥0.00` 都不显示）。
+  /// 两个收支开关都打开时，转账已全部折进支出 / 收入；但借还流水恒计入
+  /// 「其他」，所以只要当期有借还流水就仍展示整项。
   final bool showOther;
 
   /// 结余 = **支出 − 收入**。
@@ -63,6 +65,7 @@ class MonthStats {
 ///   + 退款（仅当 `noOffset == true`，即「不进行抵扣」）
 /// - **其他** = 未被计入支出 / 收入的转账腿
 ///   （`transferDirectionOf` 判定方向；缺少对手方的旧数据也归这里）
+///   + 借还流水净额（借出/还债取正、借入/收债取负）
 /// - **结余** = 支出 − 收入（见 [MonthStats.balanceMinor]）
 ///
 /// 方向判定需要知道「本账户」，所以必须传 [accountId]。
@@ -79,8 +82,19 @@ MonthStats computeMonthStats(
   int transferOut = 0;
   int transferIn = 0;
   int transferUnknown = 0;
+  int lendFlow = 0;
 
   for (final Transaction t in transactions) {
+    // 借还流水（借出/借入/还债/收债）不计收支，但计入「其他」：
+    // 资金流出（借出/还债）取正、资金流入（借入/收债）取负。
+    if (t.sourceModule == SourceModule.lend) {
+      if (t.type == TxnType.expense) {
+        lendFlow += t.amountMinor - t.discountMinor;
+      } else if (t.type == TxnType.income) {
+        lendFlow -= t.amountMinor;
+      }
+      continue;
+    }
     // 「不计收支」的账单仍显示在列表里，但不参与月收支统计
     // （与首页/报表的 watchTotalInRange 口径一致）。
     if (t.excludeFromStats) {
@@ -121,6 +135,7 @@ MonthStats computeMonthStats(
   final bool otherFoldedIntoBoth =
       settings.expenseWithTransfer && settings.incomeWithTransfer;
   final int other = transferUnknown +
+      lendFlow +
       (settings.expenseWithTransfer ? 0 : transferOut) +
       (settings.incomeWithTransfer ? 0 : transferIn);
 
@@ -128,7 +143,7 @@ MonthStats computeMonthStats(
     expenseMinor: expense,
     incomeMinor: income,
     otherMinor: other,
-    showOther: !otherFoldedIntoBoth,
+    showOther: !otherFoldedIntoBoth || lendFlow != 0,
   );
 }
 

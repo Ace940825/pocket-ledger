@@ -335,15 +335,17 @@ class TransactionDetailSheet extends ConsumerWidget {
         _kvTap(
           '资产账户',
           account?.name ?? '无',
-          // 报销账户跳报销页，其余（含借出/借入账户）进资产详情页，
-          // 与账户页点击口径一致
+          // 所有账户（含报销账户）统一进资产详情页（与账户页点击口径一致）
           onTap: account == null
               ? null
-              : account.type == AccountType.reimbursement
-                  ? () => context.push(Routes.reimbursement)
-                  : () => context.push('/accounts/${account.id}/transactions'),
+              : () => context.push('/accounts/${account.id}/transactions'),
         ),
     );
+    // 备注：放在「资产账户」之下；无备注显示「无」。
+    // 元信息行做不断行处理：「份额 x · 单价 y · 手续费 z」每个单元完整
+    // 显示在一行，放不下时整个单元换到下一行（右对齐由 _kv 的 end 保证）。
+    final String note = transaction.note?.trim() ?? '';
+    rows.add(_kv('备注', note.isEmpty ? '无' : _keepUnitsUnbroken(note)));
     // 借还本金流水：追加「借出账户 / 借款账户」行（右边账户名可点）。
     final Widget? lendRow = _lendAccountRow(context, ref);
     if (lendRow != null) rows.add(lendRow);
@@ -549,8 +551,14 @@ class TransactionDetailSheet extends ConsumerWidget {
       title: title,
       titleSuffix: _JumpNav(
         label: buttonLabel,
+        // 报销键直接开「记一笔」报销 Tab，并预填当前账单：
+        // 报销账户取账单上的报销账户，报销账单自动勾选本账单。
         onTap: reimbursable
-            ? () => context.push('/reimbursement')
+            ? () => openRecordSheet(
+                context,
+                initialTab: RecordTab.reimbursement,
+                reimburseSourceId: transaction.id,
+              )
             : () => _onRefund(context, ref),
       ),
       child: reimbursable
@@ -1190,6 +1198,28 @@ class TransactionDetailSheet extends ConsumerWidget {
           borderRadius: BorderRadius.circular(ForestRadius.pill),
         ),
       );
+
+  /// 备注元信息行（如「份额 524.6667 · 单价 ¥36.00 · 手续费 ¥0.00」）的
+  /// 不断行处理：把每个「·」单元内部的普通空格换成不断行空格（\u00A0），
+  /// 换行机会只保留在「·」分隔符两侧——单元永不拆行，一行放不下时
+  /// 整个单元落到下一行（右对齐由 [_kv] 的 textAlign end 保证）。
+  /// 仅改显示文案，不动数据库里存储的备注原文，历史流水同样生效。
+  String _keepUnitsUnbroken(String text) {
+    final List<String> outLines = <String>[];
+    for (final String line in text.split('\n')) {
+      if (!line.contains('·')) {
+        outLines.add(line);
+        continue;
+      }
+      outLines.add(
+        line
+            .split('·')
+            .map((String p) => p.trim().replaceAll(' ', '\u00A0'))
+            .join(' · '),
+      );
+    }
+    return outLines.join('\n');
+  }
 
   Widget _kv(String label, String value, {Color? valueColor}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),

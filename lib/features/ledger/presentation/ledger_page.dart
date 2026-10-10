@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../record/presentation/record_sheet.dart';
+import '../../record/providers/recording_settings_provider.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../providers/ledger_providers.dart';
 import 'ledger_filter_page.dart';
@@ -38,8 +41,59 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
   /// 明细排序：false=按时间（默认），true=按金额。
   bool _sortByAmount = false;
 
+  /// 统计卡系列开关：支出 / 收入（点顶部圆点项切换）。
+  /// 全开=默认现状；关某项则摘要行隐藏对应段、图表切到另一系列；
+  /// 全关时隐藏图表。SharedPreferences 持久化，重启不丢。
+  bool _showExpense = true;
+  bool _showIncome = true;
+  static const String _kStatsSeriesKey = 'ledger_stats_series_v1';
+
   /// 月模式柱状图横向滚动控制器（柱条 + 日期行整体滚动）。
   ScrollController? _chartScrollCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSeriesToggles();
+  }
+
+  /// 恢复上次收支系列开关（SharedPreferences；读取失败回落默认全开）。
+  void _restoreSeriesToggles() {
+    try {
+      final String? raw = appPrefs.getString(_kStatsSeriesKey);
+      if (raw == null) return;
+      final Object? decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return;
+      final Object? e = decoded['expense'];
+      if (e is bool) _showExpense = e;
+      final Object? i = decoded['income'];
+      if (i is bool) _showIncome = i;
+    } catch (_) {
+      // 持久化读取失败不阻塞默认值
+    }
+  }
+
+  /// 切换支出 / 收入系列显示并持久化。
+  void _toggleSeries({required bool income}) {
+    setState(() {
+      if (income) {
+        _showIncome = !_showIncome;
+      } else {
+        _showExpense = !_showExpense;
+      }
+    });
+    try {
+      appPrefs.setString(
+        _kStatsSeriesKey,
+        jsonEncode(<String, bool>{
+          'expense': _showExpense,
+          'income': _showIncome,
+        }),
+      );
+    } catch (_) {
+      // 持久化失败不影响本次会话显示
+    }
+  }
 
   @override
   void dispose() {
@@ -89,7 +143,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
             });
           }
 
-          return CustomScrollView(
+          return TxnSlidableGroup(
+            child: CustomScrollView(
             slivers: <Widget>[
               // ── 副标题行：左周期切换 / 右筛选 ──
               SliverToBoxAdapter(
@@ -136,6 +191,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 96)),
             ],
+            ),
           );
         },
       ),
@@ -288,25 +344,36 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           children: <Widget>[
             Row(
               children: <Widget>[
-                _dotAmount('${prefix}支出', Money.fromMinor(expenseMinor),
-                    color: AppPalette.expense),
+                _dotAmount(
+                  '${prefix}支出',
+                  Money.fromMinor(expenseMinor),
+                  color: AppPalette.expense,
+                  enabled: _showExpense,
+                  onTap: () => _toggleSeries(income: false),
+                ),
                 const Spacer(),
-                _dotAmount('${prefix}收入', Money.fromMinor(incomeMinor),
-                    color: AppPalette.income),
+                _dotAmount(
+                  '${prefix}收入',
+                  Money.fromMinor(incomeMinor),
+                  color: AppPalette.income,
+                  enabled: _showIncome,
+                  onTap: () => _toggleSeries(income: true),
+                ),
               ],
             ),
-            // 选中日 / 月的收支摘要行
+            // 选中日 / 月的收支摘要行（随系列开关隐藏对应段）。
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 '$bucketLabel'
-                '  支出 ${Money.fromMinor(onBucketExpense).format()}'
-                '  收入 ${Money.fromMinor(onBucketIncome).format()}',
+                '${_showExpense ? '  支出 ${Money.fromMinor(onBucketExpense).format()}' : ''}'
+                '${_showIncome ? '  收入 ${Money.fromMinor(onBucketIncome).format()}' : ''}',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: AppPalette.textTertiary),
               ),
             ),
             const SizedBox(height: AppDimens.spaceSm),
+            // 图表系列：支出 / 收入双柱并排，随开关各自显隐；全关保留同高占位。
             _periodBars(context, stats, period, monthly, effective),
           ],
         ),
@@ -314,29 +381,55 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     );
   }
 
-  Widget _dotAmount(String label, Money money, {required Color color}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  /// 统计卡顶部的系列开关项：圆点 + 「XX支出 ¥…」。
+  /// 点按切换开/关（[onTap]）；关闭时置灰、圆点保留本系列色淡描边以示归属。
+  Widget _dotAmount(
+    String label,
+    Money money, {
+    required Color color,
+    bool enabled = true,
+    VoidCallback? onTap,
+  }) {
+    final Color textColor = enabled ? color : AppPalette.textTertiary;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: enabled ? color : AppPalette.textTertiary,
+                shape: BoxShape.circle,
+                border: enabled
+                    ? null
+                    : Border.all(color: color.withValues(alpha: 0.45)),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$label ${money.format()}',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 6),
-        Text(
-          '$label ${money.format()}',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  /// 支出柱状图：日粒度（周 7 柱 / 月 28-31 柱 / 短自定义）或月粒度（年 12 柱 / 长自定义）。
+  /// 图表固定总高（含 24px 日期行）；开关全关时也保留同高占位，卡片尺寸恒定。
+  static const double _chartH = 110;
+
+  /// 统计卡柱状图：支出、收入两系列并排双柱（红 / 绿），随顶部开关各自显隐。
+  /// 日粒度（周 7 组 / 月 28-31 组 / 短自定义）或月粒度（年 12 组 / 长自定义）。
   /// 点击柱子切换选中，再点一次取消（命中列按横向比例换算）。
   Widget _periodBars(
     BuildContext context,
@@ -345,29 +438,37 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     bool monthly,
     DateTime effective,
   ) {
-    final int count; // 柱子数量
+    // 全关：保留同高空白占位，卡片高度不随开关变化。
+    if (!_showExpense && !_showIncome) {
+      return const SizedBox(height: _chartH);
+    }
+    final int count; // 组数
     final double maxY;
-    final List<double> values = <double>[];
+    final List<double> expValues = <double>[];
+    final List<double> incValues = <double>[];
 
     if (monthly) {
-      // 月粒度：周期内逐月支出。
+      // 月粒度：周期内逐月支出 / 收入。
       final List<DateTime> months = <DateTime>[];
       DateTime m = DateTime(period.start.year, period.start.month);
       while (m.isBefore(period.end)) {
         months.add(m);
-        values.add(stats.expenseInMonth(m.year, m.month).toDouble());
+        expValues.add(stats.expenseInMonth(m.year, m.month).toDouble());
+        incValues.add(stats.incomeInMonth(m.year, m.month).toDouble());
         m = DateTime(m.year, m.month + 1);
       }
       count = months.length;
-      maxY = (values.fold<double>(0, (double a, double b) => a > b ? a : b)) *
-          1.15;
+      maxY = shownMaxY(expValues, incValues);
       // 选中月索引：按年差 ×12 + 月差精确换算。
       final int selMonth = (effective.year - months.first.year) * 12 +
           (effective.month - months.first.month);
 
       return _barChart(
         count: count,
-        values: values,
+        expenseValues: expValues,
+        incomeValues: incValues,
+        showExpense: _showExpense,
+        showIncome: _showIncome,
         maxY: maxY <= 0 ? 100 : maxY,
         selectedIndex: selMonth.clamp(0, count - 1),
         labelFor: (int i) {
@@ -391,11 +492,11 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     // 日粒度。
     for (int i = 0; i < period.dayCount; i++) {
       final DateTime d = period.start.add(Duration(days: i));
-      values.add(stats.expenseOnDay(d).toDouble());
+      expValues.add(stats.expenseOnDay(d).toDouble());
+      incValues.add(stats.incomeOnDay(d).toDouble());
     }
     count = period.dayCount;
-    maxY = (values.fold<double>(0, (double a, double b) => a > b ? a : b)) *
-        1.15;
+    maxY = shownMaxY(expValues, incValues);
     final int selIndex =
         DateTime(effective.year, effective.month, effective.day)
                 .difference(DateTime(period.start.year, period.start.month,
@@ -408,7 +509,10 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
     return _barChart(
       count: count,
-      values: values,
+      expenseValues: expValues,
+      incomeValues: incValues,
+      showExpense: _showExpense,
+      showIncome: _showIncome,
       maxY: maxY <= 0 ? 100 : maxY,
       selectedIndex: selIndex,
       labelFor: (int i) {
@@ -437,12 +541,31 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     );
   }
 
+  /// 可见系列的峰值 ×1.15（至少给一条可见系列留出量程）。
+  double shownMaxY(List<double> exp, List<double> inc) {
+    double peak = 0;
+    if (_showExpense) {
+      for (final double v in exp) {
+        if (v > peak) peak = v;
+      }
+    }
+    if (_showIncome) {
+      for (final double v in inc) {
+        if (v > peak) peak = v;
+      }
+    }
+    return peak * 1.15;
+  }
+
   /// 柱状图：短周期（周 / 年，≤20 桶）铺满整卡；月模式（>20 桶）柱条与
   /// 日期行一起放进横向滚动视图（每天固定 20px 栅距，间距均匀），
   /// 超出屏幕左右滑动，柱与日期保持对齐；点击柱 / 日期选中该天。
   Widget _barChart({
     required int count,
-    required List<double> values,
+    required List<double> expenseValues,
+    required List<double> incomeValues,
+    required bool showExpense,
+    required bool showIncome,
     required double maxY,
     required int selectedIndex,
     required String? Function(int) labelFor,
@@ -476,16 +599,33 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
               for (int i = 0; i < count; i++)
                 BarChartGroupData(
                   x: i,
+                  barsSpace: 2,
+                  // 始终保留两根柱位（隐藏系列 toY=0 + 全透明），
+                  // 组宽恒定 → spaceAround 槽位不随开关重排，柱子位置固定。
                   barRods: <BarChartRodData>[
                     BarChartRodData(
-                      toY: values[i],
-                      width: scrollable ? 6 : 14,
+                      toY: showExpense ? expenseValues[i] : 0,
+                      width: scrollable ? 5 : 9,
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(2),
                       ),
-                      color: i == selectedIndex
-                          ? AppPalette.expense
-                          : AppPalette.expense.withValues(alpha: 0.55),
+                      color: !showExpense
+                          ? AppPalette.expense.withValues(alpha: 0)
+                          : i == selectedIndex
+                              ? AppPalette.expense
+                              : AppPalette.expense.withValues(alpha: 0.55),
+                    ),
+                    BarChartRodData(
+                      toY: showIncome ? incomeValues[i] : 0,
+                      width: scrollable ? 5 : 9,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(2),
+                      ),
+                      color: !showIncome
+                          ? AppPalette.income.withValues(alpha: 0)
+                          : i == selectedIndex
+                              ? AppPalette.income
+                              : AppPalette.income.withValues(alpha: 0.55),
                     ),
                   ],
                 ),
@@ -495,7 +635,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
     if (!scrollable) {
       return SizedBox(
-        height: 150,
+        height: _chartH,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapUp: (TapUpDetails details) {
@@ -555,7 +695,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     });
 
     return SizedBox(
-      height: 150,
+      height: _chartH,
       child: SingleChildScrollView(
         controller: ctrl,
         scrollDirection: Axis.horizontal,
@@ -571,10 +711,10 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
             },
             child: SizedBox(
               width: contentW,
-              height: 150,
+              height: _chartH,
               child: Column(
                 children: <Widget>[
-                  SizedBox(height: 126, child: buildChart(contentW)),
+                  SizedBox(height: _chartH - 24, child: buildChart(contentW)),
                   SizedBox(
                     height: 24,
                     child: Row(

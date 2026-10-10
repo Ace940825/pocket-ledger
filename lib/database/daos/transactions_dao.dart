@@ -298,6 +298,28 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// 实时监听指定持仓（投资标的）的全部买卖流水。
+  ///
+  /// 投资买入/卖出通过 [relatedId] 指向持仓 id，[sourceModule] 为
+  /// [SourceModule.investment]；持仓详情页「交易流水」区用。
+  Stream<List<Transaction>> watchInvestmentFlows(
+    String holdingId, {
+    required String bookId,
+  }) {
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.deleted.equals(false) &
+                tbl.sourceModule.equals(SourceModule.investment.index) &
+                tbl.relatedId.equals(holdingId),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch();
+  }
+
   Future<Transaction?> getById(String id) {
     return (select(transactions)
           ..where(($TransactionsTable tbl) => tbl.id.equals(id)))
@@ -468,8 +490,11 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     return into(transactions).insert(companion);
   }
 
-  Future<bool> updateTx(TransactionsCompanion companion) {
-    return update(transactions).replace(companion);
+  /// 定向更新（只写 companion 中出现的列）。勿用 replace()——整行替换
+  /// 会把缺省列（bookId/currency/tags/relatedId 等）写成默认值。
+  Future<int> updateTx(TransactionsCompanion companion) {
+    return (update(transactions)..where(($TransactionsTable tbl) => tbl.id.equals(companion.id.value)))
+        .write(companion);
   }
 
   /// 列出使用某分类的全部未删除流水 ID（账单迁移前统计用）。

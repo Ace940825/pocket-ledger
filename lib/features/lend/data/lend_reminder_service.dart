@@ -34,7 +34,8 @@ class LendReminderService {
   int _idFor(String lendId, int salt) =>
       ((lendId.hashCode & 0x1fffffff) * 2) + salt;
 
-  /// 初始化插件并请求 iOS 通知权限（首次启动弹系统授权框）。
+  /// 初始化插件并请求通知权限（iOS 首次启动弹系统授权框；Android 走
+  /// 系统通知渠道，13+ 需用户在系统设置里授予 POST_NOTIFICATIONS）。
   Future<void> init() async {
     tz_data.initializeTimeZones();
     const DarwinInitializationSettings ios = DarwinInitializationSettings(
@@ -42,8 +43,16 @@ class LendReminderService {
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-    const InitializationSettings settings = InitializationSettings(iOS: ios);
+    const AndroidInitializationSettings android =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings settings =
+        InitializationSettings(iOS: ios, android: android);
     await _plugin.initialize(settings);
+    // Android 13+ 运行时通知权限（iOS 已由 DarwinInitializationSettings 请求）。
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
     _ready = true;
   }
 
@@ -56,8 +65,15 @@ class LendReminderService {
 
     final tz.TZDateTime due = _toTZ(r.dueAt!);
     final tz.TZDateTime now = tz.TZDateTime.now(tz.UTC);
-    final NotificationDetails details = const NotificationDetails(
+    const NotificationDetails details = NotificationDetails(
       iOS: DarwinNotificationDetails(),
+      android: AndroidNotificationDetails(
+        'lend_reminder',
+        '还款提醒',
+        channelDescription: '借入/借出到期前的还款提醒通知',
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
     );
     final String dirLabel =
         r.direction == LendDirection.lendOut ? '借出' : '借入';

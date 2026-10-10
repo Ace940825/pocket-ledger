@@ -97,6 +97,19 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     };
     final List<SavingsScheduleEntry> entries = SavingsSchedule.build(goal);
 
+    // 各期「实际累计」：按期序累加台账实际存入额（未存入期计 0）。
+    // 已存入期卡的「存: / 累计:」按实际口径展示，修改存入金额后立即可见。
+    final Map<int, int> actualCumByIndex = <int, int>{};
+    int actualCum = 0;
+    final List<SavingsScheduleEntry> orderedEntries =
+        List<SavingsScheduleEntry>.of(entries)
+          ..sort((SavingsScheduleEntry a, SavingsScheduleEntry b) =>
+              a.index - b.index);
+    for (final SavingsScheduleEntry e in orderedEntries) {
+      actualCum += depositedByIndex[e.index]?.amountMinor ?? 0;
+      actualCumByIndex[e.index] = actualCum;
+    }
+
     // 灵活存钱法：无逐期排期（单期灵活存入）。
     // 定额 / 弹性「不结束」（endNote == null）：有滚动排期（见
     // SavingsSchedule.build），日历 / 期卡正常展示，仅「结束」显示 —。
@@ -223,6 +236,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                     _EntryCard(
                       entry: e,
                       deposit: depositedByIndex[e.index],
+                      cumulativeMinor: actualCumByIndex[e.index],
                       onTap: () =>
                           _onEntryTap(goal!, e, depositedByIndex[e.index]),
                     ),
@@ -235,6 +249,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                   child: _EntryListTile(
                     entry: e,
                     deposit: depositedByIndex[e.index],
+                    cumulativeMinor: actualCumByIndex[e.index],
                     onTap: () =>
                         _onEntryTap(goal!, e, depositedByIndex[e.index]),
                   ),
@@ -2076,25 +2091,34 @@ class _SavingsCalendarViewState extends State<SavingsCalendarView> {
 
 /// 逐期存入卡（参照小青账期卡）：
 /// 行1：绿竖条 + 日期 + 右上角期数角标；
-/// 行2：存:计划额（大字）；
-/// 行3：累计:累计额；
+/// 行2：存:实际存入额（已存入，改金额后实时反映）/ 计划额（未存入）；
+/// 行3：累计:实际累计（已存入）/ 计划累计（未存入）；
 /// 行4：右下角状态胶囊（未存入 / 已存入）。
 class _EntryCard extends StatelessWidget {
   const _EntryCard({
     required this.entry,
     required this.deposit,
     required this.onTap,
+    this.cumulativeMinor,
   });
 
   final SavingsScheduleEntry entry;
   final SavingsDeposit? deposit;
+
+  /// 实际累计（台账口径，含本期）；null 回退排期计划累计。
+  final int? cumulativeMinor;
+
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool deposited = deposit != null;
-    final bool anyAmount = entry.amountMinor <= 0;
+    // 存入额：已存入显台账实际额（可与计划额不同），未存入显计划额。
+    final int savedMinor =
+        deposited ? deposit!.amountMinor : entry.amountMinor;
+    final bool anyAmount = savedMinor <= 0;
+    final int cumMinor = cumulativeMinor ?? entry.cumulativeMinor;
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -2148,7 +2172,7 @@ class _EntryCard extends StatelessWidget {
               child: Text(
                 anyAmount
                     ? '存:任意'
-                    : '存:${Money.fromMinor(entry.amountMinor).format(showSymbol: false)}',
+                    : '存:${Money.fromMinor(savedMinor).format(showSymbol: false)}',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -2159,7 +2183,7 @@ class _EntryCard extends StatelessWidget {
             const SizedBox(height: 2),
             Center(
               child: Text(
-                '累计:${Money.fromMinor(entry.cumulativeMinor).format(showSymbol: false)}',
+                '累计:${Money.fromMinor(cumMinor).format(showSymbol: false)}',
                 style: TextStyle(
                   fontSize: 12,
                   color: theme.colorScheme.onSurfaceVariant,
@@ -2210,19 +2234,31 @@ class _EntryListTile extends StatelessWidget {
     required this.entry,
     required this.deposit,
     required this.onTap,
+    this.cumulativeMinor,
   });
 
   final SavingsScheduleEntry entry;
   final SavingsDeposit? deposit;
+
+  /// 实际累计（台账口径，含本期）；null 回退排期计划累计。
+  final int? cumulativeMinor;
+
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool deposited = deposit != null;
+    // 红字行 = 应存计划额；灰字「存:」= 已存入显台账实际额（改金额实时反映）。
     final String amountText = entry.amountMinor <= 0
         ? '任意'
         : Money.fromMinor(entry.amountMinor).format(showSymbol: false);
+    final int savedMinor =
+        deposited ? deposit!.amountMinor : entry.amountMinor;
+    final String savedText = savedMinor <= 0
+        ? '任意'
+        : Money.fromMinor(savedMinor).format(showSymbol: false);
+    final int cumMinor = cumulativeMinor ?? entry.cumulativeMinor;
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -2269,8 +2305,8 @@ class _EntryListTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '存:$amountText · 累计:'
-                    '${Money.fromMinor(entry.cumulativeMinor).format(showSymbol: false)}',
+                    '存:$savedText · 累计:'
+                    '${Money.fromMinor(cumMinor).format(showSymbol: false)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

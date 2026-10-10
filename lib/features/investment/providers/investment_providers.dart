@@ -1,10 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../database/app_database.dart';
+import '../../../database/daos/transactions_dao.dart';
 import '../../../domain/enums.dart';
 import '../../../features/ledger/providers/ledger_providers.dart';
 import '../../../providers/app_providers.dart';
 import '../data/investment_repository.dart';
+import '../data/market/market_service.dart';
+import '../data/market/security_meta_repository.dart';
+
+/// 单个持仓的买卖流水（持仓详情页「交易流水」区）。
+final AutoDisposeStreamProviderFamily<List<Transaction>, String>
+    holdingFlowsProvider = StreamProvider.autoDispose
+        .family<List<Transaction>, String>((Ref ref, String holdingId) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref
+      .watch(transactionsDaoProvider)
+      .watchInvestmentFlows(holdingId, bookId: bookId);
+});
 
 final Provider<InvestmentRepository> investmentRepositoryProvider =
     Provider<InvestmentRepository>(
@@ -19,6 +32,43 @@ final StreamProvider<List<InvestmentHolding>> investmentListProvider =
   (Ref ref) => ref
       .watch(investmentRepositoryProvider)
       .watch(ref.watch(currentBookIdProvider)),
+);
+
+/// 行情候选库仓储（本地 security_meta 表访问）。
+final Provider<SecurityMetaRepository> securityMetaRepositoryProvider =
+    Provider<SecurityMetaRepository>(
+  (Ref ref) => SecurityMetaRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// 行情服务（按品种路由免费第三方源）。
+final Provider<MarketService> marketServiceProvider = Provider<MarketService>(
+  (Ref ref) => MarketService(ref.watch(securityMetaRepositoryProvider)),
+);
+
+/// 自动补全搜索参数（代码/名称关键词 + 限定品种；null = 未选品种，跨品种搜）。
+class MetaQuery {
+  const MetaQuery(this.q, this.type);
+  final String q;
+  final InvestmentType? type;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MetaQuery && other.q == q && other.type == type;
+
+  @override
+  int get hashCode => Object.hash(q, type);
+}
+
+/// 按关键词搜索行情候选库（本地查，秒级）。
+final AutoDisposeFutureProviderFamily<List<SecurityCandidate>, MetaQuery>
+    securityMetaSearchProvider = FutureProvider.autoDispose
+        .family<List<SecurityCandidate>, MetaQuery>((Ref ref, MetaQuery q) {
+  return ref.watch(securityMetaRepositoryProvider).search(q.q, type: q.type);
+});
+
+/// 每日行情刷新（遍历全部持仓抓现价落库，内部按本地日节流）。
+final FutureProvider<int> refreshPricesProvider = FutureProvider<int>(
+  (Ref ref) => ref.watch(investmentRepositoryProvider).refreshAllPrices(),
 );
 
 /// 组合层面的汇总：总市值 / 总成本 / 浮动盈亏。

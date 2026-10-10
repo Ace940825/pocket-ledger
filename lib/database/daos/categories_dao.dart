@@ -48,8 +48,11 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
     return into(categories).insert(companion);
   }
 
-  Future<bool> updateCategory(CategoriesCompanion companion) {
-    return update(categories).replace(companion);
+  /// 定向更新（只写 companion 中出现的列）。勿用 replace()——整行替换
+  /// 会把缺省列（isSystem/sortOrder 等）写成默认值。
+  Future<int> updateCategory(CategoriesCompanion companion) {
+    return (update(categories)..where(($CategoriesTable tbl) => tbl.id.equals(companion.id.value)))
+        .write(companion);
   }
 
   Future<int> softDelete(String id, int updatedAt) {

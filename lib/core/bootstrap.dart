@@ -1,11 +1,15 @@
+import 'dart:async' show unawaited;
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../domain/enums.dart';
 import '../features/categories/data/category_repository.dart';
+import '../features/installment/data/installment_repository.dart';
 import '../features/lend/data/lend_repository.dart';
 import '../features/ledger/data/transaction_repository.dart';
+import '../features/investment/data/investment_repository.dart';
 import '../features/savings/presentation/savings_modes.dart';
 
 /// 默认分类的图标与配色预设。
@@ -214,6 +218,17 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 现口径「备注不预置」——备注恰好等于任一模式说明的置 null。
   await _clearPresetSavingsNotes(db);
   await _repairSavingsNoPresetCurrent(db);
+  // 储蓄进度对账（幂等）：currentMinor = 名下台账实际存入合计。
+  // 修改期卡金额等操作若产生增量漂移，启动时统一修复。
+  await _reconcileSavingsCurrentMinor(db);
+  // 分期到期自动入账（幂等，每次启动运行）：到期期次自动在负债付款账户
+  // 内生成「分期订单+利息」流水（备注分期信息），与该期是否已还无关；
+  // 入账单被删则自愈补回。运行期跨天场景由分期列表页进入时再补一次。
+  await InstallmentRepository(db, TransactionRepository(db)).postDuePeriods();
+  // 分期还款自动对账（幂等，紧随入账之后）：出账单日之后若有还款覆盖，
+  // 自动勾选对应期次已还，支持「可进可退」。运行期跨天 / 还款后由分期列表页再补。
+  await InstallmentRepository(db, TransactionRepository(db))
+      .reconcileInstallmentRepayments();
   final List<Book> books = await db.booksDao.watchAll().first;
   if (books.isEmpty) {
     await _seedDefaults(db);
@@ -242,6 +257,17 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 预建 11 个落账系统分类（转账三变体/借还六类/报销收入/退款），确保入库
   // 并隐藏于用户分类列表，落账时按同名同类型引用。
   await _seedSystemCategories(db);
+
+  // 每日行情刷新（后台、不阻塞启动；任意源失败静默保留旧价）。
+  // 内部按「本地日」节流，已今天更新过的持仓跳过，天然每天至多一次。
+  // 一期仅基金(天天基金)+加密货币(Binance)，其余品种返回 null 不更新。
+  unawaited(
+    InvestmentRepository(db, TransactionRepository(db))
+        .refreshAllPrices()
+        .catchError((Object _) {
+      // 离线 / 限流等：保持旧价，不抛、不阻塞启动。
+    }),
+  );
 }
 
 /// 下线旧版默认分类（幂等）：按名称精确匹配的支出分类软删，走
@@ -928,6 +954,40 @@ Future<void> _repairSavingsNoPresetCurrent(AppDatabase db) async {
       SavingsGoalsCompanion(
         currentMinor: const Value<int>(0),
         isAchieved: const Value<bool>(false),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+  }
+}
+
+/// 储蓄进度对账（幂等）：[SavingsGoals.currentMinor] = 名下未删除
+/// 台账 [SavingsDeposits] 实际存入合计；不一致才写（避免无谓 churn）。
+/// 仓储层 depositDay / updateDeposit / cancelDay 已统一按 SUM 回写，
+/// 本函数兜底修复历史漂移（如修改期卡金额后进度未同步的存量数据）。
+Future<void> _reconcileSavingsCurrentMinor(AppDatabase db) async {
+  final List<SavingsGoal> goals = await (db.select(db.savingsGoals)
+        ..where((SavingsGoals t) => t.deleted.equals(false)))
+      .get();
+  if (goals.isEmpty) return;
+
+  final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+  for (final SavingsGoal g in goals) {
+    final Expression<int> sumExp = db.savingsDeposits.amountMinor.sum();
+    final TypedResult row = await (db.selectOnly(db.savingsDeposits)
+          ..addColumns(<Expression<int>>[sumExp])
+          ..where(db.savingsDeposits.goalId.equals(g.id)))
+        .getSingle();
+    final int actual = row.read(sumExp) ?? 0;
+    if (actual == g.currentMinor) continue;
+    await (db.update(db.savingsGoals)
+          ..where((SavingsGoals t) => t.id.equals(g.id)))
+        .write(
+      SavingsGoalsCompanion(
+        currentMinor: Value<int>(actual),
+        isAchieved: Value<bool>(
+            (g.endNote != null || g.mode == 'flexible') &&
+                actual >= g.targetMinor),
         updatedAt: Value<int>(now),
         dirty: const Value<bool>(true),
       ),

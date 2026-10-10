@@ -74,20 +74,22 @@ class HomePage extends ConsumerWidget {
                     child: EmptyState(message: '还没有记账记录，点下方按钮记一笔'),
                   );
                 }
-                return Column(
-                  children: list
-                      .take(5)
-                      .map(
-                        (Transaction txn) => TxnSlidable(
-                          txn: txn,
-                          child: TransactionTile(
-                            transaction: txn,
-                            onTap: () =>
-                                TransactionDetailSheet.show(context, txn),
+                return TxnSlidableGroup(
+                  child: Column(
+                    children: list
+                        .take(5)
+                        .map(
+                          (Transaction txn) => TxnSlidable(
+                            txn: txn,
+                            child: TransactionTile(
+                              transaction: txn,
+                              onTap: () =>
+                                  TransactionDetailSheet.show(context, txn),
+                            ),
                           ),
-                        ),
-                      )
-                      .toList(growable: false),
+                        )
+                        .toList(growable: false),
+                  ),
                 );
               },
               loading: () => const SizedBox(

@@ -118,7 +118,8 @@ class _ReportCategoryDetailPageState
               icon: Icons.receipt_long_outlined,
               message: '该分类下暂无账单\n（No transactions）',
             )
-          : ListView(
+          : TxnSlidableGroup(
+              child: ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppDimens.spaceLg,
                 AppDimens.spaceSm,
@@ -138,6 +139,7 @@ class _ReportCategoryDetailPageState
                   ),
                 ),
               ],
+              ),
             ),
     );
   }

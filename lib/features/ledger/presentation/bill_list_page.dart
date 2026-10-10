@@ -107,23 +107,25 @@ class _BillListPageState extends ConsumerState<BillListPage> {
                       ],
                     );
                   }
-                  return ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: list.length + 1,
-                    itemBuilder: (BuildContext context, int index) {
-                      if (index == 0) {
-                        return _detailHeader(list.length);
-                      }
-                      return TxnSlidable(
-                        txn: list[index - 1],
-                        child: _BillTile(
+                  return TxnSlidableGroup(
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: list.length + 1,
+                      itemBuilder: (BuildContext context, int index) {
+                        if (index == 0) {
+                          return _detailHeader(list.length);
+                        }
+                        return TxnSlidable(
                           txn: list[index - 1],
-                          category: categories[list[index - 1].categoryId],
-                          account: accounts[list[index - 1].accountId],
-                          toAccount: accounts[list[index - 1].toAccountId],
-                        ),
-                      );
-                    },
+                          child: _BillTile(
+                            txn: list[index - 1],
+                            category: categories[list[index - 1].categoryId],
+                            account: accounts[list[index - 1].accountId],
+                            toAccount: accounts[list[index - 1].toAccountId],
+                          ),
+                        );
+                      },
+                    ),
                   );
                 },
               ),

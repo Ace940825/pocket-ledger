@@ -2,11 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
+import '../../ledger/providers/ledger_providers.dart';
 import '../data/installment_repository.dart';
 
 final Provider<InstallmentRepository> installmentRepositoryProvider =
     Provider<InstallmentRepository>(
-  (Ref ref) => InstallmentRepository(ref.watch(appDatabaseProvider)),
+  (Ref ref) => InstallmentRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(transactionRepositoryProvider),
+  ),
 );
 
 final StreamProvider<List<InstallmentPlan>> installmentPlansProvider =
@@ -23,6 +27,15 @@ final AutoDisposeStreamProviderFamily<List<InstallmentPeriod>, String>
     StreamProvider.autoDispose.family<List<InstallmentPeriod>, String>(
   (Ref ref, String planId) =>
       ref.watch(installmentRepositoryProvider).watchPeriods(planId),
+);
+
+/// 账本下全部分期的每期明细：列表页一次订阅即可汇总各计划的
+/// 「待入账」与逾期态，避免逐计划展开 N 个 family 监听。
+final StreamProvider<List<InstallmentPeriod>> installmentBookPeriodsProvider =
+    StreamProvider<List<InstallmentPeriod>>(
+  (Ref ref) => ref
+      .watch(installmentRepositoryProvider)
+      .watchBookPeriods(ref.watch(currentBookIdProvider)),
 );
 
 /// 单个计划。详情页按 planId 订阅，而不是列表页把对象传过来 ——

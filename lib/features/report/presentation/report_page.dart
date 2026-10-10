@@ -1569,14 +1569,21 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
             message: _calView == 1 ? '当天没有收入账单' : '当天没有账单',
           )
         else
-          for (final Transaction t in visible)
-            TxnSlidable(
-              txn: t,
-              child: TransactionTile(
-                transaction: t,
-                onTap: () => TransactionDetailSheet.show(context, t),
-              ),
+          TxnSlidableGroup(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (final Transaction t in visible)
+                  TxnSlidable(
+                    txn: t,
+                    child: TransactionTile(
+                      transaction: t,
+                      onTap: () => TransactionDetailSheet.show(context, t),
+                    ),
+                  ),
+              ],
             ),
+          ),
       ],
     );
   }

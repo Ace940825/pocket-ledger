@@ -8,6 +8,7 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
@@ -18,7 +19,8 @@ import 'widgets/txn_icon.dart';
 
 /// 「账单清理」页（我的 → 账单管理 → 账单清理，小青账布局）。
 ///
-/// - 顶部：返回箭头 + 居中标题；下行「yyyy年M月 ˅」月份切换 + 右侧「筛选」；
+/// - 顶部：返回箭头 + 居中标题；下行「周期标签 ˅」（共享日历组件，月/年/自定义）
+///   + 右侧「筛选」；
 /// - 提示卡：绿竖条「提示」+ ⓘ 说明（时间/筛选 → 多选清理，不可恢复）；
 /// - 「共 N 笔账单」+ 右侧「全选」（全选当前筛选下的可见账单）；
 /// - 行：图标 + 标题(+标签胶囊) + 日期/时间，右侧金额 + 圆形勾选框；
@@ -32,9 +34,9 @@ class BillCleanPage extends ConsumerStatefulWidget {
 }
 
 class _BillCleanPageState extends ConsumerState<BillCleanPage> {
-  /// 当前查看的月份（默认当月）。
-  late DateTime _month =
-      DateTime(DateTime.now().year, DateTime.now().month);
+  /// 当前查看的周期（默认当月；经共享日历组件可切周/月/年/自定义）。
+  late LedgerPeriod _period =
+      LedgerPeriod.monthOf(DateTime(DateTime.now().year, DateTime.now().month));
 
   /// 高级筛选条件（与报表/账单页同款 [LedgerFilterPage]，查询后生效；
   /// null = 未筛选）。
@@ -44,8 +46,6 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
   final Set<String> _selected = <String>{};
 
   bool _deleting = false;
-
-  static const int _minYear = 2020;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +92,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                                     children: const <Widget>[
                                       Padding(
                                         padding: EdgeInsets.only(top: 72),
-                                        child: EmptyState(message: '本月暂无账单'),
+                                        child: EmptyState(message: '当前周期暂无账单'),
                                       ),
                                     ],
                                   )
@@ -175,7 +175,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
     );
   }
 
-  /// 「yyyy年M月 ˅」月份切换 + 右侧「筛选」。
+  /// 「周期标签 ˅」（月/年/自定义）+ 右侧「筛选」。
   Widget _monthFilterRow() {
     final int n = _filter?.conditionCount ?? 0;
     return Padding(
@@ -184,14 +184,14 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
         children: <Widget>[
           InkWell(
             borderRadius: BorderRadius.circular(8),
-            onTap: _pickMonth,
+            onTap: _pickPeriod,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Text(
-                    '${_month.year}年${_month.month}月',
+                    _period.label,
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -235,9 +235,8 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
     Map<String, Category> categories,
   ) {
     final int start =
-        _month.millisecondsSinceEpoch; // 本地月零点（下同），流水存 UTC 毫秒但同源可比
-    final DateTime nextMonth = DateTime(_month.year, _month.month + 1);
-    final int end = nextMonth.millisecondsSinceEpoch;
+        _period.start.millisecondsSinceEpoch; // 本地零点（下同），流水存 UTC 毫秒但同源可比
+    final int end = _period.end.millisecondsSinceEpoch; // 开区间（不含）
     final List<Transaction> monthList = all
         .where((Transaction t) => t.occurredAt >= start && t.occurredAt < end)
         .toList();
@@ -257,26 +256,36 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
     });
   }
 
-  Future<void> _pickMonth() async {
-    final DateTime now = DateTime.now();
-    final DateTime? picked = await showModalBottomSheet<DateTime>(
-      context: context,
-      backgroundColor: AppPalette.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext context) => _MonthPickSheet(
-        initial: _month,
-        minYear: _minYear,
-        maxYear: now.year,
-      ),
+  /// 周期切换：共享日历组件（CalendarSheet 纯周期模式，与流水页/报表页同款），
+  /// 支持周/月/年/自定义四种粒度，确认后整段区间生效。
+  Future<void> _pickPeriod() async {
+    final CalendarPeriodMode cm = switch (_period.mode) {
+      LedgerPeriodMode.week => CalendarPeriodMode.week,
+      LedgerPeriodMode.month => CalendarPeriodMode.month,
+      LedgerPeriodMode.year => CalendarPeriodMode.year,
+      LedgerPeriodMode.custom => CalendarPeriodMode.custom,
+    };
+    final CalendarSelection? r = await CalendarSheet.show(
+      context,
+      mode: CalendarSheetMode.day,
+      showDayView: false,
+      headerTitle: '清理周期',
+      initialPeriod: CalendarPeriod(cm, _period.start, _period.end),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(DateTime.now().year, 12, 31),
+      weekStart: CalendarWeekStart.monday,
     );
-    if (picked != null) {
-      setState(() {
-        _month = picked;
-        _selected.clear(); // 切月清空勾选（全选只对当前可见列表生效）
-      });
-    }
+    if (r is! CalendarPeriod) return;
+    final LedgerPeriodMode lm = switch (r.mode) {
+      CalendarPeriodMode.week => LedgerPeriodMode.week,
+      CalendarPeriodMode.month => LedgerPeriodMode.month,
+      CalendarPeriodMode.year => LedgerPeriodMode.year,
+      CalendarPeriodMode.custom => LedgerPeriodMode.custom,
+    };
+    setState(() {
+      _period = LedgerPeriod(mode: lm, start: r.start, end: r.end);
+      _selected.clear(); // 切周期清空勾选（全选只对当前可见列表生效）
+    });
   }
 
   /// 打开筛选页（与报表 Tab 同款 [LedgerFilterPage]，查询后生效）。
@@ -522,140 +531,6 @@ class _TipCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ────────────────────────── 月份选择弹窗 ──────────────────────────
-
-/// 「选择月份」底部弹窗：‹ 年份 › + 4×3 月份宫格（当前月深绿高亮，
-/// 晚于当月的月份置灰不可选）。
-class _MonthPickSheet extends StatefulWidget {
-  const _MonthPickSheet({
-    required this.initial,
-    required this.minYear,
-    required this.maxYear,
-  });
-
-  final DateTime initial;
-  final int minYear;
-  final int maxYear;
-
-  @override
-  State<_MonthPickSheet> createState() => _MonthPickSheetState();
-}
-
-class _MonthPickSheetState extends State<_MonthPickSheet> {
-  late int _year = widget.initial.year.clamp(widget.minYear, widget.maxYear);
-
-  @override
-  Widget build(BuildContext context) {
-    final DateTime now = DateTime.now();
-    final int nowYear = now.year;
-    final int nowMonth = now.month;
-    final bool isPickedYear = _year == widget.initial.year &&
-        widget.initial.year >= widget.minYear &&
-        widget.initial.year <= widget.maxYear;
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // 标题行：‹ 选择月份 ›（左右切年）。
-            Row(
-              children: <Widget>[
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.chevron_left, size: 24),
-                  color: _year > widget.minYear
-                      ? AppPalette.textPrimary
-                      : AppPalette.divider,
-                  onPressed: _year > widget.minYear
-                      ? () => setState(() => _year--)
-                      : null,
-                ),
-                Text(
-                  '$_year年',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppPalette.textPrimary,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right, size: 24),
-                  color: _year < widget.maxYear
-                      ? AppPalette.textPrimary
-                      : AppPalette.divider,
-                  onPressed: _year < widget.maxYear
-                      ? () => setState(() => _year++)
-                      : null,
-                ),
-                const Spacer(),
-              ],
-            ),
-            const SizedBox(height: 4),
-            // 4×3 月份宫格。
-            for (final List<int> row in const <List<int>>[
-              <int>[1, 2, 3, 4],
-              <int>[5, 6, 7, 8],
-              <int>[9, 10, 11, 12],
-            ])
-              Row(
-                children: <Widget>[
-                  for (final int m in row)
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(5),
-                        child: _monthCell(m, isPickedYear, nowYear, nowMonth),
-                      ),
-                    ),
-                ],
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _monthCell(int m, bool isPickedYear, int nowYear, int nowMonth) {
-    final bool future = _year > nowYear || (_year == nowYear && m > nowMonth);
-    final bool picked =
-        isPickedYear && _year == widget.initial.year && m == widget.initial.month;
-    final bool active = !future;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: active
-          ? () => Navigator.of(context).pop(DateTime(_year, m))
-          : null,
-      child: Container(
-        height: 44,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: picked
-              ? ForestGreen.deep
-              : active
-                  ? ForestGreen.soft
-                  : AppPalette.neutralSoft.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          '$m月',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: picked ? FontWeight.w700 : FontWeight.w400,
-            color: picked
-                ? AppPalette.white
-                : active
-                    ? ForestGreen.deep
-                    : AppPalette.divider,
-          ),
-        ),
       ),
     );
   }

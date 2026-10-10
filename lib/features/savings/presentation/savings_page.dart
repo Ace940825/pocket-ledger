@@ -321,14 +321,6 @@ class SavingsGoalTile extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (goal.isAchieved) ...<Widget>[
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.emoji_events,
-                      size: 16,
-                      color: AppPalette.amberBright,
-                    ),
-                  ],
                 ],
               ),
               // 备注行：名称左下方灰字（无备注不占位）。
