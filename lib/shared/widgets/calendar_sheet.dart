@@ -14,7 +14,7 @@ import 'app_toast.dart';
 /// 与账单页周期选择器（周/月/年/自定义 Tab、12 宫格月/年、周列表、自定义区间）的优点，
 /// 收敛为一个组件，按 [CalendarSheetMode] 切换粒度，并按引用位置用布尔开关隐藏不需要的部件：
 ///
-/// - [showTime]：日模式下是否显示时间拨号 + 时/分分段（默认 false=纯日期；
+/// - [showTime]：日模式下是否显示英雄时间卡（RECORD AT）与时间拨号 + 时/分分段（默认 false=纯日期，整卡隐藏、页头标题退为 DATE；
 ///   全站仅记一笔传 true——只有记账需要时分，其余位置一律隐藏时间区）。
 /// - [showCustomRange]：是否显示「自定义区间」粒度 chip（默认 true；
 ///   记一笔传 false 隐藏——选日期无区间语义）。
@@ -852,8 +852,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             children: <Widget>[
               if (widget.showHandle) _buildHandle(),
               if (widget.showHeader) _buildHeader(),
-              // 纯周期模式（流水页）无英雄区：英雄卡展示的是「某日+时间」，与周期选择无关。
-              if (widget.showDayView) _buildHeroSeal(context),
+              // 英雄时间卡（RECORD AT）仅在需要时间的场景渲染（记一笔）；
+              // 纯日期场景（存钱/分期/转账）与纯周期模式（流水页）均隐藏。
+              if (widget.showDayView && widget.showTime)
+                _buildHeroSeal(context),
               Flexible(
                 child: SingleChildScrollView(
                   controller: _scrollController,
@@ -900,7 +902,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             _CloseButton(onPressed: () => Navigator.of(context).pop()),
             const SizedBox(width: 10),
             Text(
-              widget.headerTitle ?? 'DATE & TIME',
+              widget.headerTitle ??
+                  (widget.showTime ? 'DATE & TIME' : 'DATE'),
               style: TextStyle(
                 fontSize: widget.headerTitle != null ? 17 : 19,
                 fontWeight: FontWeight.w800,
