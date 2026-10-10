@@ -19,6 +19,36 @@ final AutoDisposeStreamProviderFamily<List<Transaction>, String>
       .watchInvestmentFlows(holdingId, bookId: bookId);
 });
 
+/// 持仓买入/卖出派生日期（不落库，从买卖流水实时推导）：
+/// 持仓 id → (首次买入日, 最近卖出日)。买入 = 最早支出流水，卖出 = 最晚收入流水。
+final StreamProvider<Map<String, (DateTime?, DateTime?)>>
+    investmentFlowDatesProvider =
+    StreamProvider<Map<String, (DateTime?, DateTime?)>>((Ref ref) {
+  return ref
+      .watch(transactionsDaoProvider)
+      .watchAllInvestmentFlows(bookId: ref.watch(currentBookIdProvider))
+      .map((List<Transaction> flows) {
+        final Map<String, (DateTime?, DateTime?)> out =
+            <String, (DateTime?, DateTime?)>{};
+        for (final Transaction f in flows) {
+          final String? hid = f.relatedId;
+          if (hid == null) continue;
+          final DateTime d = DateTime.fromMillisecondsSinceEpoch(
+            f.occurredAt,
+            isUtc: true,
+          ).toLocal();
+          var (DateTime? buy, DateTime? sell) = out[hid] ?? (null, null);
+          if (f.type == TxnType.expense) {
+            if (buy == null || d.isBefore(buy)) buy = d;
+          } else if (f.type == TxnType.income) {
+            if (sell == null || d.isAfter(sell)) sell = d;
+          }
+          out[hid] = (buy, sell);
+        }
+        return out;
+      });
+});
+
 final Provider<InvestmentRepository> investmentRepositoryProvider =
     Provider<InvestmentRepository>(
   (Ref ref) => InvestmentRepository(

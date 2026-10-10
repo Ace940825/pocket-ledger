@@ -121,6 +121,26 @@ class _InfoCard extends ConsumerWidget {
     final int profit = holding.profitMinor;
     final Color badgeColor = cleared ? AppPalette.textTertiary : AppPalette.primary;
 
+    // 买入/卖出日期从交易流水派生（不落库）：
+    // 首次买入 = 最早一笔支出流水；最近卖出 = 最晚一笔收入流水。
+    final List<Transaction> flows = ref
+            .watch(holdingFlowsProvider(holding.id))
+            .valueOrNull ??
+        const <Transaction>[];
+    DateTime? firstBuyAt;
+    DateTime? lastSellAt;
+    for (final Transaction f in flows) {
+      final DateTime d = DateTime.fromMillisecondsSinceEpoch(
+        f.occurredAt,
+        isUtc: true,
+      ).toLocal();
+      if (f.type == TxnType.expense) {
+        if (firstBuyAt == null || d.isBefore(firstBuyAt)) firstBuyAt = d;
+      } else if (f.type == TxnType.income) {
+        if (lastSellAt == null || d.isAfter(lastSellAt)) lastSellAt = d;
+      }
+    }
+
     Widget metric(String label, String value, {Color? color}) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,11 +281,26 @@ class _InfoCard extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: metric('首次买入', _fmtDay(firstBuyAt)),
+                ),
+                Expanded(
+                  child: metric('最近卖出', _fmtDay(lastSellAt)),
+                ),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+
+  static String _fmtDay(DateTime? d) =>
+      d == null ? '—' : DateFormat('yyyy-MM-dd').format(d);
 }
 
 /// 备注卡。

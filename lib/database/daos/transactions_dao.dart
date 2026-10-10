@@ -320,6 +320,23 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// 实时监听账本内全部投资买卖流水（投资列表卡派生买入/卖出日期用）。
+  Stream<List<Transaction>> watchAllInvestmentFlows({
+    required String bookId,
+  }) {
+    return (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.deleted.equals(false) &
+                tbl.sourceModule.equals(SourceModule.investment.index),
+          )
+          ..orderBy([
+            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+          ]))
+        .watch();
+  }
+
   Future<Transaction?> getById(String id) {
     return (select(transactions)
           ..where(($TransactionsTable tbl) => tbl.id.equals(id)))

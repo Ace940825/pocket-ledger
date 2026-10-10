@@ -369,6 +369,15 @@ class _HoldingCard extends ConsumerWidget {
             ).toLocal(),
           );
 
+    // 买入/卖出日期（流水派生，见 investmentFlowDatesProvider）。
+    final (DateTime? firstBuy, DateTime? lastSell) =
+        ref.watch(investmentFlowDatesProvider).valueOrNull?[holding.id] ??
+            (null, null);
+    String? dayLabel(DateTime? d) =>
+        d == null ? null : DateFormat('yyyy-MM-dd').format(d);
+    final String? buyLabel = dayLabel(firstBuy);
+    final String? sellLabel = dayLabel(lastSell);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       elevation: 0,
@@ -422,6 +431,8 @@ class _HoldingCard extends ConsumerWidget {
                   '${holding.quantity.toStringAsFixed(4)} 份',
                   '成本 ${Money.fromMinor(holding.avgCostMinor).format()}',
                   '现价 ${Money.fromMinor(holding.currentPriceMinor).format()}',
+                  if (buyLabel != null) '买入 $buyLabel',
+                  if (sellLabel != null) '卖出 $sellLabel',
                   if (updatedLabel != null) updatedLabel,
                 ].join(' · '),
                 style: t.bodySmall?.copyWith(color: AppPalette.textSecondary),
