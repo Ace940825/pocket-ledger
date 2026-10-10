@@ -532,11 +532,14 @@ class InstallmentRepository {
   }
 
   /// 记入某期次为「自动勾选」（溯源表 upsert）。
+  ///
+  /// 注意：[AppDatabase.customStatement] 的绑定参数必须是**裸值**
+  /// （bool/int/num/String/List），不能包 [Variable]——原生绑定层不认。
   Future<void> _markAutoPaid(String periodId, int now) async {
     await _db.customStatement(
       'INSERT OR REPLACE INTO installment_auto_paid (period_id, auto_at) '
       'VALUES (?, ?)',
-      <Variable<Object>>[Variable<String>(periodId), Variable<int>(now)],
+      <Object?>[periodId, now],
     );
   }
 
@@ -544,7 +547,7 @@ class InstallmentRepository {
   Future<void> _unmarkAutoPaid(String periodId) async {
     await _db.customStatement(
       'DELETE FROM installment_auto_paid WHERE period_id = ?',
-      <Variable<Object>>[Variable<String>(periodId)],
+      <Object?>[periodId],
     );
   }
 

@@ -352,6 +352,9 @@ class InstallmentDetailPage extends ConsumerWidget {
       if (context.mounted) showToast(context, '已提前结清');
     } on AppFailure catch (e) {
       if (context.mounted) showToast(context, e.message);
+    } catch (_) {
+      // 数据库等未知异常：给用户可见反馈，绝不静默吞掉。
+      if (context.mounted) showToast(context, '结清失败，请重试');
     }
   }
 
