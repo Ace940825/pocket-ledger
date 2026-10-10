@@ -707,7 +707,7 @@ class _LineIconPainter extends CustomPainter {
     p.addRRect(RRect.fromLTRBXY(6.5, 13.2, 17.5, 19.8, 1.5, 1.5));
     _line(p, 6.5, 15.8, 17.5, 15.8);
     _line(p, 12, 10.2, 12, 13.2);
-    p.addOval(const Rect.fromCircle(center: Offset(12, 8.2), radius: 1.1));
+    p.addOval(Rect.fromCircle(center: const Offset(12, 8.2), radius: 1.1));
   }
 
   /// 机票（纸飞机：机翼折线 + 机身三角）。
@@ -727,7 +727,7 @@ class _LineIconPainter extends CustomPainter {
     p.lineTo(10, 5.5);
     p.lineTo(14, 5.5);
     p.lineTo(15, 7.8);
-    p.addOval(const Rect.fromCircle(center: Offset(12, 13.1), radius: 3.2));
+    p.addOval(Rect.fromCircle(center: const Offset(12, 13.1), radius: 3.2));
   }
 
   /// 公益（手捧爱心）。

@@ -323,12 +323,12 @@ class _BillTile extends ConsumerWidget {
         ? '${category?.name ?? '支出'} - $note'
         : (category?.name ?? '支出');
     final String? billCatKey = category?.iconKey;
-    final Widget leadIcon = billCatKey != null && billCatKey.isNotEmpty
-        ? LineIcon(categoryLineKind(billCatKey) ?? LineIconKind.star, size: 20, color: tint)
-        : Icon(Icons.category_outlined, size: 20, color: tint);
     final Color tint = category?.colorValue != null
         ? Color(category!.colorValue!)
         : AppPalette.expense;
+    final Widget leadIcon = billCatKey != null && billCatKey.isNotEmpty
+        ? LineIcon(categoryLineKind(billCatKey) ?? LineIconKind.star, size: 20, color: tint)
+        : Icon(Icons.category_outlined, size: 20, color: tint);
 
     // 退款标注：被退款过的原账单显示「退款 ¥X=¥Y」
     // （X=累计已退合计，Y=剩余=实付−已退，与流水列表同口径）。
@@ -349,7 +349,7 @@ class _BillTile extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            _CircleIcon(child: leadIcon),
+            _CircleIcon(child: leadIcon, tint: tint),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Column(
@@ -452,9 +452,10 @@ class _BillTile extends ConsumerWidget {
 }
 
 class _CircleIcon extends StatelessWidget {
-  const _CircleIcon({required this.child});
+  const _CircleIcon({required this.child, required this.tint});
 
   final Widget child;
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
