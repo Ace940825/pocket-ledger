@@ -6447,7 +6447,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
             color: _Sage.card,
             borderRadius: BorderRadius.circular(999),
@@ -6542,8 +6542,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     onTap: pick,
                     borderRadius: BorderRadius.circular(13),
                     child: Container(
-                      height: 42,
-                      padding: const EdgeInsets.only(left: 14, right: 5),
+                      // 框内高 34：与金额分段容器 / 备注框统一。
+                      height: 34,
+                      padding: const EdgeInsets.only(left: 14, right: 4),
                       decoration: BoxDecoration(
                         color: ForestBg.sunken,
                         borderRadius: BorderRadius.circular(13),
@@ -6855,9 +6856,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       ),
               ),
               const SizedBox(width: 8),
-              // 「自动/自定义」分段：移入金额输入框内右侧（深沙容器）。
+              // 「自动/自定义」分段：移入金额输入框内右侧（深沙容器，
+              // 定高 34 与备注 / 账户框统一）。
               Container(
-                padding: const EdgeInsets.all(2),
+                height: 34,
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: ForestBg.sunken,
                   borderRadius: BorderRadius.circular(999),
@@ -6925,7 +6929,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           const SizedBox(width: 12),
           Expanded(
             child: Container(
-              padding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
+              // 框内最小高 34：与金额分段容器 / 账户框统一（多行备注自然撑高）。
+              constraints: const BoxConstraints(minHeight: 34),
+              padding: const EdgeInsets.fromLTRB(14, 3, 6, 3),
               decoration: BoxDecoration(
                 color: ForestBg.sunken,
                 borderRadius: BorderRadius.circular(13),
