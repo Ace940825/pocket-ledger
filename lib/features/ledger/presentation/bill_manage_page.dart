@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../routing/app_router.dart';
 import '../../../theme/app_colors.dart';
+import '../../../shared/widgets/section_header.dart';
 
 /// 「我的 → 账单管理」页（小青账布局）。
 ///
@@ -116,31 +117,10 @@ class BillManagePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 3.5,
-                  height: 15,
-                  decoration: BoxDecoration(
-                    color: AppPalette.sageLeaf,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppPalette.textPrimary,
-                  ),
-                ),
-              ],
-            ),
+          SectionHeader(
+            title: title,
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
           ),
-          const SizedBox(height: 4),
           for (int i = 0; i < items.length; i++) ...<Widget>[
             if (i > 0)
               const Divider(height: 1, indent: 14, color: AppPalette.divider),

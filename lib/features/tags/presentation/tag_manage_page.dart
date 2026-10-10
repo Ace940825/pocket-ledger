@@ -1095,10 +1095,7 @@ class _TagCategoryReorderPageState extends ConsumerState<TagCategoryReorderPage>
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.chevron_left, color: AppPalette.ink),
         ),
-        title: const Text(
-          '类别排序',
-          style: TextStyle(fontSize: 16.5, color: AppPalette.ink),
-        ),
+        title: const Text('类别排序'),
         centerTitle: true,
       ),
       body: ReorderableListView(
@@ -1187,10 +1184,7 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.chevron_left, color: AppPalette.ink),
         ),
-        title: Text(
-          '${widget.category.name} · 标签排序',
-          style: const TextStyle(fontSize: 16.5, color: AppPalette.ink),
-        ),
+        title: Text('${widget.category.name} · 标签排序'),
         centerTitle: true,
       ),
       body: _items.isEmpty

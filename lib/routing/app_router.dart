@@ -37,6 +37,7 @@ import '../features/record/presentation/record_sheet.dart';
 import '../features/record/record_tab.dart';
 import '../features/reimbursement/presentation/reimbursement_bill_picker_page.dart';
 import '../features/reimbursement/presentation/reimbursement_page.dart';
+import '../features/refund/presentation/refund_page.dart';
 import '../features/report/presentation/report_page.dart';
 import '../features/savings/presentation/savings_page.dart';
 import '../features/settings/presentation/me_page.dart';
@@ -69,6 +70,7 @@ abstract final class Routes {
   static const String categoryTransactions = '/categories/:id/transactions';
   static const String transfer = '/transfer';
   static const String lend = '/lend';
+  static const String refund = '/refund';
   static const String reimbursement = '/reimbursement';
 
   /// 报销账户分支视图（卡片总览 → 单账户账单列表）。
@@ -229,6 +231,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: Routes.lend,
         builder: (_, __) => const LendPage(),
       ),
+      // 退款记录（我的 → 退款）：全账本退款流水列表。
+      GoRoute(
+        path: Routes.refund,
+        builder: (_, __) => const RefundPage(),
+      ),
       GoRoute(
         path: Routes.reimbursement,
         builder: (_, __) => const ReimbursementPage(),
@@ -324,27 +331,32 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           final RecordTab initialTab;
           final String? editLendId;
           final String? refundSourceId;
+          final List<String> refundSourceIds;
           final String? reimburseSourceId;
           if (extra is RecordSheetLaunchArgs) {
             initialTab = extra.initialTab;
             editLendId = extra.editLendId;
             refundSourceId = extra.refundSourceId;
+            refundSourceIds = extra.refundSourceIds;
             reimburseSourceId = extra.reimburseSourceId;
           } else if (extra is RecordTab) {
             initialTab = extra;
             editLendId = null;
             refundSourceId = null;
+            refundSourceIds = const <String>[];
             reimburseSourceId = null;
           } else {
             initialTab = RecordTab.expense;
             editLendId = null;
             refundSourceId = null;
+            refundSourceIds = const <String>[];
             reimburseSourceId = null;
           }
           return RecordSheet(
             initialTab: initialTab,
             editLendId: editLendId,
             refundSourceId: refundSourceId,
+            refundSourceIds: refundSourceIds,
             reimburseSourceId: reimburseSourceId,
           );
         },

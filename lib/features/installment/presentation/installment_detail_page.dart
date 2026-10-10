@@ -7,7 +7,9 @@ import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
 import '../../../theme/app_colors.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../record/presentation/record_sheet.dart';
 import '../domain/fee_utils.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
@@ -115,6 +117,28 @@ class InstallmentDetailPage extends ConsumerWidget {
           final String repeatLabel =
               rule?.displayLabel(fallbackDay: fallbackDay) ?? '每月';
 
+          // ──「结清 / 退款」入口派生数据（2026-10-10）──
+          // 已入账订单（transactionId 非空）→ 退款入口预关联多笔原账单，
+  // 退款金额自动 = 各笔合计（本金 + 利息）；
+          // 剩余未还本金（未还期次金额 − 对应期次利息）→ 结清订单金额。
+          final bool settled = plan?.isFinished ?? false;
+          final List<String> postedTxnIds = <String>[
+            for (final InstallmentPeriod p in list)
+              if (p.transactionId != null) p.transactionId!,
+          ];
+          int remainingPrincipal = 0;
+          for (final InstallmentPeriod p in list) {
+            if (p.paidAt != null) continue;
+            final int idx = p.periodIndex - 1;
+            final int fee = idx >= 0 && idx < fees.length ? fees[idx] : 0;
+            remainingPrincipal += p.amountMinor - fee;
+          }
+          final bool canSettle = plan != null &&
+              !settled &&
+              remainingPrincipal > 0 &&
+              plan.accountId != null &&
+              plan.accountId!.isNotEmpty;
+
           return ListView.separated(
             itemCount: list.length + 1,
             separatorBuilder: (BuildContext _, int __) =>
@@ -136,6 +160,13 @@ class InstallmentDetailPage extends ConsumerWidget {
                       onEdit: plan == null
                           ? null
                           : () => _editPlan(context, ref, plan),
+                      onSettle: canSettle
+                          ? () => _settlePlanEarly(
+                              context, ref, plan, remainingPrincipal)
+                          : null,
+                      onRefund: postedTxnIds.isEmpty
+                          ? null
+                          : () => _refundPostedOrders(context, postedTxnIds),
                     ),
                     _PlanProgressCard(
                       paidCount: paidCount,
@@ -152,24 +183,29 @@ class InstallmentDetailPage extends ConsumerWidget {
               final bool paid = p.paidAt != null;
               final bool posted = p.transactionId != null;
               final bool overdue = !paid && p.dueAt < nowMs;
+              // 已结束（提前结清 / 完结）的计划：「已还」勾选置灰不可点击。
+              final bool locked = settled;
 
               return CheckboxListTile(
                 value: paid,
                 controlAffinity: ListTileControlAffinity.leading,
-                onChanged: (bool? v) async {
-                  try {
-                    await ref
-                        .read(installmentRepositoryProvider)
-                        .togglePeriodPaid(p.id, paid: v ?? false);
-                  } on AppFailure catch (e) {
-                    if (context.mounted) showToast(context, e.message);
-                  }
-                },
+                onChanged: locked
+                    ? null
+                    : (bool? v) async {
+                        try {
+                          await ref
+                              .read(installmentRepositoryProvider)
+                              .togglePeriodPaid(p.id, paid: v ?? false);
+                        } on AppFailure catch (e) {
+                          if (context.mounted) showToast(context, e.message);
+                        }
+                      },
                 title: Text('第 ${p.periodIndex} 期'),
                 subtitle: Text(
                   '到期 ${formatDueDate(p.dueAt)}'
                   '${posted ? ' · 已入账' : ''}'
-                  '${overdue ? ' · 已逾期' : ''}',
+                  '${overdue ? ' · 已逾期' : ''}'
+                  '${locked ? ' · 已结束' : ''}',
                   style: overdue
                       ? TextStyle(color: Theme.of(context).colorScheme.error)
                       : null,
@@ -275,6 +311,57 @@ class InstallmentDetailPage extends ConsumerWidget {
       if (context.mounted) showToast(context, e.message);
     }
   }
+
+  /// 提前结清：确认后为剩余未还本金生成一笔结清订单（计入下个账单
+  /// 一次性还清），计划随即转为已结束、「已还」勾选置灰。
+  Future<void> _settlePlanEarly(
+    BuildContext context,
+    WidgetRef ref,
+    InstallmentPlan plan,
+    int remainingPrincipal,
+  ) async {
+    final bool ok = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialog) => AlertDialog(
+            title: Text('提前结清「${plan.title}」？'),
+            content: Text(
+              '将为剩余未还本金 ${Money.fromMinor(remainingPrincipal).format()} '
+              '生成一笔结清订单，计入下个账单后一次性还清；'
+              '未到期期次的利息不再收取，计划随即转为已结束。',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(dialog).pop(false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialog).pop(true),
+                child: const Text('结清'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok || !context.mounted) return;
+    try {
+      await ref
+          .read(installmentRepositoryProvider)
+          .settlePlanEarly(plan.id);
+      if (context.mounted) showToast(context, '已提前结清');
+    } on AppFailure catch (e) {
+      if (context.mounted) showToast(context, e.message);
+    }
+  }
+
+  /// 退款：跳转记一笔退款 Tab，预关联全部已入账订单（多笔原账单），
+  /// 退款金额自动 = 各笔合计（已入账订单本金 + 利息）。
+  void _refundPostedOrders(BuildContext context, List<String> postedTxnIds) {
+    openRecordSheet(
+      context,
+      initialTab: RecordTab.refund,
+      refundSourceIds: postedTxnIds,
+    );
+  }
 }
 
 /// 顶部「计划概要」卡：对照小青账详情头布局——
@@ -291,6 +378,8 @@ class _PlanHeaderCard extends StatelessWidget {
     required this.nextDueAt,
     required this.hasOverdue,
     this.onEdit,
+    this.onSettle,
+    this.onRefund,
   });
 
   final InstallmentPlan? plan;
@@ -304,14 +393,23 @@ class _PlanHeaderCard extends StatelessWidget {
   final bool hasOverdue;
   final VoidCallback? onEdit;
 
+  /// 「结清」键：为剩余未还本金生成结清订单并结束计划（无待结清时隐藏）。
+  final VoidCallback? onSettle;
+
+  /// 「退款」键：跳退款页并预填已入账订单本息合计（无已入账订单时隐藏）。
+  final VoidCallback? onRefund;
+
   @override
   Widget build(BuildContext context) {
     final InstallmentPlan? p = plan;
     if (p == null) return const SizedBox.shrink();
     final TextTheme t = Theme.of(context).textTheme;
-    final bool finished = totalCount > 0 && paidCount >= totalCount;
+    // 已结束 = 计划完结标记（提前结清 / 左滑完结 / 全部勾还），与列表页同口径；
+    // 不能只看已入账期数——提前结清后未到期期次永不入账。
+    final bool finished =
+        p.isFinished || (totalCount > 0 && paidCount >= totalCount);
     final String statusLabel = finished
-        ? '已完成'
+        ? '已结束'
         : hasOverdue
             ? '有逾期'
             : '进行中';
@@ -363,30 +461,24 @@ class _PlanHeaderCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (onSettle != null)
+                  _HeaderPill(
+                    label: '结清',
+                    color: AppPalette.primary,
+                    onTap: onSettle!,
+                  ),
+                if (onRefund != null)
+                  _HeaderPill(
+                    label: '退款',
+                    color: AppPalette.info,
+                    onTap: onRefund!,
+                  ),
                 if (onEdit != null)
-                  InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: onEdit,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '编辑',
-                        style: t.bodySmall?.copyWith(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppPalette.textPrimary,
-                        ),
-                      ),
-                    ),
+                  _HeaderPill(
+                    label: '编辑',
+                    color: AppPalette.textPrimary,
+                    surface: true,
+                    onTap: onEdit!,
                   ),
               ],
             ),
@@ -519,6 +611,49 @@ class _PlanHeaderCard extends StatelessWidget {
   }
 }
 
+/// 详情头右上操作胶囊（结清 / 退款 / 编辑）：浅色底 + 主题色文字，
+/// 与原「编辑」胶囊同尺寸，只是颜色随动作区分。
+class _HeaderPill extends StatelessWidget {
+  const _HeaderPill({
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.surface = false,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  /// true 时用中性浅灰底（原「编辑」样式），false 用动作色淡底。
+  final bool surface;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: surface
+              ? Theme.of(context).colorScheme.surfaceContainerHighest
+              : color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 顶部「入账进度」卡（紧凑版）：已入账期数 + 已入账本金/利息 +
 /// 待入账金额 + 进度条。
 class _PlanProgressCard extends StatelessWidget {
@@ -551,12 +686,9 @@ class _PlanProgressCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              '入账进度',
-              style: t.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppPalette.primary,
-              ),
+            const SectionHeader(
+              title: '入账进度',
+              padding: EdgeInsets.fromLTRB(0, 0, 0, 8),
             ),
             const SizedBox(height: 8),
             Row(

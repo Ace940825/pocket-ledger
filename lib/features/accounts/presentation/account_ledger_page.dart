@@ -483,9 +483,9 @@ class _AccountCardHeader extends ConsumerWidget {
               Text(
                 switch (account.type) {
                   // 借出/借入账户按小青账口径展示本金净额（= 名下未结清合计）
-                  AccountType.borrow => '未还本金(元)',
-                  AccountType.lend => '未收本金(元)',
-                  _ => isDebt ? '当前欠款(元)' : '当前余额(元)',
+                  AccountType.borrow => '未还本金',
+                  AccountType.lend => '未收本金',
+                  _ => isDebt ? '当前欠款' : '当前余额',
                 },
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppPalette.textSecondary,

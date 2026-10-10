@@ -89,14 +89,7 @@ class _ReimbursementBillPickerPageState
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: ForestNeutral.textPrimary),
-        title: const Text(
-          '选择账单',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: ForestNeutral.textPrimary,
-          ),
-        ),
+        title: const Text('选择账单'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => Navigator.of(context).pop(),

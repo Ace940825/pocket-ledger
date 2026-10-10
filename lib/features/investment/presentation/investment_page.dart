@@ -396,7 +396,14 @@ class _HoldingCard extends ConsumerWidget {
               Row(
                 children: <Widget>[
                   _badge(
-                    cleared ? '已清仓' : holding.type.label,
+                    cleared
+                        ? '已清仓'
+                        : investmentTypeLabel(
+                            holding.type,
+                            holding.symbol,
+                            name: holding.name,
+                            all: ref.watch(investmentListProvider).valueOrNull,
+                          ),
                     cleared ? AppPalette.textTertiary : AppPalette.primary,
                   ),
                   const SizedBox(width: 8),
@@ -551,26 +558,12 @@ Future<void> showHoldingEditor(
       TextEditingController(text: holding?.symbol ?? '');
   final TextEditingController nameController =
       TextEditingController(text: holding?.name ?? '');
-  final TextEditingController quantityController = TextEditingController(
-    text: holding != null ? holding.quantity.toStringAsFixed(4) : '',
-  );
-  final TextEditingController costController = TextEditingController(
-    text: holding != null
-        ? Money.fromMinor(holding.avgCostMinor).decimal.toStringAsFixed(4)
-        : '',
-  );
-  final TextEditingController priceController = TextEditingController(
-    text: holding != null
-        ? Money.fromMinor(holding.currentPriceMinor).decimal.toStringAsFixed(4)
-        : '',
-  );
-  final TextEditingController noteController =
-      TextEditingController(text: holding?.note ?? '');
 
   InvestmentType type = holding?.type ?? InvestmentType.fund;
 
-  // 底部弹窗（与全应用弹层统一：圆角 24 + 拖拽条 + 键盘避让），
-  // 可修改代码 / 名称 / 品种 / 份额 / 成本 / 现价 / 备注。
+  // 底部弹窗（与全应用弹层统一：圆角 24 + 拖拽条 + 键盘避让）。
+  // 只维护标的元信息：代码 / 名称 / 品种；份额、成本、现价一律由
+  // 记账表单的买卖交易驱动（编辑时原值透传，不动账）。
   final bool? saved = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -643,34 +636,6 @@ Future<void> showHoldingEditor(
                     labelOf: (InvestmentType t) => t.label,
                     onChanged: (InvestmentType t) => setState(() => type = t),
                   ),
-                  const FormGap(),
-                  KeypadField(
-                    controller: quantityController,
-                    allowDecimal: true,
-                    maxDecimalDigits: 4,
-                    labelText: '份额',
-                    helperText: '支持 4 位小数，内部放大 1e6 存整数',
-                  ),
-                  const FormGap(),
-                  KeypadField(
-                    controller: costController,
-                    allowDecimal: true,
-                    labelText: '成本单价',
-                    prefixText: '¥ ',
-                  ),
-                  const FormGap(),
-                  KeypadField(
-                    controller: priceController,
-                    allowDecimal: true,
-                    labelText: '当前单价',
-                    prefixText: '¥ ',
-                    helperText: '留空则默认等于成本单价',
-                  ),
-                  const FormGap(),
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(labelText: '备注'),
-                  ),
                   const SizedBox(height: 16),
                   FilledButton(
                     style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
@@ -688,49 +653,31 @@ Future<void> showHoldingEditor(
 
   if (saved != true || !context.mounted) return;
 
-  final double? quantity = double.tryParse(quantityController.text.trim());
-  final double? cost = double.tryParse(costController.text.trim());
-  final double? price = double.tryParse(priceController.text.trim());
-  if (quantity == null || quantity <= 0) {
-    showToast(context, '份额必须大于 0');
-    return;
-  }
-  if (cost == null || cost < 0) {
-    showToast(context, '成本单价不合法');
-    return;
-  }
-
-  final int quantityMicros =
-      (quantity * InvestmentRepository.quantityScale).round();
-  final int costMinor = Money.fromDecimal(cost).minor;
-  final int priceMinor =
-      price == null ? costMinor : Money.fromDecimal(price).minor;
-  final String note = noteController.text.trim();
-
   final InvestmentRepository repo = ref.read(investmentRepositoryProvider);
   try {
     if (holding == null) {
+      // 新建 = 零仓观察标的：份额/成本为 0，后续由买卖交易建仓。
       await repo.add(
         bookId: ref.read(currentBookIdProvider),
         symbol: symbolController.text,
         name: nameController.text,
         type: type,
-        quantityMicros: quantityMicros,
-        avgCostMinor: costMinor,
-        currentPriceMinor: priceMinor,
-        note: note.isEmpty ? null : note,
+        quantityMicros: 0,
+        avgCostMinor: 0,
+        currentPriceMinor: 0,
       );
     } else {
+      // 编辑 = 只改元信息；数量/成本/现价/备注原值透传（账务由交易驱动）。
       await repo.update(
         id: holding.id,
         symbol: symbolController.text,
         name: nameController.text,
         type: type,
-        quantityMicros: quantityMicros,
-        avgCostMinor: costMinor,
-        currentPriceMinor: priceMinor,
+        quantityMicros: holding.quantityMicros,
+        avgCostMinor: holding.avgCostMinor,
+        currentPriceMinor: holding.currentPriceMinor,
         accountId: holding.accountId,
-        note: note.isEmpty ? null : note,
+        note: holding.note,
       );
     }
   } on AppFailure catch (e) {

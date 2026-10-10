@@ -287,8 +287,9 @@ class LendRepository {
   Future<void> _reconcileDesignatedBalance(String? accountId) =>
       reconcileDesignatedLendBalance(_db, accountId);
 
-  /// 借还本金流水的备注：只落用户手填内容，不再自动拼「借入-对方」
-  /// 默认备注（列表标题已有「借入/借出」分类，右侧另有账户对展示）。
+  /// 借还流水的备注（本金 / 还债 / 收债 / 债务消减 / 坏账计提共用）：
+  /// 只落用户手填内容，不再自动拼「借入-对方」「还债-对方」等默认备注
+  /// （列表标题已有分类，右侧另有账户对展示）。
   String? _flowNote(String? note) {
     final String? userNote = note?.trim();
     return userNote == null || userNote.isEmpty ? null : userNote;
@@ -444,14 +445,35 @@ class LendRepository {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final List<_OffsetHit> affected = <_OffsetHit>[];
 
+    // 「对方」有两个来源：手输对方名称，或从账户选择器选中的借还账户名。
+    // 按名称解析同名借还账户（方向对应 lend/borrow，与
+    // _resolveDesignatedAccount 的归户口径一致），把该账户名下的
+    // 未结清记录一并纳入冲销范围——否则「借给小明时指定了账户 9，
+    // 坏账计提 / 还债时选账户 9」会因 counterparty 是「小明」而
+    // 误报「未找到未结清记录」（账户余额明明 > 0）。
+    final AccountType designatedType = direction == LendDirection.borrowIn
+        ? AccountType.borrow
+        : AccountType.lend;
+    final Account? designatedAcc = await (_db.select(_db.accounts)
+          ..where((Accounts t) =>
+              t.name.equals(trimmed) &
+              t.type.equals(designatedType.index) &
+              t.deleted.equals(false))
+          ..limit(1))
+        .getSingleOrNull();
+    final String? designatedId = designatedAcc?.id;
+
     final List<LendRecord> records = await (_db.select(_db.lendRecords)
           ..where(
             (LendRecords t) =>
                 t.bookId.equals(bookId) &
                 t.direction.equals(direction.index) &
-                t.counterparty.equals(trimmed) &
                 t.deleted.equals(false) &
-                t.status.equals(LendStatus.ongoing.index),
+                t.status.equals(LendStatus.ongoing.index) &
+                (designatedId == null
+                    ? t.counterparty.equals(trimmed)
+                    : (t.counterparty.equals(trimmed) |
+                        t.accountId.equals(designatedId))),
           )
           ..orderBy([(LendRecords t) => OrderingTerm.asc(t.occurredAt)]))
         .get();
@@ -493,7 +515,9 @@ class LendRepository {
         payload: <String, Object?>{
           'direction': r.direction.index,
           'status': newStatus.index,
-          'counterparty': trimmed,
+          // 用记录自身的对方名：按账户匹配到的记录，其 counterparty
+          // 可能与本次所选账户名不同，不能拿账户名覆盖同步快照。
+          'counterparty': r.counterparty,
           'amountMinor': r.amountMinor,
           'repaidMinor': newRepaid,
           'occurredAt': r.occurredAt,
@@ -540,9 +564,6 @@ class LendRepository {
     String? note,
   }) {
     final String dirLabel = direction == LendDirection.borrowIn ? '借入' : '借出';
-    final String verb = direction == LendDirection.borrowIn
-        ? '债务消减'
-        : '坏账计提';
     // 债务消减 / 坏账计提均无真实资金流动，仅作记账备忘展示；按用户口径
     // 统一为支出类型（影响列表箭头 / 配色），不计入收支统计与预算。
     final TxnType txnType = TxnType.expense;
@@ -561,11 +582,8 @@ class LendRepository {
         final LendRecord? record = await getById(affected.first.id);
         final String? designated = record?.accountId;
         if (designated != null && designated.isNotEmpty) {
-          final String trimmed = counterparty.trim();
-          final String? userNote = note?.trim();
-          final String txnNote = userNote == null || userNote.isEmpty
-              ? '$verb-$trimmed'
-              : '$verb-$trimmed\n$userNote';
+          // 备忘流水备注只落用户手填内容，不再默认拼「债务消减-对方」
+          // 「坏账计提-对方」（列表标题已有分类，右侧另有账户对展示）。
           final String flowId = await _txnRepo.add(
             bookId: bookId,
             type: txnType,
@@ -577,7 +595,7 @@ class LendRepository {
               direction: direction,
               kind: _LendFlowKind.reduction,
             ),
-            note: txnNote,
+            note: _flowNote(note),
             sourceModule: SourceModule.lend,
             relatedId: affected.first.id,
             excludeFromStats: true,
@@ -627,11 +645,8 @@ class LendRepository {
       );
 
       if (accountId != null && accountId.isNotEmpty) {
-        final String trimmed = counterparty.trim();
-        final String? userNote = note?.trim();
-        final String txnNote = userNote == null || userNote.isEmpty
-            ? '$verb-$trimmed'
-            : '$verb-$trimmed\n$userNote';
+        // 还债 / 收债流水备注只落用户手填内容，不再默认拼「还债-对方」
+        // 「收债-对方」（列表标题已有分类，右侧另有账户对展示）。
         final String flowId = await _txnRepo.add(
           bookId: bookId,
           type: txnType,
@@ -643,9 +658,9 @@ class LendRepository {
             direction: direction,
             kind: _LendFlowKind.repay,
           ),
-          note: txnNote,
-          sourceModule: SourceModule.lend,
-          // 关联被冲销的借还记录（取首条被冲销记录）：详情页据此解析出
+            note: _flowNote(note),
+            sourceModule: SourceModule.lend,
+            // 关联被冲销的借还记录（取首条被冲销记录）：详情页据此解析出
           // 「借还账户」行（与借入 / 借出本金流水同口径）。多记录冲销时
           // 取最早一条作为代表，足够定位对方借还账户。
           relatedId: affected.isNotEmpty ? affected.first.id : null,

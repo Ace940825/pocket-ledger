@@ -8,6 +8,7 @@ import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../theme/app_colors.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../../../features/record/presentation/record_sheet.dart';
 import '../../../features/record/record_tab.dart';
 
@@ -320,8 +321,8 @@ class MePage extends ConsumerWidget {
     (label: '收支分类', icon: Icons.category_outlined, route: Routes.categories),
     (label: '预算设置', icon: Icons.pie_chart_outline, route: Routes.budget),
     (label: '存钱', icon: Icons.savings_outlined, route: Routes.savings),
-    (label: '转账', icon: Icons.swap_horiz, route: Routes.transfer),
     (label: '报销', icon: Icons.receipt_outlined, route: Routes.reimbursement),
+    (label: '退款', icon: Icons.assignment_return_outlined, route: Routes.refund),
     (label: '借还', icon: Icons.handshake_outlined, route: Routes.lend),
     (label: '分期记账', icon: Icons.calendar_month_outlined, route: Routes.installment),
     (label: '投资', icon: Icons.trending_up, route: Routes.investment),
@@ -332,7 +333,6 @@ class MePage extends ConsumerWidget {
     (label: '账单管理', icon: Icons.receipt_long_outlined, route: Routes.billManage),
     (label: '账户管理', icon: Icons.credit_card, route: Routes.accountManage),
     (label: '物品管理', icon: Icons.inventory_2_outlined, route: Routes.inventory),
-    (label: '账单报告', icon: Icons.donut_large_outlined, route: Routes.report),
   ];
 
   static const List<({String label, IconData icon, String route})>
@@ -345,26 +345,14 @@ class MePage extends ConsumerWidget {
     String title,
     List<({String label, IconData icon, String route})> items,
   ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
-        0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppPalette.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          GridView.count(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SectionHeader(title: title),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: GridView.count(
             crossAxisCount: 4,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -377,8 +365,8 @@ class MePage extends ConsumerWidget {
                 _gridItem(context, item),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

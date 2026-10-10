@@ -333,8 +333,12 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     super.initState();
     final DateTime now = _localNow();
     _selected = widget.initialDate;
-    // 齿轮设置记忆：上次开关状态（SharedPreferences）
-    _restoreSettings(_tabEnabled, (bool v) => _showDial = v);
+    // 齿轮设置记忆：上次开关状态（SharedPreferences）。
+    // 仅日视图生效——齿轮入口只存在于日视图；纯周期选择器（流水页/退款页）
+    // 不受历史齿轮开关影响，四个粒度 Tab（含自定义）恒可用。
+    if (widget.showDayView) {
+      _restoreSettings(_tabEnabled, (bool v) => _showDial = v);
+    }
     _displayedMonth = DateTime(_selected.year, _selected.month);
     _nowPinned = _selected.year == now.year &&
         _selected.month == now.month &&
@@ -800,15 +804,12 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           _rangeRStep = 'e';
         }
       } else {
-        // 已完整 → 再点调整
-        if (day.isBefore(_rangeStart!)) {
-          _rangeStart = day;
-          _rangeEnd = null;
-          _rangeRStep = 'e';
-        } else {
-          _rangeEnd = day;
-          _rangeRStep = 's';
-        }
+        // 已完整 → 再点任意日期 = 从该日重新开始选「起」。
+        // （旧逻辑把点击当新「止」、徽章退回「起」，出现蓝圆+起徽章的错乱；
+        //   现在选中后徽章立即切「止」，按 起→止 顺序重新走一遍。）
+        _rangeStart = day;
+        _rangeEnd = null;
+        _rangeRStep = 'e';
       }
     });
   }
@@ -1286,7 +1287,14 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               final DateTime ctx = widget.showDayView
                   ? _displayedMonth
                   : DateTime(_selMonth.year, _selMonth.month);
-              _selWeek = _mondayOf(DateTime(ctx.year, ctx.month));
+              // 上下文月即当月时锚到今天所在周（本周期），否则会按该月
+              // 1 日算周——10 月打开落在 9/28–10/4「上周」的根源。
+              final DateTime now0 = DateTime.now();
+              final DateTime weekAnchor =
+                  (ctx.year == now0.year && ctx.month == now0.month)
+                      ? DateTime(now0.year, now0.month, now0.day)
+                      : DateTime(ctx.year, ctx.month);
+              _selWeek = _mondayOf(weekAnchor);
               _weekYear = _selWeek.year;
               _weekEpoch++;
               _weekCtrl = null; // 重建周列表，按 _selWeek 居中
@@ -1304,7 +1312,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                   (_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage);
             }
             if (mode == CalendarPeriodMode.custom) {
-              // 预览：进自定义未起选则回到「选起始」步骤，浏览月锚定当前月
+              // 进自定义：浏览月锚定日视图上下文月；起止徽章的位置固定由
+              // _customAxisLabel 控制（挑止时钉在 起 所在月，不随浏览漂移）。
               if (_rangeStart == null) _rangeRStep = 's';
               _rangeViewMonth =
                   DateTime(_displayedMonth.year, _displayedMonth.month);
@@ -1636,36 +1645,49 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   }
 
   /// 自定义区间页头（预览 .axis .pill）：起/止 pill + 浏览月「YYYY年M月」。
-  /// 选起始阶段 pill 绿字浅红底，选截止阶段蓝字浅蓝底（设计稿 --red/--blue）。
+  /// 页头月份始终跟随当前浏览月（不然看不出正在看几月）；月份文字按
+  /// 最宽的「YYYY年12月」预留固定宽度，切 1–9 月/10–12 月时起止 pill 不横跳。
   Widget _customAxisLabel() {
     final bool pickingEnd = _rangeRStep == 'e';
+    // 页头始终跟随当前浏览月（_rangeViewMonth）——之前挑止时钉在起所在月，
+    // 浏览到其它月时页头还显示起那个月，根本看不出正在看几月，已撤回。
+    final DateTime headMonth = _rangeViewMonth;
+    final String badge = pickingEnd ? '止' : '起';
+    final Color pillBg = pickingEnd
+        ? AppPaletteX.azureSurface // 设计稿 .pill.e 底
+        : AppPaletteX.coralSurface; // 设计稿 .pill.s 底
+    final Color pillFg = pickingEnd
+        ? AppPaletteX.azureAccent // --blue
+        : AppPaletteX.coralAccent; // --red
     return Row(
       children: <Widget>[
-        Text(
-          '${_rangeViewMonth.year}年${_rangeViewMonth.month}月',
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            color: ForestNeutral.deepInk,
+        // 月份文字固定宽度（按最宽的「YYYY年12月」≈96px 预留）：
+        // 1–9 月比 10–12 月窄一两位数字，不给固定宽的话切换月份时
+        // 后面的起/止徽章会横向跳动（用户口径：按 10 月宽度固定间距）。
+        SizedBox(
+          width: 96,
+          child: Text(
+            '${headMonth.year}年${headMonth.month}月',
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: ForestNeutral.deepInk,
+            ),
           ),
         ),
         const SizedBox(width: 7),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: pickingEnd
-                ? AppPaletteX.azureSurface // 设计稿 .pill.e 底
-                : AppPaletteX.coralSurface, // 设计稿 .pill.s 底
+            color: pillBg,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
-            pickingEnd ? '止' : '起',
+            badge,
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: pickingEnd
-                  ? AppPaletteX.azureAccent // --blue
-                  : AppPaletteX.coralAccent, // --red
+              color: pillFg,
             ),
           ),
         ),

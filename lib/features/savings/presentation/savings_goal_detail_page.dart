@@ -1510,7 +1510,8 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
   /// 为储蓄存入 / 取出生成一笔真实账本流水（sourceModule=savings）。
   /// [sign] > 0 存入、< 0 取出；[sourceAccountId] 为弹窗所选账户；
   /// [targetAccountId] 为转入（入款）账户，缺省回退 goal.accountId；
-  /// [relatedId] 关联键（灵活=goalId，逐期=goalId#dayIndex）。
+  /// [relatedId] 关联键（灵活=goalId，逐期=goalId#dayIndex）；
+  /// [periodIndex] 逐期存入的期数（灵活存入缺省）。
   Future<void> _recordSavingsTxn({
     required SavingsGoal goal,
     required String sourceAccountId,
@@ -1518,11 +1519,17 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     required int sign,
     String? targetAccountId,
     required String relatedId,
+    int? periodIndex,
   }) async {
     final TransactionRepository txnRepo =
         ref.read(transactionRepositoryProvider);
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final String note = '${sign > 0 ? '储蓄存入' : '储蓄取出'}「${goal.name}」';
+    // 存入默认备注 = 计划名称 + 期数（逐期）；灵活存入只有计划名称。
+    // 取出保持「储蓄取出「计划名」」（取出方向识别依赖该前缀，见
+    // txn_icon.isSavingsWithdrawal）。
+    final String note = sign > 0
+        ? (periodIndex != null ? '${goal.name}第$periodIndex期' : goal.name)
+        : '储蓄取出「${goal.name}」';
     // 系统分类「存款」：ensureNamed 自动重建（isSystem=1，用户分类选择器
     // 隐藏），储蓄存入/取出流水统一归到「存款」类目下。
     final String savingsCategoryId = await CategoryRepository(
@@ -1909,7 +1916,8 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     final bool isTransfer =
         effectiveTarget != null && effectiveTarget != sourceAccountId;
     final TxnType type = isTransfer ? TxnType.transfer : TxnType.expense;
-    final String note = '储蓄存入「${goal.name}」';
+    // 与 _recordSavingsTxn 同口径：默认备注 = 计划名称 + 期数。
+    final String note = '${goal.name}第$dayIndex期';
     if (existing == null) {
       await _recordSavingsTxn(
         goal: goal,
@@ -1918,6 +1926,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         sign: 1,
         targetAccountId: targetAccountId,
         relatedId: relatedId,
+        periodIndex: dayIndex,
       );
     } else {
       // 已存在：更新金额与账户方向（余额由 updateTransaction 自动回滚+重算）。

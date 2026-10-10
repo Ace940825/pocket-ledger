@@ -490,7 +490,7 @@ class _BillTile extends StatelessWidget {
     );
   }
 
-  // ── 左侧图标：线稿优先，退回分类色 Material 图标 / 类型兜底 ──
+  // ── 左侧图标：恒为钢笔线稿（解析器全量兜底，不退回 Material） ──
 
   Widget _icon(BuildContext context) {
     final Color tint = category?.colorValue != null
@@ -500,7 +500,7 @@ class _BillTile extends StatelessWidget {
             TxnType.expense => AppPalette.expense,
             TxnType.transfer => AppPalette.transfer,
           };
-    final LineIconKind? lineKind = txnLineIconKind(txn, category);
+    final LineIconKind lineKind = resolveTxnLineIcon(txn, category);
 
     return Container(
       width: 44,
@@ -510,18 +510,10 @@ class _BillTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
       child: Center(
-        child: lineKind != null
-            ? LineIcon(lineKind, size: 22, color: tint)
-            : Icon(_fallbackIcon, size: 22, color: tint),
+        child: LineIcon(lineKind, size: 22, color: tint),
       ),
     );
   }
-
-  IconData get _fallbackIcon => switch (txn.type) {
-        TxnType.income => Icons.south_west,
-        TxnType.expense => Icons.north_east,
-        TxnType.transfer => Icons.swap_horiz,
-      };
 
   // ── 右侧金额区 ──
 

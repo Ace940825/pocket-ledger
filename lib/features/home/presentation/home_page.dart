@@ -12,6 +12,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/animated_money_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/fade_slide_in.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../budget/providers/budget_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
@@ -55,14 +56,17 @@ class HomePage extends ConsumerWidget {
             const SizedBox(height: AppDimens.spaceXl),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-                Text(
-                  '最近流水',
-                  style: Theme.of(context).textTheme.titleMedium,
+                const Expanded(
+                  child: SectionHeader(title: '最近流水'),
                 ),
-                TextButton(
-                  onPressed: () => context.go(Routes.ledger),
-                  child: const Text('查看全部'),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12, top: 12),
+                  child: TextButton(
+                    onPressed: () => context.go(Routes.ledger),
+                    child: const Text('查看全部'),
+                  ),
                 ),
               ],
             ),
@@ -526,23 +530,6 @@ class _QuickActions extends StatelessWidget {
             onPressed: () => openRecordSheet(context),
             icon: const Icon(Icons.add),
             label: const Text('记一笔'),
-          ),
-        ),
-        const SizedBox(width: AppDimens.spaceMd),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () =>
-                openRecordSheet(context, initialTab: RecordTab.transfer),
-            icon: const Icon(Icons.swap_horiz),
-            label: const Text('转账'),
-          ),
-        ),
-        const SizedBox(width: AppDimens.spaceMd),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => context.push(Routes.more),
-            icon: const Icon(Icons.grid_view_outlined),
-            label: const Text('更多'),
           ),
         ),
       ],

@@ -124,7 +124,7 @@ class InstallmentRepository {
       totalPeriods: totalPeriods,
     );
 
-    return _db.transaction<String>(() async {
+    final String planId = await _db.transaction<String>(() async {
       await _db.into(_db.installmentPlans).insert(
             InstallmentPlansCompanion(
               id: Value<String>(planId),
@@ -195,6 +195,12 @@ class InstallmentRepository {
       );
       return planId;
     });
+    // 创建即补账：首期到期日早于当前时刻的计划（新建时把首期日期选在过去，
+    // 或当月 1 日扣款今天已过），立即在负债付款账户生成当期订单流水，
+    // 不等 bootstrap / 分期列表页的惰性补账——否则用户建完计划去账单页
+    // 看不到当期流水，误以为要动「已还」才出账。幂等：未到期的期次不受影响。
+    await postDuePeriods();
+    return planId;
   }
 
   /// 标记某期已还 / 撤销已还（还款进度标记），并刷新计划的已还期数与完结标记。
@@ -264,7 +270,8 @@ class InstallmentRepository {
   /// 分期信息（计划名 / 期数 / 本息拆分）写进流水备注；该动作与期次是否
   /// 「已还」（[InstallmentPeriods.paidAt]）**无关**。
   ///
-  /// Local-first 无后台常驻服务，入账走「惰性补账」：App 启动兜底
+  /// Local-first 无后台常驻服务，入账走「惰性补账」：计划创建时（首期已
+  /// 到期的计划立即出当期账单，见 [addPlan]）+ App 启动兜底
   /// （bootstrap）+ 分期列表页进入时各调一次。幂等：已入账
   /// （[InstallmentPeriods.transactionId] 指向存活账单）的期次直接跳过；
   /// 入账单被手动删除视为异常，再次运行自愈补回（订单是负债事实）。
@@ -305,6 +312,9 @@ class InstallmentRepository {
     for (final InstallmentPeriod p in due) {
       final InstallmentPlan? plan = plans[p.planId];
       if (plan == null) continue; // 计划已软删：期次清理由 removePlan 负责
+      // 已结束（提前结清 / 手动完结）的计划不再补账：结清订单已一次性
+      // 覆盖剩余欠款，后续期次不能再生成新订单。
+      if (plan.isFinished) continue;
       final Account? account = accounts[p.planId];
       // 分期付款账户必须是负债账户：非负债方向（历史误关联资产账户）不落账
       if (account == null || !account.type.isLiabilitySide) continue;
@@ -335,8 +345,10 @@ class InstallmentRepository {
         ? fees[feeIndex]
         : 0;
     final int principal = period.amountMinor - fee;
+    // 备注两行排版：第一行标题（「XX第N期分期入账」），第二行本金/利息
+    // 明细（无手续费期次省略第二行），备注行按 \n 换行展示。
     final String feeNote = fee > 0
-        ? '（本金 ${Money.fromMinor(principal).format()}＋利息 ${Money.fromMinor(fee).format()}）'
+        ? '\n本金 ${Money.fromMinor(principal).format()}＋利息 ${Money.fromMinor(fee).format()}'
         : '';
     final String catId = await CategoryRepository(_db).ensureNamed(
       bookId: plan.bookId,
@@ -352,7 +364,7 @@ class InstallmentRepository {
       accountId: plan.accountId!,
       categoryId: catId,
       occurredAt: period.dueAt,
-      note: '「${plan.title}」第${period.periodIndex}期分期入账$feeNote',
+      note: '${plan.title}第${period.periodIndex}期分期入账$feeNote',
       sourceModule: SourceModule.installment,
       relatedId: period.id,
     );
@@ -612,6 +624,101 @@ class InstallmentRepository {
           payload: <String, Object?>{'paidAt': now},
         );
         // 完结是手动动作：清掉自动溯源，转为手动口径（reconcile 不再回退）。
+        await _unmarkAutoPaid(p.id);
+      }
+      await _refreshPlanProgress(planId, now);
+    });
+  }
+
+  /// 提前结清：为剩余未还本金生成一笔「一次性还清」订单流水，计划随即
+  /// 转为已结束（[InstallmentPlans.isFinished] 由 [_refreshPlanProgress]
+  /// 按明细重算），未还期次一次性标记已还（与 [finishPlan] 同口径，
+  /// 清自动溯源，reconcile 不再触碰）。
+  ///
+  /// 口径（2026-10-10 与用户确认）：
+  /// - 结清订单金额 = 剩余未还**本金**（未到期期次的利息不再收取），
+  ///   在负债付款账户落一笔支出（欠款增加），随账单周期出账后一次性还清；
+  /// - 分类 / 账户沿用原分期计划口径（系统分类「分期」+ [InstallmentPlans.accountId]），
+  ///   备注两行：第一行「XX提前结清」，第二行剩余本金金额；
+  /// - `postDuePeriods` 对已结束计划跳过补账：后续期次不再生成新订单。
+  Future<void> settlePlanEarly(String planId) async {
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    final InstallmentPlan? plan = await (_db.select(_db.installmentPlans)
+          ..where((InstallmentPlans t) => t.id.equals(planId)))
+        .getSingleOrNull();
+    if (plan == null || plan.deleted) {
+      throw const NotFoundFailure('分期计划不存在');
+    }
+    if (plan.accountId == null || plan.accountId!.isEmpty) {
+      throw const ValidationFailure('该计划未关联负债账户，无法结清');
+    }
+
+    final List<InstallmentPeriod> periods =
+        await (_db.select(_db.installmentPeriods)
+              ..where(
+                (InstallmentPeriods t) =>
+                    t.planId.equals(planId) & t.deleted.equals(false),
+              ))
+            .get();
+    final List<InstallmentPeriod> unpaid = periods
+        .where((InstallmentPeriod p) => p.paidAt == null)
+        .toList(growable: false);
+    if (unpaid.isEmpty) throw const ValidationFailure('该计划没有待结清的期次');
+
+    // 剩余未还本金 = 各未还期次金额 − 对应期次利息（提前结清免收未到期利息）。
+    final List<int> fees = feeByPeriodOf(plan);
+    int remainingPrincipal = 0;
+    for (final InstallmentPeriod p in unpaid) {
+      final int idx = p.periodIndex - 1;
+      final int fee = idx >= 0 && idx < fees.length ? fees[idx] : 0;
+      remainingPrincipal += p.amountMinor - fee;
+    }
+    if (remainingPrincipal <= 0) {
+      throw const ValidationFailure('剩余未还本金为 0，无需结清');
+    }
+
+    // 结清订单：负债账户支出（欠款增加），随账单周期出账一次性还清。
+    final String catId = await CategoryRepository(_db).ensureNamed(
+      bookId: plan.bookId,
+      name: '分期',
+      type: CategoryType.expense,
+      iconKey: 'credit_card',
+      isSystem: true,
+    );
+    await _txnRepo.add(
+      bookId: plan.bookId,
+      type: TxnType.expense,
+      amountMinor: remainingPrincipal,
+      accountId: plan.accountId!,
+      categoryId: catId,
+      occurredAt: DateTime.now().toLocal().millisecondsSinceEpoch,
+      note: '${plan.title}提前结清\n剩余本金 ${Money.fromMinor(remainingPrincipal).format()}',
+      sourceModule: SourceModule.installment,
+      relatedId: plan.id,
+    );
+
+    // 未还期次一次性标记已还（手动口径），计划进度重算后 isFinished=true。
+    await _db.transaction<void>(() async {
+      for (final InstallmentPeriod p in unpaid) {
+        await (_db.update(_db.installmentPeriods)
+              ..where((InstallmentPeriods t) => t.id.equals(p.id)))
+            .write(
+          InstallmentPeriodsCompanion(
+            paidAt: Value<int?>(now),
+            updatedAt: Value<int>(now),
+            dirty: const Value<bool>(true),
+          ),
+        );
+        await enqueueSyncOp(
+          _db,
+          table: 'installment_periods',
+          recordId: p.id,
+          opType: SyncOpType.update,
+          updatedAt: now,
+          payload: <String, Object?>{'paidAt': now},
+        );
+        // 结清是手动动作：清掉自动溯源，reconcile 不再回退。
         await _unmarkAutoPaid(p.id);
       }
       await _refreshPlanProgress(planId, now);

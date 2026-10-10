@@ -8,18 +8,19 @@ import '../../../../core/theme/forest_design_tokens.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
 import '../../../../shared/models/money.dart';
+import '../../../../shared/widgets/calendar_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/transaction_tile.dart';
 import 'widgets/txn_slidable.dart';
 
-/// 分类账单页 · 对齐参考稿（小青账「分类下全部账单」）。
+/// 分类账单页 · 布局与退款记录页同款。
 ///
-/// 头部：圆形 ✕ 关闭 + 居中标题「分类名 年-月(共N笔)」；
-/// 月份切换：‹ 2026年9月 › 左右箭头翻月（默认显示该分类最近一笔所在月，
-/// 点标题年份可复位为「自动」）；
-/// 账单明细节：右侧「按时间 / 按金额」胶囊，点击切换排序；
+/// 头部：圆形 ✕ 关闭 + 居中标题「分类名」（17pt w800 主题标题）；
+/// 操作行：左「周期标签 ˅」（点开共享日历，周/月/年/自定义，默认该分类
+/// 最近一笔所在月）+ 右「时间 ⇅ / 金额 ⇅」排序胶囊（点一下互换）；
+/// 合计条：共 N 笔 · 合计 xx；
 /// 按天分组：天头「M月d日 今天/星期X」+ 右侧当日「支:x / 收:x / 收支:0」，
 /// 行复用 [TransactionTile]（报徽章 / 已报 / 账户名 / 不计收支、预算 /
 /// 全额报销删除线 + 已报徽章），点击行进入流水明细弹窗。
@@ -37,32 +38,28 @@ enum _SortMode { time, amount }
 
 class _CategoryTransactionsPageState
     extends ConsumerState<CategoryTransactionsPage> {
-  /// null = 自动（取该分类最近一笔所在月）；设定后锁定该月。
-  DateTime? _selectedMonth;
+  /// 周期筛选；null = 自动（取该分类最近一笔所在月）；选定后锁定该周期。
+  LedgerPeriod? _period;
   _SortMode _sortMode = _SortMode.time;
 
-  DateTime _effectiveMonth(List<Transaction> list) {
-    if (_selectedMonth != null) return _selectedMonth!;
+  /// 生效周期：已选定用选定值；否则自动取最近一笔所在月（无流水取当月）。
+  LedgerPeriod _effectivePeriod(List<Transaction> list) {
+    if (_period != null) return _period!;
+    DateTime anchor;
     if (list.isEmpty) {
       final DateTime now = DateTime.now();
-      return DateTime(now.year, now.month, 1);
+      anchor = DateTime(now.year, now.month, 1);
+    } else {
+      int latest = list.fold<int>(
+        0,
+        (int m, Transaction t) => t.occurredAt > m ? t.occurredAt : m,
+      );
+      final DateTime d =
+          DateTime.fromMillisecondsSinceEpoch(latest, isUtc: true).toLocal();
+      anchor = DateTime(d.year, d.month, 1);
     }
-    int latest = list.fold<int>(
-      0,
-      (int m, Transaction t) => t.occurredAt > m ? t.occurredAt : m,
-    );
-    final DateTime d =
-        DateTime.fromMillisecondsSinceEpoch(latest, isUtc: true).toLocal();
-    return DateTime(d.year, d.month, 1);
+    return LedgerPeriod.monthOf(anchor);
   }
-
-  List<Transaction> _filterMonth(List<Transaction> list, DateTime month) =>
-      list.where((Transaction t) {
-        final DateTime d =
-            DateTime.fromMillisecondsSinceEpoch(t.occurredAt, isUtc: true)
-                .toLocal();
-        return d.year == month.year && d.month == month.month;
-      }).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -74,18 +71,26 @@ class _CategoryTransactionsPageState
 
     final List<Transaction> data =
         listAsync.valueOrNull ?? const <Transaction>[];
-    final DateTime month = _effectiveMonth(data);
-    final List<Transaction> filtered = _filterMonth(data, month);
-    // 全局排序：按时间倒序，或按金额（绝对值）倒序。
+    final LedgerPeriod period = _effectivePeriod(data);
+    // 与退款页同口径：周期本地零点毫秒与 occurredAt 同源可比。
+    final int startMs = period.start.millisecondsSinceEpoch;
+    final int endMs = period.end.millisecondsSinceEpoch;
+    final List<Transaction> filtered = data.where((Transaction t) {
+      return t.occurredAt >= startMs && t.occurredAt < endMs;
+    }).toList();
+    // 全局排序：按时间倒序，或按实付金额（原额−优惠）倒序。
     if (_sortMode == _SortMode.time) {
       filtered.sort((Transaction a, Transaction b) =>
           b.occurredAt.compareTo(a.occurredAt));
     } else {
-      filtered.sort((Transaction a, Transaction b) =>
-          b.amountMinor.compareTo(a.amountMinor));
+      filtered.sort((Transaction a, Transaction b) => (b.amountMinor -
+              b.discountMinor)
+          .compareTo(a.amountMinor - a.discountMinor));
     }
 
     final int count = filtered.length;
+    final int totalMinor = filtered.fold<int>(
+        0, (int m, Transaction t) => m + t.amountMinor - t.discountMinor);
     final String name = category?.name ?? '分类';
 
     return Scaffold(
@@ -95,9 +100,9 @@ class _CategoryTransactionsPageState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _buildHeader(context, name, month, count),
-            _buildMonthBar(month),
-            _buildSectionBar(),
+            _buildHeader(context, name),
+            _buildPeriodRow(context, period),
+            _buildSummaryBar(context, count, totalMinor),
             Expanded(
               child: listAsync.when(
                 loading: () =>
@@ -111,9 +116,9 @@ class _CategoryTransactionsPageState
                   if (filtered.isEmpty) {
                     return Center(
                       child: Text(
-                        _selectedMonth == null
+                        data.isEmpty
                             ? '该分类下暂无账单'
-                            : '该分类 ${month.year}年${month.month}月暂无账单',
+                            : '该分类 ${period.label} 暂无账单',
                         style: TextStyle(
                             fontSize: 13, color: AppPalette.textTertiary),
                       ),
@@ -129,14 +134,8 @@ class _CategoryTransactionsPageState
     );
   }
 
-  // ── 头部：✕ + 居中标题（含月份） ─────────────────────
-  Widget _buildHeader(
-    BuildContext context,
-    String name,
-    DateTime month,
-    int count,
-  ) {
-    final String monthSuffix = '${month.year}-${month.month}';
+  // ── 头部：✕ + 居中标题（分类名，主题标题样式） ────────
+  Widget _buildHeader(BuildContext context, String name) {
     return SizedBox(
       height: 56,
       child: Stack(
@@ -165,13 +164,92 @@ class _CategoryTransactionsPageState
               ),
             ),
           ),
+          // 自定义头部无 AppBar 承载，直接复用主题 appBarTheme.titleTextStyle，
+          // 与全站标题（17pt w800 居中）保持一致。
           Center(
-            child: Text(
-              '$name $monthSuffix(共$count笔)',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: ForestNeutral.textPrimary,
+            child: Text(name,
+                style: Theme.of(context).appBarTheme.titleTextStyle),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 操作行：「周期标签 ˅」居左 + 排序胶囊居右（退款页同款） ──
+  Widget _buildPeriodRow(BuildContext context, LedgerPeriod period) {
+    final bool byAmount = _sortMode == _SortMode.amount;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
+      child: Row(
+        children: <Widget>[
+          // 周期标签可能很长（自定义区间），Expanded 强制占满剩余宽度
+          // （内容左对齐、过长省略），把右侧胶囊推到屏幕右缘。
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: _pickPeriod,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Flexible(
+                      child: Text(
+                        period.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: ForestNeutral.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: AppPalette.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 排序切换：时间（最近在前）⇄ 金额（从大到小），点一下互换。
+          GestureDetector(
+            onTap: () => setState(() => _sortMode =
+                byAmount ? _SortMode.time : _SortMode.amount),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border.all(color: ForestGreen.softBorder),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    byAmount
+                        ? Icons.payments_outlined
+                        : Icons.schedule_rounded,
+                    size: 14,
+                    color: ForestGreen.deep,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    byAmount ? '金额' : '时间',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: ForestGreen.deep,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Icon(Icons.swap_vert_rounded,
+                      size: 14, color: ForestGreen.deep),
+                ],
               ),
             ),
           ),
@@ -180,83 +258,54 @@ class _CategoryTransactionsPageState
     );
   }
 
-  // ── 月份切换 ‹ 年-月 › ───────────────────────────────
-  Widget _buildMonthBar(DateTime month) => Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.chevron_left,
-                size: 20, color: ForestNeutral.textPrimary),
-            splashRadius: 18,
-            onPressed: () => setState(() => _selectedMonth =
-                DateTime(month.year, month.month - 1, 1)),
-          ),
-          GestureDetector(
-            // 点年份复位为「自动」（最近一笔所在月）。
-            onTap: () => setState(() => _selectedMonth = null),
-            child: Text(
-              '${month.year}年${month.month}月',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: ForestNeutral.textPrimary,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right,
-                size: 20, color: ForestNeutral.textPrimary),
-            splashRadius: 18,
-            onPressed: () => setState(() => _selectedMonth =
-                DateTime(month.year, month.month + 1, 1)),
-          ),
-        ],
-      );
+  /// 周期切换：共享日历组件（CalendarSheet 纯周期模式，与退款页同款），
+  /// 支持周/月/年/自定义四种粒度，确认后整段区间生效。
+  Future<void> _pickPeriod() async {
+    final List<Transaction> data =
+        ref.read(categoryTransactionsProvider(widget.categoryId))
+                .valueOrNull ??
+            const <Transaction>[];
+    final LedgerPeriod current = _effectivePeriod(data);
+    final CalendarPeriodMode cm = switch (current.mode) {
+      LedgerPeriodMode.week => CalendarPeriodMode.week,
+      LedgerPeriodMode.month => CalendarPeriodMode.month,
+      LedgerPeriodMode.year => CalendarPeriodMode.year,
+      LedgerPeriodMode.custom => CalendarPeriodMode.custom,
+    };
+    final CalendarSelection? r = await CalendarSheet.show(
+      context,
+      mode: CalendarSheetMode.day,
+      showDayView: false,
+      headerTitle: '筛选周期',
+      initialPeriod: CalendarPeriod(cm, current.start, current.end),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(DateTime.now().year, 12, 31),
+      weekStart: CalendarWeekStart.monday,
+    );
+    if (r is! CalendarPeriod) return;
+    final LedgerPeriodMode lm = switch (r.mode) {
+      CalendarPeriodMode.week => LedgerPeriodMode.week,
+      CalendarPeriodMode.month => LedgerPeriodMode.month,
+      CalendarPeriodMode.year => LedgerPeriodMode.year,
+      CalendarPeriodMode.custom => LedgerPeriodMode.custom,
+    };
+    setState(() {
+      _period = LedgerPeriod(mode: lm, start: r.start, end: r.end);
+    });
+  }
 
-  // ── 节头：账单明细 + 按时间/按金额 切换 ───────────────
-  Widget _buildSectionBar() {
-    final bool byTime = _sortMode == _SortMode.time;
+  // ── 合计条：共 N 笔 · 合计 xx ─────────────────────────
+  Widget _buildSummaryBar(BuildContext context, int count, int totalMinor) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 6),
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 6),
       child: Row(
         children: <Widget>[
-          const Text(
-            '账单明细',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: ForestNeutral.textPrimary,
-            ),
-          ),
-          const Spacer(),
-          GestureDetector(
-            onTap: () => setState(() => _sortMode =
-                byTime ? _SortMode.amount : _SortMode.time),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: ForestGreen.soft,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    byTime ? '按时间' : '按金额',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: ForestGreen.deep,
-                    ),
-                  ),
-                  const SizedBox(width: 3),
-                  Icon(
-                    byTime ? Icons.arrow_downward : Icons.sort,
-                    size: 13,
-                    color: ForestGreen.deep,
-                  ),
-                ],
-              ),
+          Text(
+            '共 $count 笔 · 合计 ${Money.fromMinor(totalMinor).format()}',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppPalette.textSecondary,
             ),
           ),
         ],

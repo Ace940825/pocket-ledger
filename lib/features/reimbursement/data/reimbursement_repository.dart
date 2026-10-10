@@ -237,6 +237,19 @@ class ReimbursementRepository {
         .getSingleOrNull();
   }
 
+  /// 一次性读取被某笔「报销收入」流水抵扣的全部报销记录
+  /// （编辑报销收入时反填关联账单与报销账户用）。
+  Future<List<Reimbursement>> listByIncomeTransactionId(String incomeId) {
+    return (_db.select(_db.reimbursements)
+          ..where((Reimbursements t) =>
+              t.incomeTransactionId.equals(incomeId) &
+              t.deleted.equals(false))
+          ..orderBy(<OrderClauseGenerator<Reimbursements>>[
+            (Reimbursements t) => OrderingTerm.desc(t.occurredAt),
+          ]))
+        .get();
+  }
+
   /// 实时监听被某笔「报销收入」流水抵扣的全部报销记录
   /// （流水详情弹窗「关联账单」反向展示用）。
   Stream<List<Reimbursement>> watchByIncomeTransactionId(String incomeId) {

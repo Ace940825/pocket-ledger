@@ -10,7 +10,6 @@ import '../../../../../domain/enums.dart';
 import '../../providers/ledger_providers.dart';
 import '../../../../../shared/models/money.dart';
 import '../../../../../shared/widgets/attachment_viewer.dart';
-import '../../../../../shared/widgets/category_icons.dart';
 import '../../../../../shared/widgets/line_icons.dart';
 import '../../../../../shared/widgets/money_text.dart';
 import '../../../accounts/providers/accounts_providers.dart';
@@ -141,15 +140,9 @@ class TransactionTile extends ConsumerWidget {
         : category?.colorValue != null
             ? Color(category!.colorValue!)
             : _tintFor(transaction.type);
-    final IconData icon =
-        category?.iconKey != null && category!.iconKey!.isNotEmpty
-            ? categoryIconData(category.iconKey)
-            : _iconFor(transaction.type);
-    // 双轨线稿优先：储蓄存入/取出按方向走储蓄罐线稿（系统分类「存款」不带
-    // iconKey，否则会退回 transfer 的 swap_horiz 兜底）；系统分类
-    // （借入/借出/取现/还款等）挂的 iconKey 有对应钢笔线稿时渲染 LineIcon，
-    // 否则退回 Material 兜底/类型默认图标。
-    final LineIconKind? lineKind = txnLineIconKind(transaction, category);
+    // 图标恒为钢笔线稿：解析器全量兜底（分类缺行/缺 iconKey 时按
+    // 模块/系统分类名/备注前缀/类型给线稿），不再退回 Material 图标。
+    final LineIconKind lineKind = resolveTxnLineIcon(transaction, category);
     // 借还本金/还款流水：反查关联借还记录，右侧按转账样式显示
     // 「资金账户 ↔ 借还账户」双向账户对（无借还账户时回退单账户名）。
     final List<LendRecord> lendRecords =
@@ -181,49 +174,18 @@ class TransactionTile extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // 左侧图标：线稿优先（分类 iconKey 命中钢笔线稿），其次
-              // 报销收入用「报」字圆角标，最后退回 Material/类型默认图标。
-              if (lineKind != null)
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: tint.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                  ),
-                  child: Center(
-                    child: LineIcon(lineKind, size: 22, color: tint),
-                  ),
-                )
-              else if (isReimbIncome)
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: tint.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      '报',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: AppPalette.textPrimary,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: tint.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                  ),
-                  child: Icon(icon, color: tint, size: 22),
+              // 左侧图标：恒为钢笔线稿（报销收入也统一走票据 ¥ 线稿）。
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: tint.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 ),
+                child: Center(
+                  child: LineIcon(lineKind, size: 22, color: tint),
+                ),
+              ),
               const SizedBox(width: AppDimens.spaceMd),
               Expanded(
                 child: Column(
@@ -425,12 +387,6 @@ class TransactionTile extends ConsumerWidget {
         TxnType.income => AppPalette.income,
         TxnType.expense => AppPalette.expense,
         TxnType.transfer => AppPalette.transfer,
-      };
-
-  IconData _iconFor(TxnType type) => switch (type) {
-        TxnType.income => Icons.south_west,
-        TxnType.expense => Icons.north_east,
-        TxnType.transfer => Icons.swap_horiz,
       };
 }
 

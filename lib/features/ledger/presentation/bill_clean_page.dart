@@ -671,7 +671,7 @@ class _CleanTile extends StatelessWidget {
             TxnType.expense => AppPalette.expense,
             TxnType.transfer => AppPalette.transfer,
           };
-    final LineIconKind? lineKind = txnLineIconKind(txn, category);
+    final LineIconKind lineKind = resolveTxnLineIcon(txn, category);
 
     return Container(
       width: 44,
@@ -681,18 +681,10 @@ class _CleanTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
       child: Center(
-        child: lineKind != null
-            ? LineIcon(lineKind, size: 22, color: tint)
-            : Icon(_fallbackIcon, size: 22, color: tint),
+        child: LineIcon(lineKind, size: 22, color: tint),
       ),
     );
   }
-
-  IconData get _fallbackIcon => switch (txn.type) {
-        TxnType.income => Icons.south_west,
-        TxnType.expense => Icons.north_east,
-        TxnType.transfer => Icons.swap_horiz,
-      };
 
   Widget _amountColumn() {
     final bool isExpense = txn.type == TxnType.expense;

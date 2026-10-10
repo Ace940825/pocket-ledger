@@ -10,6 +10,7 @@ import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/app_toast.dart';
 import '../../../../shared/widgets/calendar_sheet.dart';
 import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/section_header.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -786,46 +787,46 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           border: Border.all(color: AppPalette.hairline),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            Text.rich(
-              TextSpan(
-                text: '${prefix}结余：',
+            // 金额包 FittedBox(scaleDown)：宽度不够整体等比缩小（7 位数可
+            // 完整显示），绝不拆行，负号不会与数字分离（与报表页同款）。
+            Text('$prefix结余：',
                 style: const TextStyle(
-                  fontSize: 14,
-                  color: AppPalette.textPrimary,
-                ),
-                children: <InlineSpan>[
-                  TextSpan(
-                    text: Money.fromMinor(balanceMinor).format(),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: balanceMinor >= 0
-                          ? AppPalette.income
-                          : AppPalette.expense,
-                    ),
+                    fontSize: 13, color: AppPalette.textPrimary)),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  Money.fromMinor(balanceMinor).format(),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: balanceMinor >= 0
+                        ? AppPalette.income
+                        : AppPalette.expense,
                   ),
-                ],
+                ),
               ),
             ),
-            Text.rich(
-              TextSpan(
-                text: '日均支出：',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppPalette.textPrimary,
-                ),
-                children: <InlineSpan>[
-                  TextSpan(
-                    text: Money.fromMinor(dailyAvgMinor).format(),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.expense,
-                    ),
+            const SizedBox(width: AppDimens.spaceLg),
+            const Text('日均支出：',
+                style: TextStyle(
+                    fontSize: 13, color: AppPalette.textPrimary)),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  Money.fromMinor(dailyAvgMinor).format(),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.expense,
                   ),
-                ],
+                ),
               ),
             ),
           ],
@@ -838,51 +839,42 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
   Widget _detailHeader(int count) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
-        AppDimens.spaceXs,
-      ),
-      child: Row(
-        children: <Widget>[
-          Text(
-            '账单明细',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppPalette.textPrimary,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$count笔',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppPalette.textTertiary,
-            ),
-          ),
-          const Spacer(),
-          // 排序切换胶囊：按时间 / 按金额
-          InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: () => setState(() => _sortByAmount = !_sortByAmount),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppPalette.chipLine),
-                borderRadius: BorderRadius.circular(999),
+      padding: const EdgeInsets.only(top: AppDimens.spaceLg),
+      child: SectionHeader(
+        title: '账单明细',
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              '$count笔',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppPalette.textTertiary,
               ),
-              child: Text(
-                _sortByAmount ? '按金额' : '按时间',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppPalette.textSecondary,
+            ),
+            const SizedBox(width: 10),
+            // 排序切换胶囊：按时间 / 按金额
+            InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => setState(() => _sortByAmount = !_sortByAmount),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppPalette.chipLine),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _sortByAmount ? '按金额' : '按时间',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppPalette.textSecondary,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

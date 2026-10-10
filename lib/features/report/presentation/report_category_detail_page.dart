@@ -99,9 +99,7 @@ class _ReportCategoryDetailPageState
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,
-        title: Text(title,
-            style: const TextStyle(
-                fontSize: 17, fontWeight: FontWeight.w600)),
+        title: Text(title),
         actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.refresh_outlined),

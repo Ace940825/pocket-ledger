@@ -9,6 +9,7 @@ import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
+import '../../../shared/widgets/section_header.dart';
 import '../data/savings_repository.dart';
 import '../providers/savings_providers.dart';
 import 'savings_goal_detail_page.dart';
@@ -76,19 +77,8 @@ class _PlanTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: <Widget>[
-        // 顶部：存钱模式选择（对标小青账弹层标题样式）。
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-          child: Center(
-            child: Text(
-              '存钱模式选择',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
+        // 顶部：存钱模式选择（与其他页区块标题统一：绿竖条 + 16pt w700）。
+        const SectionHeader(title: '存钱模式选择'),
         // 双列模式九宫格，点卡直接进创建页。
         GridView.count(
           crossAxisCount: 2,

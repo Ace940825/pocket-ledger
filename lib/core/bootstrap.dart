@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
+import '../database/sync_enqueue.dart';
 import '../domain/enums.dart';
 import '../features/categories/data/category_repository.dart';
 import '../features/installment/data/installment_repository.dart';
@@ -257,6 +258,10 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 预建 11 个落账系统分类（转账三变体/借还六类/报销收入/退款），确保入库
   // 并隐藏于用户分类列表，落账时按同名同类型引用。
   await _seedSystemCategories(db);
+  // 借还流水分类重挂（幂等自愈）：旧种子「还债/债务消减」曾被下线软删，
+  // 期间落账的借还流水 categoryId 悬空（标题退化「支出」、详情「未分类」）。
+  // 按备注动词前缀把悬空行重新挂回系统分类。
+  await _relinkLendFlowCategories(db);
 
   // 每日行情刷新（后台、不阻塞启动；任意源失败静默保留旧价）。
   // 内部按「本地日」节流，已今天更新过的持仓跳过，天然每天至多一次。
@@ -408,6 +413,82 @@ Future<void> _markSystemCategories(AppDatabase db) async {
         ),
       );
     }
+  }
+}
+
+/// 借还流水的分类重挂（幂等启动自愈）。
+///
+/// 「还债 / 债务消减」等借还系统分类曾被作为旧种子下线（软删，见
+/// [_retireLegacyDefaultCategories]），期间落账的借还流水 `categoryId`
+/// 因此悬空——列表标题退化为「支出 / 收入」、详情弹层显示「未分类」，
+/// 分类图标也随之丢失。这里按**备注动词前缀**（「还债-5」「债务消减-9」
+/// 「借入-小明」…，与 `lend_flow_restore` 的冲销动词同源口径）识别
+/// 借还流水，把分类行悬空的行重新挂回系统分类：
+/// [CategoryRepository.ensureNamed] 自动重建缺失行（isSystem=1、iconKey
+/// 齐备），与借还落账口径一致。仅修复悬空引用——categoryId 仍指向
+/// 健在分类（含用户手动改选）的行一律不动。
+Future<void> _relinkLendFlowCategories(AppDatabase db) async {
+  // （备注前缀, 分类名, 类型, iconKey），与 lend_repository._flowCategoryId
+  // 同源；长名在前防前缀截胡（「债务消减-」不被「借入-」等短名干扰）。
+  const List<(String, String, CategoryType, String)> verbCategories =
+      <(String, String, CategoryType, String)>[
+    ('债务消减-', '债务消减', CategoryType.expense, 'debt_reduce'),
+    ('坏账计提-', '坏账计提', CategoryType.expense, 'bad_debt'),
+    ('还债-', '还债', CategoryType.expense, 'repay_debt'),
+    ('收债-', '收债', CategoryType.income, 'collect_debt'),
+    ('借入-', '借入', CategoryType.income, 'borrow_in'),
+    ('借出-', '借出', CategoryType.expense, 'lend_out'),
+  ];
+  final Set<String> liveCategoryIds = (await (db.select(db.categories)
+              ..where((Categories t) => t.deleted.equals(false)))
+            .get())
+      .map((Category c) => c.id)
+      .toSet();
+  final List<Transaction> rows = await (db.select(db.transactions)
+        ..where((Transactions t) =>
+            t.sourceModule.equals(SourceModule.lend.index) &
+            t.deleted.equals(false) &
+            t.note.isNotNull()))
+      .get();
+  final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+  for (final Transaction txn in rows) {
+    final String note = txn.note!;
+    (String, String, CategoryType, String)? hit;
+    for (final (String, String, CategoryType, String) v in verbCategories) {
+      if (note.startsWith(v.$1)) {
+        hit = v;
+        break;
+      }
+    }
+    if (hit == null) continue;
+    if (txn.categoryId != null && liveCategoryIds.contains(txn.categoryId)) {
+      continue; // 分类行健在（含用户自选分类），不动。
+    }
+    final String categoryId = await CategoryRepository(db).ensureNamed(
+      bookId: txn.bookId,
+      name: hit.$2,
+      type: hit.$3,
+      iconKey: hit.$4,
+      isSystem: true,
+    );
+    await (db.update(db.transactions)
+          ..where((Transactions t) => t.id.equals(txn.id)))
+        .write(
+      TransactionsCompanion(
+        categoryId: Value<String>(categoryId),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+    // 与 reassignCategory 同口径：分类变更入同步队列（仅 categoryId）。
+    await enqueueSyncOp(
+      db,
+      table: 'transactions',
+      recordId: txn.id,
+      opType: SyncOpType.update,
+      updatedAt: now,
+      payload: <String, Object?>{'categoryId': categoryId},
+    );
   }
 }
 

@@ -617,6 +617,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
   // ── 年结余 / 月均收入 ──
 
   Widget _summaryRow(int balance, int yearIncome) {
+    // 单行布局：标签 + 金额 ×2。金额包 FittedBox(scaleDown)——宽度不够时
+    // 整体等比缩小（7 位数可完整显示），绝不拆行，负号不会与数字分离。
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -624,27 +626,38 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
         child: Row(
           children: <Widget>[
             const Text('年结余: ',
-                style: TextStyle(fontSize: 14, color: AppPalette.textPrimary)),
+                style: TextStyle(fontSize: 13, color: AppPalette.textPrimary)),
             Flexible(
-              child: Text(
-                Money.fromMinor(balance).format(),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: balance < 0 ? AppPalette.expense : AppPalette.income,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  Money.fromMinor(balance).format(),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color:
+                        balance < 0 ? AppPalette.expense : AppPalette.income,
+                  ),
                 ),
               ),
             ),
             const Spacer(),
             const Text('月均收入: ',
-                style: TextStyle(fontSize: 14, color: AppPalette.textPrimary)),
+                style: TextStyle(fontSize: 13, color: AppPalette.textPrimary)),
             Flexible(
-              child: Text(
-                Money.fromMinor(yearIncome ~/ 12).format(),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppPalette.income,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  Money.fromMinor(yearIncome ~/ 12).format(),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppPalette.income,
+                  ),
                 ),
               ),
             ),
@@ -1456,17 +1469,24 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     List<Widget> item((String, int, Color, bool) cfg) {
       final (String label, int minor, Color color, bool negRed) = cfg;
       final bool neg = negRed && minor < 0;
+      // 金额包 FittedBox(scaleDown)：宽度不够整体等比缩小（7 位数可完整
+      // 显示），绝不拆行，负号不会与数字分离（与年视图 _summaryRow 同款）。
       return <Widget>[
         Text(label,
             style:
-                const TextStyle(fontSize: 14, color: AppPalette.textPrimary)),
+                const TextStyle(fontSize: 13, color: AppPalette.textPrimary)),
         Flexible(
-          child: Text(
-            Money.fromMinor(minor).format(),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: neg ? AppPalette.expense : color,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              Money.fromMinor(minor).format(),
+              maxLines: 1,
+              softWrap: false,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: neg ? AppPalette.expense : color,
+              ),
             ),
           ),
         ),
@@ -1954,12 +1974,20 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
             const SizedBox(height: 2),
             Padding(
               padding: const EdgeInsets.only(left: 20),
-              child: Text(
-                Money.fromMinor(minor).format(),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: _branchColor(b),
+              // FittedBox(scaleDown)：金额超宽时整体等比缩小（7 位数可完整
+              // 显示），绝不拆行——此前 ¥112,595.00 会被折成两行。
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  Money.fromMinor(minor).format(),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: _branchColor(b),
+                  ),
                 ),
               ),
             ),

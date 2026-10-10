@@ -10,6 +10,7 @@ import '../../../theme/theme.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../data/investment_repository.dart';
 import '../providers/investment_providers.dart';
 import 'investment_page.dart';
@@ -77,13 +78,7 @@ class HoldingDetailPage extends ConsumerWidget {
             _NoteCard(note: holding.note!),
             const SizedBox(height: 12),
           ],
-          Text(
-            '交易流水',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppPalette.textSecondary,
-            ),
-          ),
+          const SectionHeader(title: '交易流水'),
           const SizedBox(height: 6),
           _FlowList(holdingId: holdingId),
           if (updatedLabel != null) ...<Widget>[
@@ -104,7 +99,9 @@ class HoldingDetailPage extends ConsumerWidget {
 }
 
 /// 持仓信息卡：徽章 + 名称 / 份额·成本·现价副行 / 市值 + 浮动盈亏双大字。
-class _InfoCard extends StatelessWidget {
+///
+/// ConsumerWidget：徽章的 AH 股判定需读全量持仓列表（同名 A股+港股）。
+class _InfoCard extends ConsumerWidget {
   const _InfoCard({
     required this.holding,
     required this.cleared,
@@ -118,7 +115,7 @@ class _InfoCard extends StatelessWidget {
   final Color profitColor;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final TextTheme t = theme.textTheme;
     final int profit = holding.profitMinor;
@@ -168,7 +165,14 @@ class _InfoCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    cleared ? '已清仓' : holding.type.label,
+                    cleared
+                        ? '已清仓'
+                        : investmentTypeLabel(
+                            holding.type,
+                            holding.symbol,
+                            name: holding.name,
+                            all: ref.watch(investmentListProvider).valueOrNull,
+                          ),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,

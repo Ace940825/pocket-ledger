@@ -482,6 +482,19 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           controller.text = r;
           onChanged?.call(r);
         }
+        // 金额弹层关闭后，iOS 会把焦点还原给表单里首个可编辑框（名称），
+        // 系统键盘随之弹起并把页面自动滚到顶部（EditableText 获焦后
+        // ensureVisible）。弹层 pop 是异步动画：焦点还原可能发生在本
+        // continuation 之后的布局帧或入场动画收尾时，因此在布局稳定后
+        // 与动画结束（约 320ms）各清一次焦点，确保金额录完焦点不漂移。
+        void dropFocus() {
+          FocusManager.instance.primaryFocus?.unfocus();
+        }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) => dropFocus());
+        Future<void>.delayed(const Duration(milliseconds: 320), () {
+          if (mounted) dropFocus();
+        });
       },
     );
   }

@@ -543,7 +543,8 @@ class InvestmentRepository {
   }) {
     if (symbol.trim().isEmpty) throw const ValidationFailure('代码不能为空');
     if (name.trim().isEmpty) throw const ValidationFailure('名称不能为空');
-    if (quantityMicros <= 0) throw const ValidationFailure('份额必须大于 0');
+    // 0 仓合法（先建标的、后由交易流水建仓）；负数才是非法。
+    if (quantityMicros < 0) throw const ValidationFailure('份额不能为负');
     if (avgCostMinor < 0) throw const ValidationFailure('成本价不能为负');
   }
 }
@@ -571,4 +572,51 @@ extension InvestmentMath on InvestmentHolding {
 
   /// 实际份额（用于展示）
   double get quantity => quantityMicros / InvestmentRepository.quantityScale;
+}
+
+/// 按代码格式识别股票交易市场：A股 / 港股 / 美股；无法识别返回空串。
+///
+/// 规则（口径唯一，供持仓卡 / 详情 / 选择器共用）：
+/// - `.HK` 后缀或 4~5 位纯数字 → 港股；
+/// - `.SH` / `.SZ` / `.BJ` 后缀或 6 位纯数字（沪深京）→ A股；
+/// - 纯英文字母（如 AAPL）→ 美股。
+String stockMarketLabel(String symbol) {
+  final String s = symbol.trim().toUpperCase();
+  if (s.isEmpty) return '';
+  if (s.endsWith('.HK')) return '港股';
+  if (s.endsWith('.SH') || s.endsWith('.SZ') || s.endsWith('.BJ')) {
+    return 'A股';
+  }
+  final String body = s.contains('.') ? s.split('.').first : s;
+  if (RegExp(r'^\d+$').hasMatch(body)) {
+    if (body.length == 4 || body.length == 5) return '港股';
+    return 'A股'; // 6 位数字（沪深京）为主，其余位数的纯数字代码也归 A股
+  }
+  if (RegExp(r'^[A-Z]+$').hasMatch(body)) return '美股';
+  return '';
+}
+
+/// 品种展示标签：股票按市场细分（A股 / 港股 / 美股 / AH股），其余用品种名。
+///
+/// [all] 传入当前账本全部持仓时，同名标的在 A股与港股同时持有则标「AH股」。
+String investmentTypeLabel(
+  InvestmentType type,
+  String symbol, {
+  String? name,
+  Iterable<InvestmentHolding>? all,
+}) {
+  if (type != InvestmentType.stock) return type.label;
+  final String market = stockMarketLabel(symbol);
+  if ((market == 'A股' || market == '港股') && all != null) {
+    final String key = (name ?? '').trim();
+    final String counterpart = market == 'A股' ? '港股' : 'A股';
+    if (key.isNotEmpty &&
+        all.any((InvestmentHolding o) =>
+            o.type == InvestmentType.stock &&
+            o.name.trim() == key &&
+            stockMarketLabel(o.symbol) == counterpart)) {
+      return 'AH股';
+    }
+  }
+  return market.isEmpty ? '股票' : market;
 }

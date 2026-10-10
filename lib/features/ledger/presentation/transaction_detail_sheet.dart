@@ -129,15 +129,13 @@ class TransactionDetailSheet extends ConsumerWidget {
                     // 卡片二 · 附件
                     _buildAttachmentCard(attachments),
                   ],
-                  // 卡片二·b · 位置（仅当该流水附加了 GPS 坐标时显示）。
-                  if (transaction.latitude != null) ...<Widget>[
-                    const SizedBox(height: 14),
-                    _buildLocationCard(context),
-                  ],
+                  // 位置：不再单设卡片，合并进「账单」卡备注上方一行。
                   // 借还模块流水（借出本金 / 还债 / 债务消减 / 坏账计提）
                   // 不显示报销 / 退款卡：债务备忘没有报销与退款语义。
+                  // 投资模块买卖流水同理：买入卖出没有退款语义。
                   if (transaction.type == TxnType.expense &&
-                      transaction.sourceModule != SourceModule.lend)
+                      transaction.sourceModule != SourceModule.lend &&
+                      transaction.sourceModule != SourceModule.investment)
                     ...<Widget>[
                     const SizedBox(height: 14),
                     // 卡片三 · 报销 / 退款
@@ -182,9 +180,9 @@ class TransactionDetailSheet extends ConsumerWidget {
     required Account? account,
   }) {
     // 储蓄存入/取出按方向走储蓄罐线稿（系统分类「存款」无 iconKey，不走判定
-    // 会退回星形兜底）；其余流水沿用「分类线稿 → 星形兜底」。
-    final LineIconKind tileKind =
-        txnLineIconKind(transaction, category) ?? LineIconKind.star;
+    // 会退回星形兜底）；其余流水走全量兜底解析（分类缺行/缺 iconKey 时按
+    // 模块/系统分类名/备注前缀/类型给线稿），任何流水不再退 Material。
+    final LineIconKind tileKind = resolveTxnLineIcon(transaction, category);
 
     final List<Widget> chips = <Widget>[];
     if (transaction.type == TxnType.expense && transaction.discountMinor > 0) {
@@ -341,7 +339,27 @@ class TransactionDetailSheet extends ConsumerWidget {
               : () => context.push('/accounts/${account.id}/transactions'),
         ),
     );
-    // 备注：放在「资产账户」之下；无备注显示「无」。
+    // 位置：备注上方一行（仅当该流水附加了 GPS 坐标时显示），
+    // 有逆地理编码地名显地名，否则显坐标；点击复制，便于分享 / 地图检索。
+    if (transaction.latitude != null) {
+      final String coords =
+          '${transaction.latitude!.toStringAsFixed(5)}, '
+          '${transaction.longitude!.toStringAsFixed(5)}';
+      final String place = transaction.placeName ?? '';
+      rows.add(
+        _kvTap(
+          '位置',
+          place.isNotEmpty ? '$place ($coords)' : coords,
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: place.isNotEmpty
+                ? '$place ($coords)'
+                : coords));
+            showAppToast(context, '已复制位置');
+          },
+        ),
+      );
+    }
+    // 备注：放在「位置 / 资产账户」之下；无备注显示「无」。
     // 元信息行做不断行处理：「份额 x · 单价 y · 手续费 z」每个单元完整
     // 显示在一行，放不下时整个单元换到下一行（右对齐由 _kv 的 end 保证）。
     final String note = transaction.note?.trim() ?? '';
@@ -451,70 +469,7 @@ class TransactionDetailSheet extends ConsumerWidget {
     );
   }
 
-  /// 卡片二·b · 位置：展示该流水附加的 GPS 地名（或坐标）与经纬度。
-  /// 点击复制坐标（便于分享 / 地图检索）。无位置时不渲染（由调用方门控）。
-  Widget _buildLocationCard(BuildContext context) {
-    final double lat = transaction.latitude!;
-    final double lng = transaction.longitude!;
-    final String coords =
-        '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
-    return _Card(
-      title: '位置',
-      child: InkWell(
-        onTap: () {
-          // 复制坐标到剪贴板，方便粘贴到地图检索。
-          final String text = transaction.placeName != null &&
-                  transaction.placeName!.isNotEmpty
-              ? '${transaction.placeName} ($coords)'
-              : coords;
-          Clipboard.setData(ClipboardData(text: text));
-          showAppToast(context, '已复制位置');
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-          child: Row(
-            children: <Widget>[
-              const LineIcon(
-                LineIconKind.location,
-                size: 22,
-                color: ForestGreen.deep,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    if (transaction.placeName != null &&
-                        transaction.placeName!.isNotEmpty)
-                      Text(
-                        transaction.placeName!,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: ForestNeutral.textPrimary,
-                        ),
-                      ),
-                    Text(
-                      coords,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: ForestNeutral.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const LineIcon(
-                LineIconKind.chevronRight,
-                size: 16,
-                color: ForestNeutral.textTertiary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  /// 卡片二·b · 位置已并入「账单」卡（备注上方一行，见 _buildBillCard）。
 
   Widget _buildPhoto(String src) {
     final Widget image =
@@ -740,33 +695,17 @@ class TransactionDetailSheet extends ConsumerWidget {
                     children: <Widget>[
                       Row(
                         children: <Widget>[
-                          Text(
-                            label,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                              color: ForestGreen.label,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 1.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: ForestGreen.soft,
-                              border: Border.all(color: ForestGreen.softBorder),
-                              borderRadius: BorderRadius.circular(
-                                ForestRadius.pill,
-                              ),
-                            ),
-                            child: const Text(
-                              '已关联',
-                              style: TextStyle(
-                                fontSize: 10,
+                          // 退款备注可能很长（如「[全额退款] 原账单合计…」），
+                          // 必须 Flexible + 省略号，否则把右侧列顶出卡片。
+                          Flexible(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13.5,
                                 fontWeight: FontWeight.w600,
-                                color: ForestGreen.deep,
+                                color: ForestGreen.label,
                               ),
                             ),
                           ),
@@ -783,13 +722,42 @@ class TransactionDetailSheet extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Text(
-                  '+${Money.fromMinor(refund.amountMinor).format()}',
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                    color: ForestSemantic.income,
-                  ),
+                // 右侧：「已关联」徽章 + 金额上下排列、右对齐。
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ForestGreen.soft,
+                        border: Border.all(color: ForestGreen.softBorder),
+                        borderRadius: BorderRadius.circular(
+                          ForestRadius.pill,
+                        ),
+                      ),
+                      child: const Text(
+                        '已关联',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: ForestGreen.deep,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '+${Money.fromMinor(refund.amountMinor).format()}',
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: ForestSemantic.income,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -859,10 +827,9 @@ class TransactionDetailSheet extends ConsumerWidget {
         ref.watch(categoryMapProvider).valueOrNull ?? <String, Category>{};
     final Category? billCategory =
         bill == null ? null : categories[bill.categoryId];
-    final LineIconKind billIcon = billCategory != null
-        ? (categoryLineKind(billCategory.iconKey) ??
-            LineIconKind.reimbursement)
-        : LineIconKind.reimbursement;
+    final LineIconKind billIcon = bill == null
+        ? LineIconKind.reimbursement
+        : resolveTxnLineIcon(bill, billCategory);
     final Color billTint = billCategory?.colorValue != null
         ? Color(billCategory!.colorValue!)
         : ForestGreen.deep;
@@ -1028,9 +995,7 @@ class TransactionDetailSheet extends ConsumerWidget {
     final int refundedMinor =
         refunds.fold<int>(0, (int s, Transaction r) => s + r.amountMinor);
     final Category? billCategory = categories[bill.categoryId];
-    final LineIconKind billIcon = billCategory != null
-        ? (categoryLineKind(billCategory.iconKey) ?? LineIconKind.star)
-        : LineIconKind.star;
+    final LineIconKind billIcon = resolveTxnLineIcon(bill, billCategory);
     final Color billTint = billCategory?.colorValue != null
         ? Color(billCategory!.colorValue!)
         : ForestGreen.deep;

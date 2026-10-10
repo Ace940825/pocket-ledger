@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -619,14 +620,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
             isDark ? ForestNeutral.textPrimary : ForestNeutral.deepInk,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          '资产详情',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w400,
-            letterSpacing: 0,
-          ),
-        ),
+        title: const Text('资产详情'),
         actions: <Widget>[
           TextButton(
             onPressed: () => _showAssetActionSheet(scoped),
@@ -701,18 +695,11 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
             isDark ? ForestNeutral.textPrimary : ForestNeutral.deepInk,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          '报销',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w400,
-            letterSpacing: 0,
-          ),
-        ),
+        title: const Text('报销'),
       ),
       body: CustomScrollView(
         slivers: <Widget>[
-          const SliverToBoxAdapter(child: _SectionHeader(title: '报销账户')),
+          const SliverToBoxAdapter(child: SectionHeader(title: '报销账户')),
           if (reimbAccounts.isEmpty)
             const SliverToBoxAdapter(child: _NoAccountEmpty())
           else
@@ -2656,45 +2643,6 @@ class _SheetCloseButton extends StatelessWidget {
 }
 
 // ── 总览：分区头（存钱计划样式绿竖条） ─────────────────
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 4,
-            height: 16,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[AppPalette.sageMist, AppPalette.sageRibbon],
-              ),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: isDark ? ForestNeutral.textPrimary : ForestNeutral.deepInk,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ── 总览：报销账户卡（存钱计划 SavingsGoalTile 同款布局） ──
 

@@ -161,6 +161,8 @@ class AppThemeData {
         backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
         elevation: 0,
+        // 全应用标题统一居中（与报销/借还/退款等自定义居中标题栏一致）。
+        centerTitle: true,
         // AppTextStyles.title 本体无颜色（见 app_text_styles.dart 铁律），
         // AppBar 直接采用无色样式时文字会渲染成白色 → 奶油底不可见，
         // 必须在此显式补 onSurface 色。

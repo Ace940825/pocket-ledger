@@ -46,12 +46,9 @@ class AccountTransactionTile extends ConsumerWidget {
     final Category? category = _category(ref);
     final String title = _title(category);
     final Color tint = _tintFor(category);
-    // 双轨线稿优先：与流水列表行 / 详情弹层一致，分类 iconKey 命中钢笔线稿时
-    // 渲染 LineIcon；退款保持原 Material 图标（replay），不接手绘；
-    // 其余（含储蓄存取）走 [txnLineIconKind] 的统一方向判定。
-    final bool isRefund = transaction.sourceModule == SourceModule.refund;
-    final LineIconKind? lineKind =
-        isRefund ? null : txnLineIconKind(transaction, category);
+    // 图标恒为钢笔线稿：与流水列表行/详情弹层同一解析器全量兜底
+    // （退款/借还/转账等分类缺失时也走线稿），不再退回 Material 图标。
+    final LineIconKind lineKind = resolveTxnLineIcon(transaction, category);
 
     return InkWell(
       onTap: onTap,
@@ -64,10 +61,7 @@ class AccountTransactionTile extends ConsumerWidget {
           children: <Widget>[
             _CircleIcon(
               tint: tint,
-              child: lineKind != null
-                  ? LineIcon(lineKind, size: 20, color: tint)
-                  : Icon(_iconFor(category, transaction.type),
-                      size: 20, color: tint),
+              child: LineIcon(lineKind, size: 20, color: tint),
             ),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
@@ -141,21 +135,6 @@ class AccountTransactionTile extends ConsumerWidget {
     return category?.name ?? transaction.type.label;
   }
 
-  IconData _iconFor(Category? category, TxnType type) {
-    if (transaction.sourceModule == SourceModule.refund) {
-      return Icons.replay;
-    }
-    final String? key = category?.iconKey;
-    if (key != null && key.isNotEmpty) {
-      return _parseIcon(key);
-    }
-    return switch (type) {
-      TxnType.income => Icons.south_west,
-      TxnType.expense => Icons.north_east,
-      TxnType.transfer => Icons.swap_horiz,
-    };
-  }
-
   Color _tintFor(Category? category) {
     final int? colorValue = category?.colorValue;
     if (colorValue != null) return Color(colorValue);
@@ -163,23 +142,6 @@ class AccountTransactionTile extends ConsumerWidget {
       TxnType.income => AppPalette.income,
       TxnType.expense => AppPalette.expense,
       TxnType.transfer => AppPalette.transfer,
-    };
-  }
-
-  IconData _parseIcon(String key) {
-    // 分类的 iconKey 是字符串，这里只兜底几个常用图标；
-    // 未来可接入完整的图标映射表。
-    return switch (key) {
-      'food' => Icons.restaurant,
-      'transport' => Icons.directions_car,
-      'shopping' => Icons.shopping_bag,
-      'entertainment' => Icons.movie,
-      'housing' => Icons.home,
-      'medical' => Icons.local_hospital,
-      'education' => Icons.school,
-      'salary' => Icons.work,
-      'transfer' => Icons.swap_horiz,
-      _ => Icons.label_outline,
     };
   }
 

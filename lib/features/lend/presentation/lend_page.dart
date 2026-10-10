@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -82,14 +83,7 @@ class _LendPageState extends ConsumerState<LendPage> {
             isDark ? ForestNeutral.textPrimary : ForestNeutral.deepInk,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          '借还',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w400,
-            letterSpacing: 0,
-          ),
-        ),
+        title: const Text('借还'),
       ),
       body: pageEmpty
           ? const _NoLendEmpty()
@@ -97,7 +91,7 @@ class _LendPageState extends ConsumerState<LendPage> {
               padding: const EdgeInsets.only(bottom: 88),
               children: <Widget>[
                 if (lendOutAccounts.isNotEmpty) ...<Widget>[
-                  const _SectionHeader(title: '借出账户'),
+                  const SectionHeader(title: '借出账户'),
                   for (final Account a in lendOutAccounts)
                     _LendAccountCard(
                       account: a,
@@ -110,7 +104,7 @@ class _LendPageState extends ConsumerState<LendPage> {
                     ),
                 ],
                 if (borrowInAccounts.isNotEmpty) ...<Widget>[
-                  const _SectionHeader(title: '借入账户'),
+                  const SectionHeader(title: '借入账户'),
                   for (final Account a in borrowInAccounts)
                     _LendAccountCard(
                       account: a,
@@ -123,7 +117,7 @@ class _LendPageState extends ConsumerState<LendPage> {
                     ),
                 ],
                 if (unassigned.isNotEmpty) ...<Widget>[
-                  const _SectionHeader(title: '未指定账户的记录'),
+                  const SectionHeader(title: '未指定账户的记录'),
                   for (final LendRecord r in unassigned)
                     _UnassignedTile(
                       record: r,
@@ -172,45 +166,6 @@ class _LendPageState extends ConsumerState<LendPage> {
 }
 
 // ── 分区头（报销页同款绿竖条） ─────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 4,
-            height: 16,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[AppPalette.sageMist, AppPalette.sageRibbon],
-              ),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: isDark ? ForestNeutral.textPrimary : ForestNeutral.deepInk,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ── 借还账户卡（报销页 _ReimbAccountCard 同款布局） ─────────
 
