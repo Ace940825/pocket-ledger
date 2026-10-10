@@ -1,4 +1,3 @@
-import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -7,8 +6,6 @@ import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
 import '../../core/theme/forest_design_tokens.dart';
 import '../../core/utils/date_utils.dart';
-import '../../features/record/providers/recording_settings_provider.dart'
-    show appPrefs;
 import 'app_toast.dart';
 
 /// 口袋账本「全局共用日历组件」。
@@ -17,15 +14,20 @@ import 'app_toast.dart';
 /// 与账单页周期选择器（周/月/年/自定义 Tab、12 宫格月/年、周列表、自定义区间）的优点，
 /// 收敛为一个组件，按 [CalendarSheetMode] 切换粒度，并按引用位置用布尔开关隐藏不需要的部件：
 ///
-/// - [showTime]：日模式下是否显示时间拨号 + 时/分分段（隐藏=纯日期）。
+/// - [showTime]：日模式下是否显示时间拨号 + 时/分分段（默认 false=纯日期；
+///   全站仅记一笔传 true——只有记账需要时分，其余位置一律隐藏时间区）。
+/// - [showCustomRange]：是否显示「自定义区间」粒度 chip（默认 true；
+///   记一笔传 false 隐藏——选日期无区间语义）。
 /// - [showQuickChips]：日模式下是否显示「今天/昨天/前天/此刻」快选胶囊。
 /// - [showYearPanel]：兼容参数（小青账式改版后年份导航走「年」粒度 chip，此参数不再生效）。
 /// - [showHandle]：顶部拖拽把手。
 /// - [showHeader]：日模式的 DATE & TIME 标题栏（含关闭钮）。
 /// - [weekStartsOn]：周日起点 / 一起点（账单/周期用周一，其余用周日）。
 /// - [showDayView]：false=纯周期模式（流水页周期选择器）：无日视图/英雄区/
-///   时间圆盘/齿轮，打开直接落在 [initialPeriod] 对应视图；粒度 chip 再点
+///   时间圆盘，打开直接落在 [initialPeriod] 对应视图；粒度 chip 再点
 ///   不回日视图；确认后返回 [CalendarPeriod]（与账本 [LedgerPeriod] 一一对应）。
+///
+/// 显隐口径由调用点硬编码（原齿轮设置面板已移除，不再提供用户级开关/持久化）。
 ///
 /// 用法：
 /// ```dart
@@ -48,12 +50,13 @@ class CalendarSheet {
     CalendarPeriod? initialPeriod,
     DateTime? firstDate,
     DateTime? lastDate,
-    bool showTime = true,
+    bool showTime = false,
     bool showQuickChips = true,
     bool showYearPanel = true,
     bool showHandle = true,
     bool showHeader = true,
     bool showDayView = true,
+    bool showCustomRange = true,
     String? headerTitle,
     CalendarWeekStart weekStart = CalendarWeekStart.sunday,
   }) async {
@@ -79,6 +82,7 @@ class CalendarSheet {
         showHandle: showHandle,
         showHeader: showHeader,
         showDayView: showDayView,
+        showCustomRange: showCustomRange,
         headerTitle: headerTitle,
         weekStart: weekStart,
       ),
@@ -165,6 +169,7 @@ class _CalendarSheetBody extends StatefulWidget {
     required this.showHandle,
     required this.showHeader,
     required this.showDayView,
+    required this.showCustomRange,
     required this.headerTitle,
     required this.weekStart,
   });
@@ -186,6 +191,9 @@ class _CalendarSheetBody extends StatefulWidget {
   /// false=纯周期模式（流水页周期选择器）：无日视图/英雄区/时间圆盘，
   /// 打开直接落在 [initialPeriod] 对应的周期视图，粒度 chip 再点不回日视图。
   final bool showDayView;
+
+  /// false=隐藏「自定义区间」粒度 chip（记一笔：选日期无区间语义）。
+  final bool showCustomRange;
 
   /// 标题栏文案覆盖（默认 DATE & TIME）；纯周期模式传「账单周期」等。
   final String? headerTitle;
@@ -267,52 +275,6 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   int _dayPageOf(DateTime m) =>
       (m.year - _kGridFirstYear) * 12 + m.month - 1;
 
-  /// 设计稿 SETTINGS（齿轮键触发）：粒度 tab 显隐 + 时间圆盘开关。
-  /// 关掉当前激活视图 → 退回第一个开启的视图（预览一致），全关则回日视图。
-  final Map<CalendarPeriodMode, bool> _tabEnabled =
-      <CalendarPeriodMode, bool>{
-    CalendarPeriodMode.week: true,
-    CalendarPeriodMode.month: true,
-    CalendarPeriodMode.year: true,
-    CalendarPeriodMode.custom: true,
-  };
-  bool _showDial = true;
-
-  /// 齿轮设置持久化（SharedPreferences，重开弹窗/重启不丢）。
-  static const String _kSettingsKey = 'calendar_sheet_settings_v1';
-
-  /// initState 同步还原（appPrefs 已在 main() 预加载）；无记录/解析失败回落默认。
-  static void _restoreSettings(Map<CalendarPeriodMode, bool> tabEnabled,
-      void Function(bool) setShowDial) {
-    try {
-      final String? raw = appPrefs.getString(_kSettingsKey);
-      if (raw == null) return;
-      final Object? decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic>) return;
-      for (final CalendarPeriodMode m in CalendarPeriodMode.values) {
-        final Object? v = decoded[m.name];
-        if (v is bool) tabEnabled[m] = v;
-      }
-      final Object? dial = decoded['showDial'];
-      if (dial is bool) setShowDial(dial);
-    } catch (_) {
-      // 持久化读取失败不阻塞默认值
-    }
-  }
-
-  void _persistSettings() {
-    try {
-      appPrefs.setString(_kSettingsKey, jsonEncode(<String, dynamic>{
-        for (final MapEntry<CalendarPeriodMode, bool> e
-            in _tabEnabled.entries)
-          e.key.name: e.value,
-        'showDial': _showDial,
-      }));
-    } catch (_) {
-      // 持久化失败不阻塞内存态使用
-    }
-  }
-
   // 月/年宫格常量（原账本页私有，统一收纳）。
   // 末年取 2107：年宫格 12 年一页，末页 2096–2107 恰好铺满且不再越界置灰
   // （此前 2099 截止 → 末页 2101 年起灰掉不可点）。
@@ -333,12 +295,6 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     super.initState();
     final DateTime now = _localNow();
     _selected = widget.initialDate;
-    // 齿轮设置记忆：上次开关状态（SharedPreferences）。
-    // 仅日视图生效——齿轮入口只存在于日视图；纯周期选择器（流水页/退款页）
-    // 不受历史齿轮开关影响，四个粒度 Tab（含自定义）恒可用。
-    if (widget.showDayView) {
-      _restoreSettings(_tabEnabled, (bool v) => _showDial = v);
-    }
     _displayedMonth = DateTime(_selected.year, _selected.month);
     _nowPinned = _selected.year == now.year &&
         _selected.month == now.month &&
@@ -953,124 +909,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               ),
             ),
             const Spacer(),
-            // 齿轮设置（时间圆盘/粒度显隐）仅日模式有意义；纯周期模式
-            // 关掉全部粒度 chip 会把用户困在单一视图，故不渲染。
-            if (widget.showDayView) _GearButton(onPressed: _openSettings),
           ],
         ),
       );
-
-  /// 设计稿 #cfg 齿轮键 → 设置底部弹窗（开关粒度 tab 显隐与时间圆盘）。
-  void _openSettings() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: ForestBg.paper,
-      barrierColor: AppPaletteX.forestScrim32, // rgba(20,30,24,.32)
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (BuildContext sheetCtx) => StatefulBuilder(
-        builder: (BuildContext sheetCtx, void Function(void Function()) setSheet) {
-          Widget row(CalendarPeriodMode? mode, String cn, String en) {
-            final bool on =
-                mode == null ? _showDial : (_tabEnabled[mode] ?? false);
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 13),
-              decoration: const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: ForestNeutral.hairline),
-                ),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Text(
-                    '$cn $en',
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: ForestNeutral.textPrimary,
-                    ),
-                  ),
-                  const Spacer(),
-                  _SettingsSwitch(
-                    on: on,
-                    onTap: () {
-                      _applySetting(mode, !on);
-                      setSheet(() {});
-                    },
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Container(
-                    width: 38,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(
-                      color: ForestNeutral.hairline,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  Container(
-                    alignment: Alignment.centerLeft,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: const Text(
-                      '设置 Settings',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: ForestGreen.deep,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                  row(CalendarPeriodMode.week, '周视图', 'Week'),
-                  row(CalendarPeriodMode.month, '月视图', 'Month'),
-                  row(CalendarPeriodMode.year, '年视图', 'Year'),
-                  row(CalendarPeriodMode.custom, '自定义区间', 'Custom'),
-                  row(null, '时间圆盘', 'Time Dial'),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  /// 设计稿 toggleSetting：切 tab 显隐；当前激活视图被关闭时
-  /// 退回第一个开启的视图（无则回日视图）；showDial 直接翻转。
-  void _applySetting(CalendarPeriodMode? mode, bool value) {
-    setState(() {
-      if (mode == null) {
-        _showDial = value;
-        _persistSettings();
-        return;
-      }
-      _tabEnabled[mode] = value;
-      if (!value && _dayViewTab == mode) {
-        CalendarPeriodMode? first;
-        for (final CalendarPeriodMode m in CalendarPeriodMode.values) {
-          if (_tabEnabled[m] == true) {
-            first = m;
-            break;
-          }
-        }
-        _dayViewTab = first;
-        if (first != null) _periodMode = first;
-      }
-    });
-    _persistSettings();
-  }
 
   Widget _buildHeroSeal(BuildContext context) => Container(
         margin: const EdgeInsets.fromLTRB(18, 8, 18, 2),
@@ -1175,7 +1016,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                     ],
                   ),
                 ),
-                if (widget.showTime && _showDial) ...<Widget>[
+                if (widget.showTime) ...<Widget>[
                   const SizedBox(width: 10),
                   _buildHeroDial(),
                 ],
@@ -1246,17 +1087,16 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   /// 粒度 chip 行（小青账式 ptabs）：周 Wk / 月 Mo / 年 Yr / 自定义 …
   /// 再点当前激活 chip 返回日视图（预览一致）。
   Widget _buildGranularityChips() {
-    // 设置里关掉的粒度 tab 不渲染（预览 s.tabs 开关一致）。
+    // 「自定义区间」chip 按调用方开关显隐（记一笔隐藏，其余恒显示）。
     final List<(CalendarPeriodMode, String, String)> all =
         <(CalendarPeriodMode, String, String)>[
       (CalendarPeriodMode.week, '周', 'Wk'),
       (CalendarPeriodMode.month, '月', 'Mo'),
       (CalendarPeriodMode.year, '年', 'Yr'),
-      (CalendarPeriodMode.custom, '自定义', '…'),
+      if (widget.showCustomRange) (CalendarPeriodMode.custom, '自定义', '…'),
     ];
     final List<Widget> chips = <Widget>[];
     for (final (CalendarPeriodMode mode, String cn, String en) in all) {
-      if (_tabEnabled[mode] != true) continue;
       if (chips.isNotEmpty) chips.add(const SizedBox(width: 8));
       chips.add(_granularityChip(mode, cn, en));
     }
@@ -3104,61 +2944,6 @@ class _DialPainter extends CustomPainter {
 }
 
 // ── 共享小组件 ──
-
-/// 页头右侧齿轮设置键（设计稿 .xbtn.gear，与关闭键同款圆底）。
-class _GearButton extends StatelessWidget {
-  const _GearButton({required this.onPressed});
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: ForestSurface.card,
-          shape: BoxShape.circle,
-          border: Border.all(color: ForestNeutral.hairline),
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.settings_outlined,
-              size: 18, color: ForestNeutral.deepInk),
-          padding: EdgeInsets.zero,
-          onPressed: onPressed,
-        ),
-      );
-}
-
-/// 设置弹窗开关（设计稿 .switch 48×28，on=绿色）。
-class _SettingsSwitch extends StatelessWidget {
-  const _SettingsSwitch({required this.on, required this.onTap});
-  final bool on;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          width: 48,
-          height: 28,
-          padding: const EdgeInsets.all(3),
-          alignment: on ? Alignment.centerRight : Alignment.centerLeft,
-          decoration: BoxDecoration(
-            color: on ? AppPalette.ctaGreen : ForestNeutral.hairline,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Container(
-            width: 22,
-            height: 22,
-            decoration: const BoxDecoration(
-              color: AppPalette.white,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-      );
-}
 
 class _CloseButton extends StatelessWidget {
   const _CloseButton({required this.onPressed});

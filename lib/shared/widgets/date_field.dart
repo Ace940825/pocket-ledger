@@ -14,6 +14,7 @@ class DateField extends StatelessWidget {
     required this.onChanged,
     this.allowClear = false,
     this.showTime = false,
+    this.showCustomRange = true,
   });
 
   final String label;
@@ -21,6 +22,9 @@ class DateField extends StatelessWidget {
   final ValueChanged<DateTime?> onChanged;
   final bool allowClear;
   final bool showTime;
+
+  /// 透传 [CalendarSheet.show]：false=隐藏「自定义区间」粒度 chip（记一笔）。
+  final bool showCustomRange;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +53,7 @@ class DateField extends StatelessWidget {
                 lastDate: DateTime(2107, 12, 31),
                 showTime: showTime,
                 showQuickChips: true,
+                showCustomRange: showCustomRange,
                 weekStart: CalendarWeekStart.sunday,
               );
               if (picked == null) return;

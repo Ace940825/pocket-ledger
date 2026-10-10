@@ -627,7 +627,6 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       initialDate: _firstDueAt,
       firstDate: DateTime(2000),
       lastDate: DateTime(2107, 12, 31),
-      showTime: true,
       showQuickChips: true,
       weekStart: CalendarWeekStart.sunday,
     );

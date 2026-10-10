@@ -1812,6 +1812,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         label: label,
         value: _occurredAt,
         showTime: true,
+        showCustomRange: false, // 记一笔：隐藏「自定义」区间 chip
         onChanged: (DateTime? v) =>
             setState(() => _occurredAt = v ?? localNow()),
       );
@@ -1828,6 +1829,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       lastDate: DateTime(2107, 12, 31),
       showTime: true,
       showQuickChips: true,
+      showCustomRange: false, // 记一笔选日期无区间语义，隐藏「自定义」chip
       weekStart: CalendarWeekStart.sunday,
     );
     if (picked == null || !mounted) return;
@@ -3838,6 +3840,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       label: '到期日',
       value: due,
       allowClear: true,
+      showCustomRange: false, // 记一笔：隐藏「自定义」区间 chip
       onChanged: (DateTime? d) => setState(() {
         _dueAt = d == null ? null : d.toUtc().millisecondsSinceEpoch;
       }),

@@ -1353,7 +1353,6 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
       initialDate: _startDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2107, 12, 31),
-      showTime: true,
       showQuickChips: true,
       weekStart: CalendarWeekStart.sunday,
     );

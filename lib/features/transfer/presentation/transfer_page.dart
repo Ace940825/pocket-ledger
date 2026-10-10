@@ -114,7 +114,6 @@ class _TransferPageState extends ConsumerState<TransferPage> {
       initialDate: _occurredAt,
       firstDate: DateTime(2000),
       lastDate: DateTime(2107, 12, 31),
-      showTime: true,
       showQuickChips: true,
       weekStart: CalendarWeekStart.sunday,
     );
