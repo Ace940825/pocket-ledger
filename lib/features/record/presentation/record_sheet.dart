@@ -6763,7 +6763,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 : null,
           ),
           child: Text(
-            isAuto ? (on ? '✓ 自动' : '自动') : '自定义',
+            isAuto ? '自动' : '自定义',
             style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
@@ -6832,8 +6832,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                           disabledBorder: InputBorder.none,
                           hintText: '请输入退款金额',
                           hintStyle: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
                             color: _Sage.ink3,
                           ),
                         ),
