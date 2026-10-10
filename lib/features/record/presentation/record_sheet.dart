@@ -338,6 +338,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               RecordTab.lend,
               RecordTab.refund,
               RecordTab.reimbursement,
+              // 投资买卖流水编辑入口：_loadEditingTxn 检测 sourceModule=
+              // investment 时切到本 Tab 全量预填，保存走 updateTrade 改单
+              // （非投资流水在 updateTrade 入口守卫拒绝，误切无副作用）。
+              RecordTab.investment,
             ]
           : RecordTab.values;
 
@@ -649,6 +653,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       }
       // 借还记录已被删：退化为普通收支流水编辑（下方逻辑兜底）。
     }
+    // 投资买卖流水：编辑走投资 Tab 全量预填（方向/持仓/数量或金额/单价/
+    // 手续费/账户/日期/备注），保存经 investmentRepository.updateTrade
+    // 「先回滚旧份额再应用新值」并替换流水，持仓与资金账户两边同步。
+    if (txn.sourceModule == SourceModule.investment && txn.relatedId != null) {
+      if (await _applyInvestmentEdit(txn)) return;
+      // 持仓已丢失：继续走下方普通收支编辑兜底。
+    }
     final RecordTab tab = switch (txn.type) {
       TxnType.expense => RecordTab.expense,
       TxnType.transfer => RecordTab.transfer,
@@ -730,6 +741,85 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     if (tab == RecordTab.reimbursement) {
       await _loadReimbursementEditLinks(txn.id);
     }
+  }
+
+  /// 投资流水编辑预填：持仓/方向/数量(或金额)/单价/手续费/账户/日期/备注
+  /// 全量回填投资 Tab 表单（数量型按品种规则反折算输入单位）。
+  /// 用户备注 = 系统头行「买入-x」+ 元信息行之后的部分；保存走
+  /// [_saveInvestment] 的编辑分支（updateTrade，先回滚旧份额再应用新值）。
+  /// 关联持仓不存在（理论上仅剩数据漂移）时返回 false，由调用方回落
+  /// 普通收支编辑路径。
+  Future<bool> _applyInvestmentEdit(Transaction txn) async {
+    final InvestmentHolding? holding = await ref
+        .read(investmentRepositoryProvider)
+        .getHoldingById(txn.relatedId!);
+    if (!mounted) return false;
+    if (holding == null) {
+      _toast('关联持仓不存在或已被删除');
+      return false;
+    }
+    final (int, int, int)? meta =
+        InvestmentRepository.parseTradeMeta(txn.note);
+    final bool isBuy = txn.type == TxnType.expense;
+    final int oldFee = meta?.$2 ?? 0;
+    final int oldPriceMinor = meta?.$1 ?? 0;
+    final int oldQtyMicros = meta?.$3 ?? 0;
+    // 原成交金额：买入 = 流水金额 − 手续费（费另扣）；卖出 = 流水金额 + 手续费。
+    final int oldAmountMinor =
+        isBuy ? txn.amountMinor - oldFee : txn.amountMinor + oldFee;
+    final _InvRules rules = _invRulesOf(holding.type);
+    final int index =
+        _tabs.indexOf(RecordTab.investment).clamp(0, _tabs.length - 1);
+    setState(() {
+      _editingTxn = txn;
+      _tab = _tabs[index];
+      _tabController.index = index;
+      _occurredAt = DateTime.fromMillisecondsSinceEpoch(
+        txn.occurredAt,
+        isUtc: true,
+      ).toLocal();
+      _invIsBuy = isBuy;
+      _invHoldingId = holding.id;
+      _invSymbol = holding.symbol;
+      _invName = holding.name;
+      _invType = holding.type;
+      _invHoldingQtyMicros = holding.quantityMicros;
+      _invAccountId = txn.accountId;
+      _invPriceController.text = oldPriceMinor > 0
+          ? Money.fromMinor(oldPriceMinor).decimal.toStringAsFixed(2)
+          : '';
+      _invFeeController.text = oldFee > 0
+          ? Money.fromMinor(oldFee).decimal.toStringAsFixed(2)
+          : '';
+      if (rules.quantityDriven) {
+        // 备注份额为基本单位（股/张/克/枚），输入框按输入单位（手等）反折算。
+        _invQtyController.text = oldQtyMicros > 0
+            ? _trimQtyText(
+                oldQtyMicros /
+                    InvestmentRepository.quantityScale /
+                    rules.unitsPerInput)
+            : '';
+      } else {
+        _invAmountController.text = oldAmountMinor > 0
+            ? Money.fromMinor(oldAmountMinor).decimal.toStringAsFixed(2)
+            : '';
+      }
+      final List<String> lines = (txn.note ?? '').split('\n');
+      _invNoteController.text =
+          lines.length > 2 ? lines.sublist(2).join('\n') : '';
+    });
+    _pageController.jumpToPage(index);
+    return true;
+  }
+
+  /// 数量输入文本：去尾随 0（2.5 → '2.5'、3.0 → '3'、1.0500 → '1.05'）。
+  String _trimQtyText(double v) {
+    if (v <= 0) return '';
+    if (v == v.roundToDouble()) return v.round().toString();
+    return v
+        .toStringAsFixed(6)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   /// 编辑报销收入：按 incomeTransactionId 反查抵扣台账，回填
@@ -4872,6 +4962,37 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final String bookId = ref.read(currentBookIdProvider);
     final int occurredAt = _occurredAt.toUtc().millisecondsSinceEpoch;
     final String note = _invNoteController.text.trim();
+    // 编辑模式：updateTrade 在仓储内单事务「回滚旧交易影响 → 应用新值 →
+    // 删旧流水记新流水」，支持改持仓/方向/金额/单价/手续费/账户/日期/备注。
+    if (_editingTxn != null) {
+      final String hid = await ref
+          .read(investmentRepositoryProvider)
+          .updateTrade(
+            original: _editingTxn!,
+            isBuy: _invIsBuy,
+            holdingId: _invHoldingId ?? _editingTxn!.relatedId,
+            symbol: _invSymbol ?? '',
+            name: _invName ?? '',
+            type: _invType,
+            amountMinor: amount,
+            priceMinor: price,
+            feeMinor: fee,
+            accountId: _invAccountId!,
+            note: note.isEmpty ? null : note,
+            occurredAt: occurredAt,
+          );
+      return (
+        hid: hid,
+        isBuy: _invIsBuy,
+        quantityMicros: deltaMicros,
+        priceMinor: price,
+        feeMinor: fee,
+        amountMinor: amount,
+        accountId: _invAccountId!,
+        name: _invName ?? _invSymbol ?? '',
+        unit: rules.baseUnit,
+      );
+    }
     if (_invIsBuy) {
       if (_invHoldingId == null &&
           (_invSymbol == null ||

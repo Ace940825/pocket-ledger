@@ -454,6 +454,31 @@ class InvestmentRepository {
     });
   }
 
+  /// 从投资买卖流水备注反解「单价 / 手续费 / 份额」元信息（_investNote 同源格式：
+  /// `买入-名称\n份额 x · 单价 ¥y · 手续费 ¥z[\n用户备注]`）。
+  /// 返回 (priceMinor, feeMinor, qtyMicros)；旧数据/备注被改写时返回 null，
+  /// 调用方须兜底（按流水金额与公式重算）。
+  static (int, int, int)? parseTradeMeta(String? note) {
+    if (note == null || note.isEmpty) return null;
+    final RegExpMatch? m = RegExp(
+      r'份额\s+([\d.]+)\s*·\s*单价\s*¥?\s*([\d,]+(?:\.\d+)?)\s*·\s*手续费\s*¥?\s*([\d,]+(?:\.\d+)?)',
+    ).firstMatch(note);
+    if (m == null) return null;
+    final int qtyMicros =
+        ((double.tryParse(m.group(1)!) ?? 0) * quantityScale).round();
+    final int priceMinor =
+        ((double.tryParse(m.group(2)!.replaceAll(',', '')) ?? 0) * 100).round();
+    final int feeMinor =
+        ((double.tryParse(m.group(3)!.replaceAll(',', '')) ?? 0) * 100).round();
+    return (priceMinor, feeMinor, qtyMicros);
+  }
+
+  Future<InvestmentHolding?> getHoldingById(String id) {
+    return (_db.select(_db.investmentHoldings)
+          ..where((InvestmentHoldings t) => t.id.equals(id)))
+        .getSingleOrNull();
+  }
+
   /// 记录卖出：减仓（份额 = 金额 ÷ 单价 × 1e6，不超过持仓），并记资金流水
   /// （收入，不计入收支统计）。清仓后份额归 0，保留持仓记录（便于查看历史）。
   Future<void> recordSell({
@@ -532,6 +557,197 @@ class InvestmentRepository {
         excludeFromStats: true,
         excludeFromBudget: true,
       );
+    });
+  }
+
+  /// 编辑投资买卖流水：回滚原交易对持仓的影响 → 应用新值 → 删旧流水、记新流水
+  /// （余额由 remove/add 自行冲销）。单事务原子提交。
+  ///
+  /// 原交易的份额/单价/手续费从原流水备注元信息行反解（[parseTradeMeta]），
+  /// 反解失败时按「流水金额 ± 费 ÷ 原单价」公式兜底重算（与 record 同公式，
+  /// 精度一致）。买入回滚 = 份额与成本同步扣减；卖出回滚 = 份额加回（成本价不动）。
+  /// 支持编辑时改持仓（旧持仓回滚、新持仓应用）、改方向、改金额/单价/手续费/
+  /// 账户/日期/备注。返回目标持仓 ID。
+  Future<String> updateTrade({
+    required Transaction original,
+    required bool isBuy,
+    String? holdingId,
+    required String symbol,
+    required String name,
+    required InvestmentType type,
+    required int amountMinor,
+    required int priceMinor,
+    int feeMinor = 0,
+    required String accountId,
+    String? note,
+    required int occurredAt,
+  }) async {
+    if (original.sourceModule != SourceModule.investment) {
+      throw const ValidationFailure('非投资流水不能走投资改单');
+    }
+    final String oldHid = original.relatedId ??
+        (throw const ValidationFailure('原流水缺少关联持仓'));
+    if (amountMinor <= 0) throw const ValidationFailure('金额必须大于 0');
+    if (priceMinor <= 0) throw const ValidationFailure('单价必须大于 0');
+    if (feeMinor < 0) throw const ValidationFailure('手续费不能为负');
+
+    final bool wasBuy = original.type == TxnType.expense;
+    final (int, int, int)? meta = parseTradeMeta(original.note);
+    final int oldFee = meta?.$2 ?? 0;
+    final int oldPriceMinor = meta?.$1 ?? 0;
+    final int oldQtyMicros = meta?.$3 ?? 0;
+    // 原成交金额：买入 = 流水金额 − 手续费（费另扣）；卖出 = 流水金额 + 手续费。
+    final int oldAmountMinor =
+        wasBuy ? original.amountMinor - oldFee : original.amountMinor + oldFee;
+    final int oldDelta = oldQtyMicros > 0
+        ? oldQtyMicros
+        : (oldPriceMinor > 0 && oldAmountMinor > 0)
+            ? (oldAmountMinor * quantityScale) ~/ oldPriceMinor
+            : 0;
+
+    final String hid = holdingId ?? oldHid;
+    final int deltaMicros = (amountMinor * quantityScale) ~/ priceMinor;
+    if (deltaMicros <= 0) throw const ValidationFailure('金额不足以成交份额');
+
+    final String catId =
+        await _investCategoryId(bookId: original.bookId, isBuy: isBuy);
+    final String flowNote = _investNote(
+      isBuy: isBuy,
+      name: name,
+      quantityMicros: deltaMicros,
+      priceMinor: priceMinor,
+      feeMinor: feeMinor,
+      note: note,
+    );
+
+    return _db.transaction<String>(() async {
+      // ① 回滚原持仓的旧交易影响（编辑时改持仓则旧持仓单独回滚）。
+      final InvestmentHolding? oldHolding = await (_db.select(
+            _db.investmentHoldings,
+          )..where((InvestmentHoldings t) => t.id.equals(oldHid)))
+          .getSingleOrNull();
+      if (oldHolding != null) {
+        int qty = oldHolding.quantityMicros;
+        int avg = oldHolding.avgCostMinor;
+        if (wasBuy) {
+          // 成本基数先减去原买入金额（买入的费不入成本，与 recordBuy 口径一致），
+          // 再扣份额；份额被后续数据挤成负数时钳 0（成本随之近似，不回溯修史）。
+          final int costMicros = qty * avg - oldAmountMinor * quantityScale;
+          qty -= oldDelta;
+          if (qty < 0) qty = 0;
+          avg = qty == 0 ? 0 : (costMicros <= 0 ? avg : costMicros ~/ qty);
+        } else {
+          qty += oldDelta;
+        }
+        await (_db.update(_db.investmentHoldings)
+              ..where((InvestmentHoldings t) => t.id.equals(oldHid)))
+            .write(
+          InvestmentHoldingsCompanion(
+            quantityMicros: Value<int>(qty),
+            avgCostMinor: Value<int>(avg),
+            updatedAt: Value<int>(_now),
+            dirty: const Value<bool>(true),
+          ),
+        );
+        await enqueueSyncOp(
+          _db,
+          table: 'investment_holdings',
+          recordId: oldHid,
+          opType: SyncOpType.update,
+          updatedAt: _now,
+          payload: <String, Object?>{
+            'quantityMicros': qty,
+            'avgCostMinor': avg,
+          },
+        );
+      }
+
+      // ② 应用新交易到目标持仓（hid 可能等于 oldHid：读到的是①回滚后的行）。
+      final InvestmentHolding? target = await (_db.select(
+            _db.investmentHoldings,
+          )..where((InvestmentHoldings t) => t.id.equals(hid)))
+          .getSingleOrNull();
+      if (target == null) throw const ValidationFailure('持仓不存在');
+      int qty = target.quantityMicros;
+      int avg = target.avgCostMinor;
+      if (isBuy) {
+        final int newQty = qty + deltaMicros;
+        final int newCostMicros = qty * avg + amountMinor * quantityScale;
+        final int newAvg = newQty == 0 ? 0 : newCostMicros ~/ newQty;
+        await (_db.update(_db.investmentHoldings)
+              ..where((InvestmentHoldings t) => t.id.equals(hid)))
+            .write(
+          InvestmentHoldingsCompanion(
+            quantityMicros: Value<int>(newQty),
+            avgCostMinor: Value<int>(newAvg),
+            currentPriceMinor: Value<int>(priceMinor),
+            priceUpdatedAt: Value<int?>(_now),
+            updatedAt: Value<int>(_now),
+            dirty: const Value<bool>(true),
+          ),
+        );
+        await enqueueSyncOp(
+          _db,
+          table: 'investment_holdings',
+          recordId: hid,
+          opType: SyncOpType.update,
+          updatedAt: _now,
+          payload: <String, Object?>{
+            'quantityMicros': newQty,
+            'avgCostMinor': newAvg,
+            'currentPriceMinor': priceMinor,
+          },
+        );
+      } else {
+        if (deltaMicros > qty) {
+          throw const ValidationFailure('卖出份额超过持仓');
+        }
+        qty -= deltaMicros;
+        await (_db.update(_db.investmentHoldings)
+              ..where((InvestmentHoldings t) => t.id.equals(hid)))
+            .write(
+          InvestmentHoldingsCompanion(
+            quantityMicros: Value<int>(qty),
+            currentPriceMinor: Value<int>(priceMinor),
+            priceUpdatedAt: Value<int?>(_now),
+            updatedAt: Value<int>(_now),
+            dirty: const Value<bool>(true),
+          ),
+        );
+        await enqueueSyncOp(
+          _db,
+          table: 'investment_holdings',
+          recordId: hid,
+          opType: SyncOpType.update,
+          updatedAt: _now,
+          payload: <String, Object?>{
+            'quantityMicros': qty,
+            'currentPriceMinor': priceMinor,
+          },
+        );
+      }
+
+      // ③ 替换资金流水：删旧（余额回滚）+ 记新（余额再应用），
+      //    金额口径与 recordBuy/recordSell 一致（买入另扣费、卖出费从收入扣）。
+      await _txnRepo.remove(original.id);
+      await _txnRepo.add(
+        bookId: original.bookId,
+        type: isBuy ? TxnType.expense : TxnType.income,
+        amountMinor: isBuy
+            ? amountMinor + feeMinor
+            : (amountMinor - feeMinor) < 0
+                ? 0
+                : amountMinor - feeMinor,
+        accountId: accountId,
+        occurredAt: occurredAt,
+        categoryId: catId,
+        note: flowNote,
+        sourceModule: SourceModule.investment,
+        relatedId: hid,
+        excludeFromStats: true,
+        excludeFromBudget: true,
+      );
+      return hid;
     });
   }
 
