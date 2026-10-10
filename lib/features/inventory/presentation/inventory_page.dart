@@ -24,12 +24,11 @@ class InventoryPage extends ConsumerWidget {
     return ModuleListScaffold<InventoryItem>(
       title: '物品',
       items: items,
-      emptyHint: '还没有登记物品，点右下角新增',
+      emptyHint: '还没有登记物品',
       header: items.maybeWhen(
         data: (List<InventoryItem> list) => _AssetSummary(items: list),
         orElse: () => null,
       ),
-      onCreate: () => showInventoryEditor(context, ref),
       itemBuilder: (BuildContext context, InventoryItem i) =>
           _ItemTile(item: i),
     );

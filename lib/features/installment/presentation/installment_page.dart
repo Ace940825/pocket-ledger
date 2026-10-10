@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
-import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
@@ -131,10 +129,6 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push(Routes.installmentAdd),
-        child: const Icon(Icons.add),
       ),
     );
   }

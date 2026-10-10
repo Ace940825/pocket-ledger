@@ -18,7 +18,6 @@ import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/theme.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/record_sheet.dart';
-import '../../record/record_tab.dart';
 import '../providers/lend_providers.dart';
 
 /// 借还页：对照报销页总览——每个借出 / 借入账户一张存钱计划样式卡片。
@@ -127,10 +126,6 @@ class _LendPageState extends ConsumerState<LendPage> {
                 ],
               ],
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => openRecordSheet(context, initialTab: RecordTab.lend),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 

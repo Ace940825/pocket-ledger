@@ -25,8 +25,7 @@ class BudgetPage extends ConsumerWidget {
     return ModuleListScaffold<Budget>(
       title: '预算',
       items: budgets,
-      emptyHint: '还没有设置预算，点右下角新增',
-      onCreate: () => showBudgetEditor(context, ref),
+      emptyHint: '还没有设置预算',
       itemBuilder: (BuildContext context, Budget b) => _BudgetTile(budget: b),
     );
   }

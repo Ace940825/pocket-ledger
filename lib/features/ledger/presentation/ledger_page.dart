@@ -14,7 +14,6 @@ import '../../../../shared/widgets/section_header.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
-import '../../record/presentation/record_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../providers/ledger_providers.dart';
@@ -195,10 +194,6 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
             ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => openRecordSheet(context),
-        child: const Icon(Icons.add),
       ),
     );
   }

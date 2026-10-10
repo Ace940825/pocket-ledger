@@ -140,10 +140,6 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => showHoldingEditor(context, ref),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
