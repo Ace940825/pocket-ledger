@@ -476,11 +476,12 @@ class _PlanHeaderCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (onSettle != null)
+                if (onEdit != null)
                   _HeaderPill(
-                    label: '结清',
-                    color: AppPalette.primary,
-                    onTap: onSettle!,
+                    label: '编辑',
+                    color: AppPalette.textPrimary,
+                    surface: true,
+                    onTap: onEdit!,
                   ),
                 if (onRefund != null)
                   _HeaderPill(
@@ -488,12 +489,11 @@ class _PlanHeaderCard extends StatelessWidget {
                     color: AppPalette.info,
                     onTap: onRefund!,
                   ),
-                if (onEdit != null)
+                if (onSettle != null)
                   _HeaderPill(
-                    label: '编辑',
-                    color: AppPalette.textPrimary,
-                    surface: true,
-                    onTap: onEdit!,
+                    label: '结清',
+                    color: AppPalette.primary,
+                    onTap: onSettle!,
                   ),
               ],
             ),
