@@ -7,6 +7,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../providers/categories_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -274,8 +275,8 @@ class _MigrateParentTile extends StatelessWidget {
                           borderRadius:
                               BorderRadius.circular(AppDimens.radiusMd),
                         ),
-                        child: Icon(
-                          categoryIconData(parent.iconKey),
+                        child: CategoryGlyph(
+                          parent.iconKey,
                           color: color,
                           size: 22,
                         ),
@@ -356,8 +357,8 @@ class _MigrateChildTile extends StatelessWidget {
                 color: AppPalette.surfaceLight,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
-              child: Icon(
-                categoryIconData(category.iconKey),
+              child: CategoryGlyph(
+                category.iconKey,
                 color: color,
                 size: 22,
               ),

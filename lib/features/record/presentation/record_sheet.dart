@@ -5571,9 +5571,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final Color tint = cat?.colorValue != null
         ? Color(cat!.colorValue!)
         : _Sage.greenDeep;
-    final IconData icon = cat?.iconKey != null && cat!.iconKey!.isNotEmpty
-        ? categoryIconData(cat.iconKey)
-        : Icons.receipt_long;
+    final Widget leadIcon = cat?.iconKey != null && cat!.iconKey!.isNotEmpty
+        ? LineIcon(categoryLineKind(cat.iconKey) ?? LineIconKind.star, size: 20, color: tint)
+        : Icon(Icons.receipt_long, size: 20, color: tint);
     final String title =
         cat?.name ?? (t.note?.isNotEmpty == true ? t.note! : '支出');
     final DateTime occurred = DateTime.fromMillisecondsSinceEpoch(
@@ -5605,7 +5605,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     color: tint.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, size: 20, color: tint),
+                  child: leadIcon,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -7142,7 +7142,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         return _CategoryItem(
           label: display.name,
           lineKind: categoryLineKind(display.iconKey),
-          fallbackIcon: categoryIconData(display.iconKey),
           color: color,
           selected: isSelected,
           onTap: () => _onCategoryTap(cat, categories),
@@ -8392,7 +8391,6 @@ class _CategoryItem extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.lineKind,
-    this.fallbackIcon,
     this.selected = false,
   });
 
@@ -8401,9 +8399,8 @@ class _CategoryItem extends StatelessWidget {
   /// 分类色（未选中 = 线稿色 / 选中 = 容器实体色）。
   final Color color;
 
-  /// A3 简笔画线稿（优先）；为 null 时用 [fallbackIcon] 兜底。
+  /// A3 简笔画线稿（优先）。
   final LineIconKind? lineKind;
-  final IconData? fallbackIcon;
   final bool selected;
   final VoidCallback onTap;
 
@@ -8470,11 +8467,7 @@ class _CategoryItem extends StatelessWidget {
     final Color iconColor = selected
         ? Theme.of(context).colorScheme.onPrimary
         : Color.lerp(color, AppPalette.ink, 0.22)!;
-    if (lineKind != null) {
-      return LineIcon(lineKind!, size: 22, color: iconColor);
-    }
-    return Icon(fallbackIcon ?? Icons.category_outlined,
-        size: 22, color: iconColor);
+    return LineIcon(lineKind ?? LineIconKind.star, size: 22, color: iconColor);
   }
 }
 
@@ -8657,7 +8650,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
     if (kind != null) {
       return LineIcon(kind, size: 22, color: color);
     }
-    return Icon(categoryIconData(iconKey), size: 22, color: color);
+    return LineIcon(categoryLineKind(iconKey) ?? LineIconKind.star, size: 22, color: color);
   }
 
   @override
@@ -8787,7 +8780,6 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
           _CategoryItem(
             label: child.name,
             lineKind: categoryLineKind(child.iconKey),
-            fallbackIcon: categoryIconData(child.iconKey),
             color: color,
             selected: child.id == widget.selectedId,
             onTap: () => Navigator.of(context).pop(child.id),

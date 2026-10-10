@@ -8,6 +8,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
 import '../../../../shared/widgets/category_icons.dart';
+import '../../../../shared/widgets/line_icons.dart';
 import '../../../routing/app_router.dart';
 import '../providers/categories_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -412,8 +413,8 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
                         color: AppPalette.surfaceLight,
                         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                       ),
-                      child: Icon(
-                        categoryIconData(category.iconKey),
+                      child: CategoryGlyph(
+                        category.iconKey,
                         color: color,
                         size: 22,
                       ),
@@ -588,8 +589,8 @@ class _CategoryRow extends StatelessWidget {
                 color: AppPalette.surfaceLight,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
-              child: Icon(
-                categoryIconData(category.iconKey),
+              child: CategoryGlyph(
+                category.iconKey,
                 color: color,
                 size: 22,
               ),
@@ -671,13 +672,13 @@ class _SubcategoryChip extends StatelessWidget {
                 color: AppPalette.surfaceLight,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
-              child: Icon(
-                isAdd
-                    ? Icons.add_circle_outline
-                    : categoryIconData(category!.iconKey),
-                color: isAdd ? AppPalette.primary : color,
-                size: 24,
-              ),
+              child: isAdd
+                  ? Icon(Icons.add_circle_outline, color: AppPalette.primary, size: 24)
+                  : CategoryGlyph(
+                      category!.iconKey,
+                      color: color,
+                      size: 24,
+                    ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -888,7 +889,7 @@ class _SortTile extends StatelessWidget {
           color: AppPalette.surfaceLight,
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
-        child: Icon(categoryIconData(category.iconKey), color: color, size: 22),
+        child: CategoryGlyph(category.iconKey, color: color, size: 22),
       ),
       title: Text(category.name),
       trailing: const Icon(Icons.drag_handle, color: AppPalette.textTertiary),
@@ -971,7 +972,7 @@ Future<void> _showChangeParentSheet(
                       color: AppPalette.surfaceLight,
                       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     ),
-                    child: Icon(categoryIconData(t.iconKey),
+                    child: CategoryGlyph(t.iconKey,
                         color: color, size: 22),
                   ),
                   title: Text(t.name),

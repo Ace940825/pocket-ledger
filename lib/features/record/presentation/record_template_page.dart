@@ -12,6 +12,7 @@ import '../../../providers/app_providers.dart';
 import '../../../features/tags/presentation/tag_empty_illustration.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../providers/record_template_providers.dart';
 import '../record_tab.dart';
@@ -832,22 +833,22 @@ class RecordTemplateCard extends ConsumerWidget {
   }
 
   /// 图标与着色（对齐流水条目）：有分类用分类色 + 分类图标，否则按类型兜底。
-  (IconData, Color) _iconStyle(Map<String, Category> categories) {
+  (Widget, Color) _iconStyle(Map<String, Category> categories) {
     final RecordTab tab = RecordTab.values[template.tabIndex];
     final Category? c =
         template.categoryId == null ? null : categories[template.categoryId];
-    final (IconData, Color) fallback = switch (tab) {
-      RecordTab.income => (Icons.south_west, ForestSemantic.income),
-      RecordTab.transfer => (Icons.swap_horiz, ForestGreen.deep),
-      RecordTab.lend => (Icons.handshake_outlined, ForestGreen.deep),
-      _ => (Icons.shopping_bag_outlined, ForestSemantic.expense),
+    final (Widget, Color) fallback = switch (tab) {
+      RecordTab.income => (Icon(Icons.south_west, size: 22, color: ForestSemantic.income), ForestSemantic.income),
+      RecordTab.transfer => (Icon(Icons.swap_horiz, size: 22, color: ForestGreen.deep), ForestGreen.deep),
+      RecordTab.lend => (Icon(Icons.handshake_outlined, size: 22, color: ForestGreen.deep), ForestGreen.deep),
+      _ => (Icon(Icons.shopping_bag_outlined, size: 22, color: ForestSemantic.expense), ForestSemantic.expense),
     };
     if (c == null) return fallback;
-    final IconData icon = c.iconKey != null && c.iconKey!.isNotEmpty
-        ? categoryIconData(c.iconKey)
-        : fallback.$1;
     final Color tint =
         c.colorValue != null ? Color(c.colorValue!) : fallback.$2;
+    final Widget icon = c.iconKey != null && c.iconKey!.isNotEmpty
+        ? LineIcon(categoryLineKind(c.iconKey) ?? LineIconKind.star, size: 22, color: tint)
+        : fallback.$1;
     return (icon, tint);
   }
 
@@ -888,7 +889,7 @@ class RecordTemplateCard extends ConsumerWidget {
         ref.watch(accountsProvider).value ?? const <Account>[];
     final Map<String, Category> categories =
         ref.watch(categoryMapProvider).valueOrNull ?? const <String, Category>{};
-    final (IconData icon, Color tint) = _iconStyle(categories);
+    final (Widget icon, Color tint) = _iconStyle(categories);
     final Color onCard = selected ? Theme.of(context).colorScheme.onPrimary : ForestNeutral.textPrimary;
     final Color faintOnCard = selected
         ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.8)
@@ -915,11 +916,7 @@ class RecordTemplateCard extends ConsumerWidget {
                 : tint.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(iconRadius),
           ),
-          child: Icon(
-            icon,
-            size: 22,
-            color: selected ? Theme.of(context).colorScheme.onPrimary : tint,
-          ),
+          child: icon,
         ),
         const SizedBox(width: 12),
         Expanded(

@@ -6,6 +6,7 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -318,7 +319,7 @@ class _ReportCategoryDetailPageState
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
-              child: Icon(categoryIconData(cat?.iconKey),
+              child: CategoryGlyph(cat?.iconKey,
                   size: 20, color: AppPalette.sageInk),
             ),
             const SizedBox(width: 10),

@@ -8,6 +8,7 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../data/reimbursement_repository.dart';
@@ -268,9 +269,10 @@ class _ReimbursementBillPickerPageState
     final Color tint = cat?.colorValue != null
         ? Color(cat!.colorValue!)
         : ForestGreen.deep;
-    final IconData icon = cat?.iconKey != null && cat!.iconKey!.isNotEmpty
-        ? categoryIconData(cat.iconKey)
-        : Icons.north_east;
+    final String? rbCatKey = cat?.iconKey;
+    final Widget leadIcon = rbCatKey != null && rbCatKey.isNotEmpty
+        ? LineIcon(categoryLineKind(rbCatKey) ?? LineIconKind.star, size: 22, color: tint)
+        : Icon(Icons.north_east, color: tint, size: 22);
     final String title =
         cat?.name ?? (t.note?.isNotEmpty == true ? t.note! : '支出');
     final DateTime occurred = DateTime.fromMillisecondsSinceEpoch(
@@ -300,7 +302,7 @@ class _ReimbursementBillPickerPageState
                 color: tint.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: tint, size: 22),
+              child: leadIcon,
             ),
             const SizedBox(width: 12),
             Expanded(

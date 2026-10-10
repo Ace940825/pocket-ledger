@@ -300,6 +300,26 @@ class LineIcon extends StatelessWidget {
   }
 }
 
+/// 分类图标统一渲染：手绘线稿（优先），未知 key 兜底星形「其他」。
+///
+/// 全站分类图标（管理页 / 迁移页 / 报表 / 记一笔 / 报销选单 / 分期建单 /
+/// 模板卡等）一律走它，确保「森林手账·鼠尾草绿」A3 线稿风格全局一致，
+/// 不再散落 Material outlined 兜底。
+class CategoryGlyph extends StatelessWidget {
+  const CategoryGlyph(this.iconKey, {super.key, this.size = 22, this.color});
+
+  final String? iconKey;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => LineIcon(
+        categoryLineKind(iconKey) ?? LineIconKind.star,
+        size: size,
+        color: color,
+      );
+}
+
 class _LineIconPainter extends CustomPainter {
   const _LineIconPainter(this.kind, this.color, this.strokeWidth);
 

@@ -13,6 +13,7 @@ import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/repeat_picker_sheet.dart';
@@ -952,7 +953,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                               childrenOf(category).isNotEmpty;
                           return ListTile(
                             leading: category.iconKey != null
-                                ? Icon(categoryIconData(category.iconKey))
+                                ? CategoryGlyph(category.iconKey, size: 24)
                                 : null,
                             title: Text(category.name),
                             trailing: hasChildren
@@ -978,7 +979,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                         }
                         return ListTile(
                           leading: category.iconKey != null
-                              ? Icon(categoryIconData(category.iconKey))
+                              ? CategoryGlyph(category.iconKey, size: 24)
                               : null,
                           title: Text(category.name),
                           trailing: category.id == _categoryId

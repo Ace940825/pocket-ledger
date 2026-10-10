@@ -7,6 +7,7 @@ import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -321,7 +322,10 @@ class _BillTile extends ConsumerWidget {
     final String title = note.isNotEmpty
         ? '${category?.name ?? '支出'} - $note'
         : (category?.name ?? '支出');
-    final IconData icon = categoryIconData(category?.iconKey);
+    final String? billCatKey = category?.iconKey;
+    final Widget leadIcon = billCatKey != null && billCatKey.isNotEmpty
+        ? LineIcon(categoryLineKind(billCatKey) ?? LineIconKind.star, size: 20, color: tint)
+        : Icon(Icons.category_outlined, size: 20, color: tint);
     final Color tint = category?.colorValue != null
         ? Color(category!.colorValue!)
         : AppPalette.expense;
@@ -345,7 +349,7 @@ class _BillTile extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            _CircleIcon(icon: icon, tint: tint),
+            _CircleIcon(child: leadIcon),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Column(
@@ -448,10 +452,9 @@ class _BillTile extends ConsumerWidget {
 }
 
 class _CircleIcon extends StatelessWidget {
-  const _CircleIcon({required this.icon, required this.tint});
+  const _CircleIcon({required this.child});
 
-  final IconData icon;
-  final Color tint;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -464,7 +467,7 @@ class _CircleIcon extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
-      child: Icon(icon, size: 20, color: tint),
+      child: child,
     );
   }
 }

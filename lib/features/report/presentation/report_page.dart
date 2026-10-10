@@ -12,6 +12,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -2145,7 +2146,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: Icon(categoryIconData(slice.iconKey),
+            child: CategoryGlyph(slice.iconKey,
                 size: 20, color: AppPalette.sageInk),
           ),
           const SizedBox(width: 10),
