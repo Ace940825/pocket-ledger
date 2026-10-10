@@ -98,7 +98,7 @@ class InstallmentRepository {
     required int firstDueAt,
     String? accountId,
     String? note,
-  }) {
+  }) async {
     if (title.trim().isEmpty) throw const ValidationFailure('分期名称不能为空');
     if (totalMinor <= 0) throw const ValidationFailure('总金额必须大于 0');
     if (totalPeriods <= 0 || totalPeriods > 120) {
@@ -124,7 +124,7 @@ class InstallmentRepository {
       totalPeriods: totalPeriods,
     );
 
-    final String planId = await _db.transaction<String>(() async {
+    await _db.transaction<String>(() async {
       await _db.into(_db.installmentPlans).insert(
             InstallmentPlansCompanion(
               id: Value<String>(planId),

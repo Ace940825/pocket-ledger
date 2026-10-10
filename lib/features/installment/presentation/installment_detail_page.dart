@@ -10,6 +10,7 @@ import '../../../theme/app_colors.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/record_sheet.dart';
+import '../../record/record_tab.dart';
 import '../domain/fee_utils.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
