@@ -36,31 +36,7 @@ class InstallmentDetailPage extends ConsumerWidget {
     final String title = planAsync.valueOrNull?.title ?? '分期详情';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: <Widget>[
-          IconButton(
-            tooltip: '删除计划',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () async {
-              final bool ok = await confirmDelete(
-                context,
-                title: '删除计划「$title」？',
-                content: '该计划下的所有期数明细也会一并删除。',
-              );
-              if (!ok || !context.mounted) return;
-              try {
-                await ref
-                    .read(installmentRepositoryProvider)
-                    .removePlan(planId);
-                if (context.mounted) Navigator.of(context).pop();
-              } on AppFailure catch (e) {
-                if (context.mounted) showToast(context, e.message);
-              }
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(title)),
       body: periods.when(
         data: (List<InstallmentPeriod> list) {
           if (list.isEmpty) {
