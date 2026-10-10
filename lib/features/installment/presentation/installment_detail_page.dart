@@ -167,7 +167,8 @@ class InstallmentDetailPage extends ConsumerWidget {
                           : null,
                       onRefund: postedTxnIds.isEmpty
                           ? null
-                          : () => _refundPostedOrders(context, postedTxnIds),
+                          : () => _refundPostedOrders(
+                              context, ref, plan, postedTxnIds),
                     ),
                     _PlanProgressCard(
                       paidCount: paidCount,
@@ -356,11 +357,21 @@ class InstallmentDetailPage extends ConsumerWidget {
 
   /// 退款：跳转记一笔退款 Tab，预关联全部已入账订单（多笔原账单），
   /// 退款金额自动 = 各笔合计（已入账订单本金 + 利息）。
-  void _refundPostedOrders(BuildContext context, List<String> postedTxnIds) {
+  ///
+  /// 退款真正落库后（[openRecordSheet] 的 onSaved 回调）把计划转为
+  /// 已结束：未还期次保持未还、不再入账，列表移入「已结束」Tab。
+  void _refundPostedOrders(
+    BuildContext context,
+    WidgetRef ref,
+    InstallmentPlan plan,
+    List<String> postedTxnIds,
+  ) {
     openRecordSheet(
       context,
       initialTab: RecordTab.refund,
       refundSourceIds: postedTxnIds,
+      onSaved: () =>
+          ref.read(installmentRepositoryProvider).markPlanRefunded(plan.id),
     );
   }
 }

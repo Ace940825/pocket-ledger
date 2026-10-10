@@ -207,6 +207,7 @@ class RecordSheetLaunchArgs {
     this.refundSourceId,
     this.refundSourceIds = const <String>[],
     this.reimburseSourceId,
+    this.onSaved,
   });
   final RecordTab initialTab;
   final String? editLendId;
@@ -224,6 +225,11 @@ class RecordSheetLaunchArgs {
   /// 非空时进入报销 Tab 并自动勾选该账单为报销账单，
   /// 同时预填该账单的报销账户（未指定则留空）。
   final String? reimburseSourceId;
+
+  /// 保存成功回调（仅内存传递，不走深链序列化）：
+  /// 退款真正落库后触发。分期详情「退款」入口用它把计划转为已结束——
+  /// 多选退款 relatedId 为空、无法从退款数据反推归属，必须由入口显式联动。
+  final VoidCallback? onSaved;
 }
 
 Future<void> openRecordSheet(
@@ -233,6 +239,7 @@ Future<void> openRecordSheet(
   String? refundSourceId,
   List<String> refundSourceIds = const <String>[],
   String? reimburseSourceId,
+  VoidCallback? onSaved,
 }) async {
   await context.push<void>(
     Routes.record,
@@ -242,6 +249,7 @@ Future<void> openRecordSheet(
       refundSourceId: refundSourceId,
       refundSourceIds: refundSourceIds,
       reimburseSourceId: reimburseSourceId,
+      onSaved: onSaved,
     ),
   );
 }
@@ -257,6 +265,7 @@ class RecordSheet extends ConsumerStatefulWidget {
     this.refundSourceId,
     this.refundSourceIds = const <String>[],
     this.reimburseSourceId,
+    this.onSaved,
   });
 
   final RecordTab initialTab;
@@ -290,6 +299,11 @@ class RecordSheet extends ConsumerStatefulWidget {
   /// 非空且非编辑模式时进入报销 Tab 并自动勾选该账单为报销账单，
   /// 同时预填该账单的报销账户。
   final String? reimburseSourceId;
+
+  /// 保存成功回调（[RecordSheetLaunchArgs.onSaved] 透传）：
+  /// 退款 Tab 落库成功后触发一次；分期详情「退款」入口借此把
+  /// 计划转为已结束。取消 / 校验失败不触发。
+  final VoidCallback? onSaved;
 
   /// 模板模式（账单模板页「添加」入口）：
   /// - Tab 收窄为 支出 / 收入 / 转账 / 借还 四个；
@@ -1234,6 +1248,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 attachmentUrls: _attachmentPaths,
                 // 位置仅支出默认开启：退款收入不携带。
               );
+          // 退款真正落库后再触发入口联动（分期详情「退款」→ 计划转已结束）。
+          widget.onSaved?.call();
         case RecordTab.lend:
           // 编辑模式：直接更新原借还记录（保留 status / repaidMinor 等原值），
           // 不重跑 add / repay / debtReduction 的业务逻辑。

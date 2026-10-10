@@ -725,6 +725,35 @@ class InstallmentRepository {
     });
   }
 
+  /// 分期退款完结：退款流水真正落库后把计划直接标记已结束。
+  ///
+  /// 口径（2026-10-10 与用户确认）：
+  /// - 只写 [InstallmentPlans.isFinished]=true（列表「已结束」Tab 同口径），
+  ///   **未还期次保持未还**——退款 = 已入账订单撤销，剩余期次不再入账
+  ///   （[postDuePeriods] 对已结束计划跳过），也不伪造「已还」勾选；
+  /// - 与 [finishPlan]（左滑完结）不同：不把未还期次置已还，进度保持
+  ///   「已入账 N / 总 M」真实口径。
+  Future<void> markPlanRefunded(String planId) async {
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await (_db.update(_db.installmentPlans)
+          ..where((InstallmentPlans t) => t.id.equals(planId)))
+        .write(
+      InstallmentPlansCompanion(
+        isFinished: const Value<bool>(true),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+    await enqueueSyncOp(
+      _db,
+      table: 'installment_plans',
+      recordId: planId,
+      opType: SyncOpType.update,
+      updatedAt: now,
+      payload: <String, Object?>{'isFinished': true},
+    );
+  }
+
   /// 更新计划的可编辑元信息（标题 / 关联账户）。
   ///
   /// 金额、期数、利息等字段牵连已生成的期次明细与已还进度，

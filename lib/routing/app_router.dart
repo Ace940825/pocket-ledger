@@ -333,24 +333,28 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           final String? refundSourceId;
           final List<String> refundSourceIds;
           final String? reimburseSourceId;
+          final VoidCallback? onSaved;
           if (extra is RecordSheetLaunchArgs) {
             initialTab = extra.initialTab;
             editLendId = extra.editLendId;
             refundSourceId = extra.refundSourceId;
             refundSourceIds = extra.refundSourceIds;
             reimburseSourceId = extra.reimburseSourceId;
+            onSaved = extra.onSaved;
           } else if (extra is RecordTab) {
             initialTab = extra;
             editLendId = null;
             refundSourceId = null;
             refundSourceIds = const <String>[];
             reimburseSourceId = null;
+            onSaved = null;
           } else {
             initialTab = RecordTab.expense;
             editLendId = null;
             refundSourceId = null;
             refundSourceIds = const <String>[];
             reimburseSourceId = null;
+            onSaved = null;
           }
           return RecordSheet(
             initialTab: initialTab,
@@ -358,6 +362,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             refundSourceId: refundSourceId,
             refundSourceIds: refundSourceIds,
             reimburseSourceId: reimburseSourceId,
+            onSaved: onSaved,
           );
         },
       ),
