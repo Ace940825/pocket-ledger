@@ -628,6 +628,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2107, 12, 31),
       showQuickChips: true,
+      showCustomRange: false,
       weekStart: CalendarWeekStart.sunday,
     );
     FocusManager.instance.primaryFocus?.unfocus();

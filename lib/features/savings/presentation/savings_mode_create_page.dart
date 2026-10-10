@@ -1354,6 +1354,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2107, 12, 31),
       showQuickChips: true,
+      showCustomRange: false,
       weekStart: CalendarWeekStart.sunday,
     );
     if (picked == null) return;
@@ -1446,7 +1447,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     final String? repeatCycle = switch (widget.mode) {
       SavingsMode.flexible => null,
       SavingsMode.fixed => _repeatCycle,
-      SavingsMode.countdown30 || SavingsMode.monthly12 => '每月1日',
+      SavingsMode.countdown30 || SavingsMode.monthly12 || SavingsMode.rolling36 => '每月1日',
       SavingsMode.weekday || SavingsMode.weeks52 => '每7天',
       _ => '每1天',
     };
@@ -1455,6 +1456,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
       SavingsMode.fixed365 => '执行365次结束',
       SavingsMode.countdown30 || SavingsMode.monthly12 => '执行12次结束',
       SavingsMode.weekday || SavingsMode.weeks52 => '执行52次结束',
+      SavingsMode.rolling36 => null,
       SavingsMode.fixed ||
       SavingsMode.elastic =>
         _endMethod == '不结束' ? null : '执行$_endCount次结束',
