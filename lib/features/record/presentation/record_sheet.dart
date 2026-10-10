@@ -6747,7 +6747,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
-  /// 自动/自定义分段单格（金额卡内迷你款：选中奶油胶囊 + 鼠尾草绿字）。
+  /// 自动/自定义分段单格（sunken 框内迷你款：选中奶油胶囊 + 鼠尾草绿字）。
   Widget _refundAmtSeg(bool isAuto) {
     final bool on = isAuto == _refundAmountAuto;
     return Material(
@@ -6761,8 +6761,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         }),
         borderRadius: BorderRadius.circular(999),
         child: AnimatedContainer(
-          duration: Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           decoration: BoxDecoration(
             color: on ? _Sage.card : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
@@ -6789,8 +6789,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     );
   }
 
-  /// 金额奶油卡：¥ 前缀 + 正常字号金额（自动=展示 / 自定义=输入），
-  /// 输入行右侧为「自动/自定义」迷你分段；AA 模式在底部显示人均入口。
+  /// 金额奶油卡（账户框 / 备注框同构）：sunken 内框定高 34，框内 ¥ 前缀 +
+  /// 正常字号金额（自动=展示 / 自定义=输入），右侧内嵌「自动/自定义」迷你
+  /// 分段（选中奶油胶囊，与框内快捷键胶囊同语言）；AA 模式在底部显示人均入口。
   Widget _buildRefundAmountCard() {
     final int m = _refundAmountMinor;
     final int originalTotal = _refundOriginalTotalMinor;
@@ -6799,82 +6800,79 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              const Text(
-                '¥',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: _Sage.sageB,
+          Container(
+            // sunken 内框定高 34：与账户框 / 备注框统一（圆角 13、左14右4）。
+            height: 34,
+            padding: const EdgeInsets.only(left: 14, right: 4),
+            decoration: BoxDecoration(
+              color: ForestBg.sunken,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Row(
+              children: <Widget>[
+                const Text(
+                  '¥',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: _Sage.sageB,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _refundAmountAuto
-                    ? Text(
-                        m <= 0
-                            ? '0.00'
-                            : Money.fromMinor(m).format(showSymbol: false),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                          color: _Sage.ink,
-                        ),
-                      )
-                    : KeypadField(
-                        controller: _refundAmountController,
-                        allowDecimal: true,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                          color: _Sage.ink,
-                        ),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          // 显式覆盖所有状态边框 + 透明填充，
-                          // 避免主题默认填充色在奶油卡内形成额外背景块。
-                          filled: true,
-                          fillColor: Colors.transparent,
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          errorBorder: InputBorder.none,
-                          focusedErrorBorder: InputBorder.none,
-                          disabledBorder: InputBorder.none,
-                          hintText: '请输入退款金额',
-                          hintStyle: TextStyle(
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _refundAmountAuto
+                      ? Text(
+                          m <= 0
+                              ? '0.00'
+                              : Money.fromMinor(m).format(showSymbol: false),
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.2,
-                            color: _Sage.ink3,
+                            color: _Sage.ink,
                           ),
+                        )
+                      : KeypadField(
+                          controller: _refundAmountController,
+                          allowDecimal: true,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                            color: _Sage.ink,
+                          ),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            // 输入区高度交给外层 34 内框控制，
+                            // contentPadding 归零防 dense 默认内边距撑破框高。
+                            contentPadding: EdgeInsets.zero,
+                            // 显式覆盖所有状态边框 + 透明填充，
+                            // 避免主题默认填充色在 sunken 框内形成额外背景块。
+                            filled: true,
+                            fillColor: Colors.transparent,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            hintText: '请输入退款金额',
+                            hintStyle: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                              color: _Sage.ink3,
+                            ),
+                          ),
+                          onChanged: (_) => setState(() {}),
                         ),
-                        onChanged: (_) => setState(() {}),
-                      ),
-              ),
-              const SizedBox(width: 8),
-              // 「自动/自定义」分段：移入金额输入框内右侧（深沙容器，
-              // 定高 34 与备注 / 账户框统一）。
-              Container(
-                height: 34,
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: ForestBg.sunken,
-                  borderRadius: BorderRadius.circular(999),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    _refundAmtSeg(true),
-                    _refundAmtSeg(false),
-                  ],
-                ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                // 「自动/自定义」迷你分段：内嵌 sunken 框右侧（选中奶油胶囊）。
+                _refundAmtSeg(true),
+                _refundAmtSeg(false),
+              ],
+            ),
           ),
           if (isAa)
             // AA 模式：人均入口行（点文案重新打开 AA 付款弹窗调整分摊参数）。
