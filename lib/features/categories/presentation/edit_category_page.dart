@@ -7,6 +7,7 @@ import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../providers/categories_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
 
@@ -244,7 +245,11 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
                   ),
                 ),
                 child: Center(
-                  child: Icon(option.icon, color: color),
+                  child: LineIcon(
+                    categoryLineKind(option.key) ?? LineIconKind.star,
+                    size: 24,
+                    color: color,
+                  ),
                 ),
               ),
             );

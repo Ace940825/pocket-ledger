@@ -134,6 +134,10 @@ enum LineIconKind {
   securities, // 证券收入（K线）
   interest, // 利息收入（百分号硬币）
   installment, // 分期（日历 + ¥，逐期入账）
+  cake, // 甜点（蛋糕 + 蜡烛）
+  flight, // 机票（纸飞机）
+  camera, // 摄影（相机）
+  donation, // 公益（手捧爱心）
 }
 
 /// 分类 iconKey → 线稿图标映射（对齐 A3 线稿设计稿的分类简笔画）。
@@ -143,6 +147,10 @@ LineIconKind? categoryLineKind(String? iconKey) {
   if (iconKey == null || iconKey.isEmpty) return null;
   return switch (iconKey) {
     'restaurant' || 'rice' => LineIconKind.food,
+    'cake' => LineIconKind.cake,
+    'flight' => LineIconKind.flight,
+    'camera' => LineIconKind.camera,
+    'donation' => LineIconKind.donation,
     'breakfast' => LineIconKind.breakfast,
     'lunch' => LineIconKind.lunch,
     'dinner' => LineIconKind.dinner,
@@ -332,6 +340,14 @@ class _LineIconPainter extends CustomPainter {
         _template(path);
       case LineIconKind.calendar:
         _calendar(path);
+      case LineIconKind.cake:
+        _cake(path);
+      case LineIconKind.flight:
+        _flight(path);
+      case LineIconKind.camera:
+        _camera(path);
+      case LineIconKind.donation:
+        _donation(path);
       case LineIconKind.installment:
         _installment(path);
       case LineIconKind.settings:
@@ -663,6 +679,47 @@ class _LineIconPainter extends CustomPainter {
     _line(p, 14.2, 12.6, 12, 15.4);
     _line(p, 12, 15.4, 12, 18.4);
     _line(p, 10.4, 16.6, 13.6, 16.6);
+  }
+
+  /// 甜点（蛋糕：烛火 + 蜡烛 + 糕体 + 底盘）。
+  void _cake(Path p) {
+    _line(p, 5.5, 19.8, 18.5, 19.8);
+    p.addRRect(RRect.fromLTRBXY(6.5, 13.2, 17.5, 19.8, 1.5, 1.5));
+    _line(p, 6.5, 15.8, 17.5, 15.8);
+    _line(p, 12, 10.2, 12, 13.2);
+    p.addOval(const Rect.fromCircle(center: Offset(12, 8.2), radius: 1.1));
+  }
+
+  /// 机票（纸飞机：机翼折线 + 机身三角）。
+  void _flight(Path p) {
+    p.moveTo(19.5, 4.5);
+    p.lineTo(4.5, 11.2);
+    p.lineTo(10.2, 13.8);
+    p.lineTo(12.6, 19.5);
+    p.close();
+    _line(p, 10.2, 13.8, 19.5, 4.5);
+  }
+
+  /// 摄影（相机：机身 + 顶部取景凸起 + 镜头）。
+  void _camera(Path p) {
+    p.addRRect(RRect.fromLTRBXY(3.5, 7.8, 20.5, 18.5, 2.5, 2.5));
+    p.moveTo(9, 7.8);
+    p.lineTo(10, 5.5);
+    p.lineTo(14, 5.5);
+    p.lineTo(15, 7.8);
+    p.addOval(const Rect.fromCircle(center: Offset(12, 13.1), radius: 3.2));
+  }
+
+  /// 公益（手捧爱心）。
+  void _donation(Path p) {
+    p.moveTo(12, 10.8);
+    p.quadraticBezierTo(6.8, 7.4, 9.4, 5.3);
+    p.quadraticBezierTo(12, 4.0, 12, 7.0);
+    p.quadraticBezierTo(12, 4.0, 14.6, 5.3);
+    p.quadraticBezierTo(17.2, 7.4, 12, 10.8);
+    p.moveTo(5, 15.2);
+    p.lineTo(12.5, 15.2);
+    p.quadraticBezierTo(17, 15.2, 18.8, 18.6);
   }
 
   void _settings(Path p) {

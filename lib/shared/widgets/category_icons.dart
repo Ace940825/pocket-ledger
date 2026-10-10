@@ -1,311 +1,190 @@
 import 'package:flutter/material.dart';
 
 /// 分类图标可选项（用于新增/编辑子分类页选择图标）。
+///
+/// 渲染统一走 [LineIconKind] 线稿（`categoryLineKind(key)`），
+/// 不再携带 Material [IconData]；此处 key 必须与
+/// `categoryLineKind` / `categoryIconData` 的映射保持同步。
 final List<CategoryIconOption> categoryIconOptions = <CategoryIconOption>[
   // 餐饮 / 日常
-  const CategoryIconOption(
-      key: 'restaurant', icon: Icons.restaurant_outlined, label: '餐饮'),
-  const CategoryIconOption(
-      key: 'rice', icon: Icons.rice_bowl_outlined, label: '三餐'),
-  const CategoryIconOption(
-      key: 'coffee', icon: Icons.coffee_outlined, label: '咖啡'),
-  const CategoryIconOption(
-      key: 'liquor', icon: Icons.liquor_outlined, label: '酒水'),
-  const CategoryIconOption(key: 'cake', icon: Icons.cake_outlined, label: '甜点'),
-  const CategoryIconOption(
-      key: 'local_drink', icon: Icons.local_drink_outlined, label: '饮品'),
-  const CategoryIconOption(
-      key: 'breakfast', icon: Icons.breakfast_dining_outlined, label: '早餐'),
-  const CategoryIconOption(
-      key: 'lunch', icon: Icons.lunch_dining_outlined, label: '午餐'),
-  const CategoryIconOption(
-      key: 'dinner', icon: Icons.dinner_dining_outlined, label: '晚餐'),
-  const CategoryIconOption(
-      key: 'beverage', icon: Icons.emoji_food_beverage_outlined, label: '饮品'),
-  const CategoryIconOption(
-      key: 'groupbuy', icon: Icons.confirmation_number_outlined, label: '团购券'),
-  const CategoryIconOption(
-      key: 'street_food', icon: Icons.tapas_outlined, label: '风味小吃'),
-  const CategoryIconOption(
-      key: 'daily', icon: Icons.local_convenience_store_outlined, label: '日常'),
-  const CategoryIconOption(
-      key: 'shopping_cart', icon: Icons.shopping_cart_outlined, label: '超市'),
+  const CategoryIconOption(key: 'restaurant', label: '餐饮'),
+  const CategoryIconOption(key: 'rice', label: '三餐'),
+  const CategoryIconOption(key: 'coffee', label: '咖啡'),
+  const CategoryIconOption(key: 'liquor', label: '酒水'),
+  const CategoryIconOption(key: 'cake', label: '甜点'),
+  const CategoryIconOption(key: 'local_drink', label: '饮品'),
+  const CategoryIconOption(key: 'breakfast', label: '早餐'),
+  const CategoryIconOption(key: 'lunch', label: '午餐'),
+  const CategoryIconOption(key: 'dinner', label: '晚餐'),
+  const CategoryIconOption(key: 'beverage', label: '饮品'),
+  const CategoryIconOption(key: 'groupbuy', label: '团购券'),
+  const CategoryIconOption(key: 'street_food', label: '风味小吃'),
+  const CategoryIconOption(key: 'daily', label: '日常'),
+  const CategoryIconOption(key: 'shopping_cart', label: '超市'),
 
   // 购物 / 服饰 / 美妆
-  const CategoryIconOption(
-      key: 'shopping', icon: Icons.shopping_bag_outlined, label: '购物'),
-  const CategoryIconOption(
-      key: 'cloth', icon: Icons.checkroom_outlined, label: '服饰'),
-  const CategoryIconOption(
-      key: 'beauty', icon: Icons.brush_outlined, label: '美妆'),
-  const CategoryIconOption(key: 'face', icon: Icons.face_outlined, label: '护肤'),
-  const CategoryIconOption(
-      key: 'content_cut', icon: Icons.content_cut_outlined, label: '理发'),
-  const CategoryIconOption(
-      key: 'diamond', icon: Icons.diamond_outlined, label: '珠宝'),
+  const CategoryIconOption(key: 'shopping', label: '购物'),
+  const CategoryIconOption(key: 'cloth', label: '服饰'),
+  const CategoryIconOption(key: 'beauty', label: '美妆'),
+  const CategoryIconOption(key: 'face', label: '护肤'),
+  const CategoryIconOption(key: 'content_cut', label: '理发'),
+  const CategoryIconOption(key: 'diamond', label: '珠宝'),
 
   // 出行 / 交通
-  const CategoryIconOption(
-      key: 'transport', icon: Icons.directions_bus_outlined, label: '交通'),
-  const CategoryIconOption(
-      key: 'taxi', icon: Icons.local_taxi_outlined, label: '打车'),
-  const CategoryIconOption(
-      key: 'car', icon: Icons.directions_car_outlined, label: '汽车'),
-  const CategoryIconOption(
-      key: 'train', icon: Icons.train_outlined, label: '火车'),
-  const CategoryIconOption(
-      key: 'flight', icon: Icons.flight_outlined, label: '机票'),
+  const CategoryIconOption(key: 'transport', label: '交通'),
+  const CategoryIconOption(key: 'taxi', label: '打车'),
+  const CategoryIconOption(key: 'car', label: '汽车'),
+  const CategoryIconOption(key: 'train', label: '火车'),
+  const CategoryIconOption(key: 'flight', label: '机票'),
 
   // 生活 / 人情 / 通讯
-  const CategoryIconOption(
-      key: 'heart', icon: Icons.favorite_outline, label: '人情'),
-  const CategoryIconOption(
-      key: 'phone', icon: Icons.smartphone_outlined, label: '通讯'),
-  const CategoryIconOption(key: 'wifi', icon: Icons.wifi_outlined, label: '宽带'),
-  const CategoryIconOption(
-      key: 'member', icon: Icons.card_membership_outlined, label: '会员'),
-  const CategoryIconOption(
-      key: 'gift', icon: Icons.redeem_outlined, label: '礼物'),
+  const CategoryIconOption(key: 'heart', label: '人情'),
+  const CategoryIconOption(key: 'phone', label: '通讯'),
+  const CategoryIconOption(key: 'wifi', label: '宽带'),
+  const CategoryIconOption(key: 'member', label: '会员'),
+  const CategoryIconOption(key: 'gift', label: '礼物'),
 
   // 娱乐 / 旅游 / 亲子
-  const CategoryIconOption(
-      key: 'entertainment', icon: Icons.movie_outlined, label: '娱乐'),
-  const CategoryIconOption(
-      key: 'travel', icon: Icons.flight_takeoff_outlined, label: '旅游'),
-  const CategoryIconOption(
-      key: 'game', icon: Icons.sports_esports_outlined, label: '游戏'),
-  const CategoryIconOption(
-      key: 'music', icon: Icons.music_note_outlined, label: '音乐'),
-  const CategoryIconOption(
-      key: 'camera', icon: Icons.camera_alt_outlined, label: '摄影'),
-  const CategoryIconOption(
-      key: 'baby', icon: Icons.child_care_outlined, label: '亲子'),
-  const CategoryIconOption(key: 'toys', icon: Icons.toys_outlined, label: '玩具'),
+  const CategoryIconOption(key: 'entertainment', label: '娱乐'),
+  const CategoryIconOption(key: 'travel', label: '旅游'),
+  const CategoryIconOption(key: 'game', label: '游戏'),
+  const CategoryIconOption(key: 'music', label: '音乐'),
+  const CategoryIconOption(key: 'camera', label: '摄影'),
+  const CategoryIconOption(key: 'baby', label: '亲子'),
+  const CategoryIconOption(key: 'toys', label: '玩具'),
 
   // 医疗 / 健康 / 运动
-  const CategoryIconOption(
-      key: 'medical', icon: Icons.local_hospital_outlined, label: '医疗'),
-  const CategoryIconOption(
-      key: 'fitness', icon: Icons.fitness_center_outlined, label: '运动'),
-  const CategoryIconOption(
-      key: 'sports', icon: Icons.sports_outlined, label: '体育'),
-  const CategoryIconOption(key: 'pets', icon: Icons.pets_outlined, label: '宠物'),
+  const CategoryIconOption(key: 'medical', label: '医疗'),
+  const CategoryIconOption(key: 'fitness', label: '运动'),
+  const CategoryIconOption(key: 'sports', label: '体育'),
+  const CategoryIconOption(key: 'pets', label: '宠物'),
 
   // 学习 / 书籍 / 办公
-  const CategoryIconOption(
-      key: 'education', icon: Icons.school_outlined, label: '学习'),
-  const CategoryIconOption(
-      key: 'book', icon: Icons.menu_book_outlined, label: '书籍'),
-  const CategoryIconOption(
-      key: 'computer', icon: Icons.computer_outlined, label: '办公'),
-  const CategoryIconOption(key: 'work', icon: Icons.work_outline, label: '工作'),
+  const CategoryIconOption(key: 'education', label: '学习'),
+  const CategoryIconOption(key: 'book', label: '书籍'),
+  const CategoryIconOption(key: 'computer', label: '办公'),
+  const CategoryIconOption(key: 'work', label: '工作'),
 
   // 收入 / 投资
-  const CategoryIconOption(
-      key: 'salary', icon: Icons.payments_outlined, label: '基本工资'),
-  const CategoryIconOption(
-      key: 'bonus', icon: Icons.card_giftcard_outlined, label: '奖金'),
-  const CategoryIconOption(
-      key: 'red_envelope', icon: Icons.card_giftcard_outlined, label: '红包'),
-  const CategoryIconOption(
-      key: 'refund', icon: Icons.replay_outlined, label: '退款'),
-  const CategoryIconOption(
-      key: 'investment', icon: Icons.trending_up_outlined, label: '投资'),
-  const CategoryIconOption(
-      key: 'savings', icon: Icons.savings_outlined, label: '储蓄'),
-  const CategoryIconOption(
-      key: 'account_balance',
-      icon: Icons.account_balance_outlined,
-      label: '理财'),
+  const CategoryIconOption(key: 'salary', label: '基本工资'),
+  const CategoryIconOption(key: 'bonus', label: '奖金'),
+  const CategoryIconOption(key: 'red_envelope', label: '红包'),
+  const CategoryIconOption(key: 'refund', label: '退款'),
+  const CategoryIconOption(key: 'investment', label: '投资'),
+  const CategoryIconOption(key: 'savings', label: '储蓄'),
+  const CategoryIconOption(key: 'account_balance', label: '理财'),
 
   // 收入树 Income Tree（记一笔·收入分类）
-  const CategoryIconOption(
-      key: 'income_job', icon: Icons.badge_outlined, label: '职业收入'),
-  const CategoryIconOption(
-      key: 'income_business', icon: Icons.storefront_outlined, label: '经营收入'),
-  const CategoryIconOption(
-      key: 'income_side', icon: Icons.laptop_outlined, label: '副业兼职'),
-  const CategoryIconOption(
-      key: 'income_invest', icon: Icons.trending_up_outlined, label: '投资收入'),
-  const CategoryIconOption(
-      key: 'income_funds', icon: Icons.swap_horiz_outlined, label: '资金往来'),
-  const CategoryIconOption(
-      key: 'performance_bonus',
-      icon: Icons.emoji_events_outlined,
-      label: '绩效奖金'),
-  const CategoryIconOption(
-      key: 'allowance', icon: Icons.savings_outlined, label: '津贴补助'),
-  const CategoryIconOption(
-      key: 'sole_proprietor', icon: Icons.store_outlined, label: '个体经营'),
-  const CategoryIconOption(
-      key: 'rider', icon: Icons.two_wheeler_outlined, label: '骑手'),
-  const CategoryIconOption(
-      key: 'video_income', icon: Icons.videocam_outlined, label: '视频收入'),
-  const CategoryIconOption(
-      key: 'parttime', icon: Icons.work_outline, label: '兼职'),
-  const CategoryIconOption(
-      key: 'securities', icon: Icons.candlestick_chart_outlined, label: '证券收入'),
-  const CategoryIconOption(
-      key: 'interest', icon: Icons.percent_outlined, label: '利息收入'),
-  const CategoryIconOption(
-      key: 'refund_cashback', icon: Icons.replay_outlined, label: '退款返现'),
-  const CategoryIconOption(
-      key: 'repayment', icon: Icons.payment_outlined, label: '他人还款'),
-  const CategoryIconOption(
-      key: 'social_income', icon: Icons.favorite_outline, label: '人情往来'),
-  const CategoryIconOption(
-      key: 'tax_reimburse', icon: Icons.receipt_long_outlined, label: '退税报销'),
+  const CategoryIconOption(key: 'income_job', label: '职业收入'),
+  const CategoryIconOption(key: 'income_business', label: '经营收入'),
+  const CategoryIconOption(key: 'income_side', label: '副业兼职'),
+  const CategoryIconOption(key: 'income_invest', label: '投资收入'),
+  const CategoryIconOption(key: 'income_funds', label: '资金往来'),
+  const CategoryIconOption(key: 'performance_bonus', label: '绩效奖金'),
+  const CategoryIconOption(key: 'allowance', label: '津贴补助'),
+  const CategoryIconOption(key: 'sole_proprietor', label: '个体经营'),
+  const CategoryIconOption(key: 'rider', label: '骑手'),
+  const CategoryIconOption(key: 'video_income', label: '视频收入'),
+  const CategoryIconOption(key: 'parttime', label: '兼职'),
+  const CategoryIconOption(key: 'securities', label: '证券收入'),
+  const CategoryIconOption(key: 'interest', label: '利息收入'),
+  const CategoryIconOption(key: 'refund_cashback', label: '退款返现'),
+  const CategoryIconOption(key: 'repayment', label: '他人还款'),
+  const CategoryIconOption(key: 'social_income', label: '人情往来'),
+  const CategoryIconOption(key: 'tax_reimburse', label: '退税报销'),
 
   // 果蔬 / 生鲜
-  const CategoryIconOption(
-      key: 'fruit', icon: Icons.apple_outlined, label: '水果'),
-  const CategoryIconOption(
-      key: 'vegetable', icon: Icons.eco_outlined, label: '蔬菜'),
-  const CategoryIconOption(
-      key: 'snack', icon: Icons.cookie_outlined, label: '零食'),
-  const CategoryIconOption(
-      key: 'icecream', icon: Icons.icecream_outlined, label: '冷饮'),
+  const CategoryIconOption(key: 'fruit', label: '水果'),
+  const CategoryIconOption(key: 'vegetable', label: '蔬菜'),
+  const CategoryIconOption(key: 'snack', label: '零食'),
+  const CategoryIconOption(key: 'icecream', label: '冷饮'),
 
   // 其他
-  const CategoryIconOption(
-      key: 'other', icon: Icons.more_horiz_outlined, label: '其他'),
-  const CategoryIconOption(
-      key: 'repair', icon: Icons.handyman_outlined, label: '维修'),
-  const CategoryIconOption(
-      key: 'donation', icon: Icons.volunteer_activism_outlined, label: '公益'),
-  const CategoryIconOption(
-      key: 'settings', icon: Icons.settings_outlined, label: '设置'),
+  const CategoryIconOption(key: 'other', label: '其他'),
+  const CategoryIconOption(key: 'repair', label: '维修'),
+  const CategoryIconOption(key: 'donation', label: '公益'),
+  const CategoryIconOption(key: 'settings', label: '设置'),
 
   // ── 全分类图标（A3 线稿设计稿·并入）──
 
   // 餐饮 Dining
-  const CategoryIconOption(
-      key: 'milk_tea', icon: Icons.local_cafe_outlined, label: '奶茶'),
-  const CategoryIconOption(
-      key: 'juice', icon: Icons.local_drink_outlined, label: '果汁'),
-  const CategoryIconOption(
-      key: 'dim_sum', icon: Icons.cake_outlined, label: '点心'),
+  const CategoryIconOption(key: 'milk_tea', label: '奶茶'),
+  const CategoryIconOption(key: 'juice', label: '果汁'),
+  const CategoryIconOption(key: 'dim_sum', label: '点心'),
 
   // 购物 Shopping
-  const CategoryIconOption(
-      key: 'produce', icon: Icons.eco_outlined, label: '果蔬蛋奶'),
-  const CategoryIconOption(
-      key: 'shipping', icon: Icons.local_shipping_outlined, label: '运费'),
-  const CategoryIconOption(
-      key: 'apparel', icon: Icons.checkroom_outlined, label: '服饰鞋包'),
-  const CategoryIconOption(
-      key: 'digital', icon: Icons.devices_outlined, label: '数码电器'),
-  const CategoryIconOption(
-      key: 'consumable', icon: Icons.cleaning_services_outlined, label: '生活耗材'),
-  const CategoryIconOption(
-      key: 'tobacco', icon: Icons.sports_bar_outlined, label: '烟酒茶糖'),
-  const CategoryIconOption(
-      key: 'furniture', icon: Icons.chair_outlined, label: '家居家具'),
-  const CategoryIconOption(
-      key: 'personal_care', icon: Icons.content_cut_outlined, label: '个护服务'),
+  const CategoryIconOption(key: 'produce', label: '果蔬蛋奶'),
+  const CategoryIconOption(key: 'shipping', label: '运费'),
+  const CategoryIconOption(key: 'apparel', label: '服饰鞋包'),
+  const CategoryIconOption(key: 'digital', label: '数码电器'),
+  const CategoryIconOption(key: 'consumable', label: '生活耗材'),
+  const CategoryIconOption(key: 'tobacco', label: '烟酒茶糖'),
+  const CategoryIconOption(key: 'furniture', label: '家居家具'),
+  const CategoryIconOption(key: 'personal_care', label: '个护服务'),
 
   // 出行 Travel
-  const CategoryIconOption(
-      key: 'car_care', icon: Icons.directions_car_outlined, label: '养车'),
-  const CategoryIconOption(
-      key: 'transit', icon: Icons.directions_bus_outlined, label: '公共交通'),
-  const CategoryIconOption(
-      key: 'fuel', icon: Icons.local_gas_station_outlined, label: '加油充电'),
-  const CategoryIconOption(
-      key: 'taxi_rental', icon: Icons.local_taxi_outlined, label: '打车租车'),
-  const CategoryIconOption(
-      key: 'intercity', icon: Icons.train_outlined, label: '城际出行'),
+  const CategoryIconOption(key: 'car_care', label: '养车'),
+  const CategoryIconOption(key: 'transit', label: '公共交通'),
+  const CategoryIconOption(key: 'fuel', label: '加油充电'),
+  const CategoryIconOption(key: 'taxi_rental', label: '打车租车'),
+  const CategoryIconOption(key: 'intercity', label: '城际出行'),
 
   // 居住 Housing
-  const CategoryIconOption(key: 'home', icon: Icons.home_outlined, label: '居住'),
-  const CategoryIconOption(
-      key: 'lodging', icon: Icons.hotel_outlined, label: '住宿'),
-  const CategoryIconOption(
-      key: 'renovation', icon: Icons.handyman_outlined, label: '装修维护'),
-  const CategoryIconOption(
-      key: 'rent', icon: Icons.vpn_key_outlined, label: '房租房贷'),
-  const CategoryIconOption(
-      key: 'utilities', icon: Icons.bolt_outlined, label: '水电燃物'),
-  const CategoryIconOption(
-      key: 'telecom', icon: Icons.wifi_outlined, label: '话费网费'),
+  const CategoryIconOption(key: 'home', label: '居住'),
+  const CategoryIconOption(key: 'lodging', label: '住宿'),
+  const CategoryIconOption(key: 'renovation', label: '装修维护'),
+  const CategoryIconOption(key: 'rent', label: '房租房贷'),
+  const CategoryIconOption(key: 'utilities', label: '水电燃物'),
+  const CategoryIconOption(key: 'telecom', label: '话费网费'),
 
   // 娱乐 Entertainment
-  const CategoryIconOption(
-      key: 'offline_fun',
-      icon: Icons.confirmation_number_outlined,
-      label: '线下娱乐'),
-  const CategoryIconOption(
-      key: 'digital_fun', icon: Icons.smartphone_outlined, label: '数字娱乐'),
-  const CategoryIconOption(
-      key: 'travel_vacation', icon: Icons.beach_access_outlined, label: '旅游度假'),
-  const CategoryIconOption(
-      key: 'hobby', icon: Icons.collections_outlined, label: '收藏爱好'),
+  const CategoryIconOption(key: 'offline_fun', label: '线下娱乐'),
+  const CategoryIconOption(key: 'digital_fun', label: '数字娱乐'),
+  const CategoryIconOption(key: 'travel_vacation', label: '旅游度假'),
+  const CategoryIconOption(key: 'hobby', label: '收藏爱好'),
 
   // 医疗健康 Medical
-  const CategoryIconOption(
-      key: 'clinic', icon: Icons.medical_services_outlined, label: '就医购药'),
-  const CategoryIconOption(
-      key: 'wellness', icon: Icons.spa_outlined, label: '养生保健'),
-  const CategoryIconOption(
-      key: 'checkup', icon: Icons.vaccines_outlined, label: '体检疫苗'),
-  const CategoryIconOption(
-      key: 'insurance', icon: Icons.umbrella_outlined, label: '商业保险'),
+  const CategoryIconOption(key: 'clinic', label: '就医购药'),
+  const CategoryIconOption(key: 'wellness', label: '养生保健'),
+  const CategoryIconOption(key: 'checkup', label: '体检疫苗'),
+  const CategoryIconOption(key: 'insurance', label: '商业保险'),
 
   // 学习办公 Study
-  const CategoryIconOption(
-      key: 'knowledge', icon: Icons.menu_book_outlined, label: '知识付费'),
-  const CategoryIconOption(
-      key: 'stationery', icon: Icons.edit_note_outlined, label: '图文工具'),
+  const CategoryIconOption(key: 'knowledge', label: '知识付费'),
+  const CategoryIconOption(key: 'stationery', label: '图文工具'),
 
   // 人情往来 Social
-  const CategoryIconOption(
-      key: 'social', icon: Icons.favorite_outline, label: '人情往来'),
-  const CategoryIconOption(
-      key: 'red_packet', icon: Icons.card_giftcard_outlined, label: '红包'),
+  const CategoryIconOption(key: 'social', label: '人情往来'),
+  const CategoryIconOption(key: 'red_packet', label: '红包'),
 
   // 宠物 Pet
-  const CategoryIconOption(key: 'pet', icon: Icons.pets_outlined, label: '宠物'),
-  const CategoryIconOption(
-      key: 'pet_food', icon: Icons.pets_outlined, label: '宠物食品'),
-  const CategoryIconOption(
-      key: 'pet_supply', icon: Icons.toys_outlined, label: '宠物用品'),
-  const CategoryIconOption(
-      key: 'pet_medical', icon: Icons.vaccines_outlined, label: '宠物医疗'),
-  const CategoryIconOption(
-      key: 'pet_service', icon: Icons.home_outlined, label: '宠物服务'),
+  const CategoryIconOption(key: 'pet', label: '宠物'),
+  const CategoryIconOption(key: 'pet_food', label: '宠物食品'),
+  const CategoryIconOption(key: 'pet_supply', label: '宠物用品'),
+  const CategoryIconOption(key: 'pet_medical', label: '宠物医疗'),
+  const CategoryIconOption(key: 'pet_service', label: '宠物服务'),
 
   // 资金往来 Funds
-  const CategoryIconOption(
-      key: 'funds', icon: Icons.swap_horiz_outlined, label: '资金往来'),
-  const CategoryIconOption(
-      key: 'repay', icon: Icons.payment_outlined, label: '还款'),
-  const CategoryIconOption(
-      key: 'lend', icon: Icons.volunteer_activism_outlined, label: '借款'),
-  const CategoryIconOption(
-      key: 'accrue', icon: Icons.percent_outlined, label: '计提'),
-  const CategoryIconOption(
-      key: 'withdrawal', icon: Icons.local_atm_outlined, label: '取现'),
-  const CategoryIconOption(
-      key: 'internal_transfer', icon: Icons.swap_horiz_outlined, label: '内部转账'),
+  const CategoryIconOption(key: 'funds', label: '资金往来'),
+  const CategoryIconOption(key: 'repay', label: '还款'),
+  const CategoryIconOption(key: 'lend', label: '借款'),
+  const CategoryIconOption(key: 'accrue', label: '计提'),
+  const CategoryIconOption(key: 'withdrawal', label: '取现'),
+  const CategoryIconOption(key: 'internal_transfer', label: '内部转账'),
 
   // 投资支出 Invest
-  const CategoryIconOption(
-      key: 'tax', icon: Icons.receipt_long_outlined, label: '缴税'),
-  const CategoryIconOption(
-      key: 'finance',
-      icon: Icons.account_balance_wallet_outlined,
-      label: '博彩理财'),
-  const CategoryIconOption(
-      key: 'dividend', icon: Icons.savings_outlined, label: '分红入股'),
-  const CategoryIconOption(
-      key: 'operations', icon: Icons.store_outlined, label: '日常运营'),
-  const CategoryIconOption(
-      key: 'capex', icon: Icons.business_center_outlined, label: '大额投入'),
+  const CategoryIconOption(key: 'tax', label: '缴税'),
+  const CategoryIconOption(key: 'finance', label: '博彩理财'),
+  const CategoryIconOption(key: 'dividend', label: '分红入股'),
+  const CategoryIconOption(key: 'operations', label: '日常运营'),
+  const CategoryIconOption(key: 'capex', label: '大额投入'),
 ];
 
-/// 把 [iconKey] 解析为 Material 图标。
+/// 把 [iconKey] 解析为 Material 图标（兜底用）。
 ///
-/// 未知 key 兜底返回 [Icons.category_outlined]。
+/// 选择网格等主渲染路径已统一走线稿（`categoryLineKind`）；
+/// 本函数仅作为未迁移页面的 Material outlined 兜底，未知 key
+/// 兜底返回 [Icons.category_outlined]。
 IconData categoryIconData(String? iconKey) {
   if (iconKey == null || iconKey.isEmpty) {
     return Icons.category_outlined;
@@ -455,14 +334,11 @@ IconData categoryIconData(String? iconKey) {
 }
 
 /// 分类图标可选项数据对象。
+///
+/// 图标渲染统一由 key 经 `categoryLineKind` 解析为线稿。
 class CategoryIconOption {
-  const CategoryIconOption({
-    required this.key,
-    required this.icon,
-    required this.label,
-  });
+  const CategoryIconOption({required this.key, required this.label});
 
   final String key;
-  final IconData icon;
   final String label;
 }

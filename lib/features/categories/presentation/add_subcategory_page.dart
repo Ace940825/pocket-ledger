@@ -8,6 +8,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../providers/categories_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
 
@@ -151,8 +152,11 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           const Spacer(),
           CircleAvatar(
             backgroundColor: color.withValues(alpha: 0.15),
-            child:
-                Icon(categoryIconData(_selectedParent.iconKey), color: color),
+            child: LineIcon(
+              categoryLineKind(_selectedParent.iconKey) ?? LineIconKind.star,
+              size: 20,
+              color: color,
+            ),
           ),
           const SizedBox(width: AppDimens.spaceSm),
           Text(
@@ -233,7 +237,11 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
               ),
             ),
             child: Center(
-              child: Icon(option.icon, color: color),
+              child: LineIcon(
+                categoryLineKind(option.key) ?? LineIconKind.star,
+                size: 24,
+                color: color,
+              ),
             ),
           ),
         );
