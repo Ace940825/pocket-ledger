@@ -18,6 +18,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/line_icons.dart';
 import 'savings_modes.dart';
 import 'savings_schedule.dart';
 
@@ -344,7 +345,11 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                         // 重复周期：定额存钱法专属（参照小青账）。
                         if (widget.mode == SavingsMode.fixed) ...<Widget>[
                           _pickOptionRow(
-                            icon: Icons.task_alt,
+                            icon: const LineIcon(
+                              LineIconKind.calendar,
+                              size: 22,
+                              color: AppPalette.sageInk,
+                            ),
                             title: '重复周期',
                             subtitle: '根据一定规则存钱',
                             value: _repeatCycle,
@@ -365,7 +370,11 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                             widget.mode == SavingsMode.elastic) ...<Widget>[
                           const SizedBox(height: 4),
                           _pickOptionRow(
-                            icon: Icons.schedule,
+                            icon: const LineIcon(
+                              LineIconKind.settings,
+                              size: 22,
+                              color: AppPalette.sageInk,
+                            ),
                             title: '结束方式',
                             subtitle: '根据规则结束此任务',
                             value: _endMethod == '按次数结束'
@@ -523,14 +532,20 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(Icons.info_outline,
-              size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: LineIcon(
+              LineIconKind.info,
+              size: 15,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 height: 1.5,
               ),
             ),
@@ -540,7 +555,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     );
   }
 
-  /// 头像行（🐱 圆角头像，对标小青账）。
+  /// 头像行（储蓄罐线稿，对标小青账头像位；A3 线稿统一风格）。
   Widget _avatarRow() {
     return Align(
       alignment: Alignment.centerLeft,
@@ -552,7 +567,11 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
           borderRadius: BorderRadius.circular(16),
         ),
         alignment: Alignment.center,
-        child: const Text('🐱', style: TextStyle(fontSize: 30)),
+        child: const LineIcon(
+          LineIconKind.depositIn,
+          size: 30,
+          color: _greenDeep,
+        ),
       ),
     );
   }
@@ -603,10 +622,17 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
       onTap: () => _activateKeypad('amount'),
       style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
       decoration: InputDecoration(
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 14, right: 10),
-          child: Icon(Icons.paid_outlined,
-              size: 22, color: Theme.of(context).colorScheme.onSurfaceVariant),
+        // ¥ 前缀（全站货币口径，替换美元 $ 图标）。
+        prefixIcon: const Padding(
+          padding: EdgeInsets.only(left: 16, right: 10),
+          child: Text(
+            '¥',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: _greenDeep,
+            ),
+          ),
         ),
         prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         // 通用计算器入口：点图标弹表达式计算器，四则运算 / AA 分摊结果回填本字段。
@@ -660,11 +686,17 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                 style:
                     const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
-                  prefixIcon: Padding(
-                    padding: const EdgeInsets.only(left: 14, right: 10),
-                    child: Icon(Icons.currency_yuan_outlined,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  // ¥ 前缀，与每期金额框同口径。
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(left: 16, right: 10),
+                    child: Text(
+                      '¥',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: _greenDeep,
+                      ),
+                    ),
                   ),
                   prefixIconConstraints:
                       const BoxConstraints(minWidth: 0, minHeight: 0),
@@ -799,7 +831,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
   /// 通用选项行（定额存钱法「重复周期 / 结束方式」，参照小青账）：
   /// 圆标 + 标题/说明 + 右侧当前值 + chevron，点击弹底部单选。
   Widget _pickOptionRow({
-    required IconData icon,
+    required Widget icon,
     required String title,
     required String subtitle,
     required String value,
@@ -855,7 +887,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                 color: AppPalette.surfaceMist,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 22, color: AppPalette.neutralGray),
+              child: Center(child: icon),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1032,8 +1064,13 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                 color: AppPalette.surfaceMist,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.alarm,
-                  size: 22, color: AppPalette.neutralGray),
+              child: const Center(
+                child: LineIcon(
+                  LineIconKind.calendar,
+                  size: 22,
+                  color: AppPalette.sageInk,
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1075,8 +1112,13 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
             color: AppPalette.surfaceMist,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.calendar_today_outlined,
-              size: 20, color: AppPalette.neutralGray),
+          child: const Center(
+            child: LineIcon(
+              LineIconKind.calendar,
+              size: 20,
+              color: AppPalette.sageInk,
+            ),
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1191,14 +1233,20 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(Icons.currency_yuan,
-                    size: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                const Text(
+                  '¥',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppPalette.sageInk,
+                  ),
+                ),
                 const SizedBox(width: 4),
                 Text('转至',
                     style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        color:
+                            Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -1248,13 +1296,14 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
         ),
         child: Row(
           children: <Widget>[
-            Icon(
-              acc == null ? Icons.account_balance_wallet_outlined : Icons.check,
-              size: 18,
-              color: acc == null
-                  ? Theme.of(context).colorScheme.onSurfaceVariant
-                  : _greenDeep,
-            ),
+            if (acc == null)
+              const LineIcon(
+                LineIconKind.account,
+                size: 18,
+                color: AppPalette.sageInk,
+              )
+            else
+              Icon(Icons.check, size: 18, color: _greenDeep),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
