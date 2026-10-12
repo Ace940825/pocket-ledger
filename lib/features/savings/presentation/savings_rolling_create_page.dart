@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../theme/app_colors.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/hairline_card.dart';
 import '../data/savings_repository.dart';
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
@@ -189,12 +191,8 @@ class _SavingsRollingCreatePageState
               ),
               const SizedBox(height: 16),
               _sectionLabel('滚存'),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppPalette.cream,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppPalette.hairline),
-                ),
+              HairlineCard(
+                padding: EdgeInsets.zero,
                 child: Column(
                   children: <Widget>[
                     SwitchListTile(
@@ -212,7 +210,7 @@ class _SavingsRollingCreatePageState
                       thickness: 1,
                       indent: 16,
                       endIndent: 16,
-                      color: AppPalette.hairline,
+                      color: Theme.of(context).colorScheme.outline,
                     ),
                     SwitchListTile(
                       title: const Text('滚存阶段继续每月追投'),
@@ -261,10 +259,10 @@ class _SavingsRollingCreatePageState
         padding: const EdgeInsets.only(bottom: 8, top: 4),
         child: Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppPalette.textSecondary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       );
@@ -292,9 +290,9 @@ class _SavingsRollingCreatePageState
               padding: const EdgeInsets.only(left: 8, bottom: 6),
               child: Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppPalette.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -306,10 +304,10 @@ class _SavingsRollingCreatePageState
                 maxDecimalDigits: 2,
                 decoration: InputDecoration(
                   hintText: hint,
-                  hintStyle: const TextStyle(
+                  hintStyle: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: AppPalette.textTertiary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   isDense: dense,
                   prefixIcon: prefix == null
@@ -328,7 +326,8 @@ class _SavingsRollingCreatePageState
                   prefixIconConstraints:
                       const BoxConstraints(minWidth: 0, minHeight: 0),
                   filled: true,
-                  fillColor: AppPalette.surfaceMist,
+                  fillColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
@@ -345,18 +344,19 @@ class _SavingsRollingCreatePageState
                 style: TextStyle(
                   fontSize: dense ? 14 : 15,
                   fontWeight: FontWeight.w600,
-                  color: AppPalette.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 decoration: InputDecoration(
                   hintText: hint,
-                  hintStyle: const TextStyle(
+                  hintStyle: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: AppPalette.textTertiary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   isDense: dense,
                   filled: true,
-                  fillColor: AppPalette.surfaceMist,
+                  fillColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
@@ -390,12 +390,12 @@ class _SavingsRollingCreatePageState
                 decoration: BoxDecoration(
                   color: items[i].$1 == selected
                       ? AppPalette.softGreen
-                      : AppPalette.cream,
+                      : context.colors.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: items[i].$1 == selected
                         ? AppPalette.sage300
-                        : AppPalette.hairline,
+                        : Theme.of(context).colorScheme.outline,
                   ),
                 ),
                 alignment: Alignment.center,
@@ -417,7 +417,7 @@ class _SavingsRollingCreatePageState
                             : FontWeight.w500,
                         color: items[i].$1 == selected
                             ? AppPalette.deepGreen
-                            : AppPalette.textSecondary,
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -459,12 +459,13 @@ class _PreviewCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _row('实际累计现金', '${fmt.format(result.cashPrincipalYuan)} 元'),
-          _row('预计总利息', '${fmt.format(result.totalInterestYuan)} 元',
+          _row(context, '实际累计现金', '${fmt.format(result.cashPrincipalYuan)} 元'),
+          _row(context, '预计总利息', '${fmt.format(result.totalInterestYuan)} 元',
               color: AppPalette.income),
-          _row('预计到期总额', '${fmt.format(result.finalMaturityYuan)} 元',
+          _row(context, '预计到期总额', '${fmt.format(result.finalMaturityYuan)} 元',
               color: AppPalette.primary, bold: true),
-          _row('等效年化', '${result.effectiveAnnualRatePct.toStringAsFixed(2)}%'),
+          _row(context, '等效年化',
+              '${result.effectiveAnnualRatePct.toStringAsFixed(2)}%'),
           const SizedBox(height: 8),
           Text(
             '首笔存 ${result.deposits.isNotEmpty ? (result.deposits.first.principalMinor / 100).toStringAsFixed(0) : '0'} 元'
@@ -472,29 +473,32 @@ class _PreviewCard extends StatelessWidget {
             ' 利息 ${result.deposits.isNotEmpty ? result.deposits.first.interestYuan.toStringAsFixed(2) : '0'} 元'
             '，到期 ${result.deposits.isNotEmpty ? result.deposits.first.maturityYuan.toStringAsFixed(2) : '0'} 元'
             '（共模拟 ${result.simulatedMonths} 个月）',
-            style:
-                const TextStyle(fontSize: 12, color: AppPalette.textSecondary),
+            style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),
     );
   }
 
-  Widget _row(String label, String value, {Color? color, bool bold = false}) =>
+  Widget _row(BuildContext context, String label, String value,
+          {Color? color, bool bold = false}) =>
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
             Text(label,
-                style: const TextStyle(
-                    fontSize: 13, color: AppPalette.textSecondary)),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
             Text(
               value,
               style: TextStyle(
                 fontSize: bold ? 16 : 14,
                 fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-                color: color ?? AppPalette.textPrimary,
+                color: color ?? Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],

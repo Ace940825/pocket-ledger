@@ -2,16 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../theme/app_colors.dart';
-import '../../../../core/constants/app_dimens.dart';
-import '../../../../core/errors/failures.dart';
-import '../../../../database/app_database.dart';
-import '../../../../domain/enums.dart';
-import '../../../../shared/widgets/category_icons.dart';
-import '../../../../shared/widgets/line_icons.dart';
+import '../../../theme/app_colors.dart';
+import '../../../core/constants/app_dimens.dart';
+import '../../../core/errors/failures.dart';
+import '../../../database/app_database.dart';
+import '../../../domain/enums.dart';
+import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/category_widgets.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../routing/app_router.dart';
 import '../providers/categories_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/menu_item.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 
 /// 分类管理页：按小青账模板重构。
 ///
@@ -74,13 +78,13 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  _TypeTab(
+                  TypeTab(
                     label: '支出分类',
                     selected: _type == CategoryType.expense,
                     onTap: () => setState(() => _type = CategoryType.expense),
                   ),
                   const SizedBox(width: AppDimens.spaceXl),
-                  _TypeTab(
+                  TypeTab(
                     label: '收入分类',
                     selected: _type == CategoryType.income,
                     onTap: () => setState(() => _type = CategoryType.income),
@@ -112,7 +116,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           Text(
             '显示封存',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppPalette.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
           const SizedBox(width: AppDimens.spaceSm),
@@ -216,22 +220,12 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
     WidgetRef ref,
     Category category,
   ) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: const Text('删除分类？'),
-        content: Text('「${category.name}」将被删除。已使用该分类的流水会显示为「未分类」。'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+    final bool? confirmed = await showConfirm(
+      context,
+      title: '删除分类？',
+      content: '「${category.name}」将被删除。已使用该分类的流水会显示为「未分类」。',
+      confirmText: '删除',
+      danger: true,
     );
     if (confirmed != true || !context.mounted) return;
 
@@ -240,50 +234,6 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
     } on AppFailure catch (e) {
       if (context.mounted) _toast(context, e.message);
     }
-  }
-}
-
-class _TypeTab extends StatelessWidget {
-  const _TypeTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final Color color =
-        selected ? theme.colorScheme.onSurface : AppPalette.textTertiary;
-    final FontWeight weight = selected ? FontWeight.w600 : FontWeight.normal;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceSm),
-        decoration: BoxDecoration(
-          border: selected
-              ? Border(
-                  bottom: BorderSide(
-                    color: theme.colorScheme.onSurface,
-                    width: 2.5,
-                  ),
-                )
-              : null,
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: color,
-            fontWeight: weight,
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -328,7 +278,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
       children: <Widget>[
         _CategoryRow(
           category: widget.category,
-          leading: _ExpandArrow(
+          leading: ExpandArrow(
             expanded: _expanded,
             onTap: () => setState(() => _expanded = !_expanded),
           ),
@@ -390,131 +340,112 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
         ? Color(category.colorValue!)
         : AppPalette.primary;
 
-    final String? action = await showModalBottomSheet<String>(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusLg),
-        ),
-      ),
-      builder: (BuildContext sheet) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(AppDimens.spaceMd),
-                child: Row(
-                  children: <Widget>[
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppPalette.surfaceLight,
-                        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                      ),
-                      child: CategoryGlyph(
-                        category.iconKey,
-                        color: color,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: AppDimens.spaceMd),
-                    Expanded(
-                      child: Text(
-                        category.name,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(sheet).pop(),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: Text(isParent ? '编辑分类' : '编辑子分类'),
-                subtitle: Text(
-                  isParent ? '修改「$name」分类' : '修改「$name」子分类',
-                ),
-                onTap: () => Navigator.of(sheet).pop('edit'),
-              ),
-              if (isParent) ...<Widget>[
-                ListTile(
-                  leading: const Icon(Icons.sort_outlined),
-                  title: const Text('分类排序'),
-                  subtitle: const Text('为主分类排序'),
-                  onTap: () => Navigator.of(sheet).pop('sort'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.subdirectory_arrow_right_outlined),
-                  title: const Text('改为子分类'),
-                  subtitle: Text('将「$name」归入其他主分类'),
-                  onTap: () => Navigator.of(sheet).pop('toSub'),
-                ),
-              ] else ...<Widget>[
-                ListTile(
-                  leading: const Icon(Icons.vertical_align_top_outlined),
-                  title: const Text('改为主分类'),
-                  subtitle: Text('将「$name」变为主分类'),
-                  onTap: () => Navigator.of(sheet).pop('toParent'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.sort_outlined),
-                  title: const Text('子分类排序'),
-                  subtitle: Text('为「$parentName」下的子分类排序'),
-                  onTap: () => Navigator.of(sheet).pop('childSort'),
-                ),
-              ],
-              ListTile(
-                leading: const Icon(Icons.swap_horiz_outlined),
-                title: const Text('账单迁移'),
-                subtitle: Text('仅迁移「$name」分类下的账单'),
-                onTap: () => Navigator.of(sheet).pop('migrate'),
-              ),
-              ListTile(
-                leading: Icon(
-                  category.isArchived
-                      ? Icons.unarchive_outlined
-                      : Icons.archive_outlined,
-                ),
-                title: Text(
-                  category.isArchived
-                      ? (isParent ? '取消封存分类' : '取消封存子分类')
-                      : (isParent ? '封存分类' : '封存子分类'),
-                ),
-                subtitle: Text(
-                  category.isArchived ? '将「$name」解封并恢复显示' : '将「$name」封存，简化分类列表',
-                ),
-                onTap: () => Navigator.of(sheet).pop(
-                  category.isArchived ? 'unarchive' : 'archive',
-                ),
-              ),
-              const Divider(height: 1, indent: 56),
-              ListTile(
-                leading: const Icon(
-                  Icons.delete_outline,
-                  color: AppPalette.expense,
-                ),
-                title: Text(
-                  isParent ? '删除分类' : '删除子分类',
-                  style: const TextStyle(color: AppPalette.expense),
-                ),
-                subtitle: Text(
-                  isParent ? '迁移账单后删除，或直接删除分类' : '迁移账单后删除，或直接删除子分类',
-                ),
-                onTap: () => Navigator.of(sheet).pop('delete'),
-              ),
-              const SizedBox(height: AppDimens.spaceMd),
-            ],
+    final String? action = await showAppModalSheet<String>(
+      context,
+      titleWidget: Row(
+        children: <Widget>[
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppPalette.surfaceLight,
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            ),
+            child: CategoryGlyph(
+              category.iconKey,
+              color: color,
+              size: 22,
+            ),
           ),
-        ),
+          const SizedBox(width: AppDimens.spaceMd),
+          Expanded(
+            child: Text(
+              category.name,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          MenuItem(
+            icon: Icons.edit_outlined,
+            title: isParent ? '编辑分类' : '编辑子分类',
+            subtitle: isParent ? '修改「$name」分类' : '修改「$name」子分类',
+            trailing: const SizedBox.shrink(),
+            onTap: () => Navigator.of(context).pop('edit'),
+          ),
+          if (isParent) ...<Widget>[
+            MenuItem(
+              icon: Icons.sort_outlined,
+              title: '分类排序',
+              subtitle: '为主分类排序',
+              trailing: const SizedBox.shrink(),
+              onTap: () => Navigator.of(context).pop('sort'),
+            ),
+            MenuItem(
+              icon: Icons.subdirectory_arrow_right_outlined,
+              title: '改为子分类',
+              subtitle: '将「$name」归入其他主分类',
+              trailing: const SizedBox.shrink(),
+              onTap: () => Navigator.of(context).pop('toSub'),
+            ),
+          ] else ...<Widget>[
+            MenuItem(
+              icon: Icons.vertical_align_top_outlined,
+              title: '改为主分类',
+              subtitle: '将「$name」变为主分类',
+              trailing: const SizedBox.shrink(),
+              onTap: () => Navigator.of(context).pop('toParent'),
+            ),
+            MenuItem(
+              icon: Icons.sort_outlined,
+              title: '子分类排序',
+              subtitle: '为「$parentName」下的子分类排序',
+              trailing: const SizedBox.shrink(),
+              onTap: () => Navigator.of(context).pop('childSort'),
+            ),
+          ],
+          MenuItem(
+            icon: Icons.swap_horiz_outlined,
+            title: '账单迁移',
+            subtitle: '仅迁移「$name」分类下的账单',
+            trailing: const SizedBox.shrink(),
+            onTap: () => Navigator.of(context).pop('migrate'),
+          ),
+          MenuItem(
+            icon: category.isArchived
+                ? Icons.unarchive_outlined
+                : Icons.archive_outlined,
+            title: category.isArchived
+                ? (isParent ? '取消封存分类' : '取消封存子分类')
+                : (isParent ? '封存分类' : '封存子分类'),
+            subtitle:
+                category.isArchived ? '将「$name」解封并恢复显示' : '将「$name」封存，简化分类列表',
+            trailing: const SizedBox.shrink(),
+            onTap: () => Navigator.of(context).pop(
+              category.isArchived ? 'unarchive' : 'archive',
+            ),
+          ),
+          const Divider(height: 1, indent: 56),
+          MenuItem(
+            icon: Icons.delete_outline,
+            iconColor: AppPalette.expense,
+            titleColor: AppPalette.expense,
+            title: isParent ? '删除分类' : '删除子分类',
+            subtitle: isParent ? '迁移账单后删除，或直接删除分类' : '迁移账单后删除，或直接删除子分类',
+            trailing: const SizedBox.shrink(),
+            onTap: () => Navigator.of(context).pop('delete'),
+          ),
+          const SizedBox(height: AppDimens.spaceMd),
+        ],
       ),
     );
 
@@ -618,16 +549,16 @@ class _CategoryRow extends StatelessWidget {
                 child: Text(
                   '已封存',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppPalette.textTertiary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 11,
                       ),
                 ),
               ),
             IconButton(
               onPressed: onMore,
-              icon: const Icon(
+              icon: Icon(
                 Icons.more_horiz,
-                color: AppPalette.textTertiary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -673,7 +604,8 @@ class _SubcategoryChip extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
               child: isAdd
-                  ? Icon(Icons.add_circle_outline, color: AppPalette.primary, size: 24)
+                  ? Icon(Icons.add_circle_outline,
+                      color: AppPalette.primary, size: 24)
                   : CategoryGlyph(
                       category!.iconKey,
                       color: color,
@@ -687,33 +619,13 @@ class _SubcategoryChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isAdd ? AppPalette.textSecondary : null,
+                    color: isAdd
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : null,
                     fontSize: 12,
                   ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ExpandArrow extends StatelessWidget {
-  const _ExpandArrow({required this.expanded, required this.onTap});
-
-  final bool expanded;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 32,
-      child: IconButton(
-        onPressed: onTap,
-        icon: AnimatedRotation(
-          turns: expanded ? 0.25 : 0,
-          duration: const Duration(milliseconds: 200),
-          child: const Icon(Icons.chevron_right, size: 20),
         ),
       ),
     );
@@ -806,7 +718,7 @@ Future<void> _showSortSheet(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
-                      _TypeTab(
+                      TypeTab(
                         label: _typeLabel(CategoryType.expense),
                         selected: current == CategoryType.expense,
                         onTap: () => setSheetState(
@@ -814,7 +726,7 @@ Future<void> _showSortSheet(
                         ),
                       ),
                       const SizedBox(width: AppDimens.spaceXl),
-                      _TypeTab(
+                      TypeTab(
                         label: _typeLabel(CategoryType.income),
                         selected: current == CategoryType.income,
                         onTap: () => setSheetState(
@@ -830,10 +742,10 @@ Future<void> _showSortSheet(
                       ? Center(
                           child: Text(
                             '该类型分类不足两个，无需排序',
-                            style: Theme.of(ctx)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(color: AppPalette.textSecondary),
+                            style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant),
                           ),
                         )
                       : ReorderableListView(
@@ -892,7 +804,8 @@ class _SortTile extends StatelessWidget {
         child: CategoryGlyph(category.iconKey, color: color, size: 22),
       ),
       title: Text(category.name),
-      trailing: const Icon(Icons.drag_handle, color: AppPalette.textTertiary),
+      trailing: Icon(Icons.drag_handle,
+          color: Theme.of(context).colorScheme.onSurfaceVariant),
     );
   }
 }
@@ -972,8 +885,7 @@ Future<void> _showChangeParentSheet(
                       color: AppPalette.surfaceLight,
                       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     ),
-                    child: CategoryGlyph(t.iconKey,
-                        color: color, size: 22),
+                    child: CategoryGlyph(t.iconKey, color: color, size: 22),
                   ),
                   title: Text(t.name),
                   onTap: () => Navigator.of(ctx).pop(t),
@@ -991,25 +903,11 @@ Future<void> _showChangeParentSheet(
   // 选择弹窗是 await 出来的，下面还要用 context 弹确认框。
   if (!context.mounted) return;
 
-  final bool? confirmed = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext dialog) => AlertDialog(
-      title: const Text('改为子分类'),
-      content: Text(
-        '「${category.name}」将作为「${target.name}」的子分类，'
+  final bool? confirmed = await showConfirm(
+    context,
+    title: '改为子分类',
+    content: '「${category.name}」将作为「${target.name}」的子分类，'
         '其原有子分类也会一并移入。',
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(dialog).pop(false),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialog).pop(true),
-          child: const Text('确定'),
-        ),
-      ],
-    ),
   );
   if (confirmed != true) return;
 
@@ -1040,22 +938,10 @@ Future<void> _showPromoteSheet(
   WidgetRef ref,
   Category category,
 ) async {
-  final bool? confirmed = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext dialog) => AlertDialog(
-      title: const Text('改为主分类'),
-      content: Text('「${category.name}」将变为主分类。'),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(dialog).pop(false),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialog).pop(true),
-          child: const Text('确定'),
-        ),
-      ],
-    ),
+  final bool? confirmed = await showConfirm(
+    context,
+    title: '改为主分类',
+    content: '「${category.name}」将变为主分类。',
   );
   if (confirmed != true) return;
 

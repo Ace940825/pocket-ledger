@@ -25,10 +25,15 @@ class AppTheme extends ThemeExtension<AppTheme> {
     required this.radiusTile,
     required this.radiusKey,
     required this.radiusChip,
+    required this.sunken,
+    required this.sageGradientMid,
+    required this.sageGradientLight,
   });
 
   final Gradient sageGradient;
   final Gradient sageGradientSoft;
+  final Gradient sageGradientMid;
+  final Gradient sageGradientLight;
   final List<BoxShadow> shadowSm;
   final List<BoxShadow> shadowMd;
   final List<BoxShadow> shadowSage;
@@ -37,6 +42,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
   final double radiusTile;
   final double radiusKey;
   final double radiusChip;
+  final Color sunken;
 
   static const AppTheme light = AppTheme(
     sageGradient: AppPalette.sageGradient,
@@ -49,6 +55,27 @@ class AppTheme extends ThemeExtension<AppTheme> {
     radiusTile: AppDimens.radiusTile,
     radiusKey: AppDimens.radiusKey,
     radiusChip: AppDimens.radiusChip,
+    sunken: AppPalette.sunkenCream,
+    sageGradientMid: const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      stops: <double>[0.0, 0.55, 1.0],
+      colors: <Color>[
+        Color(0xFFE3EFD4),
+        Color(0xFFC9E2B4),
+        Color(0xFFAED494),
+      ],
+    ),
+    sageGradientLight: const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      stops: <double>[0.0, 0.6, 1.0],
+      colors: <Color>[
+        Color(0xFFEAF3DD),
+        Color(0xFFD7E8C4),
+        Color(0xFFC2DEA8),
+      ],
+    ),
   );
 
   static const AppTheme dark = AppTheme(
@@ -66,7 +93,8 @@ class AppTheme extends ThemeExtension<AppTheme> {
       BoxShadow(color: Color(0x40000000), blurRadius: 8, offset: Offset(0, 2)),
     ],
     shadowMd: [
-      BoxShadow(color: Color(0x66000000), blurRadius: 30, offset: Offset(0, 10)),
+      BoxShadow(
+          color: Color(0x66000000), blurRadius: 30, offset: Offset(0, 10)),
     ],
     shadowSage: [
       BoxShadow(color: Color(0x667C9E72), blurRadius: 18, offset: Offset(0, 8)),
@@ -76,6 +104,27 @@ class AppTheme extends ThemeExtension<AppTheme> {
     radiusTile: AppDimens.radiusTile,
     radiusKey: AppDimens.radiusKey,
     radiusChip: AppDimens.radiusChip,
+    sunken: const Color(0xFF2E3128),
+    sageGradientMid: const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      stops: <double>[0.0, 0.55, 1.0],
+      colors: <Color>[
+        Color(0xFF42553A),
+        Color(0xFF35452E),
+        Color(0xFF2A3823),
+      ],
+    ),
+    sageGradientLight: const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      stops: <double>[0.0, 0.6, 1.0],
+      colors: <Color>[
+        Color(0xFF3A4A33),
+        Color(0xFF2F3D29),
+        Color(0xFF26331F),
+      ],
+    ),
   );
 
   @override
@@ -90,10 +139,15 @@ class AppTheme extends ThemeExtension<AppTheme> {
     double? radiusTile,
     double? radiusKey,
     double? radiusChip,
+    Color? sunken,
+    Gradient? sageGradientMid,
+    Gradient? sageGradientLight,
   }) {
     return AppTheme(
       sageGradient: sageGradient ?? this.sageGradient,
       sageGradientSoft: sageGradientSoft ?? this.sageGradientSoft,
+      sageGradientMid: sageGradientMid ?? this.sageGradientMid,
+      sageGradientLight: sageGradientLight ?? this.sageGradientLight,
       shadowSm: shadowSm ?? this.shadowSm,
       shadowMd: shadowMd ?? this.shadowMd,
       shadowSage: shadowSage ?? this.shadowSage,
@@ -102,6 +156,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
       radiusTile: radiusTile ?? this.radiusTile,
       radiusKey: radiusKey ?? this.radiusKey,
       radiusChip: radiusChip ?? this.radiusChip,
+      sunken: sunken ?? this.sunken,
     );
   }
 
@@ -120,6 +175,11 @@ class AppTheme extends ThemeExtension<AppTheme> {
       radiusTile: radiusTile + (other.radiusTile - radiusTile) * t,
       radiusKey: radiusKey + (other.radiusKey - radiusKey) * t,
       radiusChip: radiusChip + (other.radiusChip - radiusChip) * t,
+      sunken: Color.lerp(sunken, other.sunken, t)!,
+      sageGradientMid:
+          Gradient.lerp(sageGradientMid, other.sageGradientMid, t)!,
+      sageGradientLight:
+          Gradient.lerp(sageGradientLight, other.sageGradientLight, t)!,
     );
   }
 }
@@ -161,6 +221,10 @@ class AppThemeData {
         backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
         elevation: 0,
+        // M3 AppBar 在「scrolled under」（含下拉过载）会叠 surfaceTint，
+        // 显式关掉保证标题栏任何状态下都透出 scaffold 底色。
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         // 全应用标题统一居中（与报销/借还/退款等自定义居中标题栏一致）。
         centerTitle: true,
         // AppTextStyles.title 本体无颜色（见 app_text_styles.dart 铁律），
@@ -197,7 +261,7 @@ class AppThemeData {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppPalette.ctaGreen,
+          backgroundColor: scheme.primary,
           foregroundColor: scheme.onPrimary,
           minimumSize: const Size.fromHeight(AppDimens.minTouch),
           shape:

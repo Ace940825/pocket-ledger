@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../theme/app_colors.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/loading_state.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../data/reimbursement_repository.dart';
@@ -83,13 +87,14 @@ class _ReimbursementBillPickerPageState
     }
 
     return Scaffold(
-      backgroundColor: ForestBg.paper,
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        backgroundColor: ForestBg.paper,
+        backgroundColor: context.colors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: ForestNeutral.textPrimary),
+        iconTheme:
+            IconThemeData(color: Theme.of(context).colorScheme.onSurface),
         title: const Text('选择账单'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
@@ -139,16 +144,10 @@ class _ReimbursementBillPickerPageState
           final (List<Transaction> branch, List<Transaction> loose) =
               _split(list);
           if (branch.isEmpty && loose.isEmpty) {
-            return const Center(
-              child: Text(
-                '暂无可提取的报销账单',
-                style: TextStyle(color: ForestNeutral.textTertiary),
-              ),
-            );
+            return const EmptyState(message: '暂无可提取的报销账单');
           }
           // 每笔账单的累计已报（台账合计，旧数据按收入流水兜底）。
-          final Map<String, int> receivedMap =
-              _receivedMap();
+          final Map<String, int> receivedMap = _receivedMap();
           return Column(
             children: <Widget>[
               Expanded(
@@ -171,10 +170,8 @@ class _ReimbursementBillPickerPageState
             ],
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: _SageGreen.b),
-        ),
-        error: (Object e, _) => Center(child: Text('加载失败：$e')),
+        loading: () => const LoadingState(message: '正在加载账单…'),
+        error: (Object e, _) => ErrorState(message: '加载失败：$e'),
       ),
     );
   }
@@ -216,8 +213,8 @@ class _ReimbursementBillPickerPageState
     for (final Reimbursement r in records) {
       if (r.transactionId == null) continue;
       final List<ReimbAllocEntry> allocs = parseReimbAllocs(r.incomeAllocs);
-      int amt = allocs.fold<int>(
-          0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
+      int amt =
+          allocs.fold<int>(0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
       if (amt == 0 && r.incomeTransactionId != null) {
         amt = ref
                 .watch(transactionDetailProvider(r.incomeTransactionId!))
@@ -245,18 +242,18 @@ class _ReimbursementBillPickerPageState
             const SizedBox(width: 7),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: ForestNeutral.textSecondary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 6),
             Text(
               '$count 笔',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: ForestNeutral.textTertiary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -266,12 +263,12 @@ class _ReimbursementBillPickerPageState
   Widget _row(Transaction t, Map<String, Category> categories, int received) {
     final bool sel = _selected.contains(t.id);
     final Category? cat = categories[t.categoryId];
-    final Color tint = cat?.colorValue != null
-        ? Color(cat!.colorValue!)
-        : ForestGreen.deep;
+    final Color tint =
+        cat?.colorValue != null ? Color(cat!.colorValue!) : ForestGreen.deep;
     final String? rbCatKey = cat?.iconKey;
     final Widget leadIcon = rbCatKey != null && rbCatKey.isNotEmpty
-        ? LineIcon(categoryLineKind(rbCatKey) ?? LineIconKind.star, size: 22, color: tint)
+        ? LineIcon(categoryLineKind(rbCatKey) ?? LineIconKind.star,
+            size: 22, color: tint)
         : Icon(Icons.north_east, color: tint, size: 22);
     final String title =
         cat?.name ?? (t.note?.isNotEmpty == true ? t.note! : '支出');
@@ -288,9 +285,10 @@ class _ReimbursementBillPickerPageState
       onTap: () => _toggle(t.id),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: const BoxDecoration(
-          color: ForestSurface.card,
-          border: Border(bottom: BorderSide(color: ForestNeutral.hairline)),
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          border: Border(
+              bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -316,10 +314,10 @@ class _ReimbursementBillPickerPageState
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: ForestNeutral.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -348,14 +346,16 @@ class _ReimbursementBillPickerPageState
                   const SizedBox(height: 3),
                   Text(
                     DateFormat('y年M月d日').format(occurred),
-                    style: const TextStyle(
-                        fontSize: 12, color: ForestNeutral.textTertiary),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 1),
                   Text(
                     DateFormat('HH:mm').format(occurred),
-                    style: const TextStyle(
-                        fontSize: 12, color: ForestNeutral.textTertiary),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -366,10 +366,10 @@ class _ReimbursementBillPickerPageState
               children: <Widget>[
                 Text(
                   Money.fromMinor(t.amountMinor).format(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: ForestNeutral.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 if (received > 0) ...<Widget>[
@@ -418,23 +418,21 @@ class _ReimbursementBillPickerPageState
               : null,
         ),
         child: sel
-            ? Icon(Icons.check, size: 13, color: Theme.of(context).colorScheme.onPrimary)
+            ? Icon(Icons.check,
+                size: 13, color: Theme.of(context).colorScheme.onPrimary)
             : null,
       );
 
   Widget _confirmFooter() {
     final int count = _selected.length;
-    return Container(
-      decoration: const BoxDecoration(
-        color: ForestSurface.card,
-        border: Border(top: BorderSide(color: ForestNeutral.hairline)),
-      ),
+    return BottomActionBar(
       padding: EdgeInsets.fromLTRB(
         16,
         10,
         16,
         10 + MediaQuery.of(context).padding.bottom,
       ),
+      useSafeArea: false,
       child: SizedBox(
         width: double.infinity,
         height: 50,

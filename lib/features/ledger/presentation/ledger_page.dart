@@ -4,14 +4,16 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../../core/constants/app_dimens.dart';
-import '../../../../shared/models/money.dart';
-import '../../../../shared/widgets/app_toast.dart';
-import '../../../../shared/widgets/calendar_sheet.dart';
-import '../../../../shared/widgets/empty_state.dart';
-import '../../../../shared/widgets/section_header.dart';
-import '../../../../theme/app_colors.dart';
+import '../../../core/constants/app_dimens.dart';
+import '../../../shared/models/money.dart';
+import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/section_header.dart';
+import '../../../theme/app_colors.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../record/providers/recording_settings_provider.dart';
@@ -108,7 +110,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         ref.watch(periodTransactionsProvider);
     final AsyncValue<int> income = ref.watch(periodIncomeProvider);
     final AsyncValue<int> expense = ref.watch(periodExpenseProvider);
-    final LedgerAdvancedFilter? advFilter = ref.watch(ledgerAdvancedFilterProvider);
+    final LedgerAdvancedFilter? advFilter =
+        ref.watch(ledgerAdvancedFilterProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -127,12 +130,11 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         data: (List<Transaction> all) {
           final _PeriodStats stats = _PeriodStats.from(all);
           final Map<String, Category> catById = <String, Category>{
-            for (final Category c in ref.watch(allCategoriesProvider).value ??
-                const <Category>[])
+            for (final Category c
+                in ref.watch(allCategoriesProvider).value ?? const <Category>[])
               c.id: c,
           };
-          final List<Transaction> list =
-              _applyFilter(all, advFilter, catById);
+          final List<Transaction> list = _applyFilter(all, advFilter, catById);
           if (_sortByAmount) {
             // 按金额（实付口径）降序；并列时按时间倒序兜底。
             list.sort((Transaction a, Transaction b) {
@@ -145,52 +147,53 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
           return TxnSlidableGroup(
             child: CustomScrollView(
-            slivers: <Widget>[
-              // ── 副标题行：左周期切换 / 右筛选 ──
-              SliverToBoxAdapter(
-                  child: _subtitleRow(context, period, advFilter)),
-              // ── 统计卡：周期收支 + 选中日/月摘要 + 支出柱状图 ──
-              SliverToBoxAdapter(
-                child: _statsCard(context, stats, income, expense, period),
-              ),
-              // ── 周期结余 / 日均支出卡 ──
-              SliverToBoxAdapter(
-                child: _balanceCard(income, expense, period),
-              ),
-              // ── 账单明细节头 + 排序胶囊 ──
-              SliverToBoxAdapter(child: _detailHeader(list.length)),
-              if (list.isEmpty)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 72),
-                    child: EmptyState(message: '当前周期暂无符合条件的账单'),
-                  ),
-                )
-              else
-                SliverList.builder(
-                  itemCount: list.length,
-                  itemBuilder: (BuildContext context, int index) {
-                    final Transaction txn = list[index];
-                    final bool showHeader = index == 0 ||
-                        !_isSameDay(list[index - 1].occurredAt, txn.occurredAt);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        if (showHeader) _dayHeader(txn.occurredAt, list),
-                        TxnSlidable(
-                          txn: txn,
-                          child: TransactionTile(
-                            transaction: txn,
-                            onTap: () =>
-                                TransactionDetailSheet.show(context, txn),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+              slivers: <Widget>[
+                // ── 副标题行：左周期切换 / 右筛选 ──
+                SliverToBoxAdapter(
+                    child: _subtitleRow(context, period, advFilter)),
+                // ── 统计卡：周期收支 + 选中日/月摘要 + 支出柱状图 ──
+                SliverToBoxAdapter(
+                  child: _statsCard(context, stats, income, expense, period),
                 ),
-              const SliverToBoxAdapter(child: SizedBox(height: 96)),
-            ],
+                // ── 周期结余 / 日均支出卡 ──
+                SliverToBoxAdapter(
+                  child: _balanceCard(income, expense, period),
+                ),
+                // ── 账单明细节头 + 排序胶囊 ──
+                SliverToBoxAdapter(child: _detailHeader(list.length)),
+                if (list.isEmpty)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 72),
+                      child: EmptyState(message: '当前周期暂无符合条件的账单'),
+                    ),
+                  )
+                else
+                  SliverList.builder(
+                    itemCount: list.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final Transaction txn = list[index];
+                      final bool showHeader = index == 0 ||
+                          !_isSameDay(
+                              list[index - 1].occurredAt, txn.occurredAt);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          if (showHeader) _dayHeader(txn.occurredAt, list),
+                          TxnSlidable(
+                            txn: txn,
+                            child: TransactionTile(
+                              transaction: txn,
+                              onTap: () =>
+                                  TransactionDetailSheet.show(context, txn),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 96)),
+              ],
             ),
           );
         },
@@ -200,8 +203,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
   // ────────────────────────── 副标题行 ──────────────────────────
 
-  Widget _subtitleRow(
-      BuildContext context, LedgerPeriod period, LedgerAdvancedFilter? advFilter) {
+  Widget _subtitleRow(BuildContext context, LedgerPeriod period,
+      LedgerAdvancedFilter? advFilter) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.spaceLg,
@@ -226,16 +229,16 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                 children: <Widget>[
                   Text(
                     period.label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.keyboard_arrow_down,
                     size: 20,
-                    color: AppPalette.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ],
               ),
@@ -257,7 +260,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                     Icons.tune,
                     size: 18,
                     color: (advFilter?.isEmpty ?? true)
-                        ? AppPalette.textPrimary
+                        ? Theme.of(context).colorScheme.onSurface
                         : AppPalette.ctaGreen,
                   ),
                   const SizedBox(width: 4),
@@ -269,7 +272,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: (advFilter?.isEmpty ?? true)
-                          ? AppPalette.textPrimary
+                          ? Theme.of(context).colorScheme.onSurface
                           : AppPalette.ctaGreen,
                     ),
                   ),
@@ -328,13 +331,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
-      child: Container(
+      child: HairlineCard(
         padding: const EdgeInsets.all(AppDimens.spaceLg),
-        decoration: BoxDecoration(
-          color: AppPalette.cream,
-          borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-          border: Border.all(color: AppPalette.hairline),
-        ),
+        radius: AppDimens.radiusLg,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -364,8 +363,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                 '$bucketLabel'
                 '${_showExpense ? '  支出 ${Money.fromMinor(onBucketExpense).format()}' : ''}'
                 '${_showIncome ? '  收入 ${Money.fromMinor(onBucketIncome).format()}' : ''}',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppPalette.textTertiary),
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
             const SizedBox(height: AppDimens.spaceSm),
@@ -386,7 +385,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     bool enabled = true,
     VoidCallback? onTap,
   }) {
-    final Color textColor = enabled ? color : AppPalette.textTertiary;
+    final Color textColor =
+        enabled ? color : Theme.of(context).colorScheme.onSurfaceVariant;
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: onTap,
@@ -399,7 +399,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: enabled ? color : AppPalette.textTertiary,
+                color: enabled
+                    ? color
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
                 shape: BoxShape.circle,
                 border: enabled
                     ? null
@@ -471,9 +473,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           final DateTime m0 = months[i];
           final bool last = i == count - 1;
           if (count > 12) {
-            return (i % 3 == 0 || last)
-                ? '${m0.year}年${m0.month}月'
-                : null;
+            return (i % 3 == 0 || last) ? '${m0.year}年${m0.month}月' : null;
           }
           return (i % 3 == 0 || last) ? '${m0.month}月' : null;
         },
@@ -493,14 +493,20 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     }
     count = period.dayCount;
     maxY = shownMaxY(expValues, incValues);
-    final int selIndex =
-        DateTime(effective.year, effective.month, effective.day)
-                .difference(DateTime(period.start.year, period.start.month,
-                    period.start.day))
-                .inDays
-            .clamp(0, count - 1);
+    final int selIndex = DateTime(
+            effective.year, effective.month, effective.day)
+        .difference(
+            DateTime(period.start.year, period.start.month, period.start.day))
+        .inDays
+        .clamp(0, count - 1);
     const List<String> weekdayLabels = <String>[
-      '周一', '周二', '周三', '周四', '周五', '周六', '周日',
+      '周一',
+      '周二',
+      '周三',
+      '周四',
+      '周五',
+      '周六',
+      '周日',
     ];
 
     return _barChart(
@@ -656,9 +662,11 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                             labelFor(i) ?? '',
                             maxLines: 1,
                             softWrap: false,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              color: AppPalette.textTertiary,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -684,8 +692,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
       final double cur = ctrl.offset;
       if (target < cur + cellW / 2 || target > cur + viewport - cellW / 2) {
         ctrl.jumpTo(
-          (target - viewport / 2)
-              .clamp(0.0, ctrl.position.maxScrollExtent),
+          (target - viewport / 2).clamp(0.0, ctrl.position.maxScrollExtent),
         );
       }
     });
@@ -723,9 +730,11 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                                 labelFor(i) ?? '',
                                 maxLines: 1,
                                 softWrap: false,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 10,
-                                  color: AppPalette.textTertiary,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                               ),
                             ),
@@ -771,23 +780,22 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         AppDimens.spaceLg,
         0,
       ),
-      child: Container(
+      child: HairlineCard(
+        backgroundColor: context.colors.surface,
+        borderColor: Theme.of(context).colorScheme.outline,
+        radius: AppDimens.radiusLg,
         padding: const EdgeInsets.symmetric(
           horizontal: AppDimens.spaceLg,
           vertical: AppDimens.spaceMd,
-        ),
-        decoration: BoxDecoration(
-          color: AppPalette.cream,
-          borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-          border: Border.all(color: AppPalette.hairline),
         ),
         child: Row(
           children: <Widget>[
             // 金额包 FittedBox(scaleDown)：宽度不够整体等比缩小（7 位数可
             // 完整显示），绝不拆行，负号不会与数字分离（与报表页同款）。
             Text('$prefix结余：',
-                style: const TextStyle(
-                    fontSize: 13, color: AppPalette.textPrimary)),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface)),
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
@@ -806,9 +814,10 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
               ),
             ),
             const SizedBox(width: AppDimens.spaceLg),
-            const Text('日均支出：',
+            Text('日均支出：',
                 style: TextStyle(
-                    fontSize: 13, color: AppPalette.textPrimary)),
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface)),
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
@@ -842,9 +851,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           children: <Widget>[
             Text(
               '$count笔',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppPalette.textTertiary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 10),
@@ -861,9 +870,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                 ),
                 child: Text(
                   _sortByAmount ? '按金额' : '按时间',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -910,18 +919,18 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         children: <Widget>[
           Text(
             '${DateFormat('M月d日').format(date)}$relative',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppPalette.textTertiary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const Spacer(),
           Text(
             '$count笔',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppPalette.textTertiary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -939,6 +948,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
   /// 周列表上下留白，使选中框固定落在内容区正中。
   static const double _kWeekCenterPad = (_kSheetBodyHeight - _kW) / 2;
+
   /// 周期选择：调用全局共用日历组件（纯周期模式 showDayView:false，
   /// 周/月/年/自定义），确认后写回 [ledgerPeriodProvider]。
   Future<void> _pickPeriod(BuildContext context, LedgerPeriod current) async {
@@ -971,8 +981,6 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     }
   }
 
-
-
   // ────────────────────────── 筛选 ──────────────────────────
 
   /// 打开独立筛选页；「查询」带回结果后写入 provider 触发明细刷新。
@@ -997,8 +1005,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
   /// 按高级筛选条件过滤明细（共享口径见
   /// [applyLedgerAdvancedFilter]，账单页与报表页一致）。
-  List<Transaction> _applyFilter(
-      List<Transaction> all, LedgerAdvancedFilter? f,
+  List<Transaction> _applyFilter(List<Transaction> all, LedgerAdvancedFilter? f,
       Map<String, Category> catById) {
     return applyLedgerAdvancedFilter(all, f, catById);
   }
@@ -1042,8 +1049,8 @@ class _PeriodStats {
       }
       switch (t.type) {
         case TxnType.expense:
-          dailyExpense[day] = (dailyExpense[day] ?? 0) +
-              (t.amountMinor - t.discountMinor);
+          dailyExpense[day] =
+              (dailyExpense[day] ?? 0) + (t.amountMinor - t.discountMinor);
         case TxnType.income:
           dailyIncome[day] = (dailyIncome[day] ?? 0) + t.amountMinor;
         case TxnType.transfer:

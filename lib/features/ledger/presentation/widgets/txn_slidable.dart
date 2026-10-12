@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
@@ -159,25 +160,12 @@ class TxnSlidable extends ConsumerWidget {
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: const Text('删除流水'),
-        content: const Text('删除后账户余额会相应回滚，此操作不可撤销。'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              '删除',
-              style: TextStyle(color: AppPalette.danger),
-            ),
-          ),
-        ],
-      ),
+    final bool? confirm = await     showConfirm(
+      context,
+      title: '删除流水',
+      content: '删除后账户余额会相应回滚，此操作不可撤销。',
+      confirmText: '删除',
+      danger: true,
     );
     if (confirm != true || !context.mounted) return;
     try {
@@ -253,7 +241,8 @@ class TxnSlideAction extends StatelessWidget {
             border: Border.all(color: color.withValues(alpha: 0.20)),
           ),
           alignment: Alignment.center,
-          child: Icon(icon, size: 24, color: color, semanticLabel: semanticLabel),
+          child:
+              Icon(icon, size: 24, color: color, semanticLabel: semanticLabel),
         ),
       ),
     );

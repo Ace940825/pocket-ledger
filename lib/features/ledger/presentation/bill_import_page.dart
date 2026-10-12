@@ -202,7 +202,8 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     final String? cached = cache[key];
     if (cached != null) return cached;
     for (final Category c in categories) {
-      if (c.type == type && c.name.trim().toLowerCase() == name.trim().toLowerCase()) {
+      if (c.type == type &&
+          c.name.trim().toLowerCase() == name.trim().toLowerCase()) {
         cache[key] = c.id;
         return c.id;
       }
@@ -249,64 +250,65 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
               ),
               children: <Widget>[
                 if (widget.initialDraft == null) ...<Widget>[
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppPalette.softGreen,
-                    borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-                  ),
-                  padding: const EdgeInsets.all(AppDimens.spaceMd),
-                  child: const Text(
-                    '粘贴本 App 导出的 CSV / JSON 内容，或点「选择文件」从本地任选 '
-                    '.csv / .json。账户 / 分类按名称归户，'
-                    '缺失项会自动创建（账户默认现金类）。',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: AppPalette.textSecondary,
-                      height: 1.5,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppPalette.softGreen,
+                      borderRadius: BorderRadius.circular(AppDimens.radiusLg),
                     ),
-                  ),
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppPalette.white,
-                    borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                  child: TextField(
-                    controller: _text,
-                    maxLines: 8,
-                    minLines: 5,
-                    decoration: const InputDecoration(
-                      hintText: '在此粘贴 CSV 或 JSON 内容…',
-                      border: InputBorder.none,
-                      hintStyle: TextStyle(fontSize: 13),
-                    ),
-                    style: const TextStyle(fontSize: 13, height: 1.5),
-                  ),
-                ),
-                const SizedBox(height: AppDimens.spaceSm),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _pickFile,
-                        icon: const Icon(Icons.folder_open_outlined, size: 18),
-                        label: const Text('选择文件'),
-                        style: _outlineStyle(),
+                    padding: const EdgeInsets.all(AppDimens.spaceMd),
+                    child: Text(
+                      '粘贴本 App 导出的 CSV / JSON 内容，或点「选择文件」从本地任选 '
+                      '.csv / .json。账户 / 分类按名称归户，'
+                      '缺失项会自动创建（账户默认现金类）。',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.5,
                       ),
                     ),
-                    const SizedBox(width: AppDimens.spaceSm),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _text.text.trim().isEmpty ? null : _parse,
-                        icon: const Icon(Icons.preview_outlined, size: 18),
-                        label: const Text('解析预览'),
-                        style: _outlineStyle(),
-                      ),
+                  ),
+                  const SizedBox(height: AppDimens.spaceMd),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppPalette.white,
+                      borderRadius: BorderRadius.circular(AppDimens.radiusLg),
                     ),
-                  ],
-                ),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                    child: TextField(
+                      controller: _text,
+                      maxLines: 8,
+                      minLines: 5,
+                      decoration: const InputDecoration(
+                        hintText: '在此粘贴 CSV 或 JSON 内容…',
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(fontSize: 13),
+                      ),
+                      style: const TextStyle(fontSize: 13, height: 1.5),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimens.spaceSm),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _pickFile,
+                          icon:
+                              const Icon(Icons.folder_open_outlined, size: 18),
+                          label: const Text('选择文件'),
+                          style: _outlineStyle(),
+                        ),
+                      ),
+                      const SizedBox(width: AppDimens.spaceSm),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _text.text.trim().isEmpty ? null : _parse,
+                          icon: const Icon(Icons.preview_outlined, size: 18),
+                          label: const Text('解析预览'),
+                          style: _outlineStyle(),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
                 if (_parsed != null) ..._previewSection(),
               ],
@@ -383,11 +385,13 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
             for (int i = 0; i < p.rows.length && i < 20; i++)
               _previewRow(p.rows[i]),
             if (p.rows.length > 20)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 6),
                 child: Text(
                   '… 仅预览前 20 笔',
-                  style: TextStyle(fontSize: 12, color: AppPalette.textSecondary),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ),
             if (p.hasErrors) ...<Widget>[
@@ -406,9 +410,9 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
                     '· $e',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppPalette.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -464,7 +468,8 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
           Expanded(
             child: Text(
               accountLine,
-              style: const TextStyle(fontSize: 13, color: AppPalette.textPrimary),
+              style: TextStyle(
+                  fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -496,10 +501,10 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
               padding: const EdgeInsets.only(bottom: AppDimens.spaceSm),
               child: Text(
                 _resultMsg!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppPalette.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),

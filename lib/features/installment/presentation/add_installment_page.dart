@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
+import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
+import 'package:pocket_ledger/shared/widgets/app_button.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +20,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/money_text.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/repeat_picker_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -294,7 +300,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               Text(
                 '购买商品时进行分期',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppPalette.textTertiary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 12,
                 ),
               ),
@@ -339,18 +345,16 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
-                    color: AppPalette.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
             ),
           ],
         ),
         const SizedBox(height: AppDimens.spaceMd),
-        Container(
+        HairlineCard(
+          radius: 16,
           padding: const EdgeInsets.all(AppDimens.spaceMd),
-          decoration: BoxDecoration(
-            color: AppPalette.surfaceLight,
-            borderRadius: BorderRadius.circular(16),
-          ),
+          borderWidth: 0,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: _insertDividers(children),
@@ -365,8 +369,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     for (int i = 0; i < children.length; i++) {
       result.add(children[i]);
       if (i < children.length - 1) {
-        result.add(const Divider(
-            height: 24, thickness: 1, color: AppPalette.hairline));
+        result.add(const Divider(height: 24, thickness: 1));
       }
     }
     return result;
@@ -400,14 +403,14 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       hintStyle: Theme.of(context)
           .textTheme
           .bodyMedium
-          ?.copyWith(color: AppPalette.textTertiary),
+          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
       prefixIcon: effectivePrefixIcon,
       prefixIconConstraints: BoxConstraints(
         minWidth: hasRealPrefix || useWidePlaceholder ? 44 : 0,
         minHeight: 24,
       ),
       filled: true,
-      fillColor: Theme.of(context).colorScheme.surface,
+      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppDimens.spaceMd,
         vertical: AppDimens.spaceXs / 2,
@@ -548,7 +551,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           Text(
             DateFormat('yyyy年M月d日').format(value),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppPalette.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
         ],
@@ -584,7 +587,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppPalette.textTertiary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -596,7 +599,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           Text(
             value,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppPalette.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
         ],
@@ -688,14 +691,9 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     required ValueChanged<String> onSelected,
   }) async {
     FocusManager.instance.primaryFocus?.unfocus();
-    final String? result = await showModalBottomSheet<String>(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusLg),
-        ),
-      ),
-      builder: (BuildContext ctx) => SafeArea(
+    final String? result = await showAppModalSheet<String>(
+      context,
+      body: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -703,7 +701,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               padding: const EdgeInsets.all(AppDimens.spaceMd),
               child: Text(
                 title,
-                style: Theme.of(ctx).textTheme.titleSmall,
+                style: Theme.of(context).textTheme.titleSmall,
               ),
             ),
             const Divider(height: 1),
@@ -758,8 +756,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   selected?.name ?? '请选择负债账户',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: selected != null
-                            ? AppPalette.textPrimary
-                            : AppPalette.textTertiary,
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ),
@@ -818,8 +816,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         onTap: () {},
         child: Row(
           children: <Widget>[
-            CircleAvatar(
-              radius: 14,
+            AvatarTile(
+              size: 28,
               backgroundColor: AppPalette.sage500,
               child: Text(
                 '账',
@@ -840,7 +838,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   Text(
                     '默认账本',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppPalette.textTertiary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 ],
@@ -876,8 +874,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   selected?.name ?? '分类',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: selected != null
-                            ? AppPalette.textPrimary
-                            : AppPalette.textTertiary,
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ),
@@ -968,7 +966,9 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                                 ? Icon(
                                     Icons.chevron_right,
                                     size: 20,
-                                    color: AppPalette.textTertiary,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                   )
                                 : (category.id == _categoryId
                                     ? const Icon(
@@ -1016,23 +1016,21 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   }
 
   Widget _buildFooter() {
-    return Container(
+    return BottomActionBar(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.spaceLg,
         AppDimens.spaceMd,
         AppDimens.spaceLg,
         AppDimens.spaceLg,
       ),
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceLight,
-        border: Border(top: BorderSide(color: AppPalette.hairline)),
-      ),
+      useSafeArea: false,
       child: Row(
         children: <Widget>[
           Expanded(
-            child: OutlinedButton(
+            child: OutlinedAppButton(
+              label: '预览',
               onPressed: _saving ? null : _preview,
-              child: const Text('预览'),
+              fullWidth: false,
             ),
           ),
           const SizedBox(width: AppDimens.spaceMd),
@@ -1122,14 +1120,9 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       totalPeriods: _periods,
     );
 
-    showModalBottomSheet<void>(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusLg),
-        ),
-      ),
-      builder: (BuildContext ctx) => SafeArea(
+    showAppModalSheet<void>(
+      context,
+      body: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -1137,7 +1130,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               padding: const EdgeInsets.all(AppDimens.spaceMd),
               child: Text(
                 name.isEmpty ? '分期预览' : '「$name」预览',
-                style: Theme.of(ctx).textTheme.titleSmall,
+                style: Theme.of(context).textTheme.titleSmall,
               ),
             ),
             const Divider(height: 1),
@@ -1162,7 +1155,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                     subtitle: Text(
                       DateFormat('yyyy-MM-dd').format(dueDates[index]),
                     ),
-                    trailing: Text(Money.fromMinor(total).format()),
+                    trailing: MoneyText(Money.fromMinor(total)),
                   );
                 },
               ),
@@ -1280,7 +1273,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
         IconButton(
           icon: const Icon(Icons.remove_circle_outline),
           onPressed: widget.value <= widget.min ? null : _decrease,
-          color: AppPalette.textSecondary,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
         ),
@@ -1296,7 +1289,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     height: 1.0,
-                    color: AppPalette.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
               decoration: const InputDecoration(
                 isCollapsed: true,
@@ -1316,7 +1309,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
         IconButton(
           icon: const Icon(Icons.add_circle_outline),
           onPressed: widget.value >= widget.max ? null : _increase,
-          color: AppPalette.textSecondary,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
         ),

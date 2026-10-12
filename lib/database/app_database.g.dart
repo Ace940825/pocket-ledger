@@ -1717,6 +1717,10 @@ class Category extends DataClass implements Insertable<Category> {
   final int? colorValue;
   final int sortOrder;
   final bool isArchived;
+
+  /// 系统分类（借入/借出/转账/报销/退款/分期/存款等落账时由
+  /// [CategoryRepository.ensureNamed] 自动重建挂分类）：用户分类管理/图标
+  /// 选择器隐藏，仅用于流水挂分类与统计聚合。
   final bool isSystem;
   const Category(
       {required this.updatedAt,
@@ -1907,8 +1911,21 @@ class Category extends DataClass implements Insertable<Category> {
   }
 
   @override
-  int get hashCode => Object.hash(updatedAt, deleted, dirty, syncedAt, id,
-      bookId, name, type, parentId, iconKey, colorValue, sortOrder, isArchived, isSystem);
+  int get hashCode => Object.hash(
+      updatedAt,
+      deleted,
+      dirty,
+      syncedAt,
+      id,
+      bookId,
+      name,
+      type,
+      parentId,
+      iconKey,
+      colorValue,
+      sortOrder,
+      isArchived,
+      isSystem);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2323,6 +2340,12 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> placeName = GeneratedColumn<String>(
       'place_name', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         updatedAt,
@@ -2352,7 +2375,8 @@ class $TransactionsTable extends Transactions
         reimbursementAccountId,
         latitude,
         longitude,
-        placeName
+        placeName,
+        createdAt
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2501,6 +2525,10 @@ class $TransactionsTable extends Transactions
       context.handle(_placeNameMeta,
           placeName.isAcceptableOrUnknown(data['place_name']!, _placeNameMeta));
     }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
     return context;
   }
 
@@ -2569,6 +2597,8 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.double, data['${effectivePrefix}longitude']),
       placeName: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}place_name']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at']),
     );
   }
 
@@ -2640,9 +2670,21 @@ class Transaction extends DataClass implements Insertable<Transaction> {
 
   /// 报销账户：报销支出关联的「报销」类型账户；未选择时为 null。
   final String? reimbursementAccountId;
+
+  /// 位置：纬度（度）。记一笔时可选附加当前 GPS 位置，仅本地存储。
   final double? latitude;
+
+  /// 位置：经度（度）。
   final double? longitude;
+
+  /// 位置：逆地理编码地名（如「北京市朝阳区xx路」），可为空。
   final String? placeName;
+
+  /// 真实记录时间（UTC 毫秒）：本行流水被「记入账本」的时刻。
+  /// 与 [occurredAt]（业务发生时间，记一笔时可手动改到过去）解耦——
+  /// 「坚持记账第 X 天」按此列算，保证天数反映真实记账起点、不受改业务日期影响。
+  /// 可空：老库迁移时回填为 [occurredAt]（见数据库 v34 迁移）。
+  final int? createdAt;
   const Transaction(
       {required this.updatedAt,
       required this.deleted,
@@ -2671,7 +2713,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.reimbursementAccountId,
       this.latitude,
       this.longitude,
-      this.placeName});
+      this.placeName,
+      this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2734,6 +2777,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     if (!nullToAbsent || placeName != null) {
       map['place_name'] = Variable<String>(placeName);
     }
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<int>(createdAt);
+    }
     return map;
   }
 
@@ -2787,6 +2833,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       placeName: placeName == null && nullToAbsent
           ? const Value.absent()
           : Value(placeName),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
     );
   }
 
@@ -2825,6 +2874,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       latitude: serializer.fromJson<double?>(json['latitude']),
       longitude: serializer.fromJson<double?>(json['longitude']),
       placeName: serializer.fromJson<String?>(json['placeName']),
+      createdAt: serializer.fromJson<int?>(json['createdAt']),
     );
   }
   @override
@@ -2862,6 +2912,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'latitude': serializer.toJson<double?>(latitude),
       'longitude': serializer.toJson<double?>(longitude),
       'placeName': serializer.toJson<String?>(placeName),
+      'createdAt': serializer.toJson<int?>(createdAt),
     };
   }
 
@@ -2893,7 +2944,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<String?> reimbursementAccountId = const Value.absent(),
           Value<double?> latitude = const Value.absent(),
           Value<double?> longitude = const Value.absent(),
-          Value<String?> placeName = const Value.absent()}) =>
+          Value<String?> placeName = const Value.absent(),
+          Value<int?> createdAt = const Value.absent()}) =>
       Transaction(
         updatedAt: updatedAt ?? this.updatedAt,
         deleted: deleted ?? this.deleted,
@@ -2928,6 +2980,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         latitude: latitude.present ? latitude.value : this.latitude,
         longitude: longitude.present ? longitude.value : this.longitude,
         placeName: placeName.present ? placeName.value : this.placeName,
+        createdAt: createdAt.present ? createdAt.value : this.createdAt,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -2979,6 +3032,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       latitude: data.latitude.present ? data.latitude.value : this.latitude,
       longitude: data.longitude.present ? data.longitude.value : this.longitude,
       placeName: data.placeName.present ? data.placeName.value : this.placeName,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
 
@@ -3012,7 +3066,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('reimbursementAccountId: $reimbursementAccountId, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
-          ..write('placeName: $placeName')
+          ..write('placeName: $placeName, ')
+          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
@@ -3046,7 +3101,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         reimbursementAccountId,
         latitude,
         longitude,
-        placeName
+        placeName,
+        createdAt
       ]);
   @override
   bool operator ==(Object other) =>
@@ -3079,7 +3135,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.reimbursementAccountId == this.reimbursementAccountId &&
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
-          other.placeName == this.placeName);
+          other.placeName == this.placeName &&
+          other.createdAt == this.createdAt);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -3111,6 +3168,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<double?> latitude;
   final Value<double?> longitude;
   final Value<String?> placeName;
+  final Value<int?> createdAt;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.updatedAt = const Value.absent(),
@@ -3141,6 +3199,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.placeName = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -3172,6 +3231,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.placeName = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : updatedAt = Value(updatedAt),
         id = Value(id),
@@ -3210,6 +3270,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<double>? latitude,
     Expression<double>? longitude,
     Expression<String>? placeName,
+    Expression<int>? createdAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3242,6 +3303,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (placeName != null) 'place_name': placeName,
+      if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3275,6 +3337,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<double?>? latitude,
       Value<double?>? longitude,
       Value<String?>? placeName,
+      Value<int?>? createdAt,
       Value<int>? rowid}) {
     return TransactionsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
@@ -3306,6 +3369,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       placeName: placeName ?? this.placeName,
+      createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3400,6 +3464,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (placeName.present) {
       map['place_name'] = Variable<String>(placeName.value);
     }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3437,6 +3504,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('placeName: $placeName, ')
+          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3566,14 +3634,15 @@ class $LendRecordsTable extends LendRecords
       defaultValue: const Constant(0));
   static const VerificationMeta _discountMinorMeta =
       const VerificationMeta('discountMinor');
-  static const VerificationMeta _graceDaysMeta =
-      const VerificationMeta('graceDays');
   @override
   late final GeneratedColumn<int> discountMinor = GeneratedColumn<int>(
       'discount_minor', aliasedName, false,
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _graceDaysMeta =
+      const VerificationMeta('graceDays');
+  @override
   late final GeneratedColumn<int> graceDays = GeneratedColumn<int>(
       'grace_days', aliasedName, false,
       type: DriftSqlType.int,
@@ -3600,7 +3669,7 @@ class $LendRecordsTable extends LendRecords
         toAccountId,
         feeMinor,
         discountMinor,
-        graceDays,
+        graceDays
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3698,8 +3767,10 @@ class $LendRecordsTable extends LendRecords
           feeMinor.isAcceptableOrUnknown(data['fee_minor']!, _feeMinorMeta));
     }
     if (data.containsKey('discount_minor')) {
-      context.handle(_discountMinorMeta,
-          discountMinor.isAcceptableOrUnknown(data['discount_minor']!, _discountMinorMeta));
+      context.handle(
+          _discountMinorMeta,
+          discountMinor.isAcceptableOrUnknown(
+              data['discount_minor']!, _discountMinorMeta));
     }
     if (data.containsKey('grace_days')) {
       context.handle(_graceDaysMeta,
@@ -3800,6 +3871,8 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
 
   /// 优惠 / 减免（分）。借入/借出时的减免金额。
   final int discountMinor;
+
+  /// 免息期（天）。信用卡类债务在免息期内还款不计利息；0 表示无免息期。
   final int graceDays;
   const LendRecord(
       {required this.updatedAt,
@@ -4025,9 +4098,7 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
       discountMinor: data.discountMinor.present
           ? data.discountMinor.value
           : this.discountMinor,
-      graceDays: data.graceDays.present
-          ? data.graceDays.value
-          : this.graceDays,
+      graceDays: data.graceDays.present ? data.graceDays.value : this.graceDays,
     );
   }
 
@@ -4052,7 +4123,7 @@ class LendRecord extends DataClass implements Insertable<LendRecord> {
           ..write('accountId: $accountId, ')
           ..write('toAccountId: $toAccountId, ')
           ..write('feeMinor: $feeMinor, ')
-          ..write('discountMinor: $discountMinor')
+          ..write('discountMinor: $discountMinor, ')
           ..write('graceDays: $graceDays')
           ..write(')'))
         .toString();
@@ -5692,12 +5763,6 @@ class $SavingsGoalsTable extends SavingsGoals
       context.handle(_accountIdMeta,
           accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
     }
-    if (data.containsKey('source_account_id')) {
-      context.handle(
-          _sourceAccountIdMeta,
-          sourceAccountId.isAcceptableOrUnknown(
-              data['source_account_id']!, _sourceAccountIdMeta));
-    }
     if (data.containsKey('deadline_at')) {
       context.handle(
           _deadlineAtMeta,
@@ -5744,6 +5809,36 @@ class $SavingsGoalsTable extends SavingsGoals
       context.handle(_startedAtMeta,
           startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta));
     }
+    if (data.containsKey('elastic_mode')) {
+      context.handle(
+          _elasticModeMeta,
+          elasticMode.isAcceptableOrUnknown(
+              data['elastic_mode']!, _elasticModeMeta));
+    }
+    if (data.containsKey('elastic_base_minor')) {
+      context.handle(
+          _elasticBaseMinorMeta,
+          elasticBaseMinor.isAcceptableOrUnknown(
+              data['elastic_base_minor']!, _elasticBaseMinorMeta));
+    }
+    if (data.containsKey('elastic_step_minor')) {
+      context.handle(
+          _elasticStepMinorMeta,
+          elasticStepMinor.isAcceptableOrUnknown(
+              data['elastic_step_minor']!, _elasticStepMinorMeta));
+    }
+    if (data.containsKey('elastic_percent_hundred')) {
+      context.handle(
+          _elasticPercentHundredMeta,
+          elasticPercentHundred.isAcceptableOrUnknown(
+              data['elastic_percent_hundred']!, _elasticPercentHundredMeta));
+    }
+    if (data.containsKey('source_account_id')) {
+      context.handle(
+          _sourceAccountIdMeta,
+          sourceAccountId.isAcceptableOrUnknown(
+              data['source_account_id']!, _sourceAccountIdMeta));
+    }
     return context;
   }
 
@@ -5775,8 +5870,6 @@ class $SavingsGoalsTable extends SavingsGoals
           .read(DriftSqlType.string, data['${effectivePrefix}currency'])!,
       accountId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}account_id']),
-      sourceAccountId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}source_account_id']),
       deadlineAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}deadline_at']),
       note: attachedDatabase.typeMapping
@@ -5801,8 +5894,10 @@ class $SavingsGoalsTable extends SavingsGoals
           .read(DriftSqlType.int, data['${effectivePrefix}elastic_base_minor']),
       elasticStepMinor: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}elastic_step_minor']),
-      elasticPercentHundred: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}elastic_percent_hundred']),
+      elasticPercentHundred: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}elastic_percent_hundred']),
+      sourceAccountId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}source_account_id']),
     );
   }
 
@@ -5853,7 +5948,7 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
   /// 弹性存钱法递增模式：1 = 金额模式（等差），2 = 百分比模式（等比）。
   final int elasticMode;
 
-  /// 弹性存钱法首期基础金额 N（分）。
+  /// 弹性存钱法首期基础金额 N（分）。排期第 1 期 = N，后续按模式递增。
   final int? elasticBaseMinor;
 
   /// 弹性「金额模式」递增系数（分）：第 i 期 = N + (i - 1) × step。
@@ -5863,6 +5958,10 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
   final int? elasticPercentHundred;
 
   /// 转出/扣款账户（存钱快捷属性，可空）。
+  ///
+  /// 计划级默认的「扣款来源」：创建 / 编辑页选中后落库，编辑页与
+  /// 「存钱」弹窗把它作为扣款账户的默认值回显（历史数据为 null，
+  /// 回退 = 页面态留空由用户选择）。与 [accountId]（入款账户）成对。
   final String? sourceAccountId;
   const SavingsGoal(
       {required this.updatedAt,
@@ -5885,7 +5984,7 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
       this.endNote,
       required this.depositCount,
       this.startedAt,
-      this.elasticMode = 1,
+      required this.elasticMode,
       this.elasticBaseMinor,
       this.elasticStepMinor,
       this.elasticPercentHundred,
@@ -6107,15 +6206,18 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
         depositCount: depositCount ?? this.depositCount,
         startedAt: startedAt.present ? startedAt.value : this.startedAt,
         elasticMode: elasticMode ?? this.elasticMode,
-        elasticBaseMinor:
-            elasticBaseMinor.present ? elasticBaseMinor.value : this.elasticBaseMinor,
-        elasticStepMinor:
-            elasticStepMinor.present ? elasticStepMinor.value : this.elasticStepMinor,
+        elasticBaseMinor: elasticBaseMinor.present
+            ? elasticBaseMinor.value
+            : this.elasticBaseMinor,
+        elasticStepMinor: elasticStepMinor.present
+            ? elasticStepMinor.value
+            : this.elasticStepMinor,
         elasticPercentHundred: elasticPercentHundred.present
             ? elasticPercentHundred.value
             : this.elasticPercentHundred,
-        sourceAccountId:
-            sourceAccountId.present ? sourceAccountId.value : this.sourceAccountId,
+        sourceAccountId: sourceAccountId.present
+            ? sourceAccountId.value
+            : this.sourceAccountId,
       );
   SavingsGoal copyWithCompanion(SavingsGoalsCompanion data) {
     return SavingsGoal(
@@ -6198,33 +6300,33 @@ class SavingsGoal extends DataClass implements Insertable<SavingsGoal> {
   }
 
   @override
-  int get hashCode => Object.hashAll(<Object?>[
-      updatedAt,
-      deleted,
-      dirty,
-      syncedAt,
-      id,
-      bookId,
-      name,
-      targetMinor,
-      currentMinor,
-      currency,
-      accountId,
-      deadlineAt,
-      note,
-      isAchieved,
-      isArchived,
-      mode,
-      repeatCycle,
-      endNote,
-      depositCount,
-      startedAt,
-      elasticMode,
-      elasticBaseMinor,
-      elasticStepMinor,
-      elasticPercentHundred,
-      sourceAccountId,
-    ]);
+  int get hashCode => Object.hashAll([
+        updatedAt,
+        deleted,
+        dirty,
+        syncedAt,
+        id,
+        bookId,
+        name,
+        targetMinor,
+        currentMinor,
+        currency,
+        accountId,
+        deadlineAt,
+        note,
+        isAchieved,
+        isArchived,
+        mode,
+        repeatCycle,
+        endNote,
+        depositCount,
+        startedAt,
+        elasticMode,
+        elasticBaseMinor,
+        elasticStepMinor,
+        elasticPercentHundred,
+        sourceAccountId
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -6364,6 +6466,11 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
     Expression<String>? endNote,
     Expression<int>? depositCount,
     Expression<int>? startedAt,
+    Expression<int>? elasticMode,
+    Expression<int>? elasticBaseMinor,
+    Expression<int>? elasticStepMinor,
+    Expression<int>? elasticPercentHundred,
+    Expression<String>? sourceAccountId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -6387,6 +6494,12 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
       if (endNote != null) 'end_note': endNote,
       if (depositCount != null) 'deposit_count': depositCount,
       if (startedAt != null) 'started_at': startedAt,
+      if (elasticMode != null) 'elastic_mode': elasticMode,
+      if (elasticBaseMinor != null) 'elastic_base_minor': elasticBaseMinor,
+      if (elasticStepMinor != null) 'elastic_step_minor': elasticStepMinor,
+      if (elasticPercentHundred != null)
+        'elastic_percent_hundred': elasticPercentHundred,
+      if (sourceAccountId != null) 'source_account_id': sourceAccountId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -6412,6 +6525,10 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
       Value<String?>? endNote,
       Value<int>? depositCount,
       Value<int?>? startedAt,
+      Value<int>? elasticMode,
+      Value<int?>? elasticBaseMinor,
+      Value<int?>? elasticStepMinor,
+      Value<int?>? elasticPercentHundred,
       Value<String?>? sourceAccountId,
       Value<int>? rowid}) {
     return SavingsGoalsCompanion(
@@ -6426,7 +6543,6 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
       currentMinor: currentMinor ?? this.currentMinor,
       currency: currency ?? this.currency,
       accountId: accountId ?? this.accountId,
-      sourceAccountId: sourceAccountId ?? this.sourceAccountId,
       deadlineAt: deadlineAt ?? this.deadlineAt,
       note: note ?? this.note,
       isAchieved: isAchieved ?? this.isAchieved,
@@ -6436,6 +6552,12 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
       endNote: endNote ?? this.endNote,
       depositCount: depositCount ?? this.depositCount,
       startedAt: startedAt ?? this.startedAt,
+      elasticMode: elasticMode ?? this.elasticMode,
+      elasticBaseMinor: elasticBaseMinor ?? this.elasticBaseMinor,
+      elasticStepMinor: elasticStepMinor ?? this.elasticStepMinor,
+      elasticPercentHundred:
+          elasticPercentHundred ?? this.elasticPercentHundred,
+      sourceAccountId: sourceAccountId ?? this.sourceAccountId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6476,9 +6598,6 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
     }
-    if (sourceAccountId.present) {
-      map['source_account_id'] = Variable<String>(sourceAccountId.value);
-    }
     if (deadlineAt.present) {
       map['deadline_at'] = Variable<int>(deadlineAt.value);
     }
@@ -6516,7 +6635,11 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
       map['elastic_step_minor'] = Variable<int>(elasticStepMinor.value);
     }
     if (elasticPercentHundred.present) {
-      map['elastic_percent_hundred'] = Variable<int>(elasticPercentHundred.value);
+      map['elastic_percent_hundred'] =
+          Variable<int>(elasticPercentHundred.value);
+    }
+    if (sourceAccountId.present) {
+      map['source_account_id'] = Variable<String>(sourceAccountId.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -6538,7 +6661,6 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
           ..write('currentMinor: $currentMinor, ')
           ..write('currency: $currency, ')
           ..write('accountId: $accountId, ')
-          ..write('sourceAccountId: $sourceAccountId, ')
           ..write('deadlineAt: $deadlineAt, ')
           ..write('note: $note, ')
           ..write('isAchieved: $isAchieved, ')
@@ -6548,6 +6670,11 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
           ..write('endNote: $endNote, ')
           ..write('depositCount: $depositCount, ')
           ..write('startedAt: $startedAt, ')
+          ..write('elasticMode: $elasticMode, ')
+          ..write('elasticBaseMinor: $elasticBaseMinor, ')
+          ..write('elasticStepMinor: $elasticStepMinor, ')
+          ..write('elasticPercentHundred: $elasticPercentHundred, ')
+          ..write('sourceAccountId: $sourceAccountId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6651,8 +6778,8 @@ class $SavingsDepositsTable extends SavingsDeposits
       context.missing(_depositedAtMeta);
     }
     if (data.containsKey('note')) {
-      context.handle(_noteMeta,
-          note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
     }
     return context;
   }
@@ -6773,7 +6900,7 @@ class SavingsDeposit extends DataClass implements Insertable<SavingsDeposit> {
           int? dayIndex,
           int? amountMinor,
           int? depositedAt,
-          String? note}) =>
+          Value<String?> note = const Value.absent()}) =>
       SavingsDeposit(
         id: id ?? this.id,
         bookId: bookId ?? this.bookId,
@@ -6781,7 +6908,7 @@ class SavingsDeposit extends DataClass implements Insertable<SavingsDeposit> {
         dayIndex: dayIndex ?? this.dayIndex,
         amountMinor: amountMinor ?? this.amountMinor,
         depositedAt: depositedAt ?? this.depositedAt,
-        note: note ?? this.note,
+        note: note.present ? note.value : this.note,
       );
   SavingsDeposit copyWithCompanion(SavingsDepositsCompanion data) {
     return SavingsDeposit(
@@ -6853,15 +6980,14 @@ class SavingsDepositsCompanion extends UpdateCompanion<SavingsDeposit> {
     required int dayIndex,
     required int amountMinor,
     required int depositedAt,
+    this.note = const Value.absent(),
     this.rowid = const Value.absent(),
-    String? note,
   })  : id = Value(id),
         bookId = Value(bookId),
         goalId = Value(goalId),
         dayIndex = Value(dayIndex),
         amountMinor = Value(amountMinor),
-        depositedAt = Value(depositedAt),
-        note = Value(note);
+        depositedAt = Value(depositedAt);
   static Insertable<SavingsDeposit> custom({
     Expression<String>? id,
     Expression<String>? bookId,
@@ -9202,6 +9328,14 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _realizedProfitMinorMeta =
+      const VerificationMeta('realizedProfitMinor');
+  @override
+  late final GeneratedColumn<int> realizedProfitMinor = GeneratedColumn<int>(
+      'realized_profit_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _currencyMeta =
       const VerificationMeta('currency');
   @override
@@ -9241,6 +9375,7 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
         quantityMicros,
         avgCostMinor,
         currentPriceMinor,
+        realizedProfitMinor,
         currency,
         accountId,
         priceUpdatedAt,
@@ -9315,6 +9450,12 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
           currentPriceMinor.isAcceptableOrUnknown(
               data['current_price_minor']!, _currentPriceMinorMeta));
     }
+    if (data.containsKey('realized_profit_minor')) {
+      context.handle(
+          _realizedProfitMinorMeta,
+          realizedProfitMinor.isAcceptableOrUnknown(
+              data['realized_profit_minor']!, _realizedProfitMinorMeta));
+    }
     if (data.containsKey('currency')) {
       context.handle(_currencyMeta,
           currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta));
@@ -9367,6 +9508,8 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
           .read(DriftSqlType.int, data['${effectivePrefix}avg_cost_minor'])!,
       currentPriceMinor: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}current_price_minor'])!,
+      realizedProfitMinor: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}realized_profit_minor'])!,
       currency: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}currency'])!,
       accountId: attachedDatabase.typeMapping
@@ -9407,6 +9550,9 @@ class InvestmentHolding extends DataClass
 
   /// 当前价（分）
   final int currentPriceMinor;
+
+  /// 已实现盈亏（分）。卖出落袋的盈亏累计，随 recordSell/updateTrade 维护。
+  final int realizedProfitMinor;
   final String currency;
   final String? accountId;
   final int? priceUpdatedAt;
@@ -9424,6 +9570,7 @@ class InvestmentHolding extends DataClass
       required this.quantityMicros,
       required this.avgCostMinor,
       required this.currentPriceMinor,
+      required this.realizedProfitMinor,
       required this.currency,
       this.accountId,
       this.priceUpdatedAt,
@@ -9448,6 +9595,7 @@ class InvestmentHolding extends DataClass
     map['quantity_micros'] = Variable<int>(quantityMicros);
     map['avg_cost_minor'] = Variable<int>(avgCostMinor);
     map['current_price_minor'] = Variable<int>(currentPriceMinor);
+    map['realized_profit_minor'] = Variable<int>(realizedProfitMinor);
     map['currency'] = Variable<String>(currency);
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<String>(accountId);
@@ -9477,6 +9625,7 @@ class InvestmentHolding extends DataClass
       quantityMicros: Value(quantityMicros),
       avgCostMinor: Value(avgCostMinor),
       currentPriceMinor: Value(currentPriceMinor),
+      realizedProfitMinor: Value(realizedProfitMinor),
       currency: Value(currency),
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
@@ -9505,6 +9654,8 @@ class InvestmentHolding extends DataClass
       quantityMicros: serializer.fromJson<int>(json['quantityMicros']),
       avgCostMinor: serializer.fromJson<int>(json['avgCostMinor']),
       currentPriceMinor: serializer.fromJson<int>(json['currentPriceMinor']),
+      realizedProfitMinor:
+          serializer.fromJson<int>(json['realizedProfitMinor']),
       currency: serializer.fromJson<String>(json['currency']),
       accountId: serializer.fromJson<String?>(json['accountId']),
       priceUpdatedAt: serializer.fromJson<int?>(json['priceUpdatedAt']),
@@ -9528,6 +9679,7 @@ class InvestmentHolding extends DataClass
       'quantityMicros': serializer.toJson<int>(quantityMicros),
       'avgCostMinor': serializer.toJson<int>(avgCostMinor),
       'currentPriceMinor': serializer.toJson<int>(currentPriceMinor),
+      'realizedProfitMinor': serializer.toJson<int>(realizedProfitMinor),
       'currency': serializer.toJson<String>(currency),
       'accountId': serializer.toJson<String?>(accountId),
       'priceUpdatedAt': serializer.toJson<int?>(priceUpdatedAt),
@@ -9548,6 +9700,7 @@ class InvestmentHolding extends DataClass
           int? quantityMicros,
           int? avgCostMinor,
           int? currentPriceMinor,
+          int? realizedProfitMinor,
           String? currency,
           Value<String?> accountId = const Value.absent(),
           Value<int?> priceUpdatedAt = const Value.absent(),
@@ -9565,6 +9718,7 @@ class InvestmentHolding extends DataClass
         quantityMicros: quantityMicros ?? this.quantityMicros,
         avgCostMinor: avgCostMinor ?? this.avgCostMinor,
         currentPriceMinor: currentPriceMinor ?? this.currentPriceMinor,
+        realizedProfitMinor: realizedProfitMinor ?? this.realizedProfitMinor,
         currency: currency ?? this.currency,
         accountId: accountId.present ? accountId.value : this.accountId,
         priceUpdatedAt:
@@ -9591,6 +9745,9 @@ class InvestmentHolding extends DataClass
       currentPriceMinor: data.currentPriceMinor.present
           ? data.currentPriceMinor.value
           : this.currentPriceMinor,
+      realizedProfitMinor: data.realizedProfitMinor.present
+          ? data.realizedProfitMinor.value
+          : this.realizedProfitMinor,
       currency: data.currency.present ? data.currency.value : this.currency,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       priceUpdatedAt: data.priceUpdatedAt.present
@@ -9615,6 +9772,7 @@ class InvestmentHolding extends DataClass
           ..write('quantityMicros: $quantityMicros, ')
           ..write('avgCostMinor: $avgCostMinor, ')
           ..write('currentPriceMinor: $currentPriceMinor, ')
+          ..write('realizedProfitMinor: $realizedProfitMinor, ')
           ..write('currency: $currency, ')
           ..write('accountId: $accountId, ')
           ..write('priceUpdatedAt: $priceUpdatedAt, ')
@@ -9637,6 +9795,7 @@ class InvestmentHolding extends DataClass
       quantityMicros,
       avgCostMinor,
       currentPriceMinor,
+      realizedProfitMinor,
       currency,
       accountId,
       priceUpdatedAt,
@@ -9657,6 +9816,7 @@ class InvestmentHolding extends DataClass
           other.quantityMicros == this.quantityMicros &&
           other.avgCostMinor == this.avgCostMinor &&
           other.currentPriceMinor == this.currentPriceMinor &&
+          other.realizedProfitMinor == this.realizedProfitMinor &&
           other.currency == this.currency &&
           other.accountId == this.accountId &&
           other.priceUpdatedAt == this.priceUpdatedAt &&
@@ -9676,6 +9836,7 @@ class InvestmentHoldingsCompanion extends UpdateCompanion<InvestmentHolding> {
   final Value<int> quantityMicros;
   final Value<int> avgCostMinor;
   final Value<int> currentPriceMinor;
+  final Value<int> realizedProfitMinor;
   final Value<String> currency;
   final Value<String?> accountId;
   final Value<int?> priceUpdatedAt;
@@ -9694,6 +9855,7 @@ class InvestmentHoldingsCompanion extends UpdateCompanion<InvestmentHolding> {
     this.quantityMicros = const Value.absent(),
     this.avgCostMinor = const Value.absent(),
     this.currentPriceMinor = const Value.absent(),
+    this.realizedProfitMinor = const Value.absent(),
     this.currency = const Value.absent(),
     this.accountId = const Value.absent(),
     this.priceUpdatedAt = const Value.absent(),
@@ -9713,6 +9875,7 @@ class InvestmentHoldingsCompanion extends UpdateCompanion<InvestmentHolding> {
     this.quantityMicros = const Value.absent(),
     this.avgCostMinor = const Value.absent(),
     this.currentPriceMinor = const Value.absent(),
+    this.realizedProfitMinor = const Value.absent(),
     this.currency = const Value.absent(),
     this.accountId = const Value.absent(),
     this.priceUpdatedAt = const Value.absent(),
@@ -9737,6 +9900,7 @@ class InvestmentHoldingsCompanion extends UpdateCompanion<InvestmentHolding> {
     Expression<int>? quantityMicros,
     Expression<int>? avgCostMinor,
     Expression<int>? currentPriceMinor,
+    Expression<int>? realizedProfitMinor,
     Expression<String>? currency,
     Expression<String>? accountId,
     Expression<int>? priceUpdatedAt,
@@ -9756,6 +9920,8 @@ class InvestmentHoldingsCompanion extends UpdateCompanion<InvestmentHolding> {
       if (quantityMicros != null) 'quantity_micros': quantityMicros,
       if (avgCostMinor != null) 'avg_cost_minor': avgCostMinor,
       if (currentPriceMinor != null) 'current_price_minor': currentPriceMinor,
+      if (realizedProfitMinor != null)
+        'realized_profit_minor': realizedProfitMinor,
       if (currency != null) 'currency': currency,
       if (accountId != null) 'account_id': accountId,
       if (priceUpdatedAt != null) 'price_updated_at': priceUpdatedAt,
@@ -9777,6 +9943,7 @@ class InvestmentHoldingsCompanion extends UpdateCompanion<InvestmentHolding> {
       Value<int>? quantityMicros,
       Value<int>? avgCostMinor,
       Value<int>? currentPriceMinor,
+      Value<int>? realizedProfitMinor,
       Value<String>? currency,
       Value<String?>? accountId,
       Value<int?>? priceUpdatedAt,
@@ -9795,6 +9962,7 @@ class InvestmentHoldingsCompanion extends UpdateCompanion<InvestmentHolding> {
       quantityMicros: quantityMicros ?? this.quantityMicros,
       avgCostMinor: avgCostMinor ?? this.avgCostMinor,
       currentPriceMinor: currentPriceMinor ?? this.currentPriceMinor,
+      realizedProfitMinor: realizedProfitMinor ?? this.realizedProfitMinor,
       currency: currency ?? this.currency,
       accountId: accountId ?? this.accountId,
       priceUpdatedAt: priceUpdatedAt ?? this.priceUpdatedAt,
@@ -9843,6 +10011,9 @@ class InvestmentHoldingsCompanion extends UpdateCompanion<InvestmentHolding> {
     if (currentPriceMinor.present) {
       map['current_price_minor'] = Variable<int>(currentPriceMinor.value);
     }
+    if (realizedProfitMinor.present) {
+      map['realized_profit_minor'] = Variable<int>(realizedProfitMinor.value);
+    }
     if (currency.present) {
       map['currency'] = Variable<String>(currency.value);
     }
@@ -9876,6 +10047,7 @@ class InvestmentHoldingsCompanion extends UpdateCompanion<InvestmentHolding> {
           ..write('quantityMicros: $quantityMicros, ')
           ..write('avgCostMinor: $avgCostMinor, ')
           ..write('currentPriceMinor: $currentPriceMinor, ')
+          ..write('realizedProfitMinor: $realizedProfitMinor, ')
           ..write('currency: $currency, ')
           ..write('accountId: $accountId, ')
           ..write('priceUpdatedAt: $priceUpdatedAt, ')
@@ -13605,6 +13777,7 @@ typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
   Value<int?> colorValue,
   Value<int> sortOrder,
   Value<bool> isArchived,
+  Value<bool> isSystem,
   Value<int> rowid,
 });
 typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
@@ -13621,6 +13794,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<int?> colorValue,
   Value<int> sortOrder,
   Value<bool> isArchived,
+  Value<bool> isSystem,
   Value<int> rowid,
 });
 
@@ -13673,6 +13847,9 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<bool> get isArchived => $composableBuilder(
       column: $table.isArchived, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSystem => $composableBuilder(
+      column: $table.isSystem, builder: (column) => ColumnFilters(column));
 }
 
 class $$CategoriesTableOrderingComposer
@@ -13722,6 +13899,9 @@ class $$CategoriesTableOrderingComposer
 
   ColumnOrderings<bool> get isArchived => $composableBuilder(
       column: $table.isArchived, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isSystem => $composableBuilder(
+      column: $table.isSystem, builder: (column) => ColumnOrderings(column));
 }
 
 class $$CategoriesTableAnnotationComposer
@@ -13771,6 +13951,9 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<bool> get isArchived => $composableBuilder(
       column: $table.isArchived, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSystem =>
+      $composableBuilder(column: $table.isSystem, builder: (column) => column);
 }
 
 class $$CategoriesTableTableManager extends RootTableManager<
@@ -13809,6 +13992,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             Value<int?> colorValue = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<bool> isArchived = const Value.absent(),
+            Value<bool> isSystem = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               CategoriesCompanion(
@@ -13825,6 +14009,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             colorValue: colorValue,
             sortOrder: sortOrder,
             isArchived: isArchived,
+            isSystem: isSystem,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -13841,6 +14026,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             Value<int?> colorValue = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<bool> isArchived = const Value.absent(),
+            Value<bool> isSystem = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               CategoriesCompanion.insert(
@@ -13857,6 +14043,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             colorValue: colorValue,
             sortOrder: sortOrder,
             isArchived: isArchived,
+            isSystem: isSystem,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -13905,6 +14092,10 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<bool> excludeFromBudget,
   Value<bool> isReimbursable,
   Value<String?> reimbursementAccountId,
+  Value<double?> latitude,
+  Value<double?> longitude,
+  Value<String?> placeName,
+  Value<int?> createdAt,
   Value<int> rowid,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
@@ -13934,6 +14125,10 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<bool> excludeFromBudget,
   Value<bool> isReimbursable,
   Value<String?> reimbursementAccountId,
+  Value<double?> latitude,
+  Value<double?> longitude,
+  Value<String?> placeName,
+  Value<int?> createdAt,
   Value<int> rowid,
 });
 
@@ -14030,6 +14225,18 @@ class $$TransactionsTableFilterComposer
   ColumnFilters<String> get reimbursementAccountId => $composableBuilder(
       column: $table.reimbursementAccountId,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+      column: $table.latitude, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+      column: $table.longitude, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get placeName => $composableBuilder(
+      column: $table.placeName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
 }
 
 class $$TransactionsTableOrderingComposer
@@ -14123,6 +14330,18 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get reimbursementAccountId => $composableBuilder(
       column: $table.reimbursementAccountId,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+      column: $table.latitude, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+      column: $table.longitude, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get placeName => $composableBuilder(
+      column: $table.placeName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -14209,6 +14428,18 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<String> get reimbursementAccountId => $composableBuilder(
       column: $table.reimbursementAccountId, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<String> get placeName =>
+      $composableBuilder(column: $table.placeName, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -14262,6 +14493,10 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<bool> excludeFromBudget = const Value.absent(),
             Value<bool> isReimbursable = const Value.absent(),
             Value<String?> reimbursementAccountId = const Value.absent(),
+            Value<double?> latitude = const Value.absent(),
+            Value<double?> longitude = const Value.absent(),
+            Value<String?> placeName = const Value.absent(),
+            Value<int?> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion(
@@ -14290,6 +14525,10 @@ class $$TransactionsTableTableManager extends RootTableManager<
             excludeFromBudget: excludeFromBudget,
             isReimbursable: isReimbursable,
             reimbursementAccountId: reimbursementAccountId,
+            latitude: latitude,
+            longitude: longitude,
+            placeName: placeName,
+            createdAt: createdAt,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -14318,6 +14557,10 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<bool> excludeFromBudget = const Value.absent(),
             Value<bool> isReimbursable = const Value.absent(),
             Value<String?> reimbursementAccountId = const Value.absent(),
+            Value<double?> latitude = const Value.absent(),
+            Value<double?> longitude = const Value.absent(),
+            Value<String?> placeName = const Value.absent(),
+            Value<int?> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
@@ -14346,6 +14589,10 @@ class $$TransactionsTableTableManager extends RootTableManager<
             excludeFromBudget: excludeFromBudget,
             isReimbursable: isReimbursable,
             reimbursementAccountId: reimbursementAccountId,
+            latitude: latitude,
+            longitude: longitude,
+            placeName: placeName,
+            createdAt: createdAt,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -14391,6 +14638,7 @@ typedef $$LendRecordsTableCreateCompanionBuilder = LendRecordsCompanion
   Value<String?> toAccountId,
   Value<int> feeMinor,
   Value<int> discountMinor,
+  Value<int> graceDays,
   Value<int> rowid,
 });
 typedef $$LendRecordsTableUpdateCompanionBuilder = LendRecordsCompanion
@@ -14414,6 +14662,7 @@ typedef $$LendRecordsTableUpdateCompanionBuilder = LendRecordsCompanion
   Value<String?> toAccountId,
   Value<int> feeMinor,
   Value<int> discountMinor,
+  Value<int> graceDays,
   Value<int> rowid,
 });
 
@@ -14486,6 +14735,9 @@ class $$LendRecordsTableFilterComposer
 
   ColumnFilters<int> get discountMinor => $composableBuilder(
       column: $table.discountMinor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get graceDays => $composableBuilder(
+      column: $table.graceDays, builder: (column) => ColumnFilters(column));
 }
 
 class $$LendRecordsTableOrderingComposer
@@ -14555,6 +14807,9 @@ class $$LendRecordsTableOrderingComposer
   ColumnOrderings<int> get discountMinor => $composableBuilder(
       column: $table.discountMinor,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get graceDays => $composableBuilder(
+      column: $table.graceDays, builder: (column) => ColumnOrderings(column));
 }
 
 class $$LendRecordsTableAnnotationComposer
@@ -14622,6 +14877,9 @@ class $$LendRecordsTableAnnotationComposer
 
   GeneratedColumn<int> get discountMinor => $composableBuilder(
       column: $table.discountMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get graceDays =>
+      $composableBuilder(column: $table.graceDays, builder: (column) => column);
 }
 
 class $$LendRecordsTableTableManager extends RootTableManager<
@@ -14666,6 +14924,7 @@ class $$LendRecordsTableTableManager extends RootTableManager<
             Value<String?> toAccountId = const Value.absent(),
             Value<int> feeMinor = const Value.absent(),
             Value<int> discountMinor = const Value.absent(),
+            Value<int> graceDays = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               LendRecordsCompanion(
@@ -14688,6 +14947,7 @@ class $$LendRecordsTableTableManager extends RootTableManager<
             toAccountId: toAccountId,
             feeMinor: feeMinor,
             discountMinor: discountMinor,
+            graceDays: graceDays,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -14710,6 +14970,7 @@ class $$LendRecordsTableTableManager extends RootTableManager<
             Value<String?> toAccountId = const Value.absent(),
             Value<int> feeMinor = const Value.absent(),
             Value<int> discountMinor = const Value.absent(),
+            Value<int> graceDays = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               LendRecordsCompanion.insert(
@@ -14732,6 +14993,7 @@ class $$LendRecordsTableTableManager extends RootTableManager<
             toAccountId: toAccountId,
             feeMinor: feeMinor,
             discountMinor: discountMinor,
+            graceDays: graceDays,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -15214,6 +15476,11 @@ typedef $$SavingsGoalsTableCreateCompanionBuilder = SavingsGoalsCompanion
   Value<String?> endNote,
   Value<int> depositCount,
   Value<int?> startedAt,
+  Value<int> elasticMode,
+  Value<int?> elasticBaseMinor,
+  Value<int?> elasticStepMinor,
+  Value<int?> elasticPercentHundred,
+  Value<String?> sourceAccountId,
   Value<int> rowid,
 });
 typedef $$SavingsGoalsTableUpdateCompanionBuilder = SavingsGoalsCompanion
@@ -15238,6 +15505,11 @@ typedef $$SavingsGoalsTableUpdateCompanionBuilder = SavingsGoalsCompanion
   Value<String?> endNote,
   Value<int> depositCount,
   Value<int?> startedAt,
+  Value<int> elasticMode,
+  Value<int?> elasticBaseMinor,
+  Value<int?> elasticStepMinor,
+  Value<int?> elasticPercentHundred,
+  Value<String?> sourceAccountId,
   Value<int> rowid,
 });
 
@@ -15309,6 +15581,25 @@ class $$SavingsGoalsTableFilterComposer
 
   ColumnFilters<int> get startedAt => $composableBuilder(
       column: $table.startedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get elasticMode => $composableBuilder(
+      column: $table.elasticMode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get elasticBaseMinor => $composableBuilder(
+      column: $table.elasticBaseMinor,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get elasticStepMinor => $composableBuilder(
+      column: $table.elasticStepMinor,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get elasticPercentHundred => $composableBuilder(
+      column: $table.elasticPercentHundred,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceAccountId => $composableBuilder(
+      column: $table.sourceAccountId,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$SavingsGoalsTableOrderingComposer
@@ -15381,6 +15672,25 @@ class $$SavingsGoalsTableOrderingComposer
 
   ColumnOrderings<int> get startedAt => $composableBuilder(
       column: $table.startedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get elasticMode => $composableBuilder(
+      column: $table.elasticMode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get elasticBaseMinor => $composableBuilder(
+      column: $table.elasticBaseMinor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get elasticStepMinor => $composableBuilder(
+      column: $table.elasticStepMinor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get elasticPercentHundred => $composableBuilder(
+      column: $table.elasticPercentHundred,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceAccountId => $composableBuilder(
+      column: $table.sourceAccountId,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$SavingsGoalsTableAnnotationComposer
@@ -15451,6 +15761,21 @@ class $$SavingsGoalsTableAnnotationComposer
 
   GeneratedColumn<int> get startedAt =>
       $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get elasticMode => $composableBuilder(
+      column: $table.elasticMode, builder: (column) => column);
+
+  GeneratedColumn<int> get elasticBaseMinor => $composableBuilder(
+      column: $table.elasticBaseMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get elasticStepMinor => $composableBuilder(
+      column: $table.elasticStepMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get elasticPercentHundred => $composableBuilder(
+      column: $table.elasticPercentHundred, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceAccountId => $composableBuilder(
+      column: $table.sourceAccountId, builder: (column) => column);
 }
 
 class $$SavingsGoalsTableTableManager extends RootTableManager<
@@ -15499,6 +15824,11 @@ class $$SavingsGoalsTableTableManager extends RootTableManager<
             Value<String?> endNote = const Value.absent(),
             Value<int> depositCount = const Value.absent(),
             Value<int?> startedAt = const Value.absent(),
+            Value<int> elasticMode = const Value.absent(),
+            Value<int?> elasticBaseMinor = const Value.absent(),
+            Value<int?> elasticStepMinor = const Value.absent(),
+            Value<int?> elasticPercentHundred = const Value.absent(),
+            Value<String?> sourceAccountId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SavingsGoalsCompanion(
@@ -15522,6 +15852,11 @@ class $$SavingsGoalsTableTableManager extends RootTableManager<
             endNote: endNote,
             depositCount: depositCount,
             startedAt: startedAt,
+            elasticMode: elasticMode,
+            elasticBaseMinor: elasticBaseMinor,
+            elasticStepMinor: elasticStepMinor,
+            elasticPercentHundred: elasticPercentHundred,
+            sourceAccountId: sourceAccountId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -15545,6 +15880,11 @@ class $$SavingsGoalsTableTableManager extends RootTableManager<
             Value<String?> endNote = const Value.absent(),
             Value<int> depositCount = const Value.absent(),
             Value<int?> startedAt = const Value.absent(),
+            Value<int> elasticMode = const Value.absent(),
+            Value<int?> elasticBaseMinor = const Value.absent(),
+            Value<int?> elasticStepMinor = const Value.absent(),
+            Value<int?> elasticPercentHundred = const Value.absent(),
+            Value<String?> sourceAccountId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SavingsGoalsCompanion.insert(
@@ -15568,6 +15908,11 @@ class $$SavingsGoalsTableTableManager extends RootTableManager<
             endNote: endNote,
             depositCount: depositCount,
             startedAt: startedAt,
+            elasticMode: elasticMode,
+            elasticBaseMinor: elasticBaseMinor,
+            elasticStepMinor: elasticStepMinor,
+            elasticPercentHundred: elasticPercentHundred,
+            sourceAccountId: sourceAccountId,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -15600,6 +15945,7 @@ typedef $$SavingsDepositsTableCreateCompanionBuilder = SavingsDepositsCompanion
   required int dayIndex,
   required int amountMinor,
   required int depositedAt,
+  Value<String?> note,
   Value<int> rowid,
 });
 typedef $$SavingsDepositsTableUpdateCompanionBuilder = SavingsDepositsCompanion
@@ -15610,6 +15956,7 @@ typedef $$SavingsDepositsTableUpdateCompanionBuilder = SavingsDepositsCompanion
   Value<int> dayIndex,
   Value<int> amountMinor,
   Value<int> depositedAt,
+  Value<String?> note,
   Value<int> rowid,
 });
 
@@ -15639,6 +15986,9 @@ class $$SavingsDepositsTableFilterComposer
 
   ColumnFilters<int> get depositedAt => $composableBuilder(
       column: $table.depositedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
 }
 
 class $$SavingsDepositsTableOrderingComposer
@@ -15667,6 +16017,9 @@ class $$SavingsDepositsTableOrderingComposer
 
   ColumnOrderings<int> get depositedAt => $composableBuilder(
       column: $table.depositedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SavingsDepositsTableAnnotationComposer
@@ -15695,6 +16048,9 @@ class $$SavingsDepositsTableAnnotationComposer
 
   GeneratedColumn<int> get depositedAt => $composableBuilder(
       column: $table.depositedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
 }
 
 class $$SavingsDepositsTableTableManager extends RootTableManager<
@@ -15730,6 +16086,7 @@ class $$SavingsDepositsTableTableManager extends RootTableManager<
             Value<int> dayIndex = const Value.absent(),
             Value<int> amountMinor = const Value.absent(),
             Value<int> depositedAt = const Value.absent(),
+            Value<String?> note = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SavingsDepositsCompanion(
@@ -15739,6 +16096,7 @@ class $$SavingsDepositsTableTableManager extends RootTableManager<
             dayIndex: dayIndex,
             amountMinor: amountMinor,
             depositedAt: depositedAt,
+            note: note,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -15748,6 +16106,7 @@ class $$SavingsDepositsTableTableManager extends RootTableManager<
             required int dayIndex,
             required int amountMinor,
             required int depositedAt,
+            Value<String?> note = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SavingsDepositsCompanion.insert(
@@ -15757,6 +16116,7 @@ class $$SavingsDepositsTableTableManager extends RootTableManager<
             dayIndex: dayIndex,
             amountMinor: amountMinor,
             depositedAt: depositedAt,
+            note: note,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -16757,6 +17117,7 @@ typedef $$InvestmentHoldingsTableCreateCompanionBuilder
   Value<int> quantityMicros,
   Value<int> avgCostMinor,
   Value<int> currentPriceMinor,
+  Value<int> realizedProfitMinor,
   Value<String> currency,
   Value<String?> accountId,
   Value<int?> priceUpdatedAt,
@@ -16777,6 +17138,7 @@ typedef $$InvestmentHoldingsTableUpdateCompanionBuilder
   Value<int> quantityMicros,
   Value<int> avgCostMinor,
   Value<int> currentPriceMinor,
+  Value<int> realizedProfitMinor,
   Value<String> currency,
   Value<String?> accountId,
   Value<int?> priceUpdatedAt,
@@ -16831,6 +17193,10 @@ class $$InvestmentHoldingsTableFilterComposer
 
   ColumnFilters<int> get currentPriceMinor => $composableBuilder(
       column: $table.currentPriceMinor,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get realizedProfitMinor => $composableBuilder(
+      column: $table.realizedProfitMinor,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get currency => $composableBuilder(
@@ -16895,6 +17261,10 @@ class $$InvestmentHoldingsTableOrderingComposer
       column: $table.currentPriceMinor,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get realizedProfitMinor => $composableBuilder(
+      column: $table.realizedProfitMinor,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get currency => $composableBuilder(
       column: $table.currency, builder: (column) => ColumnOrderings(column));
 
@@ -16954,6 +17324,9 @@ class $$InvestmentHoldingsTableAnnotationComposer
   GeneratedColumn<int> get currentPriceMinor => $composableBuilder(
       column: $table.currentPriceMinor, builder: (column) => column);
 
+  GeneratedColumn<int> get realizedProfitMinor => $composableBuilder(
+      column: $table.realizedProfitMinor, builder: (column) => column);
+
   GeneratedColumn<String> get currency =>
       $composableBuilder(column: $table.currency, builder: (column) => column);
 
@@ -17007,6 +17380,7 @@ class $$InvestmentHoldingsTableTableManager extends RootTableManager<
             Value<int> quantityMicros = const Value.absent(),
             Value<int> avgCostMinor = const Value.absent(),
             Value<int> currentPriceMinor = const Value.absent(),
+            Value<int> realizedProfitMinor = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> accountId = const Value.absent(),
             Value<int?> priceUpdatedAt = const Value.absent(),
@@ -17026,6 +17400,7 @@ class $$InvestmentHoldingsTableTableManager extends RootTableManager<
             quantityMicros: quantityMicros,
             avgCostMinor: avgCostMinor,
             currentPriceMinor: currentPriceMinor,
+            realizedProfitMinor: realizedProfitMinor,
             currency: currency,
             accountId: accountId,
             priceUpdatedAt: priceUpdatedAt,
@@ -17045,6 +17420,7 @@ class $$InvestmentHoldingsTableTableManager extends RootTableManager<
             Value<int> quantityMicros = const Value.absent(),
             Value<int> avgCostMinor = const Value.absent(),
             Value<int> currentPriceMinor = const Value.absent(),
+            Value<int> realizedProfitMinor = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> accountId = const Value.absent(),
             Value<int?> priceUpdatedAt = const Value.absent(),
@@ -17064,6 +17440,7 @@ class $$InvestmentHoldingsTableTableManager extends RootTableManager<
             quantityMicros: quantityMicros,
             avgCostMinor: avgCostMinor,
             currentPriceMinor: currentPriceMinor,
+            realizedProfitMinor: realizedProfitMinor,
             currency: currency,
             accountId: accountId,
             priceUpdatedAt: priceUpdatedAt,

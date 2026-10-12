@@ -39,7 +39,8 @@ final AutoDisposeStreamProviderFamily<List<Transaction>,
 
     return ref
         .watch(transactionsDaoProvider)
-        .watchByAccountWithLendLinks(bookId: bookId, accountId: params.accountId)
+        .watchByAccountWithLendLinks(
+            bookId: bookId, accountId: params.accountId)
         .map(
           (List<Transaction> list) => list
               .where(
@@ -56,6 +57,23 @@ final AutoDisposeStreamProvider<List<Account>> accountsProvider =
   final String bookId = ref.watch(currentBookIdProvider);
   return ref.watch(accountsDaoProvider).watchByBook(bookId);
 });
+
+/// 指定账户的**全部**流水（不限年份，含转账转入侧，已去重、排除软删）。
+///
+/// 用途：账户详情页「账单迁移 / 账单清理 / 金额校验」需要跨年全量流水，
+/// [accountTransactionsByYearProvider] 按年过滤不满足，故单独提供此 provider。
+/// 取数口径与 [accountTransactionsByYearProvider] 一致（复用
+/// [TransactionsDao.watchByAccount]），仅去掉年份裁剪。
+final AutoDisposeStreamProviderFamily<List<Transaction>, String>
+    accountAllTransactionsProvider =
+    StreamProvider.autoDispose.family<List<Transaction>, String>(
+  (Ref ref, String accountId) {
+    final String bookId = ref.watch(currentBookIdProvider);
+    return ref
+        .watch(transactionsDaoProvider)
+        .watchByAccount(bookId: bookId, accountId: accountId);
+  },
+);
 
 /// 净资产 = 所有账户「展示余额」之和。
 ///

@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -73,7 +75,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     final bool isDebt = account.type.isDebt;
     // 投资账户（基金 / 股票 / 期货 / 现货等）：余额随名下持仓市值派生，
     // 只读展示，与借还同款「派生不变量」约束。
-    final bool isInvestment = account.type.category == AccountCategory.investment;
+    final bool isInvestment =
+        account.type.category == AccountCategory.investment;
     // 定期存款：真实余额（非持仓派生），允许手动校正，与资金账户同口径。
     final bool isTimeDeposit = account.type == AccountType.timeDeposit;
     // 资金账户（现金 / 微信 / 支付宝 / 公积金等，借记卡单独布局）。
@@ -120,7 +123,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   /// 借出 / 借入（应收 / 应付）布局（参照小青账：区块标题收进卡片内部，
   /// 金额为派生只读字段）。
   List<Widget> _lendSections(Account account, bool isLend) => <Widget>[
-        _Card(
+        HairlineCard(
+          radius: AppDimens.radiusMd,
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(AppDimens.spaceMd),
             child: Column(
@@ -140,7 +145,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 Text(
                   '由名下未结清借还记录自动计算，不可手动修改',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppPalette.textTertiary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ],
@@ -168,7 +173,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     final int display = account.balanceMinor + market;
     final bool hasHoldings = market != 0;
     return <Widget>[
-      _Card(
+      HairlineCard(
+        radius: AppDimens.radiusMd,
+        padding: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(AppDimens.spaceMd),
           child: Column(
@@ -190,7 +197,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     ? '现金 ${Money.fromMinor(account.balanceMinor)} · 持仓市值 ${Money.fromMinor(market)}（不可手动修改）'
                     : '暂无持仓，显示当前账户现金余额',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppPalette.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
             ],
@@ -226,7 +233,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         _basicInfoCard(),
         const SizedBox(height: AppDimens.spaceLg),
         _sectionLabel('资金'),
-        _Card(
+        HairlineCard(
+          radius: AppDimens.radiusMd,
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(AppDimens.spaceMd),
             child: Column(
@@ -240,7 +249,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     suffixIcon: Icon(
                       Icons.account_balance_wallet_outlined,
                       size: 20,
-                      color: AppPalette.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -262,7 +271,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         _assetTypeCard(account, name: account.type.label),
         const SizedBox(height: AppDimens.spaceLg),
         _sectionLabel('基本信息'),
-        _Card(
+        HairlineCard(
+          radius: AppDimens.radiusMd,
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(AppDimens.spaceMd),
             child: Column(
@@ -283,7 +294,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     suffixIcon: Icon(
                       Icons.account_balance_wallet_outlined,
                       size: 20,
-                      color: AppPalette.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -308,7 +319,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         _basicInfoCard(),
         const SizedBox(height: AppDimens.spaceLg),
         _sectionLabel('资金'),
-        _Card(
+        HairlineCard(
+          radius: AppDimens.radiusMd,
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(AppDimens.spaceMd),
             child: Column(
@@ -338,14 +351,16 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     Icon(
                       Icons.info_outline,
                       size: 14,
-                      color: AppPalette.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         '当前欠款 和 信用额度 输入一个即可自动识别计算',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppPalette.textTertiary,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                       ),
                     ),
@@ -357,7 +372,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         ),
         const SizedBox(height: AppDimens.spaceLg),
         _sectionLabel('账单/还款日期'),
-        _Card(
+        HairlineCard(
+          radius: AppDimens.radiusMd,
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(AppDimens.spaceMd),
             child: Column(
@@ -385,7 +402,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       ];
 
   /// 基本信息（备注 / 银行卡号），借记卡与负债模式共用。
-  Widget _basicInfoCard() => _Card(
+  Widget _basicInfoCard() => HairlineCard(
+        radius: AppDimens.radiusMd,
+        padding: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(AppDimens.spaceMd),
           child: Column(
@@ -422,7 +441,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 
   /// 「资产类型」卡：类型图标 + 名称 + chevron，点击改名。
   /// [name] 覆盖显示文本（资金模式展示类型名而非账户名）。
-  Widget _assetTypeCard(Account account, {String? name}) => _Card(
+  Widget _assetTypeCard(Account account, {String? name}) => HairlineCard(
+        radius: AppDimens.radiusMd,
+        padding: EdgeInsets.zero,
         child: InkWell(
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           onTap: () => _renameDialog(account),
@@ -456,7 +477,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 Icon(
                   Icons.chevron_right,
                   size: 22,
-                  color: AppPalette.textTertiary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ],
             ),
@@ -466,7 +487,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 
   /// 「其他」区块：资产状态三态 + 计入总资产开关（两种模式共用，
   /// 参照小青账：区块标题收进卡片内部）。
-  Widget _otherSection() => _Card(
+  Widget _otherSection() => HairlineCard(
+        radius: AppDimens.radiusMd,
+        padding: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(AppDimens.spaceMd),
           child: Column(
@@ -483,32 +506,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 
   /// 改名对话框：借记卡的「银行名」即账户名。
   Future<void> _renameDialog(Account account) async {
-    final TextEditingController controller =
-        TextEditingController(text: _nameController.text);
-    final bool? saved = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('账户名称'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          decoration: _filledDecoration(),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
+    final String? name = await showTextInput(
+      context,
+      title: '账户名称',
+      initialValue: _nameController.text,
     );
-    if (saved == true && mounted) {
-      setState(() => _nameController.text = controller.text.trim());
+    if (name != null && mounted) {
+      setState(() => _nameController.text = name);
     }
   }
 
@@ -547,7 +551,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           text,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppPalette.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
         ),
       );
@@ -559,7 +563,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           text,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: AppPalette.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
         ),
       );
@@ -569,14 +573,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppPalette.textSecondary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
       );
 
   InputDecoration _filledDecoration() => InputDecoration(
         filled: true,
-        fillColor: AppPalette.textTertiary.withValues(alpha: 0.08),
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppDimens.spaceMd,
           vertical: AppDimens.spaceSm + 2,
@@ -602,15 +606,16 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           vertical: AppDimens.spaceSm + 4,
         ),
         decoration: BoxDecoration(
-          color: AppPalette.textTertiary.withValues(alpha: 0.08),
+          color: Theme.of(context)
+              .colorScheme
+              .onSurfaceVariant
+              .withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
         child: Text(
-          balanceMinor == null
-              ? '—'
-              : Money.fromMinor(balanceMinor).format(),
+          balanceMinor == null ? '—' : Money.fromMinor(balanceMinor).format(),
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppPalette.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w500,
               ),
         ),
@@ -628,7 +633,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         Text(
           '资产状态',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppPalette.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
         ),
         const SizedBox(width: AppDimens.spaceMd),
@@ -665,14 +670,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 Text(
                   '计入总资产',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppPalette.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '是否加入总资产计算',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppPalette.textTertiary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ],
@@ -726,9 +731,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               type: account.type,
               balanceMinor: Money.tryParse(_balanceController.text).minor,
               creditLimitMinor: Value<int?>(
-                limitText.isEmpty
-                    ? null
-                    : Money.tryParse(limitText).minor,
+                limitText.isEmpty ? null : Money.tryParse(limitText).minor,
               ),
               billingDay: Value<int?>(billingDay),
               dueDay: Value<int?>(dueDay),
@@ -815,23 +818,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 }
 
 /// 圆角卡片容器（与新增账户页同风格）。
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
-      ),
-      child: child,
-    );
-  }
-}
 
 /// 资产状态胶囊按钮：选中绿底白字，未选中灰底。
 class _StatusPill extends StatelessWidget {
@@ -858,14 +844,19 @@ class _StatusPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? AppPalette.primary
-              : AppPalette.textTertiary.withValues(alpha: 0.12),
+              : Theme.of(context)
+                  .colorScheme
+                  .onSurfaceVariant
+                  .withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
-            color: selected ? Theme.of(context).colorScheme.onPrimary : AppPalette.textSecondary,
+            color: selected
+                ? Theme.of(context).colorScheme.onPrimary
+                : Theme.of(context).colorScheme.onSurfaceVariant,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),

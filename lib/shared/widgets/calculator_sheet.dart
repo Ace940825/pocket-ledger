@@ -210,10 +210,15 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
             height: 48,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: result == null ? Theme.of(context).colorScheme.outline : AppPalette.primary,
-                foregroundColor: result == null ? AppPalette.textTertiary : Theme.of(context).colorScheme.onPrimary,
+                backgroundColor: result == null
+                    ? Theme.of(context).colorScheme.outline
+                    : AppPalette.primary,
+                foregroundColor: result == null
+                    ? Theme.of(context).colorScheme.onSurfaceVariant
+                    : Theme.of(context).colorScheme.onPrimary,
                 disabledBackgroundColor: Theme.of(context).colorScheme.outline,
-                disabledForegroundColor: AppPalette.textTertiary,
+                disabledForegroundColor:
+                    Theme.of(context).colorScheme.onSurfaceVariant,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 ),
@@ -224,8 +229,8 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
               child: Text(
                 result == null ? '无效计算' : '填入 ¥${_formatCurrency(result)}',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -252,16 +257,16 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           Text(
             displayExpr,
             style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppPalette.textSecondary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppDimens.spaceXs),
           Text(
             result == null ? '' : '= ${_formatCurrency(result)}',
             style: theme.textTheme.headlineSmall?.copyWith(
-                  color: AppPalette.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -282,8 +287,8 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           decoration: InputDecoration(
             hintText: '总金额',
             hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppPalette.textTertiary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             filled: true,
             fillColor: theme.colorScheme.surfaceContainerHighest,
             border: border,
@@ -306,8 +311,8 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           decoration: InputDecoration(
             hintText: '人数',
             hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppPalette.textTertiary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             filled: true,
             fillColor: theme.colorScheme.surfaceContainerHighest,
             border: border,
@@ -334,9 +339,9 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           child: Text(
             result == null ? '人均 ¥0.00' : '人均 ¥${_formatCurrency(result)}',
             style: theme.textTheme.headlineSmall?.copyWith(
-                  color: AppPalette.primary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: AppPalette.primary,
+              fontWeight: FontWeight.w600,
+            ),
             textAlign: TextAlign.end,
           ),
         ),
@@ -346,11 +351,24 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
 
   Widget _buildPad(BuildContext context) {
     const List<String> keys = <String>[
-      '7', '8', '9', '÷',
-      '4', '5', '6', '×',
-      '1', '2', '3', '-',
-      '0', '.', '=', '+',
-      'AC', '⌫',
+      '7',
+      '8',
+      '9',
+      '÷',
+      '4',
+      '5',
+      '6',
+      '×',
+      '1',
+      '2',
+      '3',
+      '-',
+      '0',
+      '.',
+      '=',
+      '+',
+      'AC',
+      '⌫',
     ];
     return GridView.count(
       crossAxisCount: 4,
@@ -360,8 +378,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
       crossAxisSpacing: AppDimens.spaceXs,
       childAspectRatio: 1.6,
       children: <Widget>[
-        for (final String k in keys)
-          _buildKey(context, k),
+        for (final String k in keys) _buildKey(context, k),
         const SizedBox.shrink(),
         const SizedBox.shrink(),
       ],
@@ -385,7 +402,9 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           k,
           style: TextStyle(
             fontSize: 24,
-            color: highlight ? AppPalette.primary : AppPalette.textPrimary,
+            color: highlight
+                ? AppPalette.primary
+                : Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w500,
             height: 1.0,
           ),
@@ -488,8 +507,8 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
     return InputDecoration(
       hintText: hint,
       hintStyle: theme.textTheme.bodyMedium?.copyWith(
-            color: AppPalette.textTertiary,
-          ),
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
       filled: true,
       fillColor: theme.colorScheme.surfaceContainerHighest,
       border: border,
@@ -520,131 +539,139 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             // 标题栏
-                  Row(
-                    children: <Widget>[
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close, color: AppPalette.textSecondary),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          '手续费计算',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppPalette.textPrimary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 32),
-                    ],
-                  ),
-                  const SizedBox(height: AppDimens.spaceMd),
-                  // 说明
-                  Container(
-                    padding: const EdgeInsets.all(AppDimens.spaceMd),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        const Icon(
-                          Icons.info_outline,
-                          size: 18,
-                          color: AppPalette.textTertiary,
-                        ),
-                        const SizedBox(width: AppDimens.spaceSm),
-                        Expanded(
-                          child: Text(
-                            '如手续费和优惠都存在的情况，手续费-优惠=真正的手续费',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                  color: AppPalette.textSecondary,
-                                ),
-                          ),
-                        ),
-                      ],
+            Row(
+              children: <Widget>[
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(Icons.close,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+                Expanded(
+                  child: Text(
+                    '手续费计算',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: AppDimens.spaceMd),
-                  // 手续费
-                  KeypadField(
-                    controller: _feeController,
-                    allowDecimal: true,
-                    decoration: _fieldDecoration(context, '手续费'),
-                    onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(width: 32),
+              ],
+            ),
+            const SizedBox(height: AppDimens.spaceMd),
+            // 说明
+            Container(
+              padding: const EdgeInsets.all(AppDimens.spaceMd),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(height: AppDimens.spaceMd),
-                  // 优惠
-                  KeypadField(
-                    controller: _discountController,
-                    allowDecimal: true,
-                    decoration: _fieldDecoration(context, '优惠'),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: AppDimens.spaceMd),
-                  // 剩余手续费
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppDimens.spaceMd,
-                      vertical: AppDimens.spaceMd,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        Text(
-                          '剩余手续费',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                                color: AppPalette.textTertiary,
-                              ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          _remainingText.isEmpty ? '0.00' : _remainingText,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                                color: AppPalette.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppDimens.spaceLg),
-                  // 保存按钮
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _isValid ? AppPalette.primary : Theme.of(context).colorScheme.outline,
-                        foregroundColor: _isValid ? Theme.of(context).colorScheme.onPrimary : AppPalette.textTertiary,
-                        disabledBackgroundColor: Theme.of(context).colorScheme.outline,
-                        disabledForegroundColor: AppPalette.textTertiary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                        ),
-                      ),
-                      onPressed: _isValid ? _save : null,
-                      child: const Text(
-                        '保存',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
+                  const SizedBox(width: AppDimens.spaceSm),
+                  Expanded(
+                    child: Text(
+                      '如手续费和优惠都存在的情况，手续费-优惠=真正的手续费',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          );
+            const SizedBox(height: AppDimens.spaceMd),
+            // 手续费
+            KeypadField(
+              controller: _feeController,
+              allowDecimal: true,
+              decoration: _fieldDecoration(context, '手续费'),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppDimens.spaceMd),
+            // 优惠
+            KeypadField(
+              controller: _discountController,
+              allowDecimal: true,
+              decoration: _fieldDecoration(context, '优惠'),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppDimens.spaceMd),
+            // 剩余手续费
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimens.spaceMd,
+                vertical: AppDimens.spaceMd,
+              ),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Text(
+                    '剩余手续费',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _remainingText.isEmpty ? '0.00' : _remainingText,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppDimens.spaceLg),
+            // 保存按钮
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _isValid
+                      ? AppPalette.primary
+                      : Theme.of(context).colorScheme.outline,
+                  foregroundColor: _isValid
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                  disabledBackgroundColor:
+                      Theme.of(context).colorScheme.outline,
+                  disabledForegroundColor:
+                      Theme.of(context).colorScheme.onSurfaceVariant,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  ),
+                ),
+                onPressed: _isValid ? _save : null,
+                child: const Text(
+                  '保存',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

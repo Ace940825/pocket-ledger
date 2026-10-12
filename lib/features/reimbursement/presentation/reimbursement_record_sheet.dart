@@ -1,17 +1,24 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/badges.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_drag_handle.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../../core/theme/forest_design_tokens.dart';
-import '../../../../database/app_database.dart';
-import '../../../../domain/enums.dart';
-import '../../../../shared/models/money.dart';
-import '../../../../shared/widgets/line_icons.dart';
+import '../../../core/theme/forest_design_tokens.dart';
+import '../../../database/app_database.dart';
+import '../../../domain/enums.dart';
+import '../../../shared/models/money.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../data/reimbursement_repository.dart';
-import '../../../../shared/widgets/modal_sheet_registry.dart';
+import '../../../shared/widgets/modal_sheet_registry.dart';
+import '../../../theme/app_colors.dart';
 
 /// 报销账单详情底部弹窗（对齐参考稿两节卡片逻辑）。
 ///
@@ -66,8 +73,8 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.62,
-      decoration: const BoxDecoration(
-        color: ForestBg.raised,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(ForestRadius.xl),
         ),
@@ -77,14 +84,14 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
         children: <Widget>[
           // 下拉把手（与流水详情弹窗一致）。
           Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 10, bottom: 6),
+            child: SheetDragHandle(
               width: 40,
               height: 4,
-              decoration: BoxDecoration(
-                color: ForestNeutral.textTertiary.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(2),
-              ),
+              margin: const EdgeInsets.only(top: 10, bottom: 6),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurfaceVariant
+                  .withValues(alpha: 0.4),
             ),
           ),
           // 头部：事由 + 状态徽章（+ 垫付元信息一行）。
@@ -100,10 +107,10 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                         record.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: ForestNeutral.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -116,7 +123,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: reimbursed
                             ? ForestGreen.label.withValues(alpha: 0.12)
-                            : ForestSurface.cardAlt,
+                            : context.colors.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
@@ -126,7 +133,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                           color: reimbursed
                               ? ForestGreen.label
-                              : ForestNeutral.textSecondary,
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -136,9 +143,9 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     meta.join(' · '),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: ForestNeutral.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -151,7 +158,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  _sectionBar('原账单'),
+                  _sectionBar(context, '原账单'),
                   if (record.transactionId != null)
                     _OriginBillCard(
                       key: ValueKey<String>('origin-${record.transactionId}'),
@@ -162,19 +169,21 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                   else
                     _card(const _EmptyHint('手动创建的记录，未关联支出账单')),
                   const SizedBox(height: 14),
-                  _sectionBar('报销收入'),
+                  _sectionBar(context, '报销收入'),
                   if (incomeIds.isEmpty)
                     _card(const _EmptyHint('尚无报销收入，待「记一笔报销收入」抵扣后生成'))
                   else
                     _card(
                       Column(
                         children: <Widget>[
-                          for (int i = 0; i < incomeIds.length; i++) ...<Widget>[
+                          for (int i = 0;
+                              i < incomeIds.length;
+                              i++) ...<Widget>[
                             if (i > 0)
-                              const Divider(
+                              Divider(
                                 height: 1,
                                 thickness: 0.8,
-                                color: ForestNeutral.hairline,
+                                color: Theme.of(context).colorScheme.outline,
                               ),
                             _IncomeRow(
                               key: ValueKey<String>('income-${incomeIds[i]}'),
@@ -195,7 +204,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
   }
 
   // 节标题：绿色竖条 + 加粗标题（对齐参考稿「原账单 / 报销收入」节头）。
-  Widget _sectionBar(String text) => Padding(
+  Widget _sectionBar(BuildContext context, String text) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(
           children: <Widget>[
@@ -210,10 +219,10 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
             const SizedBox(width: 7),
             Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14.5,
                 fontWeight: FontWeight.w700,
-                color: ForestNeutral.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -222,15 +231,12 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
 }
 
 /// 卡片容器：白卡 + 发丝描边 + 圆角。
-Widget _card(Widget child) => Container(
+Widget _card(Widget child) => SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: ForestSurface.card,
-        border: Border.all(color: ForestNeutral.hairline),
-        borderRadius: BorderRadius.circular(16),
+      child: HairlineCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        child: child,
       ),
-      child: child,
     );
 
 /// 「不计收支、预算」红字标注（两开关任一开启才显示）。
@@ -359,27 +365,27 @@ class _OriginBillRow extends StatelessWidget {
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: ForestNeutral.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
                       const SizedBox(width: 6),
-                      _RebBadge(),
+                      RebBadge(),
                       if (overReimbursed) ...<Widget>[
                         const SizedBox(width: 6),
-                        const _OverTag(),
+                        const OverTag(),
                       ],
                     ],
                   ),
                   const SizedBox(height: 3),
                   Text(
                     DateFormat('HH:mm').format(occurred),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: ForestNeutral.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -392,10 +398,10 @@ class _OriginBillRow extends StatelessWidget {
               children: <Widget>[
                 Text(
                   Money.fromMinor(transaction.amountMinor).format(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: ForestNeutral.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 if (received > 0)
@@ -437,18 +443,17 @@ class _IncomeRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return ref.watch(transactionDetailProvider(transactionId)).when(
           skipLoadingOnReload: true,
-          loading: () => const Padding(
+          loading: () => Padding(
             padding: EdgeInsets.symmetric(vertical: 14),
             child: Text(
               '加载中…',
               style: TextStyle(
                 fontSize: 13,
-                color: ForestNeutral.textTertiary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
-          error: (Object e, StackTrace? s) =>
-              const _EmptyHint('关联流水加载失败'),
+          error: (Object e, StackTrace? s) => const _EmptyHint('关联流水加载失败'),
           data: (Transaction? t) {
             if (t == null) {
               return const _EmptyHint('关联流水已删除');
@@ -494,18 +499,20 @@ class _IncomeRow extends ConsumerWidget {
                                 : fallbackLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: ForestNeutral.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 3),
                           Text(
                             DateFormat('HH:mm').format(occurred),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: ForestNeutral.textTertiary,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -538,51 +545,6 @@ class _IncomeRow extends ConsumerWidget {
   }
 }
 
-/// 「报」小徽章：浅绿底 + 描边圆角方块。
-class _RebBadge extends StatelessWidget {
-  const _RebBadge();
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-        decoration: BoxDecoration(
-          color: ForestGreen.soft,
-          border: Border.all(color: ForestGreen.softBorder),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: const Text(
-          '报',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: ForestGreen.deep,
-          ),
-        ),
-      );
-}
-
-/// 「超额报销」描边胶囊标签。
-class _OverTag extends StatelessWidget {
-  const _OverTag();
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        decoration: BoxDecoration(
-          border: Border.all(color: ForestGreen.softBorder),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: const Text(
-          '超额报销',
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-            color: ForestGreen.deep,
-          ),
-        ),
-      );
-}
-
 class _EmptyHint extends StatelessWidget {
   const _EmptyHint(this.text);
 
@@ -593,9 +555,9 @@ class _EmptyHint extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
-            color: ForestNeutral.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       );

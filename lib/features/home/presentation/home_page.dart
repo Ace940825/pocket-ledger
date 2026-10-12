@@ -220,15 +220,15 @@ class _AssetsCard extends StatelessWidget {
         children: <Widget>[
           Text(
             '净资产',
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: ForestAssetText.primary.withValues(alpha: 0.85)),
+            style: theme.textTheme.bodyMedium?.copyWith(
+                color: ForestAssetText.primary.withValues(alpha: 0.85)),
           ),
           const SizedBox(height: 2),
           AnimatedMoneyText(
             Money.fromMinor(netAssets),
             color: ForestAssetText.emphasis,
-            style: theme.textTheme.headlineSmall
-                ?.copyWith(color: ForestAssetText.emphasis, fontWeight: FontWeight.w600),
+            style: theme.textTheme.headlineSmall?.copyWith(
+                color: ForestAssetText.emphasis, fontWeight: FontWeight.w600),
           ),
           const Spacer(),
           Row(
@@ -509,7 +509,9 @@ class _PageDots extends StatelessWidget {
           width: active ? 18 : 6,
           height: 6,
           decoration: BoxDecoration(
-            color: active ? AppPalette.primary : Theme.of(context).colorScheme.outline,
+            color: active
+                ? AppPalette.primary
+                : Theme.of(context).colorScheme.outline,
             borderRadius: BorderRadius.circular(3),
           ),
         );

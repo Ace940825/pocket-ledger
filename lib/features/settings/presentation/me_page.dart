@@ -12,32 +12,42 @@ import '../../../shared/widgets/section_header.dart';
 import '../../../features/record/presentation/record_sheet.dart';
 import '../../../features/record/record_tab.dart';
 
-/// 记账天数：当前账本最早一条流水所在自然日至今（含首尾），无流水为 0。
+/// 记账天数：当前账本最早一笔流水的【真实记录时刻】所在自然日至今（含首尾），
+/// 无流水为 0。
+///
+/// 真实记录时刻逐行择优后取最小（MIN）：
+/// - `created_at` 非空且 ≠ `occurred_at` → 即真实录入时刻（v34 起落库时写入，
+///   与业务日期解耦），直接采用；
+/// - `created_at` 为空或 = `occurred_at` → 视为 v34 迁移被回填的老数据
+///   （当时用业务时间顶替 created_at，不可信），退回 `updated_at`——它在
+///   插入/编辑时始终写真实时钟，最早一行的 updated_at ≈ 真实开始记账的时间。
+/// 因此补记历史账（业务日期在过去）不会把「坚持天数」撑大：
+/// 例如 10 月 1 日开始记账、补记 9 月 1 日的账，天数从 10 月 1 日起算。
 final AutoDisposeStreamProvider<int> recordingDaysProvider =
     StreamProvider.autoDispose<int>((Ref ref) {
   final AppDatabase db = ref.watch(appDatabaseProvider);
   final String bookId = ref.watch(currentBookIdProvider);
-  return (db.select(db.transactions)
-        ..where(
-          ($TransactionsTable tbl) =>
-              tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
-        )
-        ..orderBy([
-          ($TransactionsTable tbl) => drift.OrderingTerm.asc(tbl.occurredAt),
-        ])
-        ..limit(1))
+  return db
+      .customSelect(
+        'SELECT MIN(CASE WHEN created_at IS NULL OR created_at = occurred_at'
+        ' THEN updated_at ELSE created_at END) AS start_ms'
+        ' FROM transactions WHERE book_id = ? AND deleted = 0',
+        variables: <drift.Variable<Object>>[drift.Variable<String>(bookId)],
+        readsFrom: {db.transactions},
+      )
       .watchSingleOrNull()
-      .map((Transaction? first) {
-    if (first == null) return 0;
-    final DateTime local = DateTime.fromMillisecondsSinceEpoch(
-      first.occurredAt,
-      isUtc: true,
-    ).toLocal();
-    final DateTime now = DateTime.now();
-    final DateTime a = DateTime(local.year, local.month, local.day);
-    final DateTime b = DateTime(now.year, now.month, now.day);
-    return b.difference(a).inDays + 1;
-  });
+      .map((drift.QueryRow? row) {
+        final int? startMs = row?.readNullable<int>('start_ms');
+        if (startMs == null) return 0;
+        final DateTime local = DateTime.fromMillisecondsSinceEpoch(
+          startMs,
+          isUtc: true,
+        ).toLocal();
+        final DateTime now = DateTime.now();
+        final DateTime a = DateTime(local.year, local.month, local.day);
+        final DateTime b = DateTime(now.year, now.month, now.day);
+        return b.difference(a).inDays + 1;
+      });
 });
 
 /// 「我的」Tab：小青账式个人中心布局。
@@ -49,8 +59,7 @@ class MePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final int days =
-        ref.watch(recordingDaysProvider).valueOrNull ?? 0;
+    final int days = ref.watch(recordingDaysProvider).valueOrNull ?? 0;
 
     return Scaffold(
       body: ListView(
@@ -124,14 +133,14 @@ class MePage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const Text(
+                    Text(
                       'Hi，口袋账本',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: AppPalette.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -141,14 +150,20 @@ class MePage extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppPalette.textPrimary.withValues(alpha: 0.85),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.85),
                       ),
                     ),
                     Text(
                       '本地优先 · 数据存在你的设备上',
                       style: TextStyle(
                         fontSize: 11,
-                        color: AppPalette.textPrimary.withValues(alpha: 0.6),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -158,11 +173,12 @@ class MePage extends ConsumerWidget {
               // 右侧三个功能胶囊。
               Column(
                 children: <Widget>[
-                  _headerPill('云同步', () => context.push(Routes.settings)),
+                  _headerPill(
+                      context, '云同步', () => context.push(Routes.settings)),
                   const SizedBox(height: 6),
-                  _headerPill('全部功能', () => context.push(Routes.more)),
+                  _headerPill(context, '全部功能', () => context.push(Routes.more)),
                   const SizedBox(height: 6),
-                  _headerPill('关于', () => _showAbout(context)),
+                  _headerPill(context, '关于', () => _showAbout(context)),
                 ],
               ),
             ],
@@ -188,10 +204,10 @@ class MePage extends ConsumerWidget {
                         days > 0 ? '坚持记账第 $days 天' : '随手记一笔，养成习惯',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppPalette.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -213,7 +229,7 @@ class MePage extends ConsumerWidget {
     );
   }
 
-  Widget _headerPill(String label, VoidCallback onTap) {
+  Widget _headerPill(BuildContext context, String label, VoidCallback onTap) {
     return Material(
       color: AppPalette.white.withValues(alpha: 0.92),
       borderRadius: BorderRadius.circular(999),
@@ -224,10 +240,10 @@ class MePage extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppPalette.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -289,10 +305,10 @@ class MePage extends ConsumerWidget {
                   children: <Widget>[
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: AppPalette.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -300,8 +316,10 @@ class MePage extends ConsumerWidget {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppPalette.textSecondary),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -324,13 +342,21 @@ class MePage extends ConsumerWidget {
     (label: '报销', icon: Icons.receipt_outlined, route: Routes.reimbursement),
     (label: '退款', icon: Icons.assignment_return_outlined, route: Routes.refund),
     (label: '借还', icon: Icons.handshake_outlined, route: Routes.lend),
-    (label: '分期记账', icon: Icons.calendar_month_outlined, route: Routes.installment),
+    (
+      label: '分期记账',
+      icon: Icons.calendar_month_outlined,
+      route: Routes.installment
+    ),
     (label: '投资', icon: Icons.trending_up, route: Routes.investment),
   ];
 
-  static const List<({String label, IconData icon, String route})>
-      _billAssets = <({String label, IconData icon, String route})>[
-    (label: '账单管理', icon: Icons.receipt_long_outlined, route: Routes.billManage),
+  static const List<({String label, IconData icon, String route})> _billAssets =
+      <({String label, IconData icon, String route})>[
+    (
+      label: '账单管理',
+      icon: Icons.receipt_long_outlined,
+      route: Routes.billManage
+    ),
     (label: '账户管理', icon: Icons.credit_card, route: Routes.accountManage),
     (label: '物品管理', icon: Icons.inventory_2_outlined, route: Routes.inventory),
   ];
@@ -395,15 +421,16 @@ class MePage extends ConsumerWidget {
               color: AppPalette.neutralMist,
             ),
             alignment: Alignment.center,
-            child: Icon(item.icon, size: 22, color: AppPalette.textPrimary),
+            child: Icon(item.icon,
+                size: 22, color: Theme.of(context).colorScheme.onSurface),
           ),
           const SizedBox(height: 7),
           Text(
             item.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                fontSize: 12, color: AppPalette.textPrimary),
+            style: TextStyle(
+                fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
           ),
         ],
       ),

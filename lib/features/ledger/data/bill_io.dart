@@ -215,8 +215,7 @@ ParseResult _parseJson(String content) {
   final List<String> errors = <String>[];
   try {
     final dynamic decoded = jsonDecode(content);
-    final List<dynamic> list =
-        decoded is List ? decoded : <dynamic>[decoded];
+    final List<dynamic> list = decoded is List ? decoded : <dynamic>[decoded];
     for (int i = 0; i < list.length; i++) {
       final dynamic item = list[i];
       if (item is! Map) {

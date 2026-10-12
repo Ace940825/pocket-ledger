@@ -72,7 +72,7 @@ class AmountField extends StatelessWidget {
                   decoration: InputDecoration(
                     hintText: label,
                     hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppPalette.textTertiary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                     border: InputBorder.none,
                     filled: false,
@@ -92,7 +92,7 @@ class AmountField extends StatelessWidget {
             child: Text(
               helperText!,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppPalette.textTertiary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
           ),

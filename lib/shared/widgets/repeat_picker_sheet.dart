@@ -145,8 +145,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
       child: SafeArea(
         bottom: false,
         child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(AppDimens.radiusLg),
             ),
@@ -191,7 +191,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                       onPressed: () => Navigator.of(context).pop(_result),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppPalette.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius:
@@ -258,15 +259,18 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color:
-                      selected ? AppPalette.textPrimary : AppPalette.surfaceLight,
+                  color: selected
+                      ? Theme.of(context).colorScheme.onSurface
+                      : AppPalette.surfaceLight,
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   _unitLabels[unit.index],
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: selected ? Theme.of(context).colorScheme.onPrimary : AppPalette.textPrimary,
+                    color: selected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSurface,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
@@ -299,31 +303,32 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             border: Border.symmetric(
-              horizontal: BorderSide(color: Theme.of(context).colorScheme.outline),
+              horizontal:
+                  BorderSide(color: Theme.of(context).colorScheme.outline),
             ),
           ),
-          child:             KeypadField(
-              controller: _intervalController,
-              allowDecimal: false,
-              textAlign: TextAlign.center,
-              onChanged: (_) => _commitIntervalText(),
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                filled: true,
-                fillColor: Colors.transparent,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                counterText: '',
-              ),
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          child: KeypadField(
+            controller: _intervalController,
+            allowDecimal: false,
+            textAlign: TextAlign.center,
+            onChanged: (_) => _commitIntervalText(),
+            decoration: const InputDecoration(
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+              filled: true,
+              fillColor: Colors.transparent,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              counterText: '',
             ),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         _stepperButton(
           icon: Icons.add,
@@ -359,7 +364,9 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         child: Icon(
           icon,
           size: 18,
-          color: onTap == null ? Theme.of(context).colorScheme.outline : AppPalette.textSecondary,
+          color: onTap == null
+              ? Theme.of(context).colorScheme.outline
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -549,13 +556,17 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         height: height ?? 40,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? AppPalette.textPrimary : AppPalette.surfaceLight,
+          color: selected
+              ? Theme.of(context).colorScheme.onSurface
+              : AppPalette.surfaceLight,
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Theme.of(context).colorScheme.onPrimary : AppPalette.textPrimary,
+            color: selected
+                ? Theme.of(context).colorScheme.onPrimary
+                : Theme.of(context).colorScheme.onSurface,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
             fontSize: fontSize,
             height: 1.0,

@@ -156,6 +156,9 @@ class AppPalette {
         outline: hairline,
         error: expense,
         onError: cream,
+        // M3 基线的 surfaceTint 是紫色（0xFF6750A4），不显式覆盖会在
+        // AppBar「scrolled under」（含下拉过载）时叠出淡紫色调。
+        surfaceTint: cream,
       );
 
   /// 由调色板生成 Material ColorScheme（暗色）
@@ -175,6 +178,8 @@ class AppPalette {
         outline: const Color(0xFF4A4A3C),
         error: expenseDark,
         onError: const Color(0xFF2A140D),
+        // 同亮色：压掉 M3 基线紫色 surfaceTint。
+        surfaceTint: const Color(0xFF26291F),
       );
 
   // =====================================================================
@@ -183,8 +188,9 @@ class AppPalette {
   // =====================================================================
 
   /// 财务金额语义色（按亮度择变体，铁律③⑥）：收入绿 / 支出红。
-  static Color amount(bool positive, {required bool dark}) =>
-      dark ? (positive ? incomeDark : expenseDark) : (positive ? income : expense);
+  static Color amount(bool positive, {required bool dark}) => dark
+      ? (positive ? incomeDark : expenseDark)
+      : (positive ? income : expense);
 
   /// 投资涨跌语义色（按亮度择变体）：涨红 / 跌绿。**勿与 income/expense 混用**。
   static Color stock(bool up, {required bool dark}) =>
@@ -207,7 +213,8 @@ class AppPalette {
   static const Color deepGreen = Color(0xFF2E6B49); // = ForestGreen.deep
   static const Color sunkenCream = Color(0xFFF3EAD8); // = ForestBg.sunken
   static const Color sageInk = Color(0xFF2E5B39); // = ForestSage.ink
-  static const Color ctaForest = Color(0xFF3C8A60); // = ForestGreen.cta（避免与原 ctaGreen=0xFF557C4B 重名）
+  static const Color ctaForest =
+      Color(0xFF3C8A60); // = ForestGreen.cta（避免与原 ctaGreen=0xFF557C4B 重名）
   static const Color softGreen = Color(0xFFE6F2E9); // = ForestGreen.soft
 
   // ---- 高频刻意语义色（≥2 处复用）----

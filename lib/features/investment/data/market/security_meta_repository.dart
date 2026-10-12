@@ -47,16 +47,16 @@ class SecurityMetaRepository {
         <Variable<Object>>[Variable<int>(type.index)],
       );
       for (final SecurityCandidate c in list) {
-      await _db.customStatement(
-        'INSERT OR REPLACE INTO security_meta (symbol, name, type, updated_at) '
-        'VALUES (?, ?, ?, ?)',
-        <Variable<Object>>[
-          Variable<String>(c.symbol),
-          Variable<String>(c.name),
-          Variable<int>(type.index),
-          Variable<int>(now),
-        ],
-      );
+        await _db.customStatement(
+          'INSERT OR REPLACE INTO security_meta (symbol, name, type, updated_at) '
+          'VALUES (?, ?, ?, ?)',
+          <Variable<Object>>[
+            Variable<String>(c.symbol),
+            Variable<String>(c.name),
+            Variable<int>(type.index),
+            Variable<int>(now),
+          ],
+        );
       }
     });
   }
@@ -72,8 +72,7 @@ class SecurityMetaRepository {
     final String prefix = '${_escapeLike(q)}%';
     final String contains = '%${_escapeLike(q)}%';
     final List<Variable<Object>> vars = <Variable<Object>>[];
-    final String base =
-        'SELECT symbol, name, type FROM security_meta WHERE ';
+    final String base = 'SELECT symbol, name, type FROM security_meta WHERE ';
     final String where;
     if (type != null) {
       where =
@@ -93,10 +92,12 @@ class SecurityMetaRepository {
         'LIMIT $limit';
     vars.add(Variable<String>(prefix));
 
-    final List<QueryRow> rows = await _db.customSelect(
-      '$base$where$order',
-      variables: vars,
-    ).get();
+    final List<QueryRow> rows = await _db
+        .customSelect(
+          '$base$where$order',
+          variables: vars,
+        )
+        .get();
     return rows.map((QueryRow r) {
       return SecurityCandidate(
         symbol: r.read<String>('symbol'),

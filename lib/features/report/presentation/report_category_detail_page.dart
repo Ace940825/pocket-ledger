@@ -58,9 +58,8 @@ class _ReportCategoryDetailPageState
     final Category? cat = (t.categoryId == null || t.categoryId!.isEmpty)
         ? null
         : cats[t.categoryId];
-    final Category? top = (widget.byParent && cat?.parentId != null)
-        ? cats[cat!.parentId]
-        : cat;
+    final Category? top =
+        (widget.byParent && cat?.parentId != null) ? cats[cat!.parentId] : cat;
     return top?.id ?? (cat?.id ?? '');
   }
 
@@ -70,16 +69,16 @@ class _ReportCategoryDetailPageState
 
   @override
   Widget build(BuildContext context) {
-    final List<Transaction> all = ref
-        .watch(reportPeriodTransactionsProvider)
-        .valueOrNull ?? const <Transaction>[];
+    final List<Transaction> all =
+        ref.watch(reportPeriodTransactionsProvider).valueOrNull ??
+            const <Transaction>[];
     final LedgerAdvancedFilter? filter =
         ref.watch(reportAdvancedFilterProvider);
     final Map<String, Category> cats =
         ref.watch(categoryMapProvider).valueOrNull ?? <String, Category>{};
     final Map<String, Account> accounts = <String, Account>{
-      for (final Account a in ref.watch(accountsProvider).valueOrNull ??
-          const <Account>[])
+      for (final Account a
+          in ref.watch(accountsProvider).valueOrNull ?? const <Account>[])
         a.id: a,
     };
 
@@ -119,25 +118,27 @@ class _ReportCategoryDetailPageState
             )
           : TxnSlidableGroup(
               child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceLg,
-                AppDimens.spaceSm,
-                AppDimens.spaceLg,
-                AppDimens.spaceXl,
-              ),
-              children: <Widget>[
-                _headerRow(),
-                ..._daySections(mine, cats, accounts),
-                const SizedBox(height: AppDimens.spaceMd),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '共 ${mine.length} 笔 · 合计 ${Money.fromMinor(totalMinor).format(showSymbol: false)}',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppPalette.textTertiary),
-                  ),
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimens.spaceLg,
+                  AppDimens.spaceSm,
+                  AppDimens.spaceLg,
+                  AppDimens.spaceXl,
                 ),
-              ],
+                children: <Widget>[
+                  _headerRow(),
+                  ..._daySections(mine, cats, accounts),
+                  const SizedBox(height: AppDimens.spaceMd),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '共 ${mine.length} 笔 · 合计 ${Money.fromMinor(totalMinor).format(showSymbol: false)}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                  ),
+                ],
               ),
             ),
     );
@@ -145,8 +146,7 @@ class _ReportCategoryDetailPageState
 
   bool _belongsTo(Transaction t, {required Map<String, Category> cats}) {
     // 分支过滤。
-    final bool isOther =
-        t.excludeFromStats || t.type == TxnType.transfer;
+    final bool isOther = t.excludeFromStats || t.type == TxnType.transfer;
     final bool inBranch = switch (widget.branch) {
       ReportBranch.expense => !isOther && t.type == TxnType.expense,
       ReportBranch.income => !isOther && t.type == TxnType.income,
@@ -180,16 +180,16 @@ class _ReportCategoryDetailPageState
             borderRadius: BorderRadius.circular(12),
             onTap: () => setState(() => _byAmount = !_byAmount),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: AppPalette.sage200,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 _byAmount ? '按金额' : '按时间',
-                style: const TextStyle(
-                    fontSize: 12, color: AppPalette.textPrimary),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurface),
               ),
             ),
           ),
@@ -212,8 +212,7 @@ class _ReportCategoryDetailPageState
         t.occurredAt,
         isUtc: true,
       ).toLocal();
-      final int day =
-          local.year * 10000 + local.month * 100 + local.day;
+      final int day = local.year * 10000 + local.month * 100 + local.day;
       (byDay[day] ??= <Transaction>[]).add(t);
     }
     final List<int> days = byDay.keys.toList()..sort((int a, int b) => b - a);
@@ -241,8 +240,11 @@ class _ReportCategoryDetailPageState
     final DateTime d = DateTime(day ~/ 10000, (day ~/ 100) % 100, day % 100);
     final int dayDiff =
         DateTime(now.year, now.month, now.day).difference(d).inDays;
-    final String suffix =
-        dayDiff == 0 ? ' 今天' : dayDiff == 1 ? ' 昨天' : '';
+    final String suffix = dayDiff == 0
+        ? ' 今天'
+        : dayDiff == 1
+            ? ' 昨天'
+            : '';
     final String prefix = switch (widget.branch) {
       ReportBranch.expense => '支',
       ReportBranch.income => '收',
@@ -254,14 +256,16 @@ class _ReportCategoryDetailPageState
         children: <Widget>[
           Text(
             '${d.month}月${d.day}日$suffix',
-            style: const TextStyle(
-                fontSize: 13, color: AppPalette.textSecondary),
+            style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const Spacer(),
           Text(
             '$prefix:${Money.fromMinor(daySum).format(showSymbol: false)}',
-            style: const TextStyle(
-                fontSize: 13, color: AppPalette.textSecondary),
+            style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -295,7 +299,7 @@ class _ReportCategoryDetailPageState
     final Color amountColor = switch (widget.branch) {
       ReportBranch.expense => AppPalette.expense,
       ReportBranch.income => AppPalette.income,
-      ReportBranch.other => AppPalette.textPrimary,
+      ReportBranch.other => Theme.of(context).colorScheme.onSurface,
     };
     final String sign = switch (widget.branch) {
       ReportBranch.expense => '-',
@@ -336,8 +340,10 @@ class _ReportCategoryDetailPageState
                   ),
                   const SizedBox(height: 3),
                   Text(hhmm,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppPalette.textTertiary)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -353,9 +359,10 @@ class _ReportCategoryDetailPageState
                         '${sign}${Money.fromMinor(t.amountMinor).format(showSymbol: false)}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppPalette.textTertiary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           decoration: TextDecoration.lineThrough,
-                          decorationColor: AppPalette.textTertiary,
+                          decorationColor:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -383,15 +390,16 @@ class _ReportCategoryDetailPageState
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       '优惠${Money.fromMinor(t.discountMinor).format(showSymbol: false)}',
-                      style: TextStyle(
-                          fontSize: 11, color: AppPalette.expense),
+                      style: TextStyle(fontSize: 11, color: AppPalette.expense),
                     ),
                   ),
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(accountName,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppPalette.textTertiary)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant)),
                 ),
               ],
             ),

@@ -52,7 +52,8 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
         final Tag? tag = row.readTableOrNull(tags);
         if (tag != null) tagMap[cat.id]!.add(tag);
       }
-      cats.sort((TagCategory a, TagCategory b) => a.sortOrder.compareTo(b.sortOrder));
+      cats.sort(
+          (TagCategory a, TagCategory b) => a.sortOrder.compareTo(b.sortOrder));
       return cats.map((TagCategory c) {
         final List<Tag> ts = tagMap[c.id]!
           ..sort((Tag a, Tag b) => a.sortOrder.compareTo(b.sortOrder));
@@ -94,7 +95,9 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   /// 定向更新（只写 companion 中出现的列）。勿用 replace()——整行替换
   /// 会把缺省列写成默认值，必需列缺失时直接抛 InvalidDataException。
   Future<int> updateCategory(TagCategoriesCompanion companion) {
-    return (update(tagCategories)..where(($TagCategoriesTable tbl) => tbl.id.equals(companion.id.value)))
+    return (update(tagCategories)
+          ..where(
+              ($TagCategoriesTable tbl) => tbl.id.equals(companion.id.value)))
         .write(companion);
   }
 
@@ -171,7 +174,8 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   /// 定向更新（只写 companion 中出现的列）。勿用 replace()——整行替换
   /// 会把缺省列写成默认值，必需列缺失时直接抛 InvalidDataException。
   Future<int> updateTag(TagsCompanion companion) {
-    return (update(tags)..where(($TagsTable tbl) => tbl.id.equals(companion.id.value)))
+    return (update(tags)
+          ..where(($TagsTable tbl) => tbl.id.equals(companion.id.value)))
         .write(companion);
   }
 
@@ -197,7 +201,8 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   }
 
   /// 批量写入某分组下标签排序（拖拽排序后整体回写）。
-  Future<void> reorderTags(String categoryId, List<String> orderedIds, int updatedAt) {
+  Future<void> reorderTags(
+      String categoryId, List<String> orderedIds, int updatedAt) {
     return batch((Batch batch) {
       for (int i = 0; i < orderedIds.length; i++) {
         batch.update(
@@ -217,8 +222,8 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
     final Expression<int> maxExpr = tags.sortOrder.max();
     return (selectOnly(tags)
           ..addColumns(<Expression<Object>>[maxExpr])
-          ..where(tags.categoryId.equals(categoryId) &
-              tags.deleted.equals(false)))
+          ..where(
+              tags.categoryId.equals(categoryId) & tags.deleted.equals(false)))
         .map((TypedResult row) => row.read(maxExpr))
         .getSingle()
         .then((int? v) => v ?? 0);

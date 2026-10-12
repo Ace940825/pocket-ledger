@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -99,7 +101,8 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
               const SizedBox(height: AppDimens.spaceLg),
               Expanded(
                 child: SingleChildScrollView(
-                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(
                     AppDimens.spaceLg,
                     0,
@@ -141,23 +144,20 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
   }
 
   Widget _buildParentCard(ThemeData theme, Color color) {
-    return Container(
+    return HairlineCard(
+      radius: AppDimens.radiusMd,
       padding: const EdgeInsets.all(AppDimens.spaceMd),
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
-      ),
       child: Row(
         children: <Widget>[
           Text(
             '所属一级分类',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppPalette.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const Spacer(),
-          CircleAvatar(
+          AvatarTile(
+            size: 40,
             backgroundColor: color.withValues(alpha: 0.15),
             child: LineIcon(
               categoryLineKind(_selectedParent.iconKey) ?? LineIconKind.star,
@@ -187,26 +187,24 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
   }
 
   Widget _buildHint(ThemeData theme) {
-    return Container(
+    return HairlineCard(
+      radius: AppDimens.radiusMd,
       padding: const EdgeInsets.all(AppDimens.spaceMd),
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
+      borderWidth: 0,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(
+          Icon(
             Icons.info_outline,
             size: 16,
-            color: AppPalette.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: AppDimens.spaceSm),
           Expanded(
             child: Text(
               '分类名称需手动输入，选择图标后不会自动填充名称。',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: AppPalette.textTertiary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),

@@ -8,6 +8,7 @@ import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/info_tip_row.dart';
 import '../../../core/errors/failures.dart';
 import '../data/savings_repository.dart';
 import '../../../shared/widgets/amount_keypad.dart';
@@ -19,6 +20,8 @@ import '../../record/presentation/account_picker_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
+import '../../../shared/widgets/menu_item.dart';
 import 'savings_modes.dart';
 import 'savings_schedule.dart';
 
@@ -243,9 +246,8 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
         SavingsMode.weeks52 => '第 1 周存 N 元，第 52 周存 52N 元',
         SavingsMode.weekday => '周一 N 元、周日 7N 元，每周循环',
         SavingsMode.countdown30 => '每月 30→1 元递减，首日 30N 元',
-        SavingsMode.elastic => _elasticPercent
-            ? '首期 N 元，每期递增百分比'
-            : '首期 N 元，每期递增固定额',
+        SavingsMode.elastic =>
+          _elasticPercent ? '首期 N 元，每期递增百分比' : '首期 N 元，每期递增固定额',
         _ => null,
       };
 
@@ -256,7 +258,6 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
     _maybeScheduleDefaultSource();
     return Scaffold(
       backgroundColor: AppPalette.surfaceMist,
@@ -274,13 +275,14 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
               onTap: _deactivateKeypad,
               behavior: HitTestBehavior.translucent,
               child: ListView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                 children: <Widget>[
                   _section(
                     title: '介绍',
                     children: <Widget>[
-                      _infoRow(theme, _introText),
+                      InfoTipRow(text: _introText),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -325,14 +327,14 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                       _amountField(),
                       if (_amountHint != null) ...<Widget>[
                         const SizedBox(height: 8),
-                        _infoRow(theme, _amountHint!),
+                        InfoTipRow(text: _amountHint!),
                       ],
                       // 递增系数：弹性存钱法专属（参照小青账）。
                       if (_isElastic) ...<Widget>[
                         const SizedBox(height: 14),
                         _elasticRateRow(),
                         const SizedBox(height: 12),
-                        _infoRow(theme, _elasticFormulaText),
+                        InfoTipRow(text: _elasticFormulaText),
                       ],
                     ],
                   ),
@@ -398,9 +400,8 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                   _section(
                     title: '存钱快捷属性',
                     children: <Widget>[
-                      _infoRow(
-                        theme,
-                        '快捷属性适用于完成存钱任务快捷填充属性使用。',
+                      InfoTipRow(
+                        text: '快捷属性适用于完成存钱任务快捷填充属性使用。',
                       ),
                       const SizedBox(height: 12),
                       _bookRow(),
@@ -521,40 +522,6 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     );
   }
 
-  /// ⓘ 信息行（灰字说明）。
-  Widget _infoRow(ThemeData theme, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceMist,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: LineIcon(
-              LineIconKind.info,
-              size: 15,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 头像行（储蓄罐线稿，对标小青账头像位；A3 线稿统一风格）。
   Widget _avatarRow() {
     return Align(
@@ -599,7 +566,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 14),
           filled: true,
-          fillColor: AppPalette.surfaceMist,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28),
             borderSide: BorderSide.none,
@@ -643,7 +610,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
           onPressed: () => _openCalculator('amount'),
         ),
         filled: true,
-        fillColor: AppPalette.surfaceMist,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
           borderSide: BorderSide.none,
@@ -708,7 +675,8 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                     onPressed: () => _openCalculator('rate'),
                   ),
                   filled: true,
-                  fillColor: AppPalette.surfaceMist,
+                  fillColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(28),
                     borderSide: BorderSide.none,
@@ -753,16 +721,12 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
 
   /// 「选择模式」底部弹层：金额模式 / 百分比模式（参照小青账）。
   Future<void> _pickElasticMode() async {
-    final bool? percent = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => SafeArea(
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainer,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
+    final bool? percent = await showAppModalSheet<bool>(
+      context,
+      surfaceColor: Theme.of(context).colorScheme.surfaceContainer,
+      showHandle: false,
+      body: SafeArea(
+        child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Stack(
@@ -781,45 +745,24 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                     top: 8,
                     child: IconButton(
                       icon: const Icon(Icons.close, size: 22),
-                      onPressed: () => Navigator.of(ctx).pop(),
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
                 ],
               ),
-              ListTile(
-                title: const Text('金额模式',
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                  '上次存钱+递增数值',
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-                trailing: Icon(Icons.chevron_right,
-                    size: 22,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
-                onTap: () => Navigator.of(ctx).pop(false),
+              MenuItem(
+                title: '金额模式',
+                subtitle: '上次存钱+递增数值',
+                onTap: () => Navigator.of(context).pop(false),
               ),
-              ListTile(
-                title: const Text('百分比模式',
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                  '上次存钱*递增数值百分比+上次存钱',
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-                trailing: Icon(Icons.chevron_right,
-                    size: 22,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
-                onTap: () => Navigator.of(ctx).pop(true),
+              MenuItem(
+                title: '百分比模式',
+                subtitle: '上次存钱*递增数值百分比+上次存钱',
+                onTap: () => Navigator.of(context).pop(true),
               ),
               const SizedBox(height: 8),
             ],
           ),
-        ),
       ),
     );
     if (percent != null && percent != _elasticPercent) {
@@ -843,12 +786,10 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () async {
-        final String? picked = await showModalBottomSheet<String>(
-          context: context,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (BuildContext ctx) => SafeArea(
+        final String? picked = await showAppModalSheet<String>(
+          context,
+          showHandle: false,
+          body: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
@@ -864,7 +805,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                       title: Text(o, style: const TextStyle(fontSize: 15)),
                       trailing:
                           o == value ? const Icon(Icons.check, size: 20) : null,
-                      onTap: () => Navigator.of(ctx).pop(o),
+                      onTap: () => Navigator.of(context).pop(o),
                     )),
                 const SizedBox(height: 6),
               ],
@@ -929,11 +870,12 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
   /// 录入走工程内数字键盘（[_SavingsKeypad]，整数），不唤起系统键盘。
   Future<void> _showEndCountSheet() async {
     String value = _endCount > 0 ? '$_endCount' : '';
-    final int? result = await showModalBottomSheet<int>(
-      context: context,
+    final int? result = await showAppModalSheet<int>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => StatefulBuilder(
+      surfaceColor: AppPalette.white,
+      showHandle: false,
+      body: StatefulBuilder(
         builder: (BuildContext ctx, StateSetter setSheetState) {
           void save() {
             final int n = int.tryParse(value) ?? -1;
@@ -944,15 +886,9 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
             Navigator.of(ctx).pop(n);
           }
 
-          return Container(
-            decoration: const BoxDecoration(
-              color: AppPalette.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-            child: SafeArea(
-              top: false,
-              child: Column(
+          return SafeArea(
+            top: false,
+            child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -995,6 +931,8 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
                     child: NumKeypad(
                       value: value,
+                      // 编辑既有计划时次数已预填 → 首键整体替换（全局统一）。
+                      replaceOnFirstInput: true,
                       onChanged: (String v) => setSheetState(() => value = v),
                       // 收起键 = 关闭弹层（等同取消）。
                       onHide: () => Navigator.of(ctx).pop(null),
@@ -1041,7 +979,6 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                   ),
                 ],
               ),
-            ),
           );
         },
       ),
@@ -1245,8 +1182,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                 Text('转至',
                     style: TextStyle(
                         fontSize: 13,
-                        color:
-                            Theme.of(context).colorScheme.onSurfaceVariant)),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -1364,7 +1300,8 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
       resolved = picked.date;
     } else if (picked is CalendarPeriod) {
       final DateTime s = picked.start;
-      resolved = DateTime(s.year, s.month, s.day, _startDate.hour, _startDate.minute);
+      resolved =
+          DateTime(s.year, s.month, s.day, _startDate.hour, _startDate.minute);
     } else {
       return;
     }
@@ -1447,7 +1384,10 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     final String? repeatCycle = switch (widget.mode) {
       SavingsMode.flexible => null,
       SavingsMode.fixed => _repeatCycle,
-      SavingsMode.countdown30 || SavingsMode.monthly12 || SavingsMode.rolling36 => '每月1日',
+      SavingsMode.countdown30 ||
+      SavingsMode.monthly12 ||
+      SavingsMode.rolling36 =>
+        '每月1日',
       SavingsMode.weekday || SavingsMode.weeks52 => '每7天',
       _ => '每1天',
     };

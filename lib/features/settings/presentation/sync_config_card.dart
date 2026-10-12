@@ -1,9 +1,11 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../theme/app_colors.dart';
-import '../../../../core/constants/app_dimens.dart';
-import '../../../../providers/app_providers.dart';
+import '../../../theme/app_colors.dart';
+import '../../../core/constants/app_dimens.dart';
+import '../../../providers/app_providers.dart';
 import '../data/sync_settings.dart';
 import '../providers/sync_settings_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -108,7 +110,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: blocked == null
                             ? AppPalette.income
-                            : AppPalette.textTertiary,
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     value: settings.enabled,
@@ -173,7 +175,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                     '部署 Cloudflare Workers 后填入以上两项。端点与令牌只保存在本机钥匙串，'
                     '不会写入数据库，也不随任何备份外传。',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppPalette.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],

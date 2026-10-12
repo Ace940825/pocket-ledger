@@ -396,17 +396,16 @@ class LendRepository {
         .get();
     int created = 0;
     for (final LendRecord r in records) {
-      final String? flowAccount =
-          _flowAccountOf(r.toAccountId, r.accountId);
+      final String? flowAccount = _flowAccountOf(r.toAccountId, r.accountId);
       if (flowAccount == null) continue;
       final Transaction? existing =
           await _findFlowTxn(r.id, includeDeleted: true);
       if (existing != null) continue;
-        await _createFlowTxn(
-          bookId: r.bookId,
-          lendId: r.id,
-          direction: r.direction,
-          amountMinor: r.amountMinor,
+      await _createFlowTxn(
+        bookId: r.bookId,
+        lendId: r.id,
+        direction: r.direction,
+        amountMinor: r.amountMinor,
         accountId: flowAccount,
         occurredAt: r.occurredAt,
         note: r.note,
@@ -491,10 +490,9 @@ class LendRepository {
       if (left <= 0) continue;
       final int apply = remaining < left ? remaining : left;
       final int newRepaid = r.repaidMinor + apply;
-      final LendStatus newStatus =
-          newRepaid + r.discountMinor >= r.amountMinor
-              ? LendStatus.settled
-              : r.status;
+      final LendStatus newStatus = newRepaid + r.discountMinor >= r.amountMinor
+          ? LendStatus.settled
+          : r.status;
 
       await (_db.update(_db.lendRecords)
             ..where((LendRecords t) => t.id.equals(r.id)))
@@ -658,9 +656,9 @@ class LendRepository {
             direction: direction,
             kind: _LendFlowKind.repay,
           ),
-            note: _flowNote(note),
-            sourceModule: SourceModule.lend,
-            // 关联被冲销的借还记录（取首条被冲销记录）：详情页据此解析出
+          note: _flowNote(note),
+          sourceModule: SourceModule.lend,
+          // 关联被冲销的借还记录（取首条被冲销记录）：详情页据此解析出
           // 「借还账户」行（与借入 / 借出本金流水同口径）。多记录冲销时
           // 取最早一条作为代表，足够定位对方借还账户。
           relatedId: affected.isNotEmpty ? affected.first.id : null,
@@ -737,7 +735,9 @@ class LendRepository {
               t.accountId.equals(accountId) & t.deleted.equals(false)))
         .get();
     if (records.isEmpty) return 0;
-    final Set<String> recordIds = <String>{for (final LendRecord r in records) r.id};
+    final Set<String> recordIds = <String>{
+      for (final LendRecord r in records) r.id
+    };
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final Set<String> keptAccounts = <String>{};
 
@@ -749,11 +749,13 @@ class LendRepository {
         // 本账户记录 ID 均为系统生成的 UUID，无引号/SQL 元字符，安全插值。
         final String inClause =
             recordIds.map((String id) => "'$id'").join(', ');
-        final List<QueryRow> rows = await _db.customSelect(
-          'SELECT txn_id, lend_record_id, amount_minor '
-          'FROM lend_flow_offsets '
-          'WHERE lend_record_id IN ($inClause)',
-        ).get();
+        final List<QueryRow> rows = await _db
+            .customSelect(
+              'SELECT txn_id, lend_record_id, amount_minor '
+              'FROM lend_flow_offsets '
+              'WHERE lend_record_id IN ($inClause)',
+            )
+            .get();
         for (final QueryRow row in rows) {
           final String txnId = row.read<String>('txn_id');
           final String recId = row.read<String>('lend_record_id');

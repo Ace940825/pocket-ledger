@@ -6,18 +6,22 @@
 
 import 'package:flutter/material.dart';
 
+import '../../theme/app_colors.dart';
+
 // ───────────────────────── 配色 Color ─────────────────────────
 
 /// 背景色
 class ForestBg {
   static const Color paper = Color(0xFFFBF6EA); // 主纸底（暖米黄）
-  static const Color sunken = Color(0xFFF3EAD8); // 次级/分区/输入框底（深沙）
+  static const Color sunken = AppPalette
+      .sunkenCream; // 单源化：别名 AppPalette.sunkenCream（同值 0xFFF3EAD8），旧名仅兼容
   static const Color raised = Color(0xFFFFFDF8); // 弹层/浮起（近白暖）
 }
 
 /// 卡片表面
 class ForestSurface {
-  static const Color card = Color(0xFFFFFCF5); // 奶油卡面
+  static const Color card =
+      AppPalette.cream; // 奶油卡面（方案 A 统一：直接别名 AppPalette.cream，旧名仅兼容）
   static const Color cardAlt = Color(0xFFF6EFE0); // 次级卡面
   static const Color raised = Color(0xFFFFFDF8); // 弹层/浮起（近白暖，同 ForestBg.raised）
 }
@@ -77,7 +81,8 @@ class ForestNeutral {
   static const Color textTertiary = Color(0xFF9AA091);
   static const Color onSage = Color(0xFF2E5B39); // 绿卡上的文字
   static const Color onGreen = Color(0xFFFFFFFF); // 绿色按钮上的文字
-  static const Color hairline = Color(0xFFECE2D0); // 发丝线/描边
+  static const Color hairline =
+      AppPalette.hairline; // 发丝线/描边（方案 A 统一：直接别名 AppPalette.hairline，旧名仅兼容）
   static const Color hairlineStrong = Color(0xFFDDD0B8);
   static const Color hairlineOnSage =
       Color(0x2E5B3929); // 绿卡内深绿发丝线 rgba(46,91,57,.16)

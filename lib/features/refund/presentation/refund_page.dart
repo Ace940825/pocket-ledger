@@ -9,8 +9,10 @@ import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/summary_bar.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
@@ -48,8 +50,8 @@ class _RefundPageState extends ConsumerState<RefundPage> {
       // 与账单清理页同口径：周期本地零点毫秒与 occurredAt 同源可比。
       final int startMs = _period!.start.millisecondsSinceEpoch;
       final int endMs = _period!.end.millisecondsSinceEpoch;
-      refunds = refunds.where((Transaction t) =>
-          t.occurredAt >= startMs && t.occurredAt < endMs);
+      refunds = refunds.where(
+          (Transaction t) => t.occurredAt >= startMs && t.occurredAt < endMs);
     }
     final List<Transaction> list = refunds.toList()
       ..sort((Transaction a, Transaction b) {
@@ -77,7 +79,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
     }
 
     return Scaffold(
-      backgroundColor: ForestBg.paper,
+      backgroundColor: context.colors.surface,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -130,8 +132,8 @@ class _RefundPageState extends ConsumerState<RefundPage> {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.arrow_back_ios_new,
-                    size: 18, color: ForestNeutral.textPrimary),
+                child: Icon(Icons.arrow_back_ios_new,
+                    size: 18, color: Theme.of(context).colorScheme.onSurface),
               ),
             ),
           ),
@@ -173,17 +175,17 @@ class _RefundPageState extends ConsumerState<RefundPage> {
                         filtered ? _period!.label : '全部',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: ForestNeutral.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.keyboard_arrow_down_rounded,
                       size: 20,
-                      color: AppPalette.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -292,22 +294,12 @@ class _RefundPageState extends ConsumerState<RefundPage> {
     });
   }
 
-  // ── 合计条：共 N 笔 · 合计 xx ─────────────────────────
+  // ── 合计条：共 N 笔 · 合计 xx（统一共享 SummaryBar） ──────
   Widget _buildSummaryBar(BuildContext context, int count, int totalMinor) {
-    return Padding(
+    return SummaryBar(
+      count: count,
+      totalText: Money.fromMinor(totalMinor).format(),
       padding: const EdgeInsets.fromLTRB(18, 4, 18, 6),
-      child: Row(
-        children: <Widget>[
-          Text(
-            '共 $count 笔 · 合计 ${Money.fromMinor(totalMinor).format()}',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppPalette.textSecondary,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -359,8 +351,8 @@ class _DayGroup extends StatelessWidget {
   }
 
   String get _totalLabel {
-    final int sum = items.fold<int>(0,
-        (int m, Transaction t) => m + t.amountMinor - t.discountMinor);
+    final int sum = items.fold<int>(
+        0, (int m, Transaction t) => m + t.amountMinor - t.discountMinor);
     return '退:${Money.fromMinor(sum).format()}';
   }
 
@@ -377,10 +369,10 @@ class _DayGroup extends StatelessWidget {
               children: <Widget>[
                 Text(
                   _dayLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: ForestNeutral.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(width: 5),
@@ -389,10 +381,10 @@ class _DayGroup extends StatelessWidget {
                 const Spacer(),
                 Text(
                   _totalLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

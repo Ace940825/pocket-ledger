@@ -10,7 +10,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/sheet_drag_handle.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_dimens.dart';
@@ -40,7 +42,10 @@ class _SheetA {
   static Color selBorder = AppPalette.sage800.withValues(alpha: 0.251);
   // 选中卡阴影 rgba(60,138,96,.20)
   static List<BoxShadow> selShadow = <BoxShadow>[
-    BoxShadow(color: AppPalette.stockDown.withValues(alpha: 0.2), blurRadius: 14, offset: Offset(0, 4)),
+    BoxShadow(
+        color: AppPalette.stockDown.withValues(alpha: 0.2),
+        blurRadius: 14,
+        offset: Offset(0, 4)),
   ];
   // 选中态加深余额色（浅绿底保证对比）
   static const Color selPos = AppPalette.pickerGreen;
@@ -188,7 +193,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
       behavior: behavior,
       child: Container(
         decoration: BoxDecoration(
-          color: ForestBg.paper,
+          color: context.colors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
@@ -197,14 +202,11 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               // 拖拽条
-              Container(
+              SheetDragHandle(
                 width: 36,
                 height: 4,
                 margin: const EdgeInsets.only(top: 10),
-                decoration: BoxDecoration(
-                  color: AppPalette.sage800.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                color: AppPalette.sage800.withValues(alpha: 0.22),
               ),
               _buildHeader(),
               // 弹窗内提示条（冲突提示等），出现时把主体轻轻下推。
@@ -274,11 +276,11 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
           const SizedBox(width: 10),
           Text(
             widget.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.02,
-              color: ForestNeutral.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const Spacer(),
@@ -321,7 +323,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
           style: Theme.of(context)
               .textTheme
               .bodyMedium
-              ?.copyWith(color: ForestNeutral.textTertiary),
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -407,9 +409,11 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
           height: 48, // 与列表行同高
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: ForestBg.sunken,
+            color: context.colors.surfaceContainerHighest,
             border: Border.all(
-              color: selected ? ForestGreen.deep : AppPalette.sage900.withValues(alpha: 0.141),
+              color: selected
+                  ? ForestGreen.deep
+                  : AppPalette.sage900.withValues(alpha: 0.141),
               width: 1,
             ),
             borderRadius: BorderRadius.circular(14),
@@ -443,7 +447,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                         fontWeight: FontWeight.w700,
                         color: selected
                             ? ForestGreen.deep
-                            : ForestNeutral.textPrimary,
+                            : Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     if (widget.noneSubtitle != null)
@@ -481,11 +485,11 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
     if (selected) {
       if (money.isPositive) return _SheetA.selPos;
       if (money.isNegative) return _SheetA.selNeg;
-      return ForestNeutral.textPrimary;
+      return Theme.of(context).colorScheme.onSurface;
     }
     if (money.isPositive) return ForestSemantic.income;
     if (money.isNegative) return ForestSemantic.expense;
-    return ForestNeutral.textPrimary;
+    return Theme.of(context).colorScheme.onSurface;
   }
 }
 
@@ -521,10 +525,10 @@ class _ListRow extends StatelessWidget {
             Expanded(
               child: Text(
                 account.name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: ForestNeutral.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -570,15 +574,15 @@ class _AccountTile extends StatelessWidget {
     required this.onTap,
   });
 
-  Color _amountColor(Money money) {
+  Color _amountColor(BuildContext context, Money money) {
     if (selected) {
       if (money.isPositive) return _SheetA.selPos;
       if (money.isNegative) return _SheetA.selNeg;
-      return ForestNeutral.textPrimary;
+      return Theme.of(context).colorScheme.onSurface;
     }
     if (money.isPositive) return ForestSemantic.income;
     if (money.isNegative) return ForestSemantic.expense;
-    return ForestNeutral.textPrimary;
+    return Theme.of(context).colorScheme.onSurface;
   }
 
   @override
@@ -592,8 +596,8 @@ class _AccountTile extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 94),
       padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
       decoration: BoxDecoration(
-        gradient: selected ? ForestGradients.sageMid : null,
-        color: selected ? null : ForestSurface.card,
+        gradient: selected ? context.app.sageGradientMid : null,
+        color: selected ? null : context.colors.surface,
         border: Border.all(
           color: selected ? _SheetA.selBorder : _SheetA.cardBorder,
           width: 1,
@@ -606,7 +610,7 @@ class _AccountTile extends StatelessWidget {
         selected: selected,
         mv: mv,
         money: money,
-        amountColor: _amountColor(money),
+        amountColor: _amountColor(context, money),
       ),
     );
 
@@ -660,7 +664,7 @@ class _CardInner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color titleColor =
-        selected ? ForestSage.ink : ForestNeutral.textPrimary;
+        selected ? ForestSage.ink : Theme.of(context).colorScheme.onSurface;
 
     // 信用卡类负债账户（有授信额度）才显示「可用额度 + 还款日」；
     // 借入/借出无额度字段，天然不渲染——从组件树移除而非隐藏（定稿规则）。
@@ -689,7 +693,9 @@ class _CardInner extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
           decoration: BoxDecoration(
-            color: selected ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.549) : ForestGreen.soft,
+            color: selected
+                ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.549)
+                : ForestGreen.soft,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
@@ -757,7 +763,7 @@ class _CardInner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
       decoration: BoxDecoration(
-        color: ForestSurface.cardAlt,
+        color: AppPalette.paper2,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -890,7 +896,9 @@ class _PillBtn extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: isPrimary ? Theme.of(context).colorScheme.onPrimary : ForestGreen.label,
+              color: isPrimary
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : ForestGreen.label,
             ),
           ),
         ),
@@ -942,7 +950,9 @@ class _OpBtn extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: primary ? Theme.of(context).colorScheme.onPrimary : ForestGreen.label,
+                  color: primary
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : ForestGreen.label,
                 ),
               ),
             ),

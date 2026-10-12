@@ -31,6 +31,7 @@ import '../../categories/data/category_repository.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import 'savings_schedule.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 
 /// 储蓄计划详情页（参照小青账计划详情）：
 ///
@@ -1066,7 +1067,10 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                     child: SafeArea(
                       top: false,
                       child: AmountKeypad(
+                        // 预填金额 →「首键替换」：首次按数字键整体替换预填
+                        // （小青账同款），删除键视为主动编辑（组件级统一实现）。
                         value: amountText,
+                        replaceOnFirstInput: true,
                         onChanged: (String v) =>
                             setSheetState(() => amountText = v),
                         onBackspace: () => setSheetState(() {
@@ -1192,7 +1196,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
           fontSize: 14,
         ),
         filled: true,
-        fillColor: AppPalette.surfaceMist,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         prefixIcon: Container(
           width: 36,
           height: 36,
@@ -1386,13 +1390,11 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
   /// 左 ✕ 圆键 + 居中标题，六个选项行，当前项文案尾随 ✓、行尾灰箭头。
   Future<void> _showSortSheet() async {
     final ThemeData theme = Theme.of(context);
-    final _SortKey? picked = await showModalBottomSheet<_SortKey>(
-      context: context,
-      backgroundColor: theme.colorScheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext sheetCtx) => SafeArea(
+    final _SortKey? picked = await showAppModalSheet<_SortKey>(
+      context,
+      surfaceColor: theme.colorScheme.surfaceContainer,
+      showHandle: false,
+      body: SafeArea(
         top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1407,7 +1409,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: InkResponse(
-                        onTap: () => Navigator.of(sheetCtx).pop(),
+                        onTap: () => Navigator.of(context).pop(),
                         radius: 20,
                         child: Container(
                           width: 30,
@@ -1439,7 +1441,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
             // 六个排序选项。
             for (final _SortKey key in _SortKey.values)
               InkWell(
-                onTap: () => Navigator.of(sheetCtx).pop(key),
+                onTap: () => Navigator.of(context).pop(key),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 17),
@@ -1483,12 +1485,10 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
 
   /// AppBar「管理」：存入 / 取出 / 归档 / 删除。
   Future<void> _showManage(BuildContext context, SavingsGoal goal) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext ctx) => SafeArea(
+    await showAppModalSheet<void>(
+      context,
+      showHandle: false,
+      body: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -1504,11 +1504,11 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
               leading: LineIcon(
                 categoryLineKind('deposit_in')!,
                 size: 24,
-                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               title: const Text('存入'),
               onTap: () {
-                Navigator.of(ctx).pop();
+                Navigator.of(context).pop();
                 _showDepositDialog(sign: 1, goal: goal);
               },
             ),
@@ -1517,11 +1517,11 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                 leading: LineIcon(
                   categoryLineKind('deposit_out')!,
                   size: 24,
-                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                ),
-                title: const Text('取出'),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: const Text('取出'),
                 onTap: () {
-                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pop();
                   _showWithdrawSheet(goal);
                 },
               ),
@@ -1529,7 +1529,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
               leading: const Icon(Icons.archive_outlined),
               title: const Text('归档'),
               onTap: () async {
-                Navigator.of(ctx).pop();
+                Navigator.of(context).pop();
                 try {
                   await ref
                       .read(savingsRepositoryProvider)
@@ -1553,7 +1553,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
               onTap: () async {
-                Navigator.of(ctx).pop();
+                Navigator.of(context).pop();
                 final bool ok = await confirmDelete(
                   context,
                   title: '删除目标「${goal.name}」？',
@@ -1587,25 +1587,15 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     final TextEditingController controller = TextEditingController();
     String? sourceAccountId; // 转出/转入账户（可空 = 不记账本流水）
 
-    final bool? ok = await showModalBottomSheet<bool>(
-      context: context,
+    final bool? ok = await showAppModalSheet<bool>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext sheetCtx) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setSt) => Container(
-          decoration: const BoxDecoration(
-            color: AppPalette.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
+      surfaceColor: AppPalette.white,
+      showHandle: false,
+      body: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSt) => SafeArea(
+          top: false,
+          child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -1664,7 +1654,6 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
               ],
             ),
           ),
-        ),
       ),
     );
     if (ok != true || !mounted) return;
@@ -2030,6 +2019,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                       top: false,
                       child: AmountKeypad(
                         value: amountText,
+                        replaceOnFirstInput: true,
                         onChanged: (String v) => setSt(() => amountText = v),
                         onBackspace: () => setSt(() {
                           if (amountText.isNotEmpty) {

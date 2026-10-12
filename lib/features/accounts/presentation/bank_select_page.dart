@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 import '../data/bank_data.dart';
 
 /// 银行选择页。
@@ -50,33 +51,11 @@ class _BankSelectPageState extends State<BankSelectPage> {
   }
 
   Future<void> _showCustomBankDialog() async {
-    final TextEditingController controller = TextEditingController();
-    final String? name = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('自定义银行'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: '输入银行名称',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              final String value = controller.text.trim();
-              if (value.isNotEmpty) Navigator.of(context).pop<String>(value);
-            },
-            child: const Text('确定'),
-          ),
-        ],
-      ),
+    final String? name = await showTextInput(
+      context,
+      title: '自定义银行',
+      hint: '输入银行名称',
+      validator: (String v) => v.trim().isEmpty ? '请输入银行名称' : null,
     );
     if (name != null && mounted) {
       Navigator.of(context).pop<String>(name);
@@ -148,7 +127,8 @@ class _BankSelectPageState extends State<BankSelectPage> {
                       hintText: '搜索银行',
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
-                      fillColor: AppPalette.surfaceLight,
+                      fillColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppDimens.radiusLg),
                         borderSide: BorderSide.none,
@@ -180,7 +160,7 @@ class _BankSelectPageState extends State<BankSelectPage> {
                         entry.key,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: AppPalette.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                       ),
                     ),
@@ -311,8 +291,11 @@ class _AlphabetIndex extends StatelessWidget {
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   color: enabled
-                      ? AppPalette.textSecondary
-                      : AppPalette.textTertiary.withValues(alpha: 0.4),
+                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withValues(alpha: 0.4),
                 ),
               ),
             ),

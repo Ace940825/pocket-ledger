@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/tinted_icon_box.dart';
 
 import '../../../../theme/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
@@ -59,7 +60,7 @@ class AccountTransactionTile extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            _CircleIcon(
+            TintedIconBox(
               tint: tint,
               child: LineIcon(lineKind, size: 20, color: tint),
             ),
@@ -85,7 +86,7 @@ class AccountTransactionTile extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppPalette.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -105,7 +106,7 @@ class AccountTransactionTile extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -153,28 +154,6 @@ class AccountTransactionTile extends ConsumerWidget {
       if (from.isNotEmpty && to.isNotEmpty) return '$from -> $to';
     }
     return accountNames[transaction.accountId] ?? '';
-  }
-}
-
-class _CircleIcon extends StatelessWidget {
-  const _CircleIcon({required this.child, required this.tint});
-
-  final Widget child;
-  final Color tint;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: isDark ? 0.18 : 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      alignment: Alignment.center,
-      child: child,
-    );
   }
 }
 

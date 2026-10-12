@@ -167,6 +167,12 @@ class Transactions extends Table with SyncColumns {
   /// 位置：逆地理编码地名（如「北京市朝阳区xx路」），可为空。
   TextColumn get placeName => text().nullable()();
 
+  /// 真实记录时间（UTC 毫秒）：本行流水被「记入账本」的时刻。
+  /// 与 [occurredAt]（业务发生时间，记一笔时可手动改到过去）解耦——
+  /// 「坚持记账第 X 天」按此列算，保证天数反映真实记账起点、不受改业务日期影响。
+  /// 可空：老库迁移时回填为 [occurredAt]（见数据库 v34 迁移）。
+  IntColumn get createdAt => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => <Column>{id};
 }
@@ -435,6 +441,10 @@ class InvestmentHoldings extends Table with SyncColumns {
 
   /// 当前价（分）
   IntColumn get currentPriceMinor => integer().withDefault(const Constant(0))();
+
+  /// 已实现盈亏（分）。卖出落袋的盈亏累计，随 recordSell/updateTrade 维护。
+  IntColumn get realizedProfitMinor =>
+      integer().withDefault(const Constant(0))();
   TextColumn get currency => text().withDefault(const Constant('CNY'))();
   TextColumn get accountId => text().nullable()();
   IntColumn get priceUpdatedAt => integer().nullable()();

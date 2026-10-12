@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +11,7 @@ import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
+import '../../../shared/widgets/avatar_tile.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
@@ -91,9 +95,8 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
               Expanded(
                 child: filtered.isEmpty
                     ? Center(
-                        child: Text(_showFinished
-                            ? '暂无已结束的分期'
-                            : '还没有分期计划，点右下角新增'),
+                        child:
+                            Text(_showFinished ? '暂无已结束的分期' : '还没有分期计划，点右下角新增'),
                       )
                     : TxnSlidableGroup(
                         child: ListView.separated(
@@ -108,7 +111,8 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
                               remainingMinor: remainingByPlan[p.id] ?? 0,
                               hasOverdue: overdueByPlan[p.id] ?? false,
                               repeatLabel: _repeatLabelOf(p),
-                              accountName: _accountNameOf(accounts, p.accountId),
+                              accountName:
+                                  _accountNameOf(accounts, p.accountId),
                               onOpen: () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (BuildContext _) =>
@@ -169,7 +173,10 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
           boxShadow: selected
               ? <BoxShadow>[
                   BoxShadow(
-                    color: AppPalette.textPrimary.withValues(alpha: 0.08),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.08),
                     blurRadius: 3,
                   ),
                 ]
@@ -180,7 +187,9 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: selected ? AppPalette.sage700 : AppPalette.textSecondary,
+            color: selected
+                ? AppPalette.sage700
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -209,36 +218,17 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
 
   /// 左滑「改名」：仅标题；账户等元信息在详情页「编辑」里调整。
   Future<void> _renamePlan(InstallmentPlan p) async {
-    final TextEditingController controller =
-        TextEditingController(text: p.title);
-    final bool? saved = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: const Text('修改名称'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: '分期名称'),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
+    final String? title = await showTextInput(
+      context,
+      title: '修改名称',
+      labelText: '分期名称',
+      initialValue: p.title,
     );
-    if (saved != true || !mounted) return;
+    if (title == null || !mounted) return;
     try {
-      await ref
-          .read(installmentRepositoryProvider)
-          .updatePlanMeta(
+      await ref.read(installmentRepositoryProvider).updatePlanMeta(
             planId: p.id,
-            title: controller.text,
+            title: title,
             accountId: p.accountId,
           );
     } on AppFailure catch (e) {
@@ -249,22 +239,11 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
   /// 左滑「完结」：未还期次一次性标记为已还（提前结清口径）。
   Future<void> _finishPlan(InstallmentPlan p) async {
     final int unpaid = p.totalPeriods - p.paidPeriods;
-    final bool? ok = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: Text('完结「${p.title}」？'),
-        content: Text('将未还的 $unpaid 期一次性标记为已还，该计划随即完结。'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('完结'),
-          ),
-        ],
-      ),
+    final bool? ok = await     showConfirm(
+      context,
+      title: '完结「${p.title}」？',
+      content: '将未还的 $unpaid 期一次性标记为已还，该计划随即完结。',
+      confirmText: '完结',
     );
     if (ok != true || !mounted) return;
     try {
@@ -320,16 +299,15 @@ class _PlanCard extends StatelessWidget {
     final TextTheme t = Theme.of(context).textTheme;
     final List<int> fees = feeByPeriodOf(plan);
     final int totalFee = fees.fold<int>(0, (int s, int v) => s + v);
-    final double progress = plan.totalPeriods == 0
-        ? 0
-        : plan.paidPeriods / plan.totalPeriods;
+    final double progress =
+        plan.totalPeriods == 0 ? 0 : plan.paidPeriods / plan.totalPeriods;
     final String statusLabel = plan.isFinished
         ? '已结束'
         : hasOverdue
             ? '有逾期'
             : '进行中';
     final Color statusColor = plan.isFinished
-        ? AppPalette.textTertiary
+        ? Theme.of(context).colorScheme.onSurfaceVariant
         : hasOverdue
             ? AppPalette.danger
             : AppPalette.primary;
@@ -362,13 +340,9 @@ class _PlanCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Card(
+      child: HairlineCard(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppPalette.hairline),
-        ),
+        padding: EdgeInsets.zero,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onOpen,
@@ -389,7 +363,7 @@ class _PlanCard extends StatelessWidget {
                         textAlign: TextAlign.end,
                         style: t.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: AppPalette.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -402,7 +376,8 @@ class _PlanCard extends StatelessWidget {
                     '${plan.totalPeriods} 期',
                     if (accountName != null) accountName!,
                   ].join(' · '),
-                  style: t.bodySmall?.copyWith(color: AppPalette.textSecondary),
+                  style: t.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -413,15 +388,17 @@ class _PlanCard extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           '应还总额',
-                          style: t.bodySmall
-                              ?.copyWith(color: AppPalette.textSecondary),
+                          style: t.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           Money.fromMinor(plan.totalMinor + totalFee).format(),
                           style: t.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: AppPalette.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ],
@@ -432,15 +409,17 @@ class _PlanCard extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           '待入账',
-                          style: t.bodySmall
-                              ?.copyWith(color: AppPalette.textSecondary),
+                          style: t.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           Money.fromMinor(remainingMinor).format(),
                           style: t.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: AppPalette.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ],
@@ -458,7 +437,8 @@ class _PlanCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   '已入账 ${plan.paidPeriods}/${plan.totalPeriods} 期',
-                  style: t.bodySmall?.copyWith(color: AppPalette.textSecondary),
+                  style: t.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -511,15 +491,10 @@ class _SlideAction extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
-              border: Border.all(color: color.withValues(alpha: 0.20)),
-            ),
-            alignment: Alignment.center,
+          AvatarTile(
+            size: 48,
+            backgroundColor: color.withValues(alpha: 0.14),
+            border: Border.all(color: color.withValues(alpha: 0.20)),
             child: Icon(icon, size: 24, color: color, semanticLabel: label),
           ),
           const SizedBox(height: 4),
@@ -527,7 +502,7 @@ class _SlideAction extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: AppPalette.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],

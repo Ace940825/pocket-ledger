@@ -13,6 +13,7 @@ import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/money_text.dart';
+import '../../../shared/widgets/avatar_tile.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../data/account_group_collapse.dart';
@@ -22,6 +23,7 @@ import '../providers/accounts_providers.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 
 /// 账户列表页（分组卡片布局）。
 ///
@@ -100,25 +102,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     WidgetRef ref,
     Account account,
   ) async {
-    final bool? ok = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: const Text('隐藏账户？'),
-        content: Text(
-          '「${account.name}」将不再显示在账户列表中，'
+    final bool? ok = await showConfirm(
+      context,
+      title: '隐藏账户？',
+      content: '「${account.name}」将不再显示在账户列表中，'
           '流水与数据保留，后续可在「已隐藏」中恢复。',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('隐藏'),
-          ),
-        ],
-      ),
+      confirmText: '隐藏',
     );
     if (ok != true || !context.mounted) return;
     try {
@@ -135,24 +124,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     WidgetRef ref,
     Account account,
   ) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: const Text('删除账户？'),
-        content: Text(
-          '「${account.name}」将被删除。该账户的流水记录会保留，但不再计入资产负债。此操作不可撤销。',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+    final bool? confirmed = await showConfirm(
+      context,
+      title: '删除账户？',
+      content: '「${account.name}」将被删除。该账户的流水记录会保留，但不再计入资产负债。此操作不可撤销。',
+      confirmText: '删除',
+      danger: true,
     );
 
     if (confirmed != true || !context.mounted) return;
@@ -190,12 +167,14 @@ class _Body extends ConsumerWidget {
     final int lendOutMinor = ref.watch(lendOutOngoingProvider).valueOrNull ?? 0;
     final int borrowInMinor =
         ref.watch(borrowInOngoingProvider).valueOrNull ?? 0;
-    final Map<String, int> lendOutBalances =
-        ref.watch(lendCounterpartyBalancesProvider(LendDirection.lendOut)).valueOrNull ??
-            const <String, int>{};
-    final Map<String, int> borrowInBalances =
-        ref.watch(lendCounterpartyBalancesProvider(LendDirection.borrowIn)).valueOrNull ??
-            const <String, int>{};
+    final Map<String, int> lendOutBalances = ref
+            .watch(lendCounterpartyBalancesProvider(LendDirection.lendOut))
+            .valueOrNull ??
+        const <String, int>{};
+    final Map<String, int> borrowInBalances = ref
+            .watch(lendCounterpartyBalancesProvider(LendDirection.borrowIn))
+            .valueOrNull ??
+        const <String, int>{};
     // 证券/投资类账户的持仓市值聚合（按 accountId）；展示余额 = 现金 + 此值。
     final Map<String, int> mv =
         ref.watch(investmentMarketValueByAccountProvider);
@@ -331,17 +310,17 @@ class _Body extends ConsumerWidget {
           onDeleteAccount: onDeleteAccount,
           onReorder: _reorderGroup(ref, investments),
         ),
-              '负债类' => _AccountBody(
-                  accounts: debts,
-                  isDebt: true,
-                  mv: mv,
-                  emptyHint: '还没有负债账户，点右上角新增',
-                  onOpenDetail: onOpenDetail,
-                  onEditAccount: onEditAccount,
-                  onArchiveAccount: onArchiveAccount,
-                  onDeleteAccount: onDeleteAccount,
-                  onReorder: _reorderGroup(ref, debts),
-                ),
+      '负债类' => _AccountBody(
+          accounts: debts,
+          isDebt: true,
+          mv: mv,
+          emptyHint: '还没有负债账户，点右上角新增',
+          onOpenDetail: onOpenDetail,
+          onEditAccount: onEditAccount,
+          onArchiveAccount: onArchiveAccount,
+          onDeleteAccount: onDeleteAccount,
+          onReorder: _reorderGroup(ref, debts),
+        ),
       '应收类' => _ReceivableBody(
           accounts: receivables,
           lendOutMinor: lendOutMinor,
@@ -530,7 +509,7 @@ class _GroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final Color amountColor =
-        isDebt ? AppPalette.expense : AppPalette.textPrimary;
+        isDebt ? AppPalette.expense : Theme.of(context).colorScheme.onSurface;
     final Color iconColor = isDebt ? AppPalette.expense : AppPalette.primary;
 
     return Card(
@@ -570,7 +549,7 @@ class _GroupCard extends StatelessWidget {
                       child: Text(
                         title,
                         style: theme.textTheme.titleSmall?.copyWith(
-                          color: AppPalette.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -621,6 +600,7 @@ class _AccountBody extends StatelessWidget {
   final List<Account> accounts;
   final bool isDebt;
   final String emptyHint;
+
   /// 证券账户的持仓市值聚合（按 accountId）；非空时用于展示「现金 + 市值」。
   final Map<String, int> mv;
   final void Function(Account) onOpenDetail;
@@ -656,7 +636,7 @@ class _AccountBody extends StatelessWidget {
                 _SlideAction(
                   icon: Icons.visibility_off_outlined,
                   label: '隐藏',
-                  color: AppPalette.textTertiary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   onPressed: () => onArchiveAccount(accounts[i]),
                 ),
                 _SlideAction(
@@ -685,15 +665,15 @@ class _AccountBody extends StatelessWidget {
                       horizontal: AppDimens.spaceMd,
                     ),
                     onTap: () => onOpenDetail(accounts[i]),
-                    leading: CircleAvatar(
+                    leading: AvatarTile(
+                      size: 40,
                       backgroundColor:
                           (isDebt ? AppPalette.expense : AppPalette.primary)
                               .withValues(alpha: 0.12),
                       child: Icon(
                         accountIcon(accounts[i].type),
                         size: 20,
-                        color:
-                            isDebt ? AppPalette.expense : AppPalette.primary,
+                        color: isDebt ? AppPalette.expense : AppPalette.primary,
                       ),
                     ),
                     title: Text(
@@ -708,16 +688,13 @@ class _AccountBody extends StatelessWidget {
                     subtitle: _accountSubtitle(context, accounts[i]),
                     trailing: MoneyText(
                       Money.fromMinor(_accountDisplay(accounts[i])),
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             // 零展示余额弱化为弱文字，突出有结余的账户
                             color: _accountDisplay(accounts[i]) == 0
-                                ? AppPalette.textTertiary
+                                ? Theme.of(context).colorScheme.onSurfaceVariant
                                 : isDebt
                                     ? AppPalette.expense
-                                    : AppPalette.textPrimary,
+                                    : Theme.of(context).colorScheme.onSurface,
                             fontWeight: FontWeight.w600,
                           ),
                     ),
@@ -749,7 +726,7 @@ class _AccountBody extends StatelessWidget {
           style: Theme.of(context)
               .textTheme
               .bodySmall
-              ?.copyWith(color: AppPalette.textSecondary),
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         );
       }
     }
@@ -848,8 +825,7 @@ class _ReceivableBody extends StatelessWidget {
             onDeleteAccount: onDeleteAccount,
             onReorder: onReorder,
           ),
-        if (accounts.isNotEmpty && lendOutMinor != 0)
-          const Divider(height: 1),
+        if (accounts.isNotEmpty && lendOutMinor != 0) const Divider(height: 1),
         if (lendOutMinor != 0)
           _CounterpartyBalanceBody(
             title: '借出',
@@ -908,8 +884,7 @@ class _PayableBody extends StatelessWidget {
             onDeleteAccount: onDeleteAccount,
             onReorder: onReorder,
           ),
-        if (accounts.isNotEmpty && borrowInMinor != 0)
-          const Divider(height: 1),
+        if (accounts.isNotEmpty && borrowInMinor != 0) const Divider(height: 1),
         if (borrowInMinor != 0)
           _CounterpartyBalanceBody(
             title: '借入',
@@ -1026,7 +1001,8 @@ class _SummaryRow extends StatelessWidget {
       onTap: onTap,
       // 右缘对齐分组头部（12），头像 x=12 与账户行一致
       contentPadding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
-      leading: CircleAvatar(
+      leading: AvatarTile(
+        size: 40,
         backgroundColor: amountColor.withValues(alpha: 0.12),
         child: Icon(icon, size: 20, color: amountColor),
       ),
@@ -1042,8 +1018,8 @@ class _SummaryRow extends StatelessWidget {
                 ),
           ),
           const SizedBox(width: AppDimens.spaceXs),
-          const Icon(Icons.chevron_right,
-              size: 18, color: AppPalette.textTertiary),
+          Icon(Icons.chevron_right,
+              size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ],
       ),
     );
@@ -1104,7 +1080,8 @@ class _NetAssetsHeader extends ConsumerWidget {
               vertical: AppDimens.spaceSm,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.35), // ignore: no_raw_colors
+              color:
+                  Colors.white.withValues(alpha: 0.35), // ignore: no_raw_colors
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
             ),
             child: Row(
@@ -1153,7 +1130,11 @@ class _NetHeaderItem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: labelColor)),
+        Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: labelColor)),
         const SizedBox(height: 2),
         MoneyText(
           Money.fromMinor(amountMinor),

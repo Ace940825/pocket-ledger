@@ -81,7 +81,10 @@ enum AccountType {
   borrow, // 24
 
   // ---- 投资类：定期存款（追加，real 余额、非持仓派生） ----
-  timeDeposit; // 25
+  timeDeposit, // 25
+
+  // ---- 投资类：其他账户（追加，兜底投资账户，现金+市值双层同基金/股票） ----
+  investmentOther; // 26
 
   String get label => switch (this) {
         AccountType.cash => '现金',
@@ -110,6 +113,7 @@ enum AccountType {
         AccountType.otherDebt => '其他账户',
         AccountType.borrow => '借入',
         AccountType.timeDeposit => '定期',
+        AccountType.investmentOther => '其他账户',
       };
 
   /// 所属大类。
@@ -130,7 +134,8 @@ enum AccountType {
         AccountType.stock ||
         AccountType.futures ||
         AccountType.spot ||
-        AccountType.timeDeposit =>
+        AccountType.timeDeposit ||
+        AccountType.investmentOther =>
           AccountCategory.investment,
         AccountType.reimbursement ||
         AccountType.lend =>

@@ -51,7 +51,8 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
   /// 定向更新（只写 companion 中出现的列）。勿用 replace()——整行替换
   /// 会把缺省列（isSystem/sortOrder 等）写成默认值。
   Future<int> updateCategory(CategoriesCompanion companion) {
-    return (update(categories)..where(($CategoriesTable tbl) => tbl.id.equals(companion.id.value)))
+    return (update(categories)
+          ..where(($CategoriesTable tbl) => tbl.id.equals(companion.id.value)))
         .write(companion);
   }
 

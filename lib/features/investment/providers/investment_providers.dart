@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../database/app_database.dart';
-import '../../../database/daos/transactions_dao.dart';
 import '../../../domain/enums.dart';
 import '../../../features/ledger/providers/ledger_providers.dart';
 import '../../../providers/app_providers.dart';
@@ -28,25 +27,25 @@ final StreamProvider<Map<String, (DateTime?, DateTime?)>>
       .watch(transactionsDaoProvider)
       .watchAllInvestmentFlows(bookId: ref.watch(currentBookIdProvider))
       .map((List<Transaction> flows) {
-        final Map<String, (DateTime?, DateTime?)> out =
-            <String, (DateTime?, DateTime?)>{};
-        for (final Transaction f in flows) {
-          final String? hid = f.relatedId;
-          if (hid == null) continue;
-          final DateTime d = DateTime.fromMillisecondsSinceEpoch(
-            f.occurredAt,
-            isUtc: true,
-          ).toLocal();
-          var (DateTime? buy, DateTime? sell) = out[hid] ?? (null, null);
-          if (f.type == TxnType.expense) {
-            if (buy == null || d.isBefore(buy)) buy = d;
-          } else if (f.type == TxnType.income) {
-            if (sell == null || d.isAfter(sell)) sell = d;
-          }
-          out[hid] = (buy, sell);
-        }
-        return out;
-      });
+    final Map<String, (DateTime?, DateTime?)> out =
+        <String, (DateTime?, DateTime?)>{};
+    for (final Transaction f in flows) {
+      final String? hid = f.relatedId;
+      if (hid == null) continue;
+      final DateTime d = DateTime.fromMillisecondsSinceEpoch(
+        f.occurredAt,
+        isUtc: true,
+      ).toLocal();
+      var (DateTime? buy, DateTime? sell) = out[hid] ?? (null, null);
+      if (f.type == TxnType.expense) {
+        if (buy == null || d.isBefore(buy)) buy = d;
+      } else if (f.type == TxnType.income) {
+        if (sell == null || d.isAfter(sell)) sell = d;
+      }
+      out[hid] = (buy, sell);
+    }
+    return out;
+  });
 });
 
 final Provider<InvestmentRepository> investmentRepositoryProvider =
@@ -101,33 +100,133 @@ final FutureProvider<int> refreshPricesProvider = FutureProvider<int>(
   (Ref ref) => ref.watch(investmentRepositoryProvider).refreshAllPrices(),
 );
 
-/// 组合层面的汇总：总市值 / 总成本 / 浮动盈亏。
-typedef PortfolioSummary = ({
-  int marketValueMinor,
-  int costValueMinor,
-  int profitMinor,
-  double profitRatio,
+/// 投资类账户现金余额合计（分）：总资产「现金」侧。
+///
+/// 投资账户存储层 [Account.balanceMinor] 只记现金（市值在展示层叠加），
+/// 总资产 = 本值 + 持仓市值合计。直接订阅 accountsDao（不经 accounts_providers，
+/// 避免循环 import），口径与 [isSecuritiesAccount] 一致。
+final StreamProvider<int> investmentCashProvider = StreamProvider<int>((
+  Ref ref,
+) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref
+      .watch(accountsDaoProvider)
+      .watchByBook(bookId)
+      .map((List<Account> list) {
+    int cash = 0;
+    for (final Account a in list) {
+      if (isSecuritiesAccount(a)) cash += a.balanceMinor;
+    }
+    return cash;
+  });
 });
 
+/// 累计买入成本（分）：账本内全部投资买入流水的净额合计（金额 − 手续费）。
+///
+/// 收益率的分母（全周期口径）：清仓持仓的买入也计入，保证清仓前后
+/// 收益率口径一致。与 [investedCostMinorFor] 同公式（单持仓版）。
+final StreamProvider<int> investedCostProvider = StreamProvider<int>((Ref ref) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref
+      .watch(transactionsDaoProvider)
+      .watchAllInvestmentFlows(bookId: bookId)
+      .map((List<Transaction> flows) => investedCostMinorFor(flows));
+});
+
+/// 每持仓的轮次划分（已完成轮 + 当前轮）：持仓/清仓双卡与汇总口径的数据源。
+///
+/// 直接订阅全量投资流水，按 [Transaction.relatedId] 分组后逐持仓 [replayHoldCycles]。
+/// 清仓后再买入会开新一轮——当前轮只含本轮成本/盈亏，历史清仓收益在 [HoldingCycleInfo.completed]。
+final StreamProvider<Map<String, HoldingCycleInfo>>
+    investmentCycleInfoProvider =
+    StreamProvider<Map<String, HoldingCycleInfo>>((Ref ref) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref
+      .watch(transactionsDaoProvider)
+      .watchAllInvestmentFlows(bookId: bookId)
+      .map((List<Transaction> flows) {
+    final Map<String, List<Transaction>> byHolding =
+        <String, List<Transaction>>{};
+    for (final Transaction f in flows) {
+      final String? hid = f.relatedId;
+      if (hid == null) continue;
+      (byHolding[hid] ??= <Transaction>[]).add(f);
+    }
+    final Map<String, HoldingCycleInfo> out = <String, HoldingCycleInfo>{};
+    byHolding.forEach((String hid, List<Transaction> hf) {
+      final (List<HoldCycle> completed, HoldCycle? open) = replayHoldCycles(hf);
+      out[hid] = HoldingCycleInfo(completed: completed, open: open);
+    });
+    return out;
+  });
+});
+
+/// 组合层面的汇总：总资产 / 总市值 / 现金 / 仓位 / 摊薄总成本 / 总盈亏（全周期）/ 收益率。
+typedef PortfolioSummary = ({
+  int marketValueMinor, // 持仓市值合计
+  int cashMinor, // 投资类账户现金合计
+  int totalAssetMinor, // 总资产 = 现金 + 持仓市值
+  double positionRatio, // 仓位 = 持仓市值 ÷ 总资产（总资产为 0 时返回 0）
+  int costValueMinor, // 摊薄总成本（仅当前轮）= 当前轮持仓成本 − 当前轮已实现
+  int profitMinor, // 总盈亏（全周期）= 当前轮利润 + 全部历史清仓收益
+  double profitRatio, // 收益率 = 总盈亏 ÷ 累计买入成本（全周期口径）
+  int investedCostMinor, // 累计买入成本（含清仓持仓，收益率分母）
+  int realizedProfitMinor, // 持仓收益（当前轮部分清仓 + 全部历史清仓落袋）
+});
+
+/// 组合层面的汇总：总资产 / 总市值 / 现金 / 仓位 / 摊薄总成本 / 总盈亏 / 收益率。
+///
+/// 总资产 = 投资类账户现金 + 持仓市值（「现金 + 市值」双层模型，见
+/// [investmentCashProvider]）；仓位 = 市值 ÷ 总资产。
+/// **按轮次口径（[investmentCycleInfoProvider]）**：未清仓持仓只取当前轮成本/盈亏
+/// （不含历史清仓包袱），清仓持仓回落为历史累计落仓收益——保证「清仓后再买入」
+/// 后持仓卡盈亏不被旧一轮拖累，而组合总盈亏仍含全部历史（复盘可见）。
+/// **收益率 = 总盈亏 ÷ 累计买入成本**（[investedCostProvider]，含清仓持仓全周期），
+/// 分母为真实总投入，清仓前后口径一致。
 final Provider<PortfolioSummary> portfolioSummaryProvider =
     Provider<PortfolioSummary>((Ref ref) {
   final List<InvestmentHolding> holdings =
       ref.watch(investmentListProvider).valueOrNull ??
           const <InvestmentHolding>[];
+  final int cash = ref.watch(investmentCashProvider).valueOrNull ?? 0;
+  final int invested = ref.watch(investedCostProvider).valueOrNull ?? 0;
+  final Map<String, HoldingCycleInfo> cyc =
+      ref.watch(investmentCycleInfoProvider).valueOrNull ??
+          const <String, HoldingCycleInfo>{};
 
   int market = 0;
   int cost = 0;
+  int profit = 0;
+  int realized = 0;
   for (final InvestmentHolding h in holdings) {
     market += h.marketValueMinor;
-    cost += h.costValueMinor;
+    final HoldingCycleInfo? info = cyc[h.id];
+    final HoldCycle? open = info?.open;
+    if (open != null && h.quantityMicros > 0) {
+      // 当前轮（不含历史）：成本只看这一轮；总盈亏 = 当前轮利润 + 全部历史清仓收益
+      // （保证「清仓后再买入」后首页仍含历史落袋盈亏，复盘可见）。
+      final int dilutedCost = open.dilutedCostValueMinor;
+      cost += dilutedCost;
+      profit += open.dilutedProfitMinor(h.marketValueMinor) +
+          info!.historyRealizedMinor;
+      realized += open.realizedMinor + info.historyRealizedMinor;
+    } else {
+      // 清仓或异常：回落为历史累计落袋收益（全周期）。
+      profit += h.realizedProfitMinor;
+      realized += h.realizedProfitMinor;
+    }
   }
-  final int profit = market - cost;
-
+  final int totalAsset = cash + market;
   return (
     marketValueMinor: market,
+    cashMinor: cash,
+    totalAssetMinor: totalAsset,
+    positionRatio: totalAsset == 0 ? 0.0 : market / totalAsset,
     costValueMinor: cost,
     profitMinor: profit,
-    profitRatio: cost == 0 ? 0.0 : profit / cost,
+    profitRatio: invested == 0 ? 0.0 : profit / invested,
+    investedCostMinor: invested,
+    realizedProfitMinor: realized,
   );
 });
 

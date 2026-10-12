@@ -14,6 +14,7 @@ import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/ledger_filter_page.dart';
@@ -72,7 +73,11 @@ Map<String, List<double>> _readThresholdPrefs() {
       return list.map((dynamic e) => (e as num).toDouble()).toList();
     }
 
-    return <String, List<double>>{'e': read('e'), 'i': read('i'), 'b': read('b')};
+    return <String, List<double>>{
+      'e': read('e'),
+      'i': read('i'),
+      'b': read('b')
+    };
   } catch (_) {
     return _thresholdDefaults();
   }
@@ -85,13 +90,9 @@ final StateProvider<Map<String, List<double>>> reportThresholdProvider =
 
 /// 打开「日历报表阈值」弹窗（保存后写共享 provider + 持久化）。
 void _showReportThresholdSheet(BuildContext context, WidgetRef ref) {
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: AppPalette.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (BuildContext ctx) => _ThresholdSheet(
+  showAppModalSheet<void>(
+    context,
+    body: _ThresholdSheet(
       initial: ref.read(reportThresholdProvider),
       onSave: (Map<String, List<double>> v) async {
         ref.read(reportThresholdProvider.notifier).state = v;
@@ -331,16 +332,15 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     final int year = ref.watch(reportCalendarYearProvider);
     final int? calMonth = ref.watch(reportCalendarMonthProvider);
     final LedgerPeriod period = ref.watch(reportPeriodProvider);
-    final List<Transaction> all = ref
-            .watch(reportCalendarYearTransactionsProvider)
-            .valueOrNull ??
-        const <Transaction>[];
+    final List<Transaction> all =
+        ref.watch(reportCalendarYearTransactionsProvider).valueOrNull ??
+            const <Transaction>[];
     // 周视图数据源：精确覆盖所选周（可跨年），跟随双向同步的 reportPeriodProvider。
-    final List<Transaction> weekTxns = ref
-            .watch(reportPeriodTransactionsProvider)
-            .valueOrNull ??
-        const <Transaction>[];
-    final LedgerAdvancedFilter? filter = ref.watch(reportAdvancedFilterProvider);
+    final List<Transaction> weekTxns =
+        ref.watch(reportPeriodTransactionsProvider).valueOrNull ??
+            const <Transaction>[];
+    final LedgerAdvancedFilter? filter =
+        ref.watch(reportAdvancedFilterProvider);
     final Map<String, Category> cats =
         ref.watch(categoryMapProvider).valueOrNull ?? <String, Category>{};
     final List<Transaction> txns = applyLedgerAdvancedFilter(all, filter, cats);
@@ -437,8 +437,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                         fontSize: 17, fontWeight: FontWeight.w600),
                   ),
                 ),
-                const Icon(Icons.expand_more,
-                    size: 20, color: AppPalette.textSecondary),
+                Icon(Icons.expand_more,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ],
             ),
           ),
@@ -465,8 +466,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
   // ── 年支出/年收入 + 12 月宫格 ──
 
-  Widget _yearCard(int year, List<_MonthAgg> months, int yearExpense,
-      int yearIncome) {
+  Widget _yearCard(
+      int year, List<_MonthAgg> months, int yearExpense, int yearIncome) {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -476,15 +477,16 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
             Row(
               children: <Widget>[
                 Expanded(
-                    child: _yearIndicator('年支出', yearExpense, AppPalette.expense,
+                    child: _yearIndicator(
+                        '年支出', yearExpense, AppPalette.expense,
                         selected: _showYearExpense,
-                        onToggle: () =>
-                            setState(() => _showYearExpense = !_showYearExpense))),
+                        onToggle: () => setState(
+                            () => _showYearExpense = !_showYearExpense))),
                 Expanded(
                     child: _yearIndicator('年收入', yearIncome, AppPalette.income,
                         selected: _showYearIncome,
-                        onToggle: () =>
-                            setState(() => _showYearIncome = !_showYearIncome))),
+                        onToggle: () => setState(
+                            () => _showYearIncome = !_showYearIncome))),
               ],
             ),
             const SizedBox(height: AppDimens.spaceMd),
@@ -535,8 +537,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
             ),
             const SizedBox(width: 5),
             Text(label,
-                style: const TextStyle(
-                    fontSize: 13, color: AppPalette.textPrimary)),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface)),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -577,11 +580,11 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 '$month月',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 14,
                     height: 1.1,
                     fontWeight: FontWeight.w700,
-                    color: AppPalette.textPrimary),
+                    color: Theme.of(context).colorScheme.onSurface),
               ),
               if (has) ...<Widget>[
                 if (showExpense) ...<Widget>[
@@ -626,8 +629,10 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
             horizontal: AppDimens.spaceLg, vertical: AppDimens.spaceMd),
         child: Row(
           children: <Widget>[
-            const Text('年结余: ',
-                style: TextStyle(fontSize: 13, color: AppPalette.textPrimary)),
+            Text('年结余: ',
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface)),
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
@@ -638,15 +643,16 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color:
-                        balance < 0 ? AppPalette.expense : AppPalette.income,
+                    color: balance < 0 ? AppPalette.expense : AppPalette.income,
                   ),
                 ),
               ),
             ),
             const Spacer(),
-            const Text('月均收入: ',
-                style: TextStyle(fontSize: 13, color: AppPalette.textPrimary)),
+            Text('月均收入: ',
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface)),
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
@@ -701,15 +707,16 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
           children: <Widget>[
             Text(c.$1,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: AppPalette.textSecondary)),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
             if (c.$2 != null)
               Text(c.$2!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 11.5, color: AppPalette.textSecondary)),
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ],
         ),
       );
@@ -747,10 +754,10 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                     padding: const EdgeInsets.only(left: 14),
                     alignment: Alignment.centerLeft,
                     child: Text('$year年',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: AppPalette.textPrimary)),
+                            color: Theme.of(context).colorScheme.onSurface)),
                   ),
                   for (final int m in rows) ...<Widget>[
                     Container(height: 0.6, color: AppPalette.sageLine),
@@ -767,19 +774,23 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                               Row(
                                 children: <Widget>[
                                   Text('$m月',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w700,
-                                          color: AppPalette.textPrimary)),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface)),
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
                                       '(${months[m - 1].count}笔)',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           fontSize: 11.5,
-                                          color: AppPalette.textTertiary),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant),
                                     ),
                                   ),
                                 ],
@@ -787,9 +798,11 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                               const SizedBox(height: 2),
                               Text(
                                 '${m}月1日-${m}月${DateTime(year, m + 1, 0).day}日',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 11,
-                                    color: AppPalette.textTertiary),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant),
                               ),
                             ],
                           ),
@@ -806,15 +819,19 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(children: <Widget>[for (final c in cols) headerCell(c)]),
+                    Row(children: <Widget>[
+                      for (final c in cols) headerCell(c)
+                    ]),
                     for (final int m in rows) ...<Widget>[
-                      Container(height: 0.6, width: _colW * cols.length, color: AppPalette.sageLine),
+                      Container(
+                          height: 0.6,
+                          width: _colW * cols.length,
+                          color: AppPalette.sageLine),
                       InkWell(
                         onTap: () => _openMonth(year, m),
                         child: Row(
                           children: <Widget>[
-                            valueCell(
-                                months[m - 1].income, AppPalette.income),
+                            valueCell(months[m - 1].income, AppPalette.income),
                             valueCell(
                                 months[m - 1].expense, AppPalette.expense),
                             valueCell(
@@ -828,8 +845,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                                 months[m - 1].unstatsIncome, AppPalette.income),
                             valueCell(months[m - 1].unbudgetExpense,
                                 AppPalette.expense),
-                            valueCell(
-                                months[m - 1].unbudgetIncome, AppPalette.income),
+                            valueCell(months[m - 1].unbudgetIncome,
+                                AppPalette.income),
                           ],
                         ),
                       ),
@@ -932,9 +949,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
     // 选中日：手动选择优先（限本周）；否则今天（在周内）；否则最后有账单的一天；空则周一。
     final DateTime now = DateTime.now();
-    final int todayIdx = DateTime(now.year, now.month, now.day)
-        .difference(m0)
-        .inDays;
+    final int todayIdx =
+        DateTime(now.year, now.month, now.day).difference(m0).inDays;
     final bool todayInWeek = todayIdx >= 0 && todayIdx <= 6;
     int selIdx;
     final DateTime? picked = _selWeekDay;
@@ -962,13 +978,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
       _weekCard(m0, days, selIdx),
       const SizedBox(height: AppDimens.spaceSm),
       _calSummaryRow(
-          unit: '周',
-          expense: weekExpense,
-          income: weekIncome,
-          denom: denom),
+          unit: '周', expense: weekExpense, income: weekIncome, denom: denom),
       const SizedBox(height: AppDimens.spaceLg),
-      _dayBillSection(
-          m0.add(Duration(days: selIdx)), days[selIdx], txns),
+      _dayBillSection(m0.add(Duration(days: selIdx)), days[selIdx], txns),
     ];
   }
 
@@ -990,8 +1002,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     iconSize: 20,
-                    icon: const Icon(Icons.settings_outlined,
-                        color: AppPalette.textSecondary),
+                    icon: Icon(Icons.settings_outlined,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                     onPressed: () => _showThresholdSheet(),
                   ),
                 ),
@@ -1012,8 +1024,11 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   Expanded(
                     child: Center(
                       child: Text(w,
-                          style: const TextStyle(
-                              fontSize: 13, color: AppPalette.textSecondary)),
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant)),
                     ),
                   ),
               ],
@@ -1042,9 +1057,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     final bool has = agg.hasData;
     final bool selected = idx == selIdx;
     final DateTime now = DateTime.now();
-    final bool isToday = date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+    final bool isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
 
     // 底色：与月历格同口径（支出红阶/收入绿阶/结余正绿负红）。
     Color bg = AppPalette.neutralMist;
@@ -1078,9 +1092,13 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     } else {
       switch (_calView) {
         case 0:
-          amounts = <Widget>[_weekAmt('支:${_compact(agg.expense)}', AppPalette.expense)];
+          amounts = <Widget>[
+            _weekAmt('支:${_compact(agg.expense)}', AppPalette.expense)
+          ];
         case 1:
-          amounts = <Widget>[_weekAmt('收:${_compact(agg.income)}', AppPalette.income)];
+          amounts = <Widget>[
+            _weekAmt('收:${_compact(agg.income)}', AppPalette.income)
+          ];
         case 2:
           amounts = <Widget>[
             _weekAmt('支:${_compact(agg.expense)}', AppPalette.expense),
@@ -1123,7 +1141,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                     height: 1.1,
                     fontWeight:
                         isToday || has ? FontWeight.w700 : FontWeight.w400,
-                    color: has ? AppPalette.textPrimary : AppPalette.textSecondary,
+                    color: has
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 ...amounts,
@@ -1165,8 +1185,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     iconSize: 20,
-                    icon: const Icon(Icons.settings_outlined,
-                        color: AppPalette.textSecondary),
+                    icon: Icon(Icons.settings_outlined,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                     onPressed: () => _showThresholdSheet(),
                   ),
                 ),
@@ -1187,8 +1207,11 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   Expanded(
                     child: Center(
                       child: Text(w,
-                          style: const TextStyle(
-                              fontSize: 13, color: AppPalette.textSecondary)),
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant)),
                     ),
                   ),
               ],
@@ -1215,7 +1238,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                color: selected ? AppPalette.sageInk : AppPalette.textSecondary,
+                color: selected
+                    ? AppPalette.sageInk
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 3),
@@ -1237,13 +1262,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
   void _showSettingsSheet() {
     final TabController? tabs = DefaultTabController.of(context);
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppPalette.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext ctx) => _ReportSettingsSheet(
+    showAppModalSheet<void>(
+      context,
+      body: _ReportSettingsSheet(
         onTabChange: (int index) => tabs?.animateTo(index),
         onOpenThreshold: _showThresholdSheet,
       ),
@@ -1309,10 +1330,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     final bool has = agg?.hasData ?? false;
     final bool selected = inMonth && day == sel;
     final DateTime now = DateTime.now();
-    final bool isToday = inMonth &&
-        year == now.year &&
-        month == now.month &&
-        day == now.day;
+    final bool isToday =
+        inMonth && year == now.year && month == now.month && day == now.day;
 
     // 底色：支出/收支视角按支出金额占比加深红底；有账单无支出浅绿底。
     Color bg = AppPalette.neutralMist;
@@ -1344,10 +1363,13 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
       height: 1.05, // 收紧默认行高，防双行金额格纵向溢出
       fontWeight: isToday || has ? FontWeight.w700 : FontWeight.w400,
       color: !inMonth
-          ? AppPalette.textTertiary.withValues(alpha: 0.55)
+          ? Theme.of(context)
+              .colorScheme
+              .onSurfaceVariant
+              .withValues(alpha: 0.55)
           : has
-              ? AppPalette.textPrimary
-              : AppPalette.textSecondary,
+              ? Theme.of(context).colorScheme.onSurface
+              : Theme.of(context).colorScheme.onSurfaceVariant,
     );
 
     final List<Widget> lines;
@@ -1384,11 +1406,11 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
           final int net = agg!.income - agg.expense;
           lines = <Widget>[
             Text(net > 0 ? '+${_amt(net)}' : _amt(net),
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 10.5,
                     height: 1.1,
                     fontWeight: FontWeight.w600,
-                    color: AppPalette.textPrimary)),
+                    color: Theme.of(context).colorScheme.onSurface)),
           ];
       }
     }
@@ -1474,8 +1496,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
       // 显示），绝不拆行，负号不会与数字分离（与年视图 _summaryRow 同款）。
       return <Widget>[
         Text(label,
-            style:
-                const TextStyle(fontSize: 13, color: AppPalette.textPrimary)),
+            style: TextStyle(
+                fontSize: 13, color: Theme.of(context).colorScheme.onSurface)),
         Flexible(
           child: FittedBox(
             fit: BoxFit.scaleDown,
@@ -1511,8 +1533,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
   // ── 当日账单列表（月/周视图共用，day = 所选绝对日期） ──
 
-  Widget _dayBillSection(
-      DateTime day, _DayAgg selAgg, List<Transaction> txns) {
+  Widget _dayBillSection(DateTime day, _DayAgg selAgg, List<Transaction> txns) {
     final List<Transaction> dayTxns = <Transaction>[];
     for (final Transaction t in txns) {
       if (t.type == TxnType.transfer || t.excludeFromStats) continue;
@@ -1527,8 +1548,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
       }
       dayTxns.add(t);
     }
-    dayTxns.sort((Transaction a, Transaction b) =>
-        b.occurredAt.compareTo(a.occurredAt));
+    dayTxns.sort(
+        (Transaction a, Transaction b) => b.occurredAt.compareTo(a.occurredAt));
     final List<Transaction> visible = switch (_calView) {
       0 => dayTxns.where((Transaction t) => t.type == TxnType.expense).toList(),
       1 => dayTxns.where((Transaction t) => t.type == TxnType.income).toList(),
@@ -1683,11 +1704,11 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
   }) {
     final Map<String, _SliceBuilder> acc = <String, _SliceBuilder>{};
     for (final Transaction t in txns) {
-      final Category? cat =
-          (t.categoryId == null || t.categoryId!.isEmpty) ? null : cats[t.categoryId];
-      final Category? top = (byParent && cat?.parentId != null)
-          ? cats[cat!.parentId]
-          : cat;
+      final Category? cat = (t.categoryId == null || t.categoryId!.isEmpty)
+          ? null
+          : cats[t.categoryId];
+      final Category? top =
+          (byParent && cat?.parentId != null) ? cats[cat!.parentId] : cat;
       final String key = top?.id ?? (cat?.id ?? '');
       final String label = top?.name ?? cat?.name ?? '未分类';
       final String? iconKey = top?.iconKey ?? cat?.iconKey;
@@ -1770,11 +1791,11 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
   @override
   Widget build(BuildContext context) {
     final LedgerPeriod period = ref.watch(reportPeriodProvider);
-    final List<Transaction> all = ref
-            .watch(reportPeriodTransactionsProvider)
-            .valueOrNull ??
-        const <Transaction>[];
-    final LedgerAdvancedFilter? filter = ref.watch(reportAdvancedFilterProvider);
+    final List<Transaction> all =
+        ref.watch(reportPeriodTransactionsProvider).valueOrNull ??
+            const <Transaction>[];
+    final LedgerAdvancedFilter? filter =
+        ref.watch(reportAdvancedFilterProvider);
     final Map<String, Category> cats =
         ref.watch(categoryMapProvider).valueOrNull ?? <String, Category>{};
     final List<Transaction> txns = applyLedgerAdvancedFilter(all, filter, cats);
@@ -1853,8 +1874,9 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                   style: const TextStyle(
                       fontSize: 17, fontWeight: FontWeight.w600),
                 ),
-                const Icon(Icons.expand_more,
-                    size: 20, color: AppPalette.textSecondary),
+                Icon(Icons.expand_more,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ],
             ),
           ),
@@ -1924,7 +1946,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
   Color _branchColor(ReportBranch b) => switch (b) {
         ReportBranch.expense => AppPalette.expense,
         ReportBranch.income => AppPalette.income,
-        ReportBranch.other => AppPalette.textPrimary,
+        ReportBranch.other => Theme.of(context).colorScheme.onSurface,
       };
 
   String _branchPrefix(ReportBranch b) => switch (b) {
@@ -1968,8 +1990,9 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                 ),
                 const SizedBox(width: 5),
                 Text(label,
-                    style: const TextStyle(
-                        fontSize: 13, color: AppPalette.textPrimary)),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurface)),
               ],
             ),
             const SizedBox(height: 2),
@@ -2005,8 +2028,8 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
       child: IconButton(
         padding: EdgeInsets.zero,
         iconSize: 20,
-        icon: const Icon(Icons.settings_outlined,
-            color: AppPalette.textSecondary),
+        icon: Icon(Icons.settings_outlined,
+            color: Theme.of(context).colorScheme.onSurfaceVariant),
         onPressed: _showSettingsSheet,
       ),
     );
@@ -2016,13 +2039,9 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
 
   void _showSettingsSheet() {
     final TabController? tabs = DefaultTabController.of(context);
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppPalette.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext ctx) => _ReportSettingsSheet(
+    showAppModalSheet<void>(
+      context,
+      body: _ReportSettingsSheet(
         onTabChange: (int index) => tabs?.animateTo(index),
         onOpenThreshold: () => _showReportThresholdSheet(context, ref),
       ),
@@ -2038,13 +2057,13 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Icon(Icons.pie_chart_outline,
-                size: 56, color: AppPalette.sageLine),
+            Icon(Icons.pie_chart_outline, size: 56, color: AppPalette.sageLine),
             const SizedBox(height: AppDimens.spaceMd),
-            const Text(
+            Text(
               '咦~没有发现账单哦',
-              style:
-                  TextStyle(fontSize: 14, color: AppPalette.textTertiary),
+              style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -2054,9 +2073,8 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
         '${_branchPrefix(_branch)}${_byParent ? '大类' : '小类'}';
     final String toggleHint = _byParent ? '切换小类' : '切换大类';
     // 外部标注最多画 5 条引线（slices 已按金额降序），避免小片挤成一团。
-    final List<_Slice> calloutSlices = slices.length > 5
-        ? slices.sublist(0, 5)
-        : slices;
+    final List<_Slice> calloutSlices =
+        slices.length > 5 ? slices.sublist(0, 5) : slices;
     return SizedBox(
       height: 280,
       child: Stack(
@@ -2069,6 +2087,9 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
               painter: _DonutCalloutPainter(
                 slices: calloutSlices,
                 total: total,
+                lineColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                labelColor: Theme.of(context).colorScheme.onSurface,
+                subLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -2104,8 +2125,9 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                 const SizedBox(height: 2),
                 Text(
                   toggleHint,
-                  style: const TextStyle(
-                      fontSize: 11, color: AppPalette.textTertiary),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -2137,77 +2159,81 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
-        children: <Widget>[
-          Container(
-            width: 38,
-            height: 38,
-            decoration: const BoxDecoration(
-              color: AppPalette.sageHaze,
-              shape: BoxShape.circle,
+          children: <Widget>[
+            Container(
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(
+                color: AppPalette.sageHaze,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: CategoryGlyph(slice.iconKey,
+                  size: 20, color: AppPalette.sageInk),
             ),
-            alignment: Alignment.center,
-            child: CategoryGlyph(slice.iconKey,
-                size: 20, color: AppPalette.sageInk),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: Text(
-                        slice.label,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w500),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Flexible(
+                        child: Text(
+                          slice.label,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(pct,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2.5),
+                    child: SizedBox(
+                      height: 5,
+                      child: Stack(
+                        children: <Widget>[
+                          Container(color: AppPalette.sageHaze),
+                          FractionallySizedBox(
+                            widthFactor: share.clamp(0.0, 1.0),
+                            child: Container(color: color),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Text(pct,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppPalette.textTertiary)),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(2.5),
-                  child: SizedBox(
-                    height: 5,
-                    child: Stack(
-                      children: <Widget>[
-                        Container(color: AppPalette.sageHaze),
-                        FractionallySizedBox(
-                          widthFactor: share.clamp(0.0, 1.0),
-                          child: Container(color: color),
-                        ),
-                      ],
-                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Text(
+                  Money.fromMinor(slice.minor).format(),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: _branchColor(_branch),
                   ),
                 ),
+                const SizedBox(height: 2),
+                Text('${slice.count}笔',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              Text(
-                Money.fromMinor(slice.minor).format(),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: _branchColor(_branch),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text('${slice.count}笔',
-                  style: const TextStyle(
-                      fontSize: 11, color: AppPalette.textTertiary)),
-            ],
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -2230,10 +2256,19 @@ class _SliceBuilder {
 /// 角度口径与 fl_chart 一致：startDegreeOffset=-90（12 点方向起）、顺时针。
 /// 引线从扇区外缘出发，先径向后斜向标签，标签左右分侧并做防重叠排版。
 class _DonutCalloutPainter extends CustomPainter {
-  _DonutCalloutPainter({required this.slices, required this.total});
+  _DonutCalloutPainter({
+    required this.slices,
+    required this.total,
+    required this.lineColor,
+    required this.labelColor,
+    required this.subLabelColor,
+  });
 
   final List<_Slice> slices;
   final int total;
+  final Color lineColor;
+  final Color labelColor;
+  final Color subLabelColor;
 
   // 与 _donut 中 PieChartData 的 centerSpaceRadius(62) + radius(46) 保持一致。
   static const double _outerR = 108;
@@ -2274,7 +2309,7 @@ class _DonutCalloutPainter extends CustomPainter {
     _resolveOverlap(left, size);
 
     final Paint linePaint = Paint()
-      ..color = AppPalette.textTertiary
+      ..color = lineColor
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
     for (final List<_Callout> side in <List<_Callout>>[right, left]) {
@@ -2303,18 +2338,18 @@ class _DonutCalloutPainter extends CustomPainter {
         children: <InlineSpan>[
           TextSpan(
             text: label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppPalette.textPrimary,
+              color: labelColor,
               height: 1.25,
             ),
           ),
           TextSpan(
             text: '\n$pct',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppPalette.textSecondary,
+              color: subLabelColor,
               height: 1.25,
             ),
           ),
@@ -2395,8 +2430,8 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
   int _view = 0;
 
   /// 3 视角 × 3 级输入框（逐视角独立，切换互不覆盖）。
-  late final List<List<TextEditingController>> _ctrls = <List<
-      TextEditingController>>[
+  late final List<List<TextEditingController>> _ctrls =
+      <List<TextEditingController>>[
     for (final String k in _keys)
       <TextEditingController>[
         for (final double t in widget.initial[k]!)
@@ -2458,16 +2493,16 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                       color: AppPalette.neutralMist,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close,
-                        size: 18, color: AppPalette.textSecondary),
+                    child: Icon(Icons.close,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
                 const Expanded(
                   child: Text(
                     '日历报表阈值',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w700),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                   ),
                 ),
                 const Icon(Icons.workspace_premium,
@@ -2501,7 +2536,7 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                             fontWeight: FontWeight.w600,
                             color: _view == i
                                 ? AppPalette.white
-                                : AppPalette.textPrimary,
+                                : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -2533,7 +2568,7 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                               fontSize: 13,
                               height: 1.05,
                               fontWeight: FontWeight.w700,
-                              color: AppPalette.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           Text(
@@ -2543,7 +2578,7 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                               fontSize: 9.5,
                               height: 1.1,
                               fontWeight: FontWeight.w600,
-                              color: AppPalette.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -2562,9 +2597,11 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                           ),
                           Text(
                             '默认${_thDefaults[tier].toStringAsFixed(1)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 12,
-                                color: AppPalette.textSecondary),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -2573,10 +2610,13 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: <Widget>[
-                        const Text(
+                        Text(
                           '阈值金额',
                           style: TextStyle(
-                              fontSize: 12, color: AppPalette.textSecondary),
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
                         ),
                         const SizedBox(height: 4),
                         SizedBox(
@@ -2591,7 +2631,9 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                                 fontSize: 15, fontWeight: FontWeight.w600),
                             decoration: InputDecoration(
                               filled: true,
-                              fillColor: AppPalette.neutralMist,
+                              fillColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
                               isDense: true,
                               contentPadding:
                                   const EdgeInsets.symmetric(vertical: 10),
@@ -2752,8 +2794,10 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                           fontSize: 15, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(subtitle,
-                      style: const TextStyle(
-                          fontSize: 12, color: AppPalette.textSecondary)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -2766,8 +2810,8 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
   }
 
   /// 右侧胶囊组（选中=绿底白字，未选中=浅灰底）。
-  Widget _pillGroup(
-      List<(String, String)> options, String value, ValueChanged<String> onPick) {
+  Widget _pillGroup(List<(String, String)> options, String value,
+      ValueChanged<String> onPick) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -2777,8 +2821,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
             borderRadius: BorderRadius.circular(16),
             onTap: () => onPick(options[i].$1),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
                 color: value == options[i].$1
                     ? AppPalette.sageLeaf
@@ -2792,7 +2835,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                   fontWeight: FontWeight.w600,
                   color: value == options[i].$1
                       ? AppPalette.white
-                      : AppPalette.textPrimary,
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -2827,16 +2870,16 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                       color: AppPalette.neutralMist,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close,
-                        size: 18, color: AppPalette.textSecondary),
+                    child: Icon(Icons.close,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
                 const Expanded(
                   child: Text(
                     '报表页面设置',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w700),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                   ),
                 ),
                 const SizedBox(width: 32),
@@ -2933,16 +2976,19 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                             height: 18,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _palette[_chartColor.clamp(
-                                  0, _palette.length - 1)],
+                              color: _palette[
+                                  _chartColor.clamp(0, _palette.length - 1)],
                               border: Border.all(
                                 color: AppPalette.sageLine,
                                 width: 1.5,
                               ),
                             ),
                           ),
-                          const Icon(Icons.chevron_right,
-                              size: 22, color: AppPalette.textTertiary),
+                          Icon(Icons.chevron_right,
+                              size: 22,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
                         ],
                       ),
                     ),
@@ -2986,8 +3032,10 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                       title: '日历报表阈值',
                       subtitle: '设置每日金额颜色深度样式',
                       onTap: widget.onOpenThreshold,
-                      trailing: const Icon(Icons.chevron_right,
-                          size: 22, color: AppPalette.textTertiary),
+                      trailing: Icon(Icons.chevron_right,
+                          size: 22,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -3001,13 +3049,9 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
 
   /// 统计图颜色：小色板弹窗，点选即保存。
   Future<void> _pickChartColor() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppPalette.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext ctx) => SafeArea(
+    await showAppModalSheet<void>(
+      context,
+      body: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
@@ -3028,7 +3072,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                       onTap: () {
                         setState(() => _chartColor = i);
                         _persist();
-                        Navigator.of(ctx).pop();
+                        Navigator.of(context).pop();
                       },
                       child: Container(
                         width: 44,
@@ -3038,13 +3082,15 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                           color: _palette[i],
                           border: _chartColor == i
                               ? Border.all(
-                                  color: AppPalette.textPrimary, width: 2.5)
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                  width: 2.5)
                               : null,
                         ),
                         child: _chartColor == i
                             ? const Icon(Icons.check,
                                 size: 20, color: AppPalette.white)
-                        : null,
+                            : null,
                       ),
                     ),
                 ],

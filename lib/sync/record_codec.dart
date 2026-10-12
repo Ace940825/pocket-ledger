@@ -374,8 +374,7 @@ abstract final class RecordCodec {
         elasticMode: Value<int>((p['elasticMode'] as int?) ?? 1),
         elasticBaseMinor: Value<int?>(p['elasticBaseMinor'] as int?),
         elasticStepMinor: Value<int?>(p['elasticStepMinor'] as int?),
-        elasticPercentHundred:
-            Value<int?>(p['elasticPercentHundred'] as int?),
+        elasticPercentHundred: Value<int?>(p['elasticPercentHundred'] as int?),
         sourceAccountId: Value<String?>(p['sourceAccountId'] as String?),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
@@ -473,6 +472,12 @@ abstract final class RecordCodec {
         quantityMicros: Value<int>((p['quantityMicros'] as int?) ?? 0),
         avgCostMinor: Value<int>((p['avgCostMinor'] as int?) ?? 0),
         currentPriceMinor: Value<int>((p['currentPriceMinor'] as int?) ?? 0),
+        // 已实现盈亏缓存列必须随行解码：syncUpsert 用 insertOnConflictUpdate
+        // （冲突按 companion 全列覆盖），缺了它每次拉取都会把本地该列清 0，
+        // 端侧重算的修正值永远同步不出去。旧服务端快照缺键按 0 兜底，
+        // 随后 bootstrap 的 recomputeAllRealized 会按流水重放自愈并回推。
+        realizedProfitMinor:
+            Value<int>((p['realizedProfitMinor'] as int?) ?? 0),
         currency: Value<String>((p['currency'] as String?) ?? 'CNY'),
         accountId: Value<String?>(p['accountId'] as String?),
         priceUpdatedAt: Value<int?>(p['priceUpdatedAt'] as int?),

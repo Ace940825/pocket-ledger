@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/app_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,8 +12,13 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
+import '../../../core/theme/forest_design_tokens.dart';
+import '../../../shared/widgets/action_group.dart';
+import '../../../shared/widgets/action_row.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/money_text.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 import '../data/account_icon.dart';
 import '../../../providers/asset_stats_settings.dart';
 import '../../record/record_tab.dart';
@@ -19,8 +26,11 @@ import '../../record/presentation/record_sheet.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
+import '../../ledger/data/transaction_repository.dart';
 import '../providers/accounts_providers.dart';
 import '../../investment/providers/investment_providers.dart';
+import '../../record/presentation/account_picker_sheet.dart';
+import '../../../providers/app_providers.dart';
 import 'account_ledger_grouping.dart';
 import 'widgets/account_transaction_tile.dart';
 import 'widgets/asset_stats_settings_sheet.dart';
@@ -83,23 +93,10 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
         title: const Text('资产详情'),
         actions: <Widget>[
           if (account != null)
-            PopupMenuButton<String>(
-              onSelected: (String value) => _onAction(value, account),
-              itemBuilder: (BuildContext context) =>
-                  const <PopupMenuEntry<String>>[
-                PopupMenuItem<String>(
-                  value: 'edit',
-                  child: Text('编辑账户'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'archive',
-                  child: Text('隐藏账户'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'delete',
-                  child: Text('删除账户'),
-                ),
-              ],
+            IconButton(
+              tooltip: '账户操作',
+              icon: const Icon(Icons.more_vert),
+              onPressed: () => _showActionsSheet(account),
             ),
         ],
       ),
@@ -138,81 +135,81 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
 
     return TxnSlidableGroup(
       child: CustomScrollView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      slivers: <Widget>[
-        SliverToBoxAdapter(
-          child: _AccountCardHeader(
-            account: account,
-            onEdit: () => _showEditor(account),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: <Widget>[
+          SliverToBoxAdapter(
+            child: _AccountCardHeader(
+              account: account,
+              onEdit: () => _showEditor(account),
+            ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: _YearSelectorRow(
-            year: _selectedYear,
-            onPickYear: _pickYear,
-            onOpenSettings: () => AssetStatsSettingsSheet.show(context),
+          SliverToBoxAdapter(
+            child: _YearSelectorRow(
+              year: _selectedYear,
+              onPickYear: _pickYear,
+              onOpenSettings: () => AssetStatsSettingsSheet.show(context),
+            ),
           ),
-        ),
-        if (groups.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(
-              child: Text(
-                '$_selectedYear年暂无流水',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppPalette.textSecondary,
-                    ),
+          if (groups.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Text(
+                  '$_selectedYear年暂无流水',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ),
+            )
+          else if (!settings.groupByMonthAsset)
+            // 「账单列表按年月分组 · 资产账户」关闭：整年平铺，
+            // 只保留日期小标题，不显示月标题与月汇总条。
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (BuildContext context, int index) {
+                  final Object item = flatItems[index];
+                  if (item is DayGroup) {
+                    return _DayHeader(dateAt: item.dateAt);
+                  }
+                  if (item is Transaction) {
+                    return TxnSlidable(
+                      txn: item,
+                      child: AccountTransactionTile(
+                        transaction: item,
+                        accountNames: accountNames,
+                        accountId: widget.accountId,
+                        onTap: () => tapTransaction(item),
+                      ),
+                    );
+                  }
+                  // _flattenByDay 只会产出上面两种元素，这里只是兜底。
+                  return const SizedBox.shrink();
+                },
+                childCount: flatItems.length,
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (BuildContext context, int index) {
+                  final MonthGroup group = groups[index];
+                  final String key = monthKey(group.month);
+                  return _MonthSection(
+                    group: group,
+                    accountId: widget.accountId,
+                    accountNames: accountNames,
+                    categories: categories,
+                    settings: settings,
+                    collapsed: _collapsedMonths.contains(key),
+                    onToggle: () => _toggleMonth(key),
+                    onTapTransaction: tapTransaction,
+                  );
+                },
+                childCount: groups.length,
               ),
             ),
-          )
-        else if (!settings.groupByMonthAsset)
-          // 「账单列表按年月分组 · 资产账户」关闭：整年平铺，
-          // 只保留日期小标题，不显示月标题与月汇总条。
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (BuildContext context, int index) {
-                final Object item = flatItems[index];
-                if (item is DayGroup) {
-                  return _DayHeader(dateAt: item.dateAt);
-                }
-                if (item is Transaction) {
-                  return TxnSlidable(
-                    txn: item,
-                    child: AccountTransactionTile(
-                      transaction: item,
-                      accountNames: accountNames,
-                      accountId: widget.accountId,
-                      onTap: () => tapTransaction(item),
-                    ),
-                  );
-                }
-                // _flattenByDay 只会产出上面两种元素，这里只是兜底。
-                return const SizedBox.shrink();
-              },
-              childCount: flatItems.length,
-            ),
-          )
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (BuildContext context, int index) {
-                final MonthGroup group = groups[index];
-                final String key = monthKey(group.month);
-                return _MonthSection(
-                  group: group,
-                  accountId: widget.accountId,
-                  accountNames: accountNames,
-                  categories: categories,
-                  settings: settings,
-                  collapsed: _collapsedMonths.contains(key),
-                  onToggle: () => _toggleMonth(key),
-                  onTapTransaction: tapTransaction,
-                );
-              },
-              childCount: groups.length,
-            ),
-          ),
-      ],
+        ],
       ),
     );
   }
@@ -252,14 +249,242 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
     });
   }
 
+  /// 三点键 → 账户操作弹层（与报销页「更多」同款 ActionGroup 风格）。
+  ///
+  /// 三组：编辑/隐藏、账单迁移/金额校验、账单清理/删除账户（不带分组小标题）。
+  /// 其中账单迁移/校验/清理为账户详情页落地的真实能力（报销页同款菜单多为
+  /// 占位），逻辑见各 handler。
+  Future<void> _showActionsSheet(Account account) async {
+    final String? action = await showAppModalSheet<String>(
+      context,
+      title: '账户操作',
+      // 条目多（3 组 6 行），小屏/大字体下可能超出弹层高度上限。
+      // 注意：Column(min) 给子级传无界高度，裸 SingleChildScrollView 不会滚动、
+      // 仍会溢出——必须用 ConstrainedBox 给出确定上限（ Flutter 非滚动弹层
+      // 上限为屏高 9/16，扣除把手/标题/内边距/底部安全区约 0.11 后取 0.45），
+      // 内容矮时照旧收缩包裹、超限时在弹层内部滚动。
+      body: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.45,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ActionGroup(
+                children: <Widget>[
+                  ActionRow(
+                    icon: const LineIcon(LineIconKind.pencil,
+                        size: 17, color: ForestGreen.deep),
+                    title: '编辑账户',
+                    subtitle: '修改名称、余额与备注',
+                    onTap: () => Navigator.of(context).pop('edit'),
+                  ),
+                  ActionRow(
+                    icon: const LineIcon(LineIconKind.excludeStats,
+                        size: 17, color: ForestGreen.deep),
+                    title: '隐藏账户',
+                    subtitle: '不再显示在账户列表，数据保留',
+                    onTap: () => Navigator.of(context).pop('archive'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ActionGroup(
+                children: <Widget>[
+                  ActionRow(
+                    icon: const Icon(Icons.swap_horiz,
+                        size: 17, color: ForestGreen.deep),
+                    title: '账单迁移',
+                    subtitle: '把本账户账单挪到其他账户',
+                    onTap: () => Navigator.of(context).pop('migrate'),
+                  ),
+                  ActionRow(
+                    icon: const LineIcon(LineIconKind.moneyBag,
+                        size: 17, color: ForestGreen.deep),
+                    title: '金额校验',
+                    subtitle: '账面有偏差时一键核对',
+                    onTap: () => Navigator.of(context).pop('verify'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ActionGroup(
+                children: <Widget>[
+                  ActionRow(
+                    icon: const LineIcon(LineIconKind.trash,
+                        size: 17, color: ForestSemantic.expense),
+                    title: '账单清理',
+                    subtitle: '软删除本账户全部账单',
+                    danger: true,
+                    onTap: () => Navigator.of(context).pop('clear'),
+                  ),
+                  ActionRow(
+                    icon: const Icon(Icons.delete_forever,
+                        size: 17, color: ForestSemantic.expense),
+                    title: '删除账户',
+                    subtitle: '流水记录保留，此操作不可撤销',
+                    danger: true,
+                    onTap: () => Navigator.of(context).pop('delete'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+    await _onAction(action, account);
+  }
+
   Future<void> _onAction(String action, Account account) async {
     switch (action) {
       case 'edit':
         await _showEditor(account);
       case 'archive':
         await _confirmArchive(account);
+      case 'migrate':
+        await _migrateAccount(account);
+      case 'verify':
+        await _verifyBalance(account);
+      case 'clear':
+        await _clearAccount(account);
       case 'delete':
         await _confirmDelete(account);
+    }
+  }
+
+  /// 账单迁移：把本账户名下（不含借还关联镜像）全部账单逐笔改挂到目标账户，
+  /// 余额由 [TransactionRepository.updateTransaction] 统一回滚旧账户、应用
+  /// 新账户，无需手动搬运。目标账户排除自身与应收/应付（派生余额）账户。
+  Future<void> _migrateAccount(Account account) async {
+    final List<Transaction> all =
+        await ref.read(accountAllTransactionsProvider(account.id).future);
+    final List<Transaction> owned = all
+        .where((Transaction t) =>
+            t.accountId == account.id && t.sourceModule != SourceModule.lend)
+        .toList();
+    if (owned.isEmpty) {
+      if (mounted) showAppToast(context, '该账户没有可迁移的账单');
+      return;
+    }
+    final String? targetId = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => AccountPickerSheet(
+        title: '迁移到账户',
+        showNoneRow: false,
+        showSettings: false,
+        filter: (List<Account> list) => list
+            .where((Account a) =>
+                a.type.category != AccountCategory.receivable &&
+                a.type.category != AccountCategory.payable &&
+                a.id != account.id)
+            .toList(),
+        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id),
+      ),
+    );
+    if (targetId == null || !mounted) return;
+    final Map<String, String> names = <String, String>{
+      for (final Account a
+          in ref.read(accountsProvider).valueOrNull ?? <Account>[])
+        a.id: a.name,
+    };
+    final String targetName = names[targetId] ?? '目标账户';
+    final bool? ok = await showConfirm(
+      context,
+      title: '迁移账单？',
+      content: '将把本账户 ${owned.length} 笔账单迁移至「$targetName」，'
+          '余额自动跟随调整。',
+      confirmText: '迁移',
+    );
+    if (ok != true || !mounted) return;
+    try {
+      final TransactionRepository repo =
+          ref.read(transactionRepositoryProvider);
+      for (final Transaction t in owned) {
+        await repo.updateTransaction(original: t, accountId: targetId);
+      }
+      if (mounted) showAppToast(context, '已迁移 ${owned.length} 笔');
+    } on AppFailure catch (e) {
+      if (mounted) showAppToast(context, e.message);
+    }
+  }
+
+  /// 金额校验：用与余额增量公式严格一致的口径重算本账户现金余额，与存储值
+  /// 比较；不一致时二次确认后写回期望值并同步。借还账户按借还记录合计比对。
+  Future<void> _verifyBalance(Account account) async {
+    final String bookId = ref.read(currentBookIdProvider);
+    try {
+      final (int expected, int stored, bool fixed) =
+          await ref.read(transactionRepositoryProvider).verifyAccountBalance(
+                accountId: account.id,
+                bookId: bookId,
+                fix: false,
+              );
+      if (expected == stored) {
+        if (mounted) showAppToast(context, '账面校验完成，无偏差');
+        return;
+      }
+      final int diff = expected - stored;
+      final bool? ok = await showConfirm(
+        context,
+        title: '发现偏差',
+        content: '账面余额与流水重算相差 '
+            '${Money.fromMinor(diff.abs()).format()}'
+            '（重算应为 ${Money.fromMinor(expected).format()}）。是否校正？',
+        confirmText: '校正',
+      );
+      if (ok != true || !mounted) return;
+      final (int _, int _, bool done) =
+          await ref.read(transactionRepositoryProvider).verifyAccountBalance(
+                accountId: account.id,
+                bookId: bookId,
+                fix: true,
+              );
+      if (mounted) {
+        showAppToast(
+          context,
+          done ? '已校正 ${Money.fromMinor(diff.abs()).format()}' : '校正失败',
+        );
+      }
+    } on AppFailure catch (e) {
+      if (mounted) showAppToast(context, e.message);
+    }
+  }
+
+  /// 账单清理：软删除本账户名下（不含借还关联镜像）全部账单，余额由
+  /// [TransactionRepository.remove] 自动回滚；借还关联与持仓由该仓储级联处理。
+  Future<void> _clearAccount(Account account) async {
+    final List<Transaction> all =
+        await ref.read(accountAllTransactionsProvider(account.id).future);
+    final List<Transaction> owned = all
+        .where((Transaction t) =>
+            t.accountId == account.id && t.sourceModule != SourceModule.lend)
+        .toList();
+    if (owned.isEmpty) {
+      if (mounted) showAppToast(context, '该账户没有可清理的账单');
+      return;
+    }
+    final bool? ok = await showConfirm(
+      context,
+      title: '清理全部账单？',
+      content: '将软删除本账户 ${owned.length} 笔账单，余额自动回滚'
+          '（数据保留，可后续恢复）。',
+      confirmText: '清理',
+    );
+    if (ok != true || !mounted) return;
+    try {
+      final TransactionRepository repo =
+          ref.read(transactionRepositoryProvider);
+      for (final Transaction t in owned) {
+        await repo.remove(t.id);
+      }
+      if (mounted) showAppToast(context, '已清理 ${owned.length} 笔');
+    } on AppFailure catch (e) {
+      if (mounted) showAppToast(context, e.message);
     }
   }
 
@@ -270,25 +495,12 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
   }
 
   Future<void> _confirmArchive(Account account) async {
-    final bool? ok = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: const Text('隐藏账户？'),
-        content: Text(
-          '「${account.name}」将不再显示在账户列表中，'
+    final bool? ok = await showConfirm(
+      context,
+      title: '隐藏账户？',
+      content: '「${account.name}」将不再显示在账户列表中，'
           '流水与数据保留，后续可在「已隐藏」中恢复。',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('隐藏'),
-          ),
-        ],
-      ),
+      confirmText: '隐藏',
     );
     if (ok != true || !mounted) return;
     try {
@@ -304,25 +516,12 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
   }
 
   Future<void> _confirmDelete(Account account) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: const Text('删除账户？'),
-        content: Text(
-          '「${account.name}」将被删除。该账户的流水记录会保留，'
+    final bool? confirmed = await showConfirm(
+      context,
+      title: '删除账户？',
+      content: '「${account.name}」将被删除。该账户的流水记录会保留，'
           '但不再计入资产负债。此操作不可撤销。',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      confirmText: '删除',
     );
 
     if (confirmed != true || !mounted) return;
@@ -442,14 +641,15 @@ class _AccountCardHeader extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: AppPalette.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           account.type.label,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppPalette.textSecondary,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -472,7 +672,7 @@ class _AccountCardHeader extends ConsumerWidget {
                         '编辑',
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: AppPalette.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -488,7 +688,7 @@ class _AccountCardHeader extends ConsumerWidget {
                   _ => isDebt ? '当前欠款' : '当前余额',
                 },
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppPalette.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: AppDimens.spaceXs),
@@ -505,7 +705,7 @@ class _AccountCardHeader extends ConsumerWidget {
                   '现金 ${Money.fromMinor(account.balanceMinor).format()} · '
                   '市值 ${Money.fromMinor(market).format()}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -553,14 +753,14 @@ class _YearSelectorRow extends StatelessWidget {
                     '$year年',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: AppPalette.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(
+                  Icon(
                     Icons.keyboard_arrow_down,
                     size: 20,
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -632,7 +832,7 @@ class _MonthSection extends StatelessWidget {
                   '${group.month.month}月',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: AppPalette.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const Spacer(),
@@ -704,7 +904,7 @@ class _DayHeader extends StatelessWidget {
       child: Text(
         accountLedgerDateLabel(dateAt),
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppPalette.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
       ),
     );
@@ -741,7 +941,7 @@ class _MonthSummary extends StatelessWidget {
       child: Text(
         text,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: AppPalette.textSecondary,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );

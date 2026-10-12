@@ -75,8 +75,7 @@ class LendReminderService {
         priority: Priority.high,
       ),
     );
-    final String dirLabel =
-        r.direction == LendDirection.lendOut ? '借出' : '借入';
+    final String dirLabel = r.direction == LendDirection.lendOut ? '借出' : '借入';
 
     // 提前 leadDays 天（仍属未来才排）。
     final tz.TZDateTime lead = due.subtract(Duration(days: leadDays));

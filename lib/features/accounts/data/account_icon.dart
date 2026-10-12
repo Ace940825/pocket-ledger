@@ -10,12 +10,14 @@ import '../../../domain/enums.dart';
 /// 选图原则：中文语境一眼可辨——储蓄卡=银行、信用卡=标准卡、
 /// 支付宝=扫码、医保=保障盾、储值卡=卡面、借出/借入=握手往来
 /// （与账户页借出/借入汇总行的 handshake 图标同源）。
+/// 三类「其他账户」（资产/负债/投资兜底）统一用 category 图形，
+/// 语义同为「兜底分类」，描边风格与全表一致。
 IconData accountIcon(AccountType type) => switch (type) {
       // 资金类
       AccountType.cash => Icons.payments_outlined,
       AccountType.bankCard => Icons.account_balance_outlined,
       AccountType.eWallet => Icons.account_balance_wallet_outlined,
-      AccountType.other => Icons.savings_outlined,
+      AccountType.other => Icons.category_outlined,
       AccountType.wechat => Icons.chat_bubble_outline,
       AccountType.alipay => Icons.qr_code_scanner,
       AccountType.providentFund => Icons.home_outlined,
@@ -30,6 +32,7 @@ IconData accountIcon(AccountType type) => switch (type) {
       AccountType.futures => Icons.swap_horiz,
       AccountType.spot => Icons.inventory_2_outlined,
       AccountType.timeDeposit => Icons.lock_clock_outlined,
+      AccountType.investmentOther => Icons.category_outlined,
 
       // 应收类
       AccountType.reimbursement => Icons.receipt_long_outlined,
@@ -42,7 +45,7 @@ IconData accountIcon(AccountType type) => switch (type) {
       AccountType.baitiao => Icons.receipt_outlined,
       AccountType.meituanMonthly => Icons.restaurant_outlined,
       AccountType.douyinMonthly => Icons.music_note_outlined,
-      AccountType.otherDebt => Icons.money_off,
+      AccountType.otherDebt => Icons.category_outlined,
 
       // 应付类
       AccountType.borrow => Icons.handshake_outlined,

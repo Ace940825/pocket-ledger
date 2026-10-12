@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 
 import 'savings_modes.dart';
 
@@ -12,70 +14,51 @@ class SavingsModeSheet extends StatelessWidget {
   const SavingsModeSheet({super.key});
 
   static Future<SavingsMode?> show(BuildContext context) {
-    return showModalBottomSheet<SavingsMode>(
-      context: context,
+    return showAppModalSheet<SavingsMode>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) => const SavingsModeSheet(),
+      titleWidget: Row(
+        children: <Widget>[
+          IconButton(
+            tooltip: '关闭',
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close, size: 22),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                '存钱模式选择',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(width: 48), // 与左侧关闭按钮等宽，标题严格居中
+        ],
+      ),
+      body: const SavingsModeSheet(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // 顶部：关闭按钮 + 居中标题（对标小青账弹层骨架）。
-            Row(
-              children: <Widget>[
-                IconButton(
-                  tooltip: '关闭',
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, size: 22),
-                ),
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      '存钱模式选择',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 48), // 与左侧关闭按钮等宽，标题严格居中
-              ],
-            ),
-            const SizedBox(height: 8),
-            Flexible(
-              child: GridView.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                // 卡片高度 = 图标区 + 标题 + 两行说明。
-                childAspectRatio: 0.98,
-                shrinkWrap: true,
-                padding: const EdgeInsets.only(bottom: 4),
-                children: <Widget>[
-                  for (final SavingsMode m in SavingsMode.values)
-                    SavingsModeCard(
-                      mode: m,
-                      onTap: () => Navigator.of(context).pop(m),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return GridView.count(
+      crossAxisCount: 2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      // 卡片高度 = 图标区 + 标题 + 两行说明。
+      childAspectRatio: 0.98,
+      shrinkWrap: true,
+      padding: const EdgeInsets.only(bottom: 4),
+      children: <Widget>[
+        for (final SavingsMode m in SavingsMode.values)
+          SavingsModeCard(
+            mode: m,
+            onTap: () => Navigator.of(context).pop(m),
+          ),
+      ],
     );
   }
 }
@@ -94,9 +77,9 @@ class SavingsModeCard extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     return Material(
       // 全站统一奶油卡 + 发丝线描边（替代灰底透明卡，且不再用 withValues）。
-      color: AppPalette.cream,
+      color: context.colors.surface,
       shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppPalette.hairline),
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
         borderRadius: BorderRadius.circular(16),
       ),
       child: InkWell(

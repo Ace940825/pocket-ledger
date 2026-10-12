@@ -41,6 +41,7 @@ enum LineIconKind {
   info, // 信息（圆圈 i）
   person, // 人数（头像 + 肩线，表示「人/收款对象」）
   location, // 位置（定位针）
+  shieldCheck, // 余额守卫（盾牌 + 对勾）
   // ── 餐饮细分（记一笔·餐饮子类）──
   breakfast, // 早餐（煎蛋）
   lunch, // 午餐（便当盒）
@@ -418,6 +419,8 @@ class _LineIconPainter extends CustomPainter {
         _info(path);
       case LineIconKind.person:
         _person(path);
+      case LineIconKind.shieldCheck:
+        _shieldCheck(path);
       case LineIconKind.breakfast:
         _breakfast(path);
       case LineIconKind.lunch:
@@ -1050,6 +1053,20 @@ class _LineIconPainter extends CustomPainter {
     p.addOval(Rect.fromCircle(center: const Offset(12, 8.5), radius: 3.5));
     _line(p, 5.5, 19, 12, 14.5);
     _line(p, 12, 14.5, 18.5, 19);
+  }
+
+  /// 余额守卫：盾牌轮廓 + 内部对勾，表示「校验 / 余额保护」。
+  void _shieldCheck(Path p) {
+    p.moveTo(12, 4);
+    p.lineTo(5, 7);
+    p.lineTo(5, 13);
+    p.lineTo(12, 20);
+    p.lineTo(19, 13);
+    p.lineTo(19, 7);
+    p.close();
+    p.moveTo(9, 12);
+    p.lineTo(11, 14.5);
+    p.lineTo(15.5, 9.5);
   }
 
   /// 咖啡（Coffee）。

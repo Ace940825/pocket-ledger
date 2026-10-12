@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,6 +9,7 @@ import '../../../core/errors/failures.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/color_chip.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../providers/categories_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -91,7 +93,8 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
               const SizedBox(height: AppDimens.spaceLg),
               Expanded(
                 child: SingleChildScrollView(
-                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(
                     AppDimens.spaceLg,
                     0,
@@ -144,26 +147,24 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
   }
 
   Widget _buildHint(ThemeData theme) {
-    return Container(
+    return HairlineCard(
+      radius: AppDimens.radiusMd,
       padding: const EdgeInsets.all(AppDimens.spaceMd),
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
+      borderWidth: 0,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(
+          Icon(
             Icons.info_outline,
             size: 16,
-            color: AppPalette.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: AppDimens.spaceSm),
           Expanded(
             child: Text(
               '分类名称需手动输入，选择图标后不会自动填充名称。',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: AppPalette.textTertiary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -179,7 +180,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
         Text(
           '分类颜色',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: AppPalette.textSecondary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppDimens.spaceSm),
@@ -187,14 +188,14 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
           spacing: AppDimens.spaceSm,
           runSpacing: AppDimens.spaceSm,
           children: <Widget>[
-            _ColorChip(
+            ColorChip(
               selected: _selectedColorValue == null,
               color: theme.colorScheme.onSurfaceVariant,
               onTap: () => setState(() => _selectedColorValue = null),
               isDefault: true,
             ),
             for (final int value in _palette)
-              _ColorChip(
+              ColorChip(
                 selected: _selectedColorValue == value,
                 color: Color(value),
                 onTap: () => setState(() => _selectedColorValue = value),
@@ -212,7 +213,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
         Text(
           '分类图标',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: AppPalette.textSecondary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppDimens.spaceSm),
@@ -240,7 +241,9 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                       : AppPalette.surfaceLight,
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                   border: Border.all(
-                    color: selected ? color : Theme.of(context).colorScheme.outline,
+                    color: selected
+                        ? color
+                        : Theme.of(context).colorScheme.outline,
                   ),
                 ),
                 child: Center(
@@ -305,49 +308,3 @@ const List<int> _palette = <int>[
   0xFF8E8A7E,
   0xFF45936A,
 ];
-
-class _ColorChip extends StatelessWidget {
-  const _ColorChip({
-    required this.selected,
-    required this.color,
-    required this.onTap,
-    this.isDefault = false,
-  });
-
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-  final bool isDefault;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: isDefault ? AppPalette.surfaceLight : color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected
-                ? Theme.of(context).colorScheme.onSurface
-                : Theme.of(context).colorScheme.outline,
-            width: selected ? 2.5 : 1,
-          ),
-        ),
-        child: isDefault
-            ? Icon(
-                Icons.auto_awesome,
-                color: selected
-                    ? Theme.of(context).colorScheme.onSurface
-                    : AppPalette.textTertiary,
-                size: 20,
-              )
-            : (selected
-                ? Icon(Icons.check, color: Theme.of(context).colorScheme.onPrimary, size: 20)
-                : null),
-      ),
-    );
-  }
-}

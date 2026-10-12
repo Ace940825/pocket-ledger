@@ -55,16 +55,17 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       final List<BillRow> rows = <BillRow>[
         for (final Transaction t in txns)
           BillRow(
-            occurredAt: DateTime.fromMillisecondsSinceEpoch(t.occurredAt,
-                    isUtc: true)
-                .toLocal(),
+            occurredAt:
+                DateTime.fromMillisecondsSinceEpoch(t.occurredAt, isUtc: true)
+                    .toLocal(),
             type: t.type,
             amountMinor: t.amountMinor,
             accountName: accountNames[t.accountId] ?? '未知账户',
             toAccountName: t.toAccountId == null
                 ? null
                 : accountNames[t.toAccountId] ?? '未知账户',
-            categoryName: t.categoryId == null ? null : catMap[t.categoryId]?.name,
+            categoryName:
+                t.categoryId == null ? null : catMap[t.categoryId]?.name,
             note: t.note,
             currency: t.currency,
           ),
@@ -85,9 +86,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
         return;
       }
       // iOS 保存面板不强制扩展名，缺失时补足，避免存成无后缀文件。
-      final String outPath = picked.toLowerCase().endsWith('.$ext')
-          ? picked
-          : '$picked.$ext';
+      final String outPath =
+          picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
       final File file = File(outPath);
       await file.writeAsString(content);
 
@@ -143,12 +143,12 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                     borderRadius: BorderRadius.circular(AppDimens.radiusLg),
                   ),
                   padding: const EdgeInsets.all(AppDimens.spaceMd),
-                  child: const Text(
+                  child: Text(
                     '导出当前账本全部账单（含转账）。点「保存到文件」选本地位置存为 '
                     'CSV / JSON 文件；下方「复制内容」可把文本粘贴到微信 / 备忘录等作他用。',
                     style: TextStyle(
                       fontSize: 12.5,
-                      color: AppPalette.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       height: 1.5,
                     ),
                   ),
@@ -176,14 +176,14 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Text(
               '导出格式',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppPalette.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -223,18 +223,18 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 children: <Widget>[
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppPalette.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -286,7 +286,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
           Row(
             children: <Widget>[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppPalette.softGreen,
                   borderRadius: BorderRadius.circular(20),
@@ -305,7 +306,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
           const SizedBox(height: AppDimens.spaceSm),
           SelectableText(
             _path ?? '',
-            style: const TextStyle(fontSize: 12, color: AppPalette.textSecondary),
+            style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: AppDimens.spaceSm),
           Container(
@@ -317,10 +320,10 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             ),
             child: SelectableText(
               preview,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11.5,
                 fontFamily: 'RobotoMono',
-                color: AppPalette.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
                 height: 1.5,
               ),
             ),

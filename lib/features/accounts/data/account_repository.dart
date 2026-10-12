@@ -198,8 +198,9 @@ class AccountRepository {
       }
 
       // 信用卡/负债三字段：absent=保留现值，否则按显式值（可为 null 清空）。
-      final int? effectiveLimit =
-          creditLimitMinor.present ? creditLimitMinor.value : before?.creditLimitMinor;
+      final int? effectiveLimit = creditLimitMinor.present
+          ? creditLimitMinor.value
+          : before?.creditLimitMinor;
       final int? effectiveBilling =
           billingDay.present ? billingDay.value : before?.billingDay;
       final int? effectiveDue = dueDay.present ? dueDay.value : before?.dueDay;

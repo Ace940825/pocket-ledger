@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../theme/app_colors.dart';
@@ -229,7 +231,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           ),
         )
         ..add(const Divider(height: 1, indent: AppDimens.spaceMd))
-          ..add(
+        ..add(
           _TextField(
             controller: _balanceController,
             label: amountLabel,
@@ -304,7 +306,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           value: _remainingLimitText ?? '',
           placeholder: '输入信用额度与当前欠款后自动计算',
         ),
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(
             AppDimens.spaceMd,
             AppDimens.spaceSm,
@@ -316,7 +318,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               Icon(
                 Icons.info_outline,
                 size: 14,
-                color: AppPalette.textSecondary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               SizedBox(width: AppDimens.spaceSm),
               Expanded(
@@ -324,7 +326,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                   '当前欠款 和 信用额度 输入一个即可自动识别计算',
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -411,7 +413,9 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           // 基本信息
           _SectionTitle('基本信息'),
           const SizedBox(height: AppDimens.spaceSm),
-          _Card(
+          HairlineCard(
+            radius: AppDimens.radiusMd,
+            padding: EdgeInsets.zero,
             child: Column(
               children: _basicInfoFields(),
             ),
@@ -422,7 +426,9 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           if (_isDebitCard || _isDebtTemplate) ...<Widget>[
             _SectionTitle(_isDebt ? '负债' : '资金'),
             const SizedBox(height: AppDimens.spaceSm),
-            _Card(
+            HairlineCard(
+              radius: AppDimens.radiusMd,
+              padding: EdgeInsets.zero,
               child: Column(
                 children: _capitalFields(),
               ),
@@ -434,7 +440,9 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           if (_isDebtTemplate) ...<Widget>[
             _SectionTitle('账单/还款日期'),
             const SizedBox(height: AppDimens.spaceSm),
-            _Card(
+            HairlineCard(
+              radius: AppDimens.radiusMd,
+              padding: EdgeInsets.zero,
               child: Column(
                 children: _billDateFields(),
               ),
@@ -446,15 +454,17 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           if (_isSyncBillVisible) ...<Widget>[
             _SectionTitle('余额同步'),
             const SizedBox(height: AppDimens.spaceSm),
-            _Card(
-              child: _SwitchTile(
+            HairlineCard(
+              radius: AppDimens.radiusMd,
+              padding: EdgeInsets.zero,
+              child: SettingsSwitchRow(activeThumbColor: AppPalette.primary, padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd, vertical: AppDimens.spaceSm), 
                 title: '同时记一笔账单',
                 subtitle: '将金额记一笔对应类型账单',
                 value: _syncBill,
                 onChanged: (bool v) => setState(() => _syncBill = v),
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(
                 left: AppDimens.spaceMd,
                 top: AppDimens.spaceSm,
@@ -465,7 +475,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 '将创建一笔调整资产的账单方便查看变动记录。',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppPalette.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -475,11 +485,13 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           // 其他
           _SectionTitle('其他'),
           const SizedBox(height: AppDimens.spaceSm),
-          _Card(
+          HairlineCard(
+            radius: AppDimens.radiusMd,
+            padding: EdgeInsets.zero,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Padding(
+                Padding(
                   padding: EdgeInsets.fromLTRB(
                     AppDimens.spaceMd,
                     AppDimens.spaceMd,
@@ -490,7 +502,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                     '资产状态',
                     style: TextStyle(
                       fontSize: 14,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -515,7 +527,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                   ),
                 ),
                 const Divider(height: 1, indent: AppDimens.spaceMd),
-                _SwitchTile(
+                SettingsSwitchRow(activeThumbColor: AppPalette.primary, padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd, vertical: AppDimens.spaceSm), 
                   title: '计入总资产',
                   subtitle: '是否加入总资产计算',
                   value: _includeInTotal,
@@ -574,24 +586,6 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
-      ),
-      child: child,
-    );
-  }
-}
-
 class _TypeHeader extends StatelessWidget {
   const _TypeHeader({required this.type});
 
@@ -599,7 +593,9 @@ class _TypeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    return HairlineCard(
+      radius: AppDimens.radiusMd,
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(AppDimens.spaceMd),
         child: Row(
@@ -641,7 +637,9 @@ class _BankHeader extends StatelessWidget {
             );
     final Color color = bank?.color ?? colorForBank(name);
 
-    return _Card(
+    return HairlineCard(
+      radius: AppDimens.radiusMd,
+      padding: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -673,14 +671,14 @@ class _BankHeader extends StatelessWidget {
                   name,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: bankName == null
-                            ? AppPalette.textTertiary
-                            : AppPalette.textPrimary,
+                            ? Theme.of(context).colorScheme.onSurfaceVariant
+                            : Theme.of(context).colorScheme.onSurface,
                       ),
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right,
-                color: AppPalette.textTertiary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ],
           ),
@@ -809,14 +807,16 @@ class _ReadOnlyField extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppPalette.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
           const SizedBox(height: AppDimens.spaceSm),
           Text(
             value.isEmpty ? placeholder : value,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: value.isEmpty ? AppPalette.textTertiary : null,
+                  color: value.isEmpty
+                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      : null,
                 ),
           ),
         ],
@@ -851,7 +851,7 @@ class _DayPickerField extends StatelessWidget {
                   Text(
                     label,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppPalette.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                   const SizedBox(height: AppDimens.spaceSm),
@@ -862,9 +862,9 @@ class _DayPickerField extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right,
-              color: AppPalette.textTertiary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ],
         ),
@@ -873,55 +873,6 @@ class _DayPickerField extends StatelessWidget {
   }
 }
 
-class _SwitchTile extends StatelessWidget {
-  const _SwitchTile({
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String title;
-  final String subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceMd,
-        vertical: AppDimens.spaceSm,
-      ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppPalette.textSecondary,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: AppPalette.primary,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({
@@ -936,11 +887,16 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color color = selected ? AppPalette.primary : AppPalette.textTertiary;
+    final Color color = selected
+        ? AppPalette.primary
+        : Theme.of(context).colorScheme.onSurfaceVariant;
     return Material(
       color: selected
           ? AppPalette.primary.withValues(alpha: 0.12)
-          : AppPalette.textTertiary.withValues(alpha: 0.08),
+          : Theme.of(context)
+              .colorScheme
+              .onSurfaceVariant
+              .withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(AppDimens.radiusLg),
       child: InkWell(
         onTap: onTap,

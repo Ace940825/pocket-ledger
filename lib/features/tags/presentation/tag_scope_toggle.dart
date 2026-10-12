@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../domain/enums.dart';
 
@@ -19,7 +20,7 @@ class TagScopeToggle extends StatelessWidget {
 
   static const Color _track = AppPalette.sandWarm;
   static const Color _onBg = AppPalette.ink;
-  static const Color _onFg = AppPalette.creamSoft;
+  static const Color _onFg = AppPalette.cream;
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +50,9 @@ class TagScopeToggle extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: s == scope ? _onFg : AppPalette.ink3,
+                      color: s == scope
+                          ? _onFg
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),

@@ -1,18 +1,21 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../database/app_database.dart';
 import '../../../database/daos/tags_dao.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
-import '../../../../core/constants/app_dimens.dart';
-import '../../../../core/theme/forest_design_tokens.dart';
-import '../../../../shared/models/money.dart';
-import '../../../../shared/widgets/app_toast.dart';
-import '../../../../shared/widgets/amount_keypad.dart';
-import '../../../../shared/widgets/calendar_sheet.dart';
-import '../../../../shared/widgets/empty_state.dart';
-import '../../../../theme/app_colors.dart';
+import '../../../core/constants/app_dimens.dart';
+import '../../../core/theme/forest_design_tokens.dart';
+import '../../../shared/models/money.dart';
+import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../../tags/providers/tag_providers.dart';
@@ -213,7 +216,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
   Widget build(BuildContext context) {
     final int count = _conditionCount();
     return Scaffold(
-      backgroundColor: ForestBg.paper,
+      backgroundColor: context.colors.surface,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -236,19 +239,17 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             SafeArea(
               top: false,
               child: Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(20, 8, 20, 14),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
                 child: SizedBox(
                   width: double.infinity,
                   height: 48,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(999),
-                    onTap: () =>
-                        Navigator.of(context).pop(_buildResult()),
+                    onTap: () => Navigator.of(context).pop(_buildResult()),
                     child: Container(
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        gradient: ForestGradients.sageLight,
+                        gradient: context.app.sageGradientLight,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
@@ -278,7 +279,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         children: <Widget>[
           IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-            color: AppPalette.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
             onPressed: () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -307,7 +308,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                             fontWeight: FontWeight.w600,
                             color: _tab == i
                                 ? AppPalette.white
-                                : AppPalette.textPrimary,
+                                : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -319,14 +320,14 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           InkWell(
             borderRadius: BorderRadius.circular(8),
             onTap: _reset,
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Text(
                 '重置',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: AppPalette.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -384,8 +385,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             borderRadius: BorderRadius.circular(999),
             onTap: () => setState(() => _bookId = b.id),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
                 color: active ? AppPalette.sage300 : AppPalette.white,
                 borderRadius: BorderRadius.circular(999),
@@ -398,18 +398,17 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     size: 15,
                     color: active
                         ? AppPalette.sage900
-                        : AppPalette.textSecondary,
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 5),
                   Text(
                     b.name,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight:
-                          active ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                       color: active
                           ? AppPalette.sage900
-                          : AppPalette.textPrimary,
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -426,16 +425,13 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     final CategoryType t =
         _catExpense ? CategoryType.expense : CategoryType.income;
     return cats
-        .where((Category c) =>
-            c.type == t && c.parentId == null && !c.isSystem)
+        .where((Category c) => c.type == t && c.parentId == null && !c.isSystem)
         .toList();
   }
 
   /// 某一级分类下的子分类。
   List<Category> _subCategories(List<Category> cats, String parentId) {
-    return cats
-        .where((Category c) => c.parentId == parentId)
-        .toList()
+    return cats.where((Category c) => c.parentId == parentId).toList()
       ..sort((Category a, Category b) => a.sortOrder.compareTo(b.sortOrder));
   }
 
@@ -483,21 +479,21 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             ),
         ])
       else if (tops.isEmpty)
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(vertical: 18),
           child: Center(
             child: Text(
               '当前类型暂无分类',
               style: TextStyle(
-                  fontSize: 14, color: AppPalette.textTertiary),
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
         )
       else
         Column(
           children: <Widget>[
-            for (final Category top in tops)
-              _categoryExpandRow(cats, top),
+            for (final Category top in tops) _categoryExpandRow(cats, top),
           ],
         ),
     ]);
@@ -522,8 +518,8 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
               borderRadius: BorderRadius.circular(999),
               onTap: () => setState(() => _catExpense = flag),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: _catExpense == flag
                       ? AppPalette.sage300
@@ -534,12 +530,11 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                   label,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: _catExpense == flag
-                        ? FontWeight.w700
-                        : FontWeight.w500,
+                    fontWeight:
+                        _catExpense == flag ? FontWeight.w700 : FontWeight.w500,
                     color: _catExpense == flag
                         ? AppPalette.sage900
-                        : AppPalette.textPrimary,
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -568,8 +563,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: allSelected ? FontWeight.w700 : FontWeight.w500,
-            color:
-                allSelected ? AppPalette.sage900 : AppPalette.textSecondary,
+            color: allSelected
+                ? AppPalette.sage900
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -593,7 +589,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: _subOn ? FontWeight.w700 : FontWeight.w500,
-            color: _subOn ? AppPalette.sage900 : AppPalette.textSecondary,
+            color: _subOn
+                ? AppPalette.sage900
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -607,8 +605,8 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     final bool expanded = _expanded.contains(top.id);
     final int subSel =
         subs.where((Category c) => _catIds.contains(c.id)).length;
-    final bool checked = _catIds.contains(top.id) ||
-        (subs.isNotEmpty && subSel == subs.length);
+    final bool checked =
+        _catIds.contains(top.id) || (subs.isNotEmpty && subSel == subs.length);
 
     return Column(
       children: <Widget>[
@@ -618,36 +616,35 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             if (!_expanded.remove(top.id)) _expanded.add(top.id);
           }),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
             child: Row(
               children: <Widget>[
                 AnimatedRotation(
                   turns: expanded ? 0.25 : 0,
                   duration: const Duration(milliseconds: 160),
-                  child: const Icon(
+                  child: Icon(
                     Icons.chevron_right,
                     size: 20,
-                    color: AppPalette.textTertiary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     top.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
                 if (subs.isNotEmpty)
                   Text(
                     '($subSel/${subs.length})',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AppPalette.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 const SizedBox(width: 10),
@@ -655,13 +652,11 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     onTap: () => setState(() {
                           if (checked) {
                             _catIds.remove(top.id);
-                            _catIds
-                                .removeAll(subs.map((Category c) => c.id));
+                            _catIds.removeAll(subs.map((Category c) => c.id));
                           } else {
                             // 勾选一级连同子分类一起，保证 (n/m) 计数同步。
                             _catIds.add(top.id);
-                            _catIds
-                                .addAll(subs.map((Category c) => c.id));
+                            _catIds.addAll(subs.map((Category c) => c.id));
                           }
                         })),
               ],
@@ -681,9 +676,11 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                         Expanded(
                           child: Text(
                             sub.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: AppPalette.textSecondary,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -730,8 +727,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       _cardTitle(
         '其他',
         trailing: _selectAllChip(
-          allSelected:
-              _otherSel.length == _otherLabels.length,
+          allSelected: _otherSel.length == _otherLabels.length,
           onTap: () => setState(() {
             if (_otherSel.length == _otherLabels.length) {
               _otherSel.clear();
@@ -796,7 +792,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-              color: active ? AppPalette.sage900 : AppPalette.textPrimary,
+              color: active
+                  ? AppPalette.sage900
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -851,15 +849,17 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     return TextField(
       controller: _tagSearchCtrl,
       onChanged: (_) => setState(() {}),
-      style: const TextStyle(fontSize: 15, color: AppPalette.textPrimary),
+      style: TextStyle(
+          fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: '搜索标签',
-        hintStyle:
-            const TextStyle(fontSize: 15, color: AppPalette.textTertiary),
-        prefixIcon: const Icon(Icons.search,
-            size: 20, color: AppPalette.textTertiary),
+        hintStyle: TextStyle(
+            fontSize: 15,
+            color: Theme.of(context).colorScheme.onSurfaceVariant),
+        prefixIcon: Icon(Icons.search,
+            size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
         filled: true,
-        fillColor: AppPalette.paper2,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         isDense: true,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -922,7 +922,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                           : FontWeight.w500,
                       color: _tagScope == scope
                           ? AppPalette.sage900
-                          : AppPalette.textPrimary,
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -937,12 +937,12 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
   Widget _tagModeRow() {
     return Row(
       children: <Widget>[
-        const Text(
+        Text(
           '模式',
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: AppPalette.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const Spacer(),
@@ -969,7 +969,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppPalette.white : AppPalette.textSecondary,
+            color: active
+                ? AppPalette.white
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -1022,12 +1024,12 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
   Widget _accModeRow() {
     return Row(
       children: <Widget>[
-        const Text(
+        Text(
           '筛选模式：',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: AppPalette.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const Spacer(),
@@ -1056,7 +1058,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppPalette.sage900 : AppPalette.textSecondary,
+            color: active
+                ? AppPalette.sage900
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -1083,14 +1087,14 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                 color: AppPalette.paper2,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.account_balance_wallet_outlined,
                 size: 22,
-                color: AppPalette.textSecondary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -1099,7 +1103,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   SizedBox(height: 2),
@@ -1107,7 +1111,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     '筛选出没有选择资产的账单(游离账单)',
                     style: TextStyle(
                       fontSize: 12.5,
-                      color: AppPalette.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1147,10 +1151,10 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     a.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1158,9 +1162,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
-                      color: AppPalette.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1175,9 +1179,8 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
 
   /// 账户圆形头像：账户色底 + 按账户类别取图标。
   Widget _accAvatar(Account a) {
-    final Color color = a.colorValue != null
-        ? Color(a.colorValue!)
-        : AppPalette.ctaGreen;
+    final Color color =
+        a.colorValue != null ? Color(a.colorValue!) : AppPalette.ctaGreen;
     return Container(
       width: 42,
       height: 42,
@@ -1205,7 +1208,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         shape: BoxShape.circle,
         color: checked ? AppPalette.ctaGreen : Colors.transparent,
         border: Border.all(
-          color: checked ? AppPalette.ctaGreen : AppPalette.textTertiary,
+          color: checked
+              ? AppPalette.ctaGreen
+              : Theme.of(context).colorScheme.onSurfaceVariant,
           width: 1.4,
         ),
       ),
@@ -1223,11 +1228,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       children: <Widget>[
         _card(children: <Widget>[
-          _cardTitle('基本信息',
-              trailing: _helpChip('按时间、金额区间、备注筛选账单')),
+          _cardTitle('基本信息', trailing: _helpChip('按时间、金额区间、备注筛选账单')),
           const SizedBox(height: 12),
-          _labelRow('时间',
-              trailing: _timeSelector()),
+          _labelRow('时间', trailing: _timeSelector()),
           const SizedBox(height: 12),
           _labelRow(
             '金额区间',
@@ -1235,12 +1238,14 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
               child: Row(
                 children: <Widget>[
                   Expanded(child: _amountField(_minCtrl, '最小')),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
                       '至',
                       style: TextStyle(
-                          fontSize: 14, color: AppPalette.textSecondary),
+                          fontSize: 14,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ),
                   Expanded(child: _amountField(_maxCtrl, '最大')),
@@ -1255,7 +1260,8 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         _card(children: <Widget>[
           _cardTitle('类型筛选',
               trailing: _clearChip(
-                  '取消', () => setState(() {
+                  '取消',
+                  () => setState(() {
                         _flowTypes.clear();
                         _billTypes.clear();
                         _sources.clear();
@@ -1271,8 +1277,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                   children: <Widget>[
                     for (final String v in const <String>['支出', '收入'])
                       _chip(v, _flowTypes,
-                          single: false,
-                          onChanged: (_) => setState(() {})),
+                          single: false, onChanged: (_) => setState(() {})),
                   ],
                 ),
               ),
@@ -1332,11 +1337,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                 child: Wrap(
                   spacing: 8,
                   children: <Widget>[
-                    _boolChip(
-                        '不计入收支', true, _statsExclude,
+                    _boolChip('不计入收支', true, _statsExclude,
                         (v) => setState(() => _statsExclude = v)),
-                    _boolChip(
-                        '计入收支', false, _statsExclude,
+                    _boolChip('计入收支', false, _statsExclude,
                         (v) => setState(() => _statsExclude = v)),
                   ],
                 ),
@@ -1352,11 +1355,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                 child: Wrap(
                   spacing: 8,
                   children: <Widget>[
-                    _boolChip(
-                        '不计入预算', true, _budgetExclude,
+                    _boolChip('不计入预算', true, _budgetExclude,
                         (v) => setState(() => _budgetExclude = v)),
-                    _boolChip(
-                        '计入预算', false, _budgetExclude,
+                    _boolChip('计入预算', false, _budgetExclude,
                         (v) => setState(() => _budgetExclude = v)),
                   ],
                 ),
@@ -1397,10 +1398,10 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: AppPalette.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const Spacer(),
@@ -1422,9 +1423,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           ),
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppPalette.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -1445,11 +1446,11 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           color: AppPalette.paper2,
           borderRadius: BorderRadius.circular(999),
         ),
-        child: const Text(
+        child: Text(
           '帮助',
           style: TextStyle(
             fontSize: 13,
-            color: AppPalette.textSecondary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -1469,9 +1470,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         ),
         child: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
-            color: AppPalette.textSecondary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -1485,8 +1486,8 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     final String label = _timeLabel();
     final CalendarPeriod? initialPeriod = _rangeStart == null
         ? null
-        : CalendarPeriod(_rangeMode ?? CalendarPeriodMode.custom,
-            _rangeStart!, _rangeEnd ?? _rangeStart!);
+        : CalendarPeriod(_rangeMode ?? CalendarPeriodMode.custom, _rangeStart!,
+            _rangeEnd ?? _rangeStart!);
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () async {
@@ -1505,8 +1506,8 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         setState(() {
           if (picked is CalendarDay) {
             // 单日：showTime:false → 时分归零，与旧行为一致。
-            _day = DateTime(
-                picked.date.year, picked.date.month, picked.date.day);
+            _day =
+                DateTime(picked.date.year, picked.date.month, picked.date.day);
             _rangeStart = null;
             _rangeEnd = null;
             _rangeMode = null;
@@ -1526,16 +1527,16 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           children: <Widget>[
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppPalette.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            const Icon(
+            Icon(
               Icons.keyboard_arrow_down,
               size: 20,
-              color: AppPalette.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ],
         ),
@@ -1558,8 +1559,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         case CalendarPeriodMode.week:
         case CalendarPeriodMode.custom:
         case null:
-          final DateTime last =
-              end.subtract(const Duration(days: 1)); // end 排他
+          final DateTime last = end.subtract(const Duration(days: 1)); // end 排他
           String md(DateTime d) => '${d.month}月${d.day}日';
           return _rangeStart!.year == last.year
               ? '${md(_rangeStart!)}-${md(last)}'
@@ -1578,10 +1578,11 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       maxDecimalDigits: 2,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
-            fontSize: 14, color: AppPalette.textTertiary),
+        hintStyle: TextStyle(
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.onSurfaceVariant),
         filled: true,
-        fillColor: AppPalette.paper2,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         isDense: true,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1607,13 +1608,15 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       controller: _noteCtrl,
       maxLines: 3,
       minLines: 3,
-      style: const TextStyle(fontSize: 15, color: AppPalette.textPrimary),
+      style: TextStyle(
+          fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: '备注',
-        hintStyle:
-            const TextStyle(fontSize: 15, color: AppPalette.textTertiary),
+        hintStyle: TextStyle(
+            fontSize: 15,
+            color: Theme.of(context).colorScheme.onSurfaceVariant),
         filled: true,
-        fillColor: AppPalette.paper2,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
@@ -1682,7 +1685,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppPalette.sage900 : AppPalette.textPrimary,
+            color: active
+                ? AppPalette.sage900
+                : Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ),
@@ -1711,7 +1716,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppPalette.sage900 : AppPalette.textPrimary,
+            color: active
+                ? AppPalette.sage900
+                : Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ),

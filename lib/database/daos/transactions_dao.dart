@@ -459,8 +459,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     final $TransactionsTable t = transactions;
     // 实付口径：支出扣优惠（收入 discount 恒 0，不受影响）
-    final Expression<int> total =
-        (t.amountMinor - t.discountMinor).sum();
+    final Expression<int> total = (t.amountMinor - t.discountMinor).sum();
 
     return (selectOnly(t)
           ..addColumns(<Expression<Object>>[t.sourceModule, total])
@@ -510,7 +509,9 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   /// 定向更新（只写 companion 中出现的列）。勿用 replace()——整行替换
   /// 会把缺省列（bookId/currency/tags/relatedId 等）写成默认值。
   Future<int> updateTx(TransactionsCompanion companion) {
-    return (update(transactions)..where(($TransactionsTable tbl) => tbl.id.equals(companion.id.value)))
+    return (update(transactions)
+          ..where(
+              ($TransactionsTable tbl) => tbl.id.equals(companion.id.value)))
         .write(companion);
   }
 

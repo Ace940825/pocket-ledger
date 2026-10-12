@@ -1,14 +1,18 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/summary_bar.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../../theme/app_colors.dart';
-import '../../../../core/theme/forest_design_tokens.dart';
-import '../../../../database/app_database.dart';
-import '../../../../domain/enums.dart';
-import '../../../../shared/models/money.dart';
-import '../../../../shared/widgets/calendar_sheet.dart';
+import '../../../theme/app_colors.dart';
+import '../../../core/theme/forest_design_tokens.dart';
+import '../../../database/app_database.dart';
+import '../../../domain/enums.dart';
+import '../../../shared/models/money.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
@@ -83,9 +87,9 @@ class _CategoryTransactionsPageState
       filtered.sort((Transaction a, Transaction b) =>
           b.occurredAt.compareTo(a.occurredAt));
     } else {
-      filtered.sort((Transaction a, Transaction b) => (b.amountMinor -
-              b.discountMinor)
-          .compareTo(a.amountMinor - a.discountMinor));
+      filtered.sort((Transaction a, Transaction b) =>
+          (b.amountMinor - b.discountMinor)
+              .compareTo(a.amountMinor - a.discountMinor));
     }
 
     final int count = filtered.length;
@@ -94,7 +98,7 @@ class _CategoryTransactionsPageState
     final String name = category?.name ?? '分类';
 
     return Scaffold(
-      backgroundColor: ForestBg.paper,
+      backgroundColor: context.colors.surface,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -105,22 +109,23 @@ class _CategoryTransactionsPageState
             _buildSummaryBar(context, count, totalMinor),
             Expanded(
               child: listAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (Object e, StackTrace _) => Center(
                   child: Text('加载失败 $e',
-                      style: const TextStyle(
-                          fontSize: 13, color: AppPalette.textTertiary)),
+                      style: TextStyle(
+                          fontSize: 13,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant)),
                 ),
                 data: (_) {
                   if (filtered.isEmpty) {
                     return Center(
                       child: Text(
-                        data.isEmpty
-                            ? '该分类下暂无账单'
-                            : '该分类 ${period.label} 暂无账单',
+                        data.isEmpty ? '该分类下暂无账单' : '该分类 ${period.label} 暂无账单',
                         style: TextStyle(
-                            fontSize: 13, color: AppPalette.textTertiary),
+                            fontSize: 13,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     );
                   }
@@ -153,22 +158,25 @@ class _CategoryTransactionsPageState
                   shape: BoxShape.circle,
                   boxShadow: <BoxShadow>[
                     BoxShadow(
-                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.078),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .shadow
+                          .withValues(alpha: 0.078),
                       blurRadius: 8,
                       offset: Offset(0, 2),
                     ),
                   ],
                 ),
-                child: const Icon(Icons.close,
-                    size: 20, color: ForestNeutral.textPrimary),
+                child: Icon(Icons.close,
+                    size: 20, color: Theme.of(context).colorScheme.onSurface),
               ),
             ),
           ),
           // 自定义头部无 AppBar 承载，直接复用主题 appBarTheme.titleTextStyle，
           // 与全站标题（17pt w800 居中）保持一致。
           Center(
-            child: Text(name,
-                style: Theme.of(context).appBarTheme.titleTextStyle),
+            child:
+                Text(name, style: Theme.of(context).appBarTheme.titleTextStyle),
           ),
         ],
       ),
@@ -198,17 +206,17 @@ class _CategoryTransactionsPageState
                         period.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: ForestNeutral.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.keyboard_arrow_down_rounded,
                       size: 20,
-                      color: AppPalette.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -218,8 +226,8 @@ class _CategoryTransactionsPageState
           const SizedBox(width: 8),
           // 排序切换：时间（最近在前）⇄ 金额（从大到小），点一下互换。
           GestureDetector(
-            onTap: () => setState(() => _sortMode =
-                byAmount ? _SortMode.time : _SortMode.amount),
+            onTap: () => setState(
+                () => _sortMode = byAmount ? _SortMode.time : _SortMode.amount),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
@@ -231,9 +239,7 @@ class _CategoryTransactionsPageState
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Icon(
-                    byAmount
-                        ? Icons.payments_outlined
-                        : Icons.schedule_rounded,
+                    byAmount ? Icons.payments_outlined : Icons.schedule_rounded,
                     size: 14,
                     color: ForestGreen.deep,
                   ),
@@ -262,8 +268,7 @@ class _CategoryTransactionsPageState
   /// 支持周/月/年/自定义四种粒度，确认后整段区间生效。
   Future<void> _pickPeriod() async {
     final List<Transaction> data =
-        ref.read(categoryTransactionsProvider(widget.categoryId))
-                .valueOrNull ??
+        ref.read(categoryTransactionsProvider(widget.categoryId)).valueOrNull ??
             const <Transaction>[];
     final LedgerPeriod current = _effectivePeriod(data);
     final CalendarPeriodMode cm = switch (current.mode) {
@@ -294,29 +299,18 @@ class _CategoryTransactionsPageState
     });
   }
 
-  // ── 合计条：共 N 笔 · 合计 xx ─────────────────────────
+  // ── 合计条：共 N 笔 · 合计 xx（统一共享 SummaryBar） ──────
   Widget _buildSummaryBar(BuildContext context, int count, int totalMinor) {
-    return Padding(
+    return SummaryBar(
+      count: count,
+      totalText: Money.fromMinor(totalMinor).format(),
       padding: const EdgeInsets.fromLTRB(18, 4, 18, 6),
-      child: Row(
-        children: <Widget>[
-          Text(
-            '共 $count 笔 · 合计 ${Money.fromMinor(totalMinor).format()}',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppPalette.textSecondary,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   // ── 按天分组（filtered 已按当前排序排好） ────────────
   Widget _buildDayGroups(List<Transaction> list) {
-    final Map<String, List<Transaction>> groups =
-        <String, List<Transaction>>{};
+    final Map<String, List<Transaction>> groups = <String, List<Transaction>>{};
     for (final Transaction t in list) {
       final DateTime day = DateTime.fromMillisecondsSinceEpoch(
         t.occurredAt,
@@ -402,10 +396,10 @@ class _DayGroup extends StatelessWidget {
               children: <Widget>[
                 Text(
                   _dayLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: ForestNeutral.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(width: 5),
@@ -413,10 +407,10 @@ class _DayGroup extends StatelessWidget {
                 const Spacer(),
                 Text(
                   _totalLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -424,8 +418,8 @@ class _DayGroup extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: TxnSlidableGroup(

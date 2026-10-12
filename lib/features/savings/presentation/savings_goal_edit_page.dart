@@ -9,6 +9,7 @@ import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/info_tip_row.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart';
@@ -156,7 +157,9 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
                 _section(
                   title: '存钱快捷属性',
                   children: <Widget>[
-                    _infoRow(),
+                    const InfoTipRow(
+                      text: '快捷属性适用于完成存钱任务快捷填充属性使用。',
+                    ),
                     const SizedBox(height: 12),
                     _bookRow(),
                     const SizedBox(height: 12),
@@ -249,34 +252,6 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
     );
   }
 
-  /// ⓘ 信息行（灰字说明）。
-  Widget _infoRow() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceMist,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Icon(Icons.info_outline,
-              size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '快捷属性适用于完成存钱任务快捷填充属性使用。',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                    height: 1.5,
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 头像行：🐱 头像 + 名称 / 备注预览（对标截图头像右侧两行）。
   /// 预览实时跟随输入框：名称清空回退原名称；备注清空同步消失。
   Widget _avatarRow() {
@@ -359,7 +334,7 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 14),
         filled: true,
-        fillColor: AppPalette.surfaceMist,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
           borderSide: BorderSide.none,

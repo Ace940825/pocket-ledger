@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/app_button.dart';
+import '../../../shared/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../theme/app_colors.dart';
@@ -7,6 +10,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/category_widgets.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../providers/categories_providers.dart';
@@ -47,7 +51,7 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            _TypeTab(
+            TypeTab(
               label: '支出',
               selected: _selectedType == CategoryType.expense,
               onTap: () => setState(
@@ -55,7 +59,7 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
               ),
             ),
             const SizedBox(width: AppDimens.spaceXl),
-            _TypeTab(
+            TypeTab(
               label: '收入',
               selected: _selectedType == CategoryType.income,
               onTap: () => setState(
@@ -88,10 +92,7 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
         .toList();
 
     if (candidates.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(AppDimens.spaceLg),
-        child: Center(child: Text('暂无目标分类')),
-      );
+      return const EmptyState(message: '暂无目标分类');
     }
 
     final Map<String?, List<Category>> grouped = <String?, List<Category>>{};
@@ -129,24 +130,11 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
   }
 
   Future<void> _onSelect(Category target) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: const Text('账单迁移'),
-        content: Text(
-          '「${widget.source.name}」下的全部账单将迁移到「${target.name}」。',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
+    final bool? confirmed = await showConfirm(
+      context,
+      title: '账单迁移',
+      content: '「${widget.source.name}」下的全部账单将迁移到「${target.name}」。',
+      confirmText: '确定',
     );
     if (confirmed != true) return;
 
@@ -164,72 +152,6 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
     } on AppFailure catch (e) {
       if (mounted) _toast(context, e.message);
     }
-  }
-}
-
-class _TypeTab extends StatelessWidget {
-  const _TypeTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final Color color =
-        selected ? theme.colorScheme.onSurface : AppPalette.textTertiary;
-    final FontWeight weight = selected ? FontWeight.w600 : FontWeight.normal;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceSm),
-        decoration: BoxDecoration(
-          border: selected
-              ? Border(
-                  bottom: BorderSide(
-                    color: theme.colorScheme.onSurface,
-                    width: 2.5,
-                  ),
-                )
-              : null,
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: color,
-            fontWeight: weight,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ExpandArrow extends StatelessWidget {
-  const _ExpandArrow({required this.expanded, required this.onTap});
-
-  final bool expanded;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 32,
-      child: IconButton(
-        onPressed: onTap,
-        icon: AnimatedRotation(
-          turns: expanded ? 0.25 : 0,
-          duration: const Duration(milliseconds: 200),
-          child: const Icon(Icons.chevron_right, size: 20),
-        ),
-      ),
-    );
   }
 }
 
@@ -261,7 +183,7 @@ class _MigrateParentTile extends StatelessWidget {
           height: AppDimens.listTileHeight,
           child: Row(
             children: <Widget>[
-              _ExpandArrow(expanded: expanded, onTap: onToggle),
+              ExpandArrow(expanded: expanded, onTap: onToggle),
               Expanded(
                 child: InkWell(
                   onTap: () => onSelect(parent),
@@ -300,7 +222,10 @@ class _MigrateParentTile extends StatelessWidget {
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
-                                ?.copyWith(color: AppPalette.textTertiary),
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant),
                           ),
                         ),
                     ],

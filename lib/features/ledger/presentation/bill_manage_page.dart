@@ -104,7 +104,8 @@ class BillManagePage extends StatelessWidget {
 
   // ── 分组卡片：标题（绿色小竖条）+ 行列表 ──
 
-  Widget _groupCard(BuildContext context, {
+  Widget _groupCard(
+    BuildContext context, {
     required String title,
     required List<_RowItem> items,
   }) {
@@ -176,10 +177,10 @@ class _RowItem extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -187,16 +188,17 @@ class _RowItem extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppPalette.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 22,
-                color: AppPalette.textSecondary),
+            Icon(Icons.chevron_right,
+                size: 22,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
           ],
         ),
       ),

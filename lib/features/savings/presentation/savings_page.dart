@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -21,6 +22,7 @@ import 'savings_rolling_create_page.dart';
 import 'savings_mode_sheet.dart';
 import 'savings_modes.dart';
 import 'savings_schedule.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 
 /// 储蓄页：「计划 / 归档」双 Tab。
 /// - 计划：内嵌「存钱模式选择」双列九宫格，点卡直接进该模式创建页；
@@ -125,7 +127,7 @@ class _ArchivedList extends ConsumerWidget {
     return items.when(
       data: (List<SavingsGoal> list) {
         if (list.isEmpty) {
-          return const Center(child: Text('暂无归档的储蓄计划'));
+          return const EmptyState(message: '暂无归档的储蓄计划');
         }
         return ListView.separated(
           itemCount: list.length,
@@ -453,13 +455,11 @@ class SavingsGoalTile extends ConsumerWidget {
     // 排期总期数（灵活模式为 1 期任意金额）。
     final int totalPeriods = SavingsSchedule.build(goal).length;
 
-    showModalBottomSheet<void>(
-      context: context,
+    showAppModalSheet<void>(
+      context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext ctx) => SafeArea(
+      showHandle: false,
+      body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
           child: Column(
@@ -512,7 +512,7 @@ class SavingsGoalTile extends ConsumerWidget {
                   ].join(' · '),
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

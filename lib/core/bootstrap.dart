@@ -230,6 +230,11 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 自动勾选对应期次已还，支持「可进可退」。运行期跨天 / 还款后由分期列表页再补。
   await InstallmentRepository(db, TransactionRepository(db))
       .reconcileInstallmentRepayments();
+  // 投资「已实现盈亏」缓存列对账（幂等，每次启动运行）：按各持仓买卖流水重放
+  // 重算并写回 realizedProfitMinor。升级旧库由迁移一次性回填，此步兜底云端同步
+  // 来的持仓 / 历史脏数据，保证持仓卡「已实现盈亏」与流水一致。
+  await InvestmentRepository(db, TransactionRepository(db))
+      .recomputeAllRealized();
   final List<Book> books = await db.booksDao.watchAll().first;
   if (books.isEmpty) {
     await _seedDefaults(db);
@@ -308,8 +313,8 @@ Future<void> _retireLegacyDefaultCategories(AppDatabase db) async {
   // 软删 + 同步入队，与手动删除完全同口径），名下子分类一并删除，
   // 已有流水改显「未分类」。注意不碰「副业兼职」（经营收入的内置二级）。
   final List<Category> parttimeRows = await (db.select(db.categories)
-        ..where((Categories t) =>
-            t.name.equals('兼职') & t.deleted.equals(false)))
+        ..where(
+            (Categories t) => t.name.equals('兼职') & t.deleted.equals(false)))
       .get();
   if (parttimeRows.isNotEmpty) {
     final CategoryRepository repo = CategoryRepository(db);
@@ -401,7 +406,8 @@ Future<void> _markSystemCategories(AppDatabase db) async {
       final bool needMark = !row.isSystem;
       final bool needIcon = iconKey != null && row.iconKey != iconKey;
       if (!needMark && !needIcon) continue;
-      await (db.update(db.categories)..where((Categories t) => t.id.equals(row.id)))
+      await (db.update(db.categories)
+            ..where((Categories t) => t.id.equals(row.id)))
           .write(
         CategoriesCompanion(
           isSystem: const Value<bool>(true),
@@ -440,8 +446,8 @@ Future<void> _relinkLendFlowCategories(AppDatabase db) async {
     ('借出-', '借出', CategoryType.expense, 'lend_out'),
   ];
   final Set<String> liveCategoryIds = (await (db.select(db.categories)
-              ..where((Categories t) => t.deleted.equals(false)))
-            .get())
+            ..where((Categories t) => t.deleted.equals(false)))
+          .get())
       .map((Category c) => c.id)
       .toSet();
   final List<Transaction> rows = await (db.select(db.transactions)
@@ -1066,9 +1072,8 @@ Future<void> _reconcileSavingsCurrentMinor(AppDatabase db) async {
         .write(
       SavingsGoalsCompanion(
         currentMinor: Value<int>(actual),
-        isAchieved: Value<bool>(
-            (g.endNote != null || g.mode == 'flexible') &&
-                actual >= g.targetMinor),
+        isAchieved: Value<bool>((g.endNote != null || g.mode == 'flexible') &&
+            actual >= g.targetMinor),
         updatedAt: Value<int>(now),
         dirty: const Value<bool>(true),
       ),
@@ -1417,7 +1422,8 @@ Future<void> _rebuildIncomeCategoryTree(AppDatabase db) async {
                 ..where((tbl) => tbl.id.equals(existing.id)))
               .write(
             CategoriesCompanion(
-              name: needRename ? Value<String>(targetName) : const Value.absent(),
+              name:
+                  needRename ? Value<String>(targetName) : const Value.absent(),
               iconKey: Value<String?>(def.iconKey),
               colorValue: Value<int?>(def.colorValue),
               updatedAt: Value<int>(now),
@@ -1512,8 +1518,8 @@ Future<void> _rebuildIncomeCategoryTree(AppDatabase db) async {
         }
       }
       final int childSo = all
-              .where((Category x) => x.parentId == parent.id && !x.deleted)
-              .length;
+          .where((Category x) => x.parentId == parent.id && !x.deleted)
+          .length;
       final _DefaultCategory? childDef = _defaultCategoryLookup[newName];
       if (oldTop != null) {
         await (db.update(db.categories)

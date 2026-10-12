@@ -2,11 +2,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 
 import '../../core/constants/app_dimens.dart';
 import '../../core/theme/forest_design_tokens.dart';
 import '../../core/utils/date_utils.dart';
 import 'app_toast.dart';
+import 'sheet_drag_handle.dart';
 
 /// 口袋账本「全局共用日历组件」。
 ///
@@ -63,7 +67,7 @@ class CalendarSheet {
     return showModalBottomSheet<CalendarSelection>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: ForestBg.paper,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -226,6 +230,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   /// + 当前浏览月（预览 s.disp）——‹ › 步进与选起始后自动跳下月共用。
   String _rangeRStep = 's';
   late DateTime _rangeViewMonth;
+
   /// 自定义区间的宫格导航子模式：null=日宫格（点选起止日）；
   /// 'month'=年宫格（点月份跳到该月日宫格）；'year'=年宫格（点年份进月宫格）。
   /// 用于快速定位很早/很晚的日期，不必逐月横滑。
@@ -255,6 +260,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   }
 
   ScrollController? _weekCtrl;
+
   /// 周滚轮重建纪元：每次重锚（chip 进入 / 跨年箭头 / ◎ 回当前）自增，
   /// 作为 ListView 的 ValueKey——已挂载的 Scrollable 换控制器只会恢复旧
   /// 滚动位置（initialScrollOffset 不生效），必须整树重建才能落位。
@@ -272,8 +278,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   /// 自定义区间宫格 pager（与日/月/年同机制：换控制器 + ObjectKey 整树重建）。
   late PageController _rangePageCtrl;
 
-  int _dayPageOf(DateTime m) =>
-      (m.year - _kGridFirstYear) * 12 + m.month - 1;
+  int _dayPageOf(DateTime m) => (m.year - _kGridFirstYear) * 12 + m.month - 1;
 
   // 月/年宫格常量（原账本页私有，统一收纳）。
   // 末年取 2107：年宫格 12 年一页，末页 2096–2107 恰好铺满且不再越界置灰
@@ -340,8 +345,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
         initialPage:
             (_windowStart(_selYear) - _kGridFirstYear) ~/ _kYearsPerPage,
         keepPage: false);
-    _dayPageCtrl = PageController(
-        initialPage: _dayPageOf(_selected), keepPage: false);
+    _dayPageCtrl =
+        PageController(initialPage: _dayPageOf(_selected), keepPage: false);
     if (ip?.mode == CalendarPeriodMode.custom) {
       _rangeStart = ip!.start;
       _rangeEnd = ip.end.subtract(const Duration(days: 1));
@@ -397,7 +402,13 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
 
   /// 设计稿 hero 用单字周几（如「三」）。
   static const List<String> _weekdayShortCN = <String>[
-    '日', '一', '二', '三', '四', '五', '六',
+    '日',
+    '一',
+    '二',
+    '三',
+    '四',
+    '五',
+    '六',
   ];
   String _weekdayShort(DateTime d) => _weekdayShortCN[d.weekday % 7];
 
@@ -584,8 +595,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   /// onPageChanged 纯采纳：用户滑动或已挂载跳页后回写页头。
   void _onDayPageChanged(int page) {
     setState(() {
-      _displayedMonth =
-          DateTime(_kGridFirstYear + page ~/ 12, page % 12 + 1);
+      _displayedMonth = DateTime(_kGridFirstYear + page ~/ 12, page % 12 + 1);
     });
   }
 
@@ -595,14 +605,12 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
 
   void _onRangePageChanged(int page) {
     setState(() {
-      _rangeViewMonth =
-          DateTime(_kGridFirstYear + page ~/ 12, page % 12 + 1);
+      _rangeViewMonth = DateTime(_kGridFirstYear + page ~/ 12, page % 12 + 1);
     });
   }
 
   void _onYearPageChanged(int page) {
-    setState(() =>
-        _decadeStart = _kGridFirstYear + page * _kYearsPerPage);
+    setState(() => _decadeStart = _kGridFirstYear + page * _kYearsPerPage);
   }
 
   /// ◎ 回到当前：日视图=选中回「此刻」（含时分）、视图回本月；
@@ -677,8 +685,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     });
     _gotoDayPage(_dayPageOf(_displayedMonth), animate: true);
     _gotoMonthPage(now.year - _kGridFirstYear);
-    _gotoYearPage(
-        (_windowStart(now.year) - _kGridFirstYear) ~/ _kYearsPerPage);
+    _gotoYearPage((_windowStart(now.year) - _kGridFirstYear) ~/ _kYearsPerPage);
   }
 
   /// ◎「回到当前」显隐判据：日视图=选中与「此刻」完全一致（含时分）；
@@ -727,8 +734,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           shape: BoxShape.circle,
         ),
         child: visible
-            ? const Icon(Icons.gps_fixed,
-                size: 17, color: AppPalette.textSecondary)
+            ? Icon(Icons.gps_fixed,
+                size: 17, color: Theme.of(context).colorScheme.onSurfaceVariant)
             : null,
       ),
     );
@@ -846,7 +853,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxH),
         child: Container(
-          color: ForestBg.paper,
+          color: context.colors.surface,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -880,14 +887,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     );
   }
 
-  Widget _buildHandle() => Container(
-        margin: const EdgeInsets.only(top: 10),
+  Widget _buildHandle() => SheetDragHandle(
         width: 40,
         height: 4,
-        decoration: BoxDecoration(
-          color: ForestNeutral.hairline,
-          borderRadius: BorderRadius.circular(ForestRadius.pill),
-        ),
+        margin: const EdgeInsets.only(top: 10),
       );
 
   Widget _buildHeader() => Padding(
@@ -902,8 +905,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             _CloseButton(onPressed: () => Navigator.of(context).pop()),
             const SizedBox(width: 10),
             Text(
-              widget.headerTitle ??
-                  (widget.showTime ? 'DATE & TIME' : 'DATE'),
+              widget.headerTitle ?? (widget.showTime ? 'DATE & TIME' : 'DATE'),
               style: TextStyle(
                 fontSize: widget.headerTitle != null ? 17 : 19,
                 fontWeight: FontWeight.w800,
@@ -920,7 +922,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
         margin: const EdgeInsets.fromLTRB(18, 8, 18, 2),
         padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
         decoration: BoxDecoration(
-          gradient: ForestGradients.sage,
+          gradient: context.app.sageGradient,
           borderRadius: BorderRadius.circular(20),
           boxShadow: _heroFloat ? ForestElevation.float : ForestElevation.card,
         ),
@@ -992,8 +994,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                               style: TextStyle(
                                 fontSize: _narrow ? 19 : 21,
                                 fontWeight: FontWeight.w800,
-                                color:
-                                    Theme.of(context).colorScheme.onPrimary,
+                                color: Theme.of(context).colorScheme.onPrimary,
                                 letterSpacing: 1,
                               ),
                             ),
@@ -1151,8 +1152,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               // 与日页头「YYYY年M月 ▾」入口同口径：锚定日视图上下文年。
               _selYear = _displayedMonth.year;
               _decadeStart = _windowStart(_selYear);
-              _gotoYearPage(
-                  (_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage);
+              _gotoYearPage((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage);
             }
             if (mode == CalendarPeriodMode.custom) {
               // 进自定义：浏览月锚定日视图上下文月；起止徽章的位置固定由
@@ -1168,11 +1168,13 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           height: 38,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            gradient: on ? ForestGradients.sage : null,
-            color: on ? null : ForestSurface.card,
+            gradient: on ? context.app.sageGradient : null,
+            color: on ? null : context.colors.surface,
             borderRadius: BorderRadius.circular(13),
             border: Border.all(
-              color: on ? Colors.transparent : ForestNeutral.hairline,
+              color: on
+                  ? Colors.transparent
+                  : Theme.of(context).colorScheme.outline,
             ),
             boxShadow: on ? ForestElevation.card : ForestElevation.flat,
           ),
@@ -1190,7 +1192,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                             .colorScheme
                             .onPrimary
                             .withValues(alpha: 0.7)
-                        : ForestNeutral.textSecondary,
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1200,7 +1202,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               fontWeight: FontWeight.w700,
               color: on
                   ? Theme.of(context).colorScheme.onPrimary
-                  : ForestNeutral.textPrimary,
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -1255,8 +1257,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               // 年宫格锁定到日视图上下文年所在 12 年窗（与粒度 chip 同口径）。
               _selYear = _displayedMonth.year;
               _decadeStart = _windowStart(_selYear);
-              _gotoYearPage(
-                  (_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage);
+              _gotoYearPage((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage);
             }),
             borderRadius: BorderRadius.circular(6),
             child: Padding(
@@ -1265,18 +1266,18 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                 children: <Widget>[
                   Text(
                     '${_displayedMonth.year}年${_displayedMonth.month}月',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: ForestNeutral.deepInk,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(width: 5),
-                  const Text(
+                  Text(
                     '▾',
                     style: TextStyle(
                       fontSize: 11,
-                      color: ForestNeutral.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1304,8 +1305,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               fontSize: 20,
               height: 1,
               color: enabled
-                  ? ForestNeutral.deepInk
-                  : ForestNeutral.textTertiary,
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -1332,10 +1333,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               child: Center(
                 child: Text(
                   w,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: ForestNeutral.textTertiary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -1390,10 +1391,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     final Color textColor = selected
         ? AppPalette.white
         : dim
-            ? ForestNeutral.textTertiary
+            ? Theme.of(context).colorScheme.onSurfaceVariant
             : isToday
                 ? AppPalette.ctaGreen
-                : ForestNeutral.textPrimary;
+                : Theme.of(context).colorScheme.onSurface;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: enabled
@@ -1471,10 +1472,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                     padding: const EdgeInsets.all(2),
                     child: Text(
                       _periodAxisLabel(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
-                        color: ForestNeutral.deepInk,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -1511,10 +1512,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           width: 96,
           child: Text(
             '${headMonth.year}年${headMonth.month}月',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: ForestNeutral.deepInk,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -1557,13 +1558,14 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                   style: TextStyle(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w800,
-                    color: ForestNeutral.deepInk,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(width: 5),
-                const Text('▾',
-                    style:
-                        TextStyle(fontSize: 11, color: ForestNeutral.textTertiary)),
+                Text('▾',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -1577,7 +1579,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             style: TextStyle(
               fontSize: fontSize,
               fontWeight: FontWeight.w800,
-              color: ForestNeutral.deepInk,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         );
@@ -1591,9 +1593,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               children: <Widget>[
                 _customAxisLabel(),
                 const SizedBox(width: 5),
-                const Text('▾',
-                    style:
-                        TextStyle(fontSize: 11, color: ForestNeutral.textTertiary)),
+                Text('▾',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -1623,7 +1626,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             child: _footerPill(
               label: '取消',
               background: AppPalette.paper2,
-              foreground: AppPalette.textSecondary,
+              foreground: Theme.of(context).colorScheme.onSurfaceVariant,
               onTap: () => Navigator.of(context).pop(),
             ),
           ),
@@ -1675,8 +1678,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       Container(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
         decoration: BoxDecoration(
-          color: ForestBg.paper,
-          border: Border(top: BorderSide(color: ForestNeutral.hairline)),
+          color: context.colors.surface,
+          border: Border(
+              top: BorderSide(color: Theme.of(context).colorScheme.outline)),
         ),
         child: Column(
           children: <Widget>[
@@ -1685,7 +1689,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                 children: <Widget>[
                   leading,
                   const SizedBox(width: 12),
-                  Expanded(child: _ConfirmButton(onPressed: onConfirm, label: label)),
+                  Expanded(
+                      child:
+                          _ConfirmButton(onPressed: onConfirm, label: label)),
                 ],
               )
             else
@@ -1753,8 +1759,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             fontSize: 14,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             color: disabled
-                ? AppPalette.textTertiary
-                : (selected ? AppPalette.white : AppPalette.textPrimary),
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : (selected
+                    ? AppPalette.white
+                    : Theme.of(context).colorScheme.onSurface),
           ),
         ),
       ),
@@ -1819,8 +1827,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             fontSize: 14,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             color: outOfRange
-                ? AppPalette.textTertiary
-                : (selected ? AppPalette.white : AppPalette.textPrimary),
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : (selected
+                    ? AppPalette.white
+                    : Theme.of(context).colorScheme.onSurface),
           ),
         ),
       ),
@@ -1847,10 +1857,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                         : _rangeEnd == null
                             ? '选择结束日期'
                             : '${_md(_rangeStart!)} - ${_md(_rangeEnd!)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -1990,8 +2000,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             _gotoYearPage(((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
                 .clamp(0, _windowPageCount - 1));
           } else {
-            final DateTime c = DateTime(
-                _rangeViewMonth.year, _rangeViewMonth.month - 1);
+            final DateTime c =
+                DateTime(_rangeViewMonth.year, _rangeViewMonth.month - 1);
             if (_isMonthAllowed(c)) {
               _rangeViewMonth = c;
               _gotoRangePage(_dayPageOf(c), animate: true);
@@ -2027,8 +2037,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             _gotoYearPage(((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
                 .clamp(0, _windowPageCount - 1));
           } else {
-            final DateTime c = DateTime(
-                _rangeViewMonth.year, _rangeViewMonth.month + 1);
+            final DateTime c =
+                DateTime(_rangeViewMonth.year, _rangeViewMonth.month + 1);
             if (_isMonthAllowed(c)) {
               _rangeViewMonth = c;
               _gotoRangePage(_dayPageOf(c), animate: true);
@@ -2137,68 +2147,72 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               ).createShader(bounds),
               blendMode: BlendMode.dstIn,
               child: ListView.builder(
-              // 纪元键：重锚时（chip 进入/跨年箭头/◎）epoch++ → 整树重建，
-              // 新控制器 initialScrollOffset 才会生效（换控制器≠落位）。
-              key: ValueKey<int>(_weekEpoch),
-              controller: ctrl,
-              itemExtent: _kW,
-              padding: const EdgeInsets.symmetric(vertical: _kWeekCenterPad),
-              itemCount: weeks.length,
-              itemBuilder: (BuildContext ctx, int index) {
-                final DateTime w = weeks[index];
-                final DateTime wEnd = w.add(const Duration(days: 6));
-                final bool selected = w == _selWeek;
-                final bool disabled = w.isAfter(widget.lastDate);
-                final bool isThis = w == _mondayOf(now);
-                // 滚轮景深：按行距中框的距离做 3 档缩小 + 淡出（预览一致）
-                final double center = ctrl.offset + _kSheetBodyHeight / 2;
-                final double rowCenter = index * _kW + _kWeekCenterPad + _kW / 2;
-                final double ad = (center - rowCenter).abs() / _kW;
-                final int lv = ad.round().clamp(0, 2);
-                final double scale = const <double>[1.0, 0.9, 0.76][lv];
-                final double opacity = const <double>[1.0, 0.8, 0.58][lv];
-                return Transform.scale(
-                  scale: scale,
-                  child: Opacity(
-                    opacity: disabled ? 0.35 : opacity,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: disabled
-                          ? null
-                          : () {
-                              ctrl.animateTo(
-                                index * _kW,
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeOutCubic,
-                              );
-                              setState(() => _selWeek = w);
-                            },
-                      child: Container(
-                        alignment: Alignment.center,
-                        // 全角「）」右半是字形空白，整行墨心比文本框中心左偏 ~4px，
-                        // 视觉上「不居中」；左侧补等宽内距把墨心推回中线。
-                        // 内距随景深 Transform.scale 等比缩放，与字号缩放天然自洽。
-                        padding: const EdgeInsets.only(left: 8.5),
-                        child: Text(
-                          _weekLabel(w, wEnd, isThis, now),
-                          style: TextStyle(
-                            fontSize: selected ? 17 : 13.5,
-                            fontWeight: selected
-                                ? FontWeight.w700
-                                : FontWeight.w400,
-                            color: disabled
-                                ? AppPalette.textTertiary
-                                : selected
-                                    ? AppPalette.textPrimary
-                                    : AppPalette.textSecondary,
+                // 纪元键：重锚时（chip 进入/跨年箭头/◎）epoch++ → 整树重建，
+                // 新控制器 initialScrollOffset 才会生效（换控制器≠落位）。
+                key: ValueKey<int>(_weekEpoch),
+                controller: ctrl,
+                itemExtent: _kW,
+                padding: const EdgeInsets.symmetric(vertical: _kWeekCenterPad),
+                itemCount: weeks.length,
+                itemBuilder: (BuildContext ctx, int index) {
+                  final DateTime w = weeks[index];
+                  final DateTime wEnd = w.add(const Duration(days: 6));
+                  final bool selected = w == _selWeek;
+                  final bool disabled = w.isAfter(widget.lastDate);
+                  final bool isThis = w == _mondayOf(now);
+                  // 滚轮景深：按行距中框的距离做 3 档缩小 + 淡出（预览一致）
+                  final double center = ctrl.offset + _kSheetBodyHeight / 2;
+                  final double rowCenter =
+                      index * _kW + _kWeekCenterPad + _kW / 2;
+                  final double ad = (center - rowCenter).abs() / _kW;
+                  final int lv = ad.round().clamp(0, 2);
+                  final double scale = const <double>[1.0, 0.9, 0.76][lv];
+                  final double opacity = const <double>[1.0, 0.8, 0.58][lv];
+                  return Transform.scale(
+                    scale: scale,
+                    child: Opacity(
+                      opacity: disabled ? 0.35 : opacity,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: disabled
+                            ? null
+                            : () {
+                                ctrl.animateTo(
+                                  index * _kW,
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOutCubic,
+                                );
+                                setState(() => _selWeek = w);
+                              },
+                        child: Container(
+                          alignment: Alignment.center,
+                          // 全角「）」右半是字形空白，整行墨心比文本框中心左偏 ~4px，
+                          // 视觉上「不居中」；左侧补等宽内距把墨心推回中线。
+                          // 内距随景深 Transform.scale 等比缩放，与字号缩放天然自洽。
+                          padding: const EdgeInsets.only(left: 8.5),
+                          child: Text(
+                            _weekLabel(w, wEnd, isThis, now),
+                            style: TextStyle(
+                              fontSize: selected ? 17 : 13.5,
+                              fontWeight:
+                                  selected ? FontWeight.w700 : FontWeight.w400,
+                              color: disabled
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant
+                                  : selected
+                                      ? Theme.of(context).colorScheme.onSurface
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -2220,7 +2234,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
         itemBuilder: (BuildContext ctx, int page) {
           final int year = _kGridFirstYear + page;
           return Padding(
-            padding: EdgeInsets.zero, // 4×45+3×6=198 恰好填满，多一层纵向内边距会被 PageView 裁掉末行
+            padding:
+                EdgeInsets.zero, // 4×45+3×6=198 恰好填满，多一层纵向内边距会被 PageView 裁掉末行
             child: GridView.count(
               crossAxisCount: 3,
               shrinkWrap: true,
@@ -2234,8 +2249,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                     builder: (BuildContext c) {
                       final bool selected =
                           year == _selMonth.year && m == _selMonth.month;
-                      final bool disabled =
-                          !_isMonthAllowed(DateTime(year, m));
+                      final bool disabled = !_isMonthAllowed(DateTime(year, m));
                       return InkWell(
                         borderRadius: BorderRadius.circular(13),
                         onTap: disabled
@@ -2263,8 +2277,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                           _selected.hour, _selected.minute);
                                       _displayedMonth = DateTime(year, m);
                                       _dayViewTab = null;
-                                      _gotoDayPage(
-                                          _dayPageOf(_displayedMonth),
+                                      _gotoDayPage(_dayPageOf(_displayedMonth),
                                           animate: true);
                                     }
                                   }),
@@ -2273,31 +2286,34 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             gradient:
-                                selected ? ForestGradients.sage : null,
+                                selected ? context.app.sageGradient : null,
                             color: selected
                                 ? null
                                 : (disabled
                                     ? AppPalette.paper2
-                                    : ForestSurface.card),
+                                    : context.colors.surface),
                             borderRadius: BorderRadius.circular(13),
                             border: Border.all(
                               color: disabled
                                   ? Colors.transparent
-                                  : ForestNeutral.hairline,
+                                  : Theme.of(context).colorScheme.outline,
                             ),
                           ),
                           child: Text(
                             '$m月',
                             style: TextStyle(
                               fontSize: 13.5,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                              fontWeight:
+                                  selected ? FontWeight.w700 : FontWeight.w500,
                               color: disabled
-                                  ? AppPalette.textTertiary
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant
                                   : (selected
                                       ? Theme.of(c).colorScheme.onPrimary
-                                      : AppPalette.textPrimary),
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
                             ),
                           ),
                         ),
@@ -2325,7 +2341,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
         itemBuilder: (BuildContext ctx, int page) {
           final int start = _kGridFirstYear + page * _kYearsPerPage;
           return Padding(
-            padding: EdgeInsets.zero, // 4×45+3×6=198 恰好填满，多一层纵向内边距会被 PageView 裁掉末行
+            padding:
+                EdgeInsets.zero, // 4×45+3×6=198 恰好填满，多一层纵向内边距会被 PageView 裁掉末行
             child: GridView.count(
               crossAxisCount: 3,
               shrinkWrap: true,
@@ -2372,31 +2389,34 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             gradient:
-                                selected ? ForestGradients.sage : null,
+                                selected ? context.app.sageGradient : null,
                             color: selected
                                 ? null
                                 : (disabled
                                     ? AppPalette.paper2
-                                    : ForestSurface.card),
+                                    : context.colors.surface),
                             borderRadius: BorderRadius.circular(13),
                             border: Border.all(
                               color: disabled
                                   ? Colors.transparent
-                                  : ForestNeutral.hairline,
+                                  : Theme.of(context).colorScheme.outline,
                             ),
                           ),
                           child: Text(
                             '$y年',
                             style: TextStyle(
                               fontSize: 13.5,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                              fontWeight:
+                                  selected ? FontWeight.w700 : FontWeight.w500,
                               color: disabled
-                                  ? AppPalette.textTertiary
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant
                                   : (selected
                                       ? Theme.of(c).colorScheme.onPrimary
-                                      : AppPalette.textPrimary),
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
                             ),
                           ),
                         ),
@@ -2501,8 +2521,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               color: selected
                   ? AppPalette.white
                   : enabled
-                      ? ForestNeutral.textPrimary
-                      : ForestNeutral.textTertiary,
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -2564,31 +2584,35 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                         child: Container(
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            gradient: selected ? ForestGradients.sage : null,
+                            gradient:
+                                selected ? context.app.sageGradient : null,
                             color: selected
                                 ? null
                                 : (disabled
                                     ? AppPalette.paper2
-                                    : ForestSurface.card),
+                                    : context.colors.surface),
                             borderRadius: BorderRadius.circular(13),
                             border: Border.all(
                               color: disabled
                                   ? Colors.transparent
-                                  : ForestNeutral.hairline,
+                                  : Theme.of(context).colorScheme.outline,
                             ),
                           ),
                           child: Text(
                             '$y年',
                             style: TextStyle(
                               fontSize: 13.5,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                              fontWeight:
+                                  selected ? FontWeight.w700 : FontWeight.w500,
                               color: disabled
-                                  ? AppPalette.textTertiary
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant
                                   : (selected
                                       ? Theme.of(c).colorScheme.onPrimary
-                                      : AppPalette.textPrimary),
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
                             ),
                           ),
                         ),
@@ -2646,8 +2670,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                   // 双击：自定义日宫格跳到该月（不退出自定义）
                                   () => setState(() {
                                     _rangeViewMonth = DateTime(year, m);
-                                    _gotoRangePage(
-                                        _dayPageOf(_rangeViewMonth),
+                                    _gotoRangePage(_dayPageOf(_rangeViewMonth),
                                         animate: true);
                                     _rangeNavMode = null;
                                   }),
@@ -2655,31 +2678,35 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                         child: Container(
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            gradient: selected ? ForestGradients.sage : null,
+                            gradient:
+                                selected ? context.app.sageGradient : null,
                             color: selected
                                 ? null
                                 : (disabled
                                     ? AppPalette.paper2
-                                    : ForestSurface.card),
+                                    : context.colors.surface),
                             borderRadius: BorderRadius.circular(13),
                             border: Border.all(
                               color: disabled
                                   ? Colors.transparent
-                                  : ForestNeutral.hairline,
+                                  : Theme.of(context).colorScheme.outline,
                             ),
                           ),
                           child: Text(
                             '$m月',
                             style: TextStyle(
                               fontSize: 13.5,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                              fontWeight:
+                                  selected ? FontWeight.w700 : FontWeight.w500,
                               color: disabled
-                                  ? AppPalette.textTertiary
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant
                                   : (selected
                                       ? Theme.of(c).colorScheme.onPrimary
-                                      : AppPalette.textPrimary),
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
                             ),
                           ),
                         ),
@@ -2930,7 +2957,7 @@ class _DialPainter extends CustomPainter {
     final double ka = frac * 2 * math.pi - math.pi / 2;
     final double kr = r - 6;
     final Offset k = Offset(c.dx + kr * math.cos(ka), c.dy + kr * math.sin(ka));
-    canvas.drawCircle(k, 9, Paint()..color = AppPalette.cream);
+    canvas.drawCircle(k, 9, Paint()..color = surface);
     canvas.drawCircle(
       k,
       9,
@@ -2953,18 +2980,20 @@ class _CloseButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => SizedBox(
         width: 34,
         height: 34,
-        decoration: BoxDecoration(
-          color: ForestSurface.card,
-          shape: BoxShape.circle,
-          border: Border.all(color: ForestNeutral.hairline),
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.close, size: 18, color: ForestNeutral.deepInk),
+        child: HairlineCard(
+          backgroundColor: context.colors.surface,
+          borderColor: Theme.of(context).colorScheme.outline,
+          radius: 17,
           padding: EdgeInsets.zero,
-          onPressed: onPressed,
+          child: IconButton(
+            icon: Icon(Icons.close,
+                size: 18, color: Theme.of(context).colorScheme.onSurface),
+            padding: EdgeInsets.zero,
+            onPressed: onPressed,
+          ),
         ),
       );
 }
@@ -2978,7 +3007,7 @@ class _ConfirmButton extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         height: 48,
         decoration: BoxDecoration(
-          gradient: ForestGradients.sage,
+          gradient: context.app.sageGradient,
           borderRadius: BorderRadius.circular(16),
           boxShadow: ForestElevation.sm,
         ),
@@ -3014,17 +3043,14 @@ class _Arrow extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => SunkenBox(
         width: 30,
         height: 30,
         margin: const EdgeInsets.only(left: 6),
-        decoration: BoxDecoration(
-          color: ForestBg.sunken,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: ForestNeutral.hairline),
-        ),
+        radius: 10,
         child: IconButton(
-          icon: Icon(icon, size: 16, color: ForestNeutral.deepInk),
+          icon: Icon(icon,
+              size: 16, color: Theme.of(context).colorScheme.onSurface),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
           onPressed: enabled ? onPressed : null,
@@ -3067,7 +3093,7 @@ class _WeekdayRow extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                         color: (label == '日' || label == '六')
                             ? _sageAccent
-                            : ForestNeutral.textTertiary,
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -3101,8 +3127,8 @@ class _DayCell extends StatelessWidget {
     final Color textColor = isSelected
         ? Theme.of(context).colorScheme.onPrimary
         : isMuted
-            ? ForestNeutral.textTertiary
-            : ForestNeutral.textPrimary;
+            ? Theme.of(context).colorScheme.onSurfaceVariant
+            : Theme.of(context).colorScheme.onSurface;
     return Center(
       child: InkWell(
         onTap: isEnabled ? onTap : null,
@@ -3112,7 +3138,7 @@ class _DayCell extends StatelessWidget {
           height: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            gradient: isSelected ? ForestGradients.sage : null,
+            gradient: isSelected ? context.app.sageGradient : null,
             shape: BoxShape.circle,
           ),
           child: Stack(
@@ -3122,8 +3148,7 @@ class _DayCell extends StatelessWidget {
                 '$day',
                 style: TextStyle(
                   fontSize: 15,
-                  fontWeight:
-                      isSelected ? FontWeight.w800 : FontWeight.w600,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   color: textColor,
                 ),
               ),

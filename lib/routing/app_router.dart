@@ -302,7 +302,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: Routes.billImport,
         builder: (_, GoRouterState state) => BillImportPage(
-          initialDraft: state.extra is ParseResult ? state.extra as ParseResult : null,
+          initialDraft:
+              state.extra is ParseResult ? state.extra as ParseResult : null,
         ),
       ),
       // 从截图导入（账单管理入口）：选图 → 云端识别 → 跳确认页。

@@ -1,6 +1,10 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
+import 'package:pocket_ledger/shared/widgets/action_group.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,6 +17,7 @@ import '../providers/tag_providers.dart';
 import 'tag_empty_illustration.dart';
 import 'tag_scope_toggle.dart';
 import 'tag_toast.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 
 /// 标签管理页（全屏，从右滑入）。
 ///
@@ -69,14 +74,15 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
     final List<TagGroupRow> groups = _filter(libAsync.value ?? <TagGroupRow>[]);
 
     return Scaffold(
-      backgroundColor: ForestBg.paper,
+      backgroundColor: context.colors.surface,
       body: SafeArea(
         child: Column(
           children: <Widget>[
             _navBar(scope),
             Expanded(
               child: ListView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 110),
                 children: <Widget>[
                   _headCard(scope),
@@ -91,9 +97,8 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                           padding: const EdgeInsets.only(top: 12),
                           child: _groupCard(g),
                         ),
-                  ]
-                else
-                  _emptyHint('标签功能未开启，打开开关开始使用~'),
+                  ] else
+                    _emptyHint('标签功能未开启，打开开关开始使用~'),
                 ],
               ),
             ),
@@ -109,7 +114,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
   Widget _navBar(TagScope scope) => Container(
         // body 已有 SafeArea，这里只需留出返回键上方的呼吸空间。
         padding: const EdgeInsets.only(top: 4),
-        color: ForestBg.paper,
+        color: context.colors.surface,
         child: Column(
           children: <Widget>[
             // 返回键独立一行，让分段键独占下一整行 ——
@@ -119,7 +124,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.chevron_left, size: 26),
-                  color: AppPalette.ink,
+                  color: Theme.of(context).colorScheme.onSurface,
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -147,43 +152,38 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
 
   // ───────────────────── 头部大卡（标题+说明+开关+搜索，单卡） ─────────────────────
 
-  Widget _headCard(TagScope scope) => Container(
+  Widget _headCard(TagScope scope) => HairlineCard(
+        backgroundColor: context.colors.surface,
+        borderColor: Theme.of(context).colorScheme.outline,
+        radius: 16,
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: ForestSurface.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: ForestNeutral.hairline),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             // 标题行：# 徽章 + 「标签」
             Row(
               children: <Widget>[
-                Container(
+                SunkenBox(
                   width: 44,
                   height: 44,
+                  radius: 14,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: ForestBg.sunken,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Text(
+                  child: Text(
                     '#',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: AppPalette.ink,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   '标签',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppPalette.ink,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -194,15 +194,15 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: ForestBg.sunken,
+                color: context.colors.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 '标签可用于区分哪个人花的钱，或哪个电商平台购买的物品。\n通用为全部账本都可用，账本独立的标签只在账本内显示。',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.8,
-                  color: AppPalette.ink3,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -212,15 +212,13 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    _enabled
-                        ? '✓ 功能已开启（${scope.label}）'
-                        : '功能默认关闭，点击设置进行开启',
+                    _enabled ? '✓ 功能已开启（${scope.label}）' : '功能默认关闭，点击设置进行开启',
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight:
-                          _enabled ? FontWeight.w700 : FontWeight.w400,
-                      color:
-                          _enabled ? AppPalette.deepGreen : AppPalette.ink3,
+                      fontWeight: _enabled ? FontWeight.w700 : FontWeight.w400,
+                      color: _enabled
+                          ? AppPalette.deepGreen
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -235,20 +233,19 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
             ),
             const SizedBox(height: 12),
             // 卡内搜索框
-            Container(
+            SunkenBox(
+              radius: 12,
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 4),
-              decoration: BoxDecoration(
-                color: ForestBg.sunken,
-                borderRadius: BorderRadius.circular(12),
-              ),
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.search, size: 18, color: AppPalette.ink3),
+                  Icon(Icons.search,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: _searchCtl,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         // 覆盖全局主题：无白色填充、无任何描边（含聚焦绿框）
                         filled: false,
                         enabledBorder: InputBorder.none,
@@ -256,7 +253,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                         hintText: '搜索标签',
                         hintStyle: TextStyle(
                           fontSize: 14,
-                          color: AppPalette.ink3,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         border: InputBorder.none,
                         isCollapsed: true,
@@ -282,9 +279,9 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
             Text(
               text,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppPalette.ink3,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 height: 1.7,
               ),
             ),
@@ -294,13 +291,11 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
 
   // ───────────────────────── 分组卡 ─────────────────────────
 
-  Widget _groupCard(TagGroupRow g) => Container(
+  Widget _groupCard(TagGroupRow g) => HairlineCard(
+        backgroundColor: context.colors.surface,
+        borderColor: Theme.of(context).colorScheme.outline,
+        radius: 16,
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: ForestSurface.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: ForestNeutral.hairline),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -318,10 +313,10 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                 Expanded(
                   child: Text(
                     g.category.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: AppPalette.ink,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -332,12 +327,12 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   onPressed: () => _openContextMenu(g.category),
-                  child: const Text(
+                  child: Text(
                     '编辑',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppPalette.ink,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -365,7 +360,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
           height: 50,
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           decoration: BoxDecoration(
-            gradient: ForestGradients.sageMid,
+            gradient: context.app.sageGradientMid,
             borderRadius: BorderRadius.circular(999),
             boxShadow: <BoxShadow>[
               BoxShadow(
@@ -406,22 +401,6 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
         id: const Uuid().v4(),
         bookId: effectiveBook,
         scope: scope,
-        name: name,
-        sortOrder: Value<int>(maxOrder + 1),
-        updatedAt: _now(),
-      ),
-    );
-  }
-
-  Future<void> _insertTag(TagCategory category, String name) async {
-    final TagsDao dao = ref.read(tagsDaoProvider);
-    final int maxOrder = await dao.maxTagSortOrder(category.id);
-    await dao.insertTag(
-      TagsCompanion.insert(
-        id: const Uuid().v4(),
-        bookId: category.bookId,
-        scope: category.scope,
-        categoryId: category.id,
         name: name,
         sortOrder: Value<int>(maxOrder + 1),
         updatedAt: _now(),
@@ -509,21 +488,21 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            _MenuItem(
+            MenuItem(
               label: '编辑类别',
               onTap: () {
                 Navigator.of(ctx).pop();
                 _openRenameCategory(category);
               },
             ),
-            _MenuItem(
+            MenuItem(
               label: '类别排序',
               onTap: () {
                 Navigator.of(ctx).pop();
                 _openReorderCategories(category);
               },
             ),
-            _MenuItem(
+            MenuItem(
               label: '标签排序',
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -533,7 +512,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                 _openReorderTags(category);
               },
             ),
-            _MenuItem(
+            MenuItem(
               label: '删除类别',
               danger: true,
               onTap: () {
@@ -551,21 +530,27 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
     showDialog<void>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
-        backgroundColor: ForestSurface.card,
+        backgroundColor: context.colors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('删除类别', style: TextStyle(fontSize: 17)),
         content: Text(
           '确定删除「${category.name}」？其下标签也会一并删除。',
-          style: const TextStyle(fontSize: 14, color: AppPalette.ink3),
+          style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('取消', style: TextStyle(color: AppPalette.ink3)),
+            child: Text('取消',
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ),
           TextButton(
             onPressed: () async {
-              await ref.read(tagsDaoProvider).deleteCategory(category.id, _now());
+              await ref
+                  .read(tagsDaoProvider)
+                  .deleteCategory(category.id, _now());
               if (mounted) Navigator.of(ctx).pop();
             },
             child: const Text('删除', style: TextStyle(color: AppPalette.salmon)),
@@ -622,13 +607,9 @@ class _GroupTagChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onLongPress: () => onRename(tag),
-      child: Container(
+      child: SunkenBox(
+        radius: 999,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          color: ForestBg.sunken,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: ForestNeutral.hairline),
-        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -643,10 +624,10 @@ class _GroupTagChip extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               tag.name,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: AppPalette.ink,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -668,19 +649,15 @@ class _AddTagChip extends StatelessWidget {
     return InkWell(
       onTap: () => onTap(category),
       borderRadius: BorderRadius.circular(999),
-      child: Container(
+      child: SunkenBox(
+        radius: 999,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: ForestBg.sunken,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: ForestNeutral.hairline),
-        ),
-        child: const Text(
+        child: Text(
           '＋',
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
-            color: AppPalette.ink3,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -719,43 +696,15 @@ class _FeatureSwitch extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: <BoxShadow>[
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.2),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .shadow
+                      .withValues(alpha: 0.2),
                   blurRadius: 4,
                   offset: Offset(0, 1),
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 深色上下文菜单项。
-class _MenuItem extends StatelessWidget {
-  const _MenuItem({
-    required this.label,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final bool danger;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14.5,
-            color: danger ? AppPalette.coralSoft : AppPalette.sunkenCream,
           ),
         ),
       ),
@@ -783,84 +732,70 @@ class _NameSheet extends StatelessWidget {
     controller.addListener(() {
       valid.value = controller.text.trim().isNotEmpty;
     });
-    return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      decoration: const BoxDecoration(
-        color: ForestSurface.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16.5,
-              fontWeight: FontWeight.w800,
-              color: AppPalette.ink,
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16.5,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: ForestBg.sunken,
+        ),
+        const SizedBox(height: 14),
+        SunkenBox(
+          radius: 12,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              filled: false,
+              focusedBorder: InputBorder.none,
+              border: InputBorder.none,
+              isCollapsed: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
+            ),
+            style: const TextStyle(fontSize: 14),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: valid,
+            builder: (BuildContext ctx, bool v, _) => InkWell(
+              onTap: v
+                  ? () async {
+                      await onConfirm(controller.text.trim());
+                    }
+                  : null,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: ForestNeutral.hairline),
-            ),
-            child: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                filled: false,
-                focusedBorder: InputBorder.none,
-                border: InputBorder.none,
-                isCollapsed: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 10),
-              ),
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: valid,
-              builder: (BuildContext ctx, bool v, _) => InkWell(
-                onTap: v
-                    ? () async {
-                        await onConfirm(controller.text.trim());
-                      }
-                    : null,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    gradient: v ? ForestGradients.sageMid : null,
-                    color: v ? null : ForestBg.sunken,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    confirmLabel,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: v ? ForestSage.ink : ForestNeutral.textTertiary,
-                    ),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: v ? context.app.sageGradientMid : null,
+                  color: v ? null : context.colors.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  confirmLabel,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: v
+                        ? ForestSage.ink
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -921,145 +856,127 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      decoration: const BoxDecoration(
-        color: ForestSurface.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text(
-            '添加标签',
-            style: TextStyle(
-              fontSize: 16.5,
-              fontWeight: FontWeight.w800,
-              color: AppPalette.ink,
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          '添加标签',
+          style: TextStyle(
+            fontSize: 16.5,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
-          const SizedBox(height: 14),
-          // 类别只读显示框
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            decoration: BoxDecoration(
-              color: ForestBg.sunken,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: ForestNeutral.hairline),
-            ),
-            child: Row(
-              children: <Widget>[
-                const Text(
-                  '类别',
-                  style: TextStyle(fontSize: 13, color: AppPalette.ink3),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.category.name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppPalette.ink,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: ForestBg.sunken,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: ForestNeutral.hairline),
-            ),
-            child: TextField(
-              controller: _ctl,
-              autofocus: true,
-              decoration: const InputDecoration(
-                filled: false,
-                focusedBorder: InputBorder.none,
-                border: InputBorder.none,
-                isCollapsed: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 10),
-              ),
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
+        ),
+        const SizedBox(height: 14),
+        // 类别只读显示框
+        SunkenBox(
+          width: double.infinity,
+          radius: 12,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          child: Row(
             children: <Widget>[
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: ValueListenableBuilder<bool>(
-                    valueListenable: _valid,
-                    builder: (_, bool v, __) => InkWell(
-                      onTap: v ? () => _save(false) : null,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: ForestBg.sunken,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '保存',
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w700,
-                            color: v
-                                ? ForestNeutral.textPrimary
-                                : ForestNeutral.textTertiary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              Text(
+                '类别',
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: ValueListenableBuilder<bool>(
-                    valueListenable: _valid,
-                    builder: (_, bool v, __) => InkWell(
-                      onTap: v ? () => _save(true) : null,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          gradient: v ? ForestGradients.sageMid : null,
-                          color: v ? null : ForestBg.sunken,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '再次保存',
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: v ? ForestSage.ink : ForestNeutral.textTertiary,
-                          ),
-                        ),
-                      ),
-                    ),
+                child: Text(
+                  widget.category.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        SunkenBox(
+          radius: 12,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: TextField(
+            controller: _ctl,
+            autofocus: true,
+            decoration: const InputDecoration(
+              filled: false,
+              focusedBorder: InputBorder.none,
+              border: InputBorder.none,
+              isCollapsed: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
+            ),
+            style: const TextStyle(fontSize: 14),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _valid,
+                  builder: (_, bool v, __) => InkWell(
+                    onTap: v ? () => _save(false) : null,
+                    borderRadius: BorderRadius.circular(12),
+                    child: SunkenBox(
+                      radius: 12,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '保存',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: v
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _valid,
+                  builder: (_, bool v, __) => InkWell(
+                    onTap: v ? () => _save(true) : null,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: v ? context.app.sageGradientMid : null,
+                        color:
+                            v ? null : context.colors.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '再次保存',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: v
+                              ? ForestSage.ink
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -1075,25 +992,26 @@ class TagCategoryReorderPage extends ConsumerStatefulWidget {
       _TagCategoryReorderPageState();
 }
 
-class _TagCategoryReorderPageState extends ConsumerState<TagCategoryReorderPage> {
+class _TagCategoryReorderPageState
+    extends ConsumerState<TagCategoryReorderPage> {
   late List<TagCategory> _items = List<TagCategory>.of(widget.categories);
 
   Future<void> _persist() async {
-    await ref
-        .read(tagsDaoProvider)
-        .reorderCategories(_items.map((TagCategory c) => c.id).toList(), _now());
+    await ref.read(tagsDaoProvider).reorderCategories(
+        _items.map((TagCategory c) => c.id).toList(), _now());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ForestBg.paper,
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        backgroundColor: ForestBg.paper,
+        backgroundColor: context.colors.surface,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.chevron_left, color: AppPalette.ink),
+          icon: Icon(Icons.chevron_left,
+              color: Theme.of(context).colorScheme.onSurface),
         ),
         title: const Text('类别排序'),
         centerTitle: true,
@@ -1110,26 +1028,25 @@ class _TagCategoryReorderPageState extends ConsumerState<TagCategoryReorderPage>
         },
         children: <Widget>[
           for (final TagCategory c in _items)
-            Container(
+            HairlineCard(
               key: ValueKey<String>(c.id),
               margin: const EdgeInsets.only(bottom: 10),
+              backgroundColor: context.colors.surface,
+              borderColor: Theme.of(context).colorScheme.outline,
+              radius: 14,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: ForestSurface.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: ForestNeutral.hairline),
-              ),
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.drag_handle, color: AppPalette.ink3),
+                  Icon(Icons.drag_handle,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       c.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w600,
-                        color: AppPalette.ink,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -1176,22 +1093,25 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ForestBg.paper,
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        backgroundColor: ForestBg.paper,
+        backgroundColor: context.colors.surface,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.chevron_left, color: AppPalette.ink),
+          icon: Icon(Icons.chevron_left,
+              color: Theme.of(context).colorScheme.onSurface),
         ),
         title: Text('${widget.category.name} · 标签排序'),
         centerTitle: true,
       ),
       body: _items.isEmpty
-          ? const Center(
+          ? Center(
               child: Text(
                 '该分组暂无标签',
-                style: TextStyle(fontSize: 13.5, color: AppPalette.ink3),
+                style: TextStyle(
+                    fontSize: 13.5,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             )
           : ReorderableListView(
@@ -1206,28 +1126,27 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
               },
               children: <Widget>[
                 for (final Tag t in _items)
-                  Container(
+                  HairlineCard(
                     key: ValueKey<String>(t.id),
                     margin: const EdgeInsets.only(bottom: 10),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: ForestSurface.card,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: ForestNeutral.hairline),
-                    ),
+                    backgroundColor: context.colors.surface,
+                    borderColor: Theme.of(context).colorScheme.outline,
+                    radius: 14,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     child: Row(
                       children: <Widget>[
-                        const Icon(Icons.drag_handle,
-                            color: AppPalette.ink3),
+                        Icon(Icons.drag_handle,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             t.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w600,
-                              color: AppPalette.ink,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ),

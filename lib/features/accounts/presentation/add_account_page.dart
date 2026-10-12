@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
@@ -114,14 +115,16 @@ class _TabContent extends StatelessWidget {
         Text(
           '账户类型',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppPalette.textSecondary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
         const SizedBox(height: AppDimens.spaceSm),
         if (types.isEmpty)
           const _NoTypeHint()
         else
-          _Card(
+          HairlineCard(
+            radius: AppDimens.radiusMd,
+            padding: EdgeInsets.zero,
             child: Column(
               children: types
                   .map(
@@ -147,32 +150,17 @@ class _NoTypeHint extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppDimens.spaceMd),
       decoration: BoxDecoration(
-        color: AppPalette.textTertiary.withValues(alpha: 0.08),
+        color: Theme.of(context)
+            .colorScheme
+            .onSurfaceVariant
+            .withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
-      child: const Text(
+      child: Text(
         '该分类没有可新建的账户类型。'
         '应收/应付款项请在「记一笔」里通过报销、借出、借入创建。',
-        style: TextStyle(color: AppPalette.textSecondary),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
-      ),
-      child: child,
     );
   }
 }
@@ -199,7 +187,9 @@ class _TypeOption extends StatelessWidget {
         ),
         child: Row(
           children: <Widget>[
-            Icon(accountIcon(type), size: 22, color: AppPalette.textSecondary),
+            Icon(accountIcon(type),
+                size: 22,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Text(
@@ -248,6 +238,7 @@ List<AccountType> _typesForTab(int index) => switch (index) {
           AccountType.futures,
           AccountType.spot,
           AccountType.timeDeposit,
+          AccountType.investmentOther,
         ],
       // 应收
       3 => <AccountType>[

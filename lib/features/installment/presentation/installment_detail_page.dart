@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/app_button.dart';
+import '../../../shared/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failures.dart';
@@ -40,7 +44,7 @@ class InstallmentDetailPage extends ConsumerWidget {
       body: periods.when(
         data: (List<InstallmentPeriod> list) {
           if (list.isEmpty) {
-            return const Center(child: Text('暂无期数明细'));
+            return const EmptyState(message: '暂无期数明细');
           }
 
           // 双口径（2026-10-09）：「已入账」按期次是否已自动入账
@@ -96,7 +100,7 @@ class InstallmentDetailPage extends ConsumerWidget {
 
           // ──「结清 / 退款」入口派生数据（2026-10-10）──
           // 已入账订单（transactionId 非空）→ 退款入口预关联多笔原账单，
-  // 退款金额自动 = 各笔合计（本金 + 利息）；
+          // 退款金额自动 = 各笔合计（本金 + 利息）；
           // 剩余未还本金（未还期次金额 − 对应期次利息）→ 结清订单金额。
           final bool settled = plan?.isFinished ?? false;
           final List<String> postedTxnIds = <String>[
@@ -267,9 +271,10 @@ class InstallmentDetailPage extends ConsumerWidget {
               onPressed: () => Navigator.of(ctx).pop(false),
               child: const Text('取消'),
             ),
-            FilledButton(
+            PrimaryButton(
+              label: '保存',
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('保存'),
+              fullWidth: false,
             ),
           ],
         ),
@@ -278,9 +283,7 @@ class InstallmentDetailPage extends ConsumerWidget {
 
     if (saved != true) return;
     try {
-      await ref
-          .read(installmentRepositoryProvider)
-          .updatePlanMeta(
+      await ref.read(installmentRepositoryProvider).updatePlanMeta(
             planId: plan.id,
             title: titleController.text,
             accountId: accountId,
@@ -291,40 +294,26 @@ class InstallmentDetailPage extends ConsumerWidget {
   }
 
   /// 提前结清：确认后为剩余未还本金生成一笔结清订单（计入下个账单
-  /// 一次性还清），计划随即转为已结束、「已还」勾选置灰。
+  /// 一次性还清），计划随即转为已结束、「已还」勾选置灰；
+  /// 已入账的未还期次标记已还，未入账期次保持未勾选（2026-10-13 口径）。
   Future<void> _settlePlanEarly(
     BuildContext context,
     WidgetRef ref,
     InstallmentPlan plan,
     int remainingPrincipal,
   ) async {
-    final bool ok = await showDialog<bool>(
-          context: context,
-          builder: (BuildContext dialog) => AlertDialog(
-            title: Text('提前结清「${plan.title}」？'),
-            content: Text(
-              '将为剩余未还本金 ${Money.fromMinor(remainingPrincipal).format()} '
+    final bool ok = await showConfirm(
+          context,
+          title: '提前结清「${plan.title}」？',
+          content: '将为剩余未还本金 ${Money.fromMinor(remainingPrincipal).format()} '
               '生成一笔结清订单，计入下个账单后一次性还清；'
               '未到期期次的利息不再收取，计划随即转为已结束。',
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.of(dialog).pop(false),
-                child: const Text('取消'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialog).pop(true),
-                child: const Text('结清'),
-              ),
-            ],
-          ),
+          confirmText: '结清',
         ) ??
         false;
     if (!ok || !context.mounted) return;
     try {
-      await ref
-          .read(installmentRepositoryProvider)
-          .settlePlanEarly(plan.id);
+      await ref.read(installmentRepositoryProvider).settlePlanEarly(plan.id);
       if (context.mounted) showToast(context, '已提前结清');
     } on AppFailure catch (e) {
       if (context.mounted) showToast(context, e.message);
@@ -405,18 +394,14 @@ class _PlanHeaderCard extends StatelessWidget {
             ? '有逾期'
             : '进行中';
     final Color statusColor = finished
-        ? AppPalette.textTertiary
+        ? Theme.of(context).colorScheme.onSurfaceVariant
         : hasOverdue
             ? AppPalette.danger
             : AppPalette.primary;
 
-    return Card(
+    return HairlineCard(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppPalette.hairline),
-      ),
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -448,14 +433,14 @@ class _PlanHeaderCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: t.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
                 if (onEdit != null)
                   _HeaderPill(
                     label: '编辑',
-                    color: AppPalette.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                     surface: true,
                     onTap: onEdit!,
                   ),
@@ -480,7 +465,8 @@ class _PlanHeaderCard extends StatelessWidget {
                 '${p.totalPeriods} 期',
                 if (accountName != null) accountName!,
               ].join(' · '),
-              style: t.bodySmall?.copyWith(color: AppPalette.textSecondary),
+              style: t.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             _amountRow(
@@ -504,8 +490,8 @@ class _PlanHeaderCard extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     '预计下次入账',
-                    style: t.bodySmall
-                        ?.copyWith(color: AppPalette.textSecondary),
+                    style: t.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -513,7 +499,7 @@ class _PlanHeaderCard extends StatelessWidget {
                     style: t.bodySmall?.copyWith(
                       color: hasOverdue
                           ? AppPalette.danger
-                          : AppPalette.textPrimary,
+                          : Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -561,20 +547,22 @@ class _PlanHeaderCard extends StatelessWidget {
       children: <Widget>[
         Text(
           label,
-          style: t.bodySmall?.copyWith(color: AppPalette.textSecondary),
+          style: t.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(width: 8),
         Text(
           value,
           style: t.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            color: valueColor ?? AppPalette.textPrimary,
+            color: valueColor ?? Theme.of(context).colorScheme.onSurface,
           ),
         ),
         if (suffix != null)
           Text(
             suffix,
-            style: t.bodySmall?.copyWith(color: AppPalette.textTertiary),
+            style: t.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
       ],
     );
@@ -594,7 +582,9 @@ class _PlanHeaderCard extends StatelessWidget {
         label,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontSize: 11,
-              color: highlight ? AppPalette.sage700 : AppPalette.textSecondary,
+              color: highlight
+                  ? AppPalette.sage700
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
             ),
       ),
@@ -665,13 +655,9 @@ class _PlanProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme t = Theme.of(context).textTheme;
-    return Card(
+    return HairlineCard(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppPalette.hairline),
-      ),
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -690,15 +676,15 @@ class _PlanProgressCard extends StatelessWidget {
                   '已入账：$paidCount / $totalCount 期',
                   style: t.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: AppPalette.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   '本金 ${Money.fromMinor(paidPrincipal).format()}'
                   ' + 利息 ${Money.fromMinor(paidFee).format()}',
-                  style:
-                      t.bodySmall?.copyWith(color: AppPalette.textSecondary),
+                  style: t.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -707,15 +693,15 @@ class _PlanProgressCard extends StatelessWidget {
               children: <Widget>[
                 Text(
                   '待入账金额',
-                  style:
-                      t.bodySmall?.copyWith(color: AppPalette.textSecondary),
+                  style: t.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const Spacer(),
                 Text(
                   Money.fromMinor(remainingMinor).format(),
                   style: t.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: AppPalette.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],

@@ -37,7 +37,7 @@ class DateField extends StatelessWidget {
             leading: LineIcon(
               LineIconKind.calendar,
               size: 20,
-              color: AppPalette.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             title: Text(label),
             subtitle: Text(
@@ -63,7 +63,8 @@ class DateField extends StatelessWidget {
                 resolved = picked.date;
               } else if (picked is CalendarPeriod) {
                 final DateTime s = picked.start;
-                resolved = DateTime(s.year, s.month, s.day, base.hour, base.minute);
+                resolved =
+                    DateTime(s.year, s.month, s.day, base.hour, base.minute);
               } else {
                 return;
               }

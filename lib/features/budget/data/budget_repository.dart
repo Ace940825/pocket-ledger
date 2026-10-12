@@ -38,8 +38,7 @@ class BudgetRepository {
   }) {
     final $TransactionsTable t = _db.transactions;
     // 实付口径（与收支统计一致）：amount 存优惠前原价，优惠部分不计入支出
-    final Expression<int> total =
-        (t.amountMinor - t.discountMinor).sum();
+    final Expression<int> total = (t.amountMinor - t.discountMinor).sum();
 
     Expression<bool> predicate = t.bookId.equals(bookId) &
         t.deleted.equals(false) &

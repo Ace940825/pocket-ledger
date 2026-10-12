@@ -74,10 +74,10 @@ class _DayPickSheetState extends State<_DayPickSheet> {
                           shape: BoxShape.circle,
                           color: AppPalette.neutralSoft,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.close,
                           size: 18,
-                          color: AppPalette.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -86,10 +86,10 @@ class _DayPickSheetState extends State<_DayPickSheet> {
                     alignment: Alignment.center,
                     child: Text(
                       widget.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: AppPalette.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -117,7 +117,8 @@ class _DayPickSheetState extends State<_DayPickSheet> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppPalette.textSecondary,
+                    foregroundColor:
+                        Theme.of(context).colorScheme.onSurfaceVariant,
                     textStyle: const TextStyle(fontSize: 15),
                   ),
                   child: const Text('取消'),
@@ -175,7 +176,9 @@ class _DayPickSheetState extends State<_DayPickSheet> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-              color: selected ? AppPalette.white : AppPalette.textPrimary,
+              color: selected
+                  ? AppPalette.white
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),

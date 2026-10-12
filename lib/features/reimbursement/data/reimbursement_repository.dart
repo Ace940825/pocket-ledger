@@ -32,9 +32,7 @@ List<ReimbAllocEntry> parseReimbAllocs(String? json) {
     }
     return <ReimbAllocEntry>[
       for (final Object? e in decoded)
-        if (e is Map<Object?, Object?> &&
-            e['i'] is String &&
-            e['a'] is int)
+        if (e is Map<Object?, Object?> && e['i'] is String && e['a'] is int)
           ReimbAllocEntry(
             incomeId: e['i']! as String,
             allocMinor: e['a']! as int,
@@ -242,8 +240,7 @@ class ReimbursementRepository {
   Future<List<Reimbursement>> listByIncomeTransactionId(String incomeId) {
     return (_db.select(_db.reimbursements)
           ..where((Reimbursements t) =>
-              t.incomeTransactionId.equals(incomeId) &
-              t.deleted.equals(false))
+              t.incomeTransactionId.equals(incomeId) & t.deleted.equals(false))
           ..orderBy(<OrderClauseGenerator<Reimbursements>>[
             (Reimbursements t) => OrderingTerm.desc(t.occurredAt),
           ]))
@@ -255,8 +252,7 @@ class ReimbursementRepository {
   Stream<List<Reimbursement>> watchByIncomeTransactionId(String incomeId) {
     return (_db.select(_db.reimbursements)
           ..where((Reimbursements t) =>
-              t.incomeTransactionId.equals(incomeId) &
-              t.deleted.equals(false))
+              t.incomeTransactionId.equals(incomeId) & t.deleted.equals(false))
           ..orderBy(<OrderClauseGenerator<Reimbursements>>[
             (Reimbursements t) => OrderingTerm.desc(t.occurredAt),
           ]))
@@ -276,8 +272,8 @@ class ReimbursementRepository {
   }) async {
     if (allocMinor <= 0) return;
     final Reimbursement? row = await (_db.select(_db.reimbursements)
-          ..where((Reimbursements t) =>
-              t.id.equals(id) & t.deleted.equals(false)))
+          ..where(
+              (Reimbursements t) => t.id.equals(id) & t.deleted.equals(false)))
         .getSingleOrNull();
     if (row == null) {
       throw const NotFoundFailure('报销记录不存在');
@@ -508,15 +504,9 @@ class ReimbursementRepository {
   }) async {
     if (accountId == null || before == after) return;
     final int delta = switch ((before, after)) {
-      (
-        ReimbursementStatus.pending,
-        ReimbursementStatus.reimbursed
-      ) =>
+      (ReimbursementStatus.pending, ReimbursementStatus.reimbursed) =>
         -amountMinor,
-      (
-        ReimbursementStatus.reimbursed,
-        ReimbursementStatus.pending
-      ) =>
+      (ReimbursementStatus.reimbursed, ReimbursementStatus.pending) =>
         amountMinor,
       _ => 0,
     };

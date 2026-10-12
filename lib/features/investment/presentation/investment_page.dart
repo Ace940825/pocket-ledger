@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -12,6 +14,7 @@ import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/app_button.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../data/investment_repository.dart';
 import '../providers/investment_providers.dart';
@@ -74,10 +77,17 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
       ),
       body: holdings.when(
         data: (List<InvestmentHolding> list) {
-          // 清仓 = 份额归 0（卖出后保留记录便于回看历史）。
+          // 轮次划分：清仓后再买入会开新一轮——持仓卡只看当前轮，
+          // 清仓卡累计历史；当前持仓若含历史已完成轮，清仓 Tab 额外给一张历史卡。
+          final Map<String, HoldingCycleInfo> cyc =
+              ref.watch(investmentCycleInfoProvider).valueOrNull ??
+                  const <String, HoldingCycleInfo>{};
+          // 清仓 Tab：份额为 0 的清仓卡，或「当前持仓但含历史轮」的历史清仓卡。
+          // 持仓 Tab：仅份额 > 0 的当前轮卡片。
           final List<InvestmentHolding> filtered = list
-              .where((InvestmentHolding h) =>
-                  (h.quantityMicros == 0) == _showCleared)
+              .where((InvestmentHolding h) => _showCleared
+                  ? (h.quantityMicros == 0 || (cyc[h.id]?.hasHistory ?? false))
+                  : h.quantityMicros > 0)
               .toList(growable: false);
           return Column(
             children: <Widget>[
@@ -89,9 +99,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
                         icon: _showCleared
                             ? Icons.history_outlined
                             : Icons.show_chart,
-                        message: _showCleared
-                            ? '暂无清仓记录'
-                            : '还没有持仓，点右下角「+」新增',
+                        message: _showCleared ? '暂无清仓记录' : '还没有持仓，点右下角「+」新增',
                       )
                     : TxnSlidableGroup(
                         child: ListView.separated(
@@ -128,6 +136,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
                               child: _HoldingCard(
                                 holding: h,
                                 cleared: _showCleared,
+                                cycleInfo: cyc[h.id],
                               ),
                             );
                           },
@@ -151,26 +160,13 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
     WidgetRef ref,
     InvestmentHolding h,
   ) async {
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: const Text('删除持仓'),
-        content: Text('删除「${h.symbol} ${h.name}」后不再显示，'
-            '名下买卖流水将一并删除，资金账户余额同步冲回，此操作不可撤销。'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              '删除',
-              style: TextStyle(color: AppPalette.danger),
-            ),
-          ),
-        ],
-      ),
+    final bool? confirm = await showConfirm(
+      context,
+      title: '删除持仓',
+      content: '删除「${h.name} ${h.symbol}」后不再显示，'
+          '名下买卖流水将一并删除，资金账户余额同步冲回，此操作不可撤销。',
+      confirmText: '删除',
+      danger: true,
     );
     if (confirm != true || !context.mounted) return;
     try {
@@ -215,7 +211,10 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
           boxShadow: selected
               ? <BoxShadow>[
                   BoxShadow(
-                    color: AppPalette.textPrimary.withValues(alpha: 0.08),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.08),
                     blurRadius: 3,
                   ),
                 ]
@@ -226,7 +225,9 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: selected ? AppPalette.sage700 : AppPalette.textSecondary,
+            color: selected
+                ? AppPalette.sage700
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -234,7 +235,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
   }
 }
 
-/// 组合汇总卡片：总市值 / 总成本 / 浮动盈亏。
+/// 组合汇总卡片：总资产（现金+市值）/ 持仓市值·现金·仓位 / 摊薄总成本 / 总盈亏。
 class _PortfolioSummaryCard extends ConsumerWidget {
   const _PortfolioSummaryCard();
 
@@ -249,7 +250,8 @@ class _PortfolioSummaryCard extends ConsumerWidget {
         ? AppPalette.stock(true, dark: isDark)
         : summary.profitMinor < 0
             ? AppPalette.stock(false, dark: isDark)
-            : theme.textTheme.bodyMedium?.color ?? theme.colorScheme.onSurfaceVariant;
+            : theme.textTheme.bodyMedium?.color ??
+                theme.colorScheme.onSurfaceVariant;
 
     return Card(
       margin: const EdgeInsets.all(12),
@@ -260,22 +262,46 @@ class _PortfolioSummaryCard extends ConsumerWidget {
           children: <Widget>[
             // 注意：headlineSmall 未在 AppTextStyles 中定义、不会经主题
             // .apply(onSurface) 着色，默认色在浅色卡上近乎不可见——
-            // 市值主数字必须显式指定 textPrimary（下同，全页显式补色）。
+            // 主数字必须显式指定 textPrimary（下同，全页显式补色）。
             Text(
-              '持仓市值',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppPalette.textSecondary),
+              '总资产',
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 4),
             Text(
-              Money.fromMinor(summary.marketValueMinor).format(),
+              Money.fromMinor(summary.totalAssetMinor).format(),
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontSize: 30,
                 fontWeight: FontWeight.w800,
-                color: AppPalette.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 12),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _Metric(
+                    label: '持仓市值',
+                    value: Money.fromMinor(summary.marketValueMinor).format(),
+                  ),
+                ),
+                Expanded(
+                  child: _Metric(
+                    label: '现金',
+                    value: Money.fromMinor(summary.cashMinor).format(),
+                  ),
+                ),
+                Expanded(
+                  child: _Metric(
+                    label: '仓位',
+                    value:
+                        '${(summary.positionRatio * 100).toStringAsFixed(2)}%',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             Row(
               children: <Widget>[
                 Expanded(
@@ -286,7 +312,7 @@ class _PortfolioSummaryCard extends ConsumerWidget {
                 ),
                 Expanded(
                   child: _Metric(
-                    label: '浮动盈亏',
+                    label: '总盈亏',
                     value: Money.fromMinor(summary.profitMinor).formatSigned(),
                     color: profitColor,
                   ),
@@ -323,13 +349,13 @@ class _Metric extends StatelessWidget {
         Text(
           label,
           style: theme.textTheme.bodySmall
-              ?.copyWith(color: AppPalette.textSecondary),
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 2),
         Text(
           value,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: color ?? AppPalette.textPrimary,
+            color: color ?? Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -338,58 +364,124 @@ class _Metric extends StatelessWidget {
   }
 }
 
+/// 日期格式化（yyyy-MM-dd；null 显「—」），供历史卡日期行使用。
+String _fmtYmd(DateTime? d) {
+  if (d == null) return '—';
+  final String mm = d.month.toString().padLeft(2, '0');
+  final String dd = d.day.toString().padLeft(2, '0');
+  return '${d.year}-$mm-$dd';
+}
+
 /// 单个持仓卡片（对齐分期卡片布局）：品种徽章 + 代码/名称 / 成本现价副行 /
-/// 持仓市值 + 浮动盈亏。点击进持仓详情页（含交易流水），长按快捷改现价。
+/// 持仓市值 + 总盈亏。点击进持仓详情页（含交易流水），长按快捷改现价。
 class _HoldingCard extends ConsumerWidget {
-  const _HoldingCard({required this.holding, this.cleared = false});
+  const _HoldingCard({
+    required this.holding,
+    this.cleared = false,
+    this.cycleInfo,
+  });
 
   final InvestmentHolding holding;
 
-  /// 是否清仓记录（份额 = 0）：徽章显「已清仓」，市值/盈亏为 0。
+  /// 是否清仓记录（份额 = 0，或当前持仓但展示历史清仓）：徽章显「已清仓/历史清仓」。
   final bool cleared;
+
+  /// 轮次划分（持仓/清仓双卡展示与口径的数据源）；null 时回退行级摊薄口径。
+  final HoldingCycleInfo? cycleInfo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final TextTheme t = theme.textTheme;
-    final int profit = holding.profitMinor;
     final bool isDark = theme.brightness == Brightness.dark;
-    final Color profitColor = profit > 0
+    final HoldingCycleInfo? info = cycleInfo;
+
+    // 按轮次口径计算展示值：清仓/历史卡累计历史，持仓卡只看当前轮（不计历史）。
+    int qtyMicros = holding.quantityMicros;
+    int marketMinor = holding.marketValueMinor;
+    int costAvgMinor;
+    int profitMinor;
+    String costLabel;
+    String badgeLabel;
+    Color badgeColor;
+
+    // 历史卡字段（清仓/历史清仓共用）：累计投入=累计买入净额、总盈亏=历史清仓金额。
+    int histRealized = 0;
+    int histInvested = 0;
+    int histAvgCost = 0; // 清仓后单价成本 = 累计投入 ÷ 累计买入份额
+    double histRatio = 0;
+    int histDays = -1; // -1 = 未知（无已完成轮）
+    DateTime? histFirstBuy;
+    DateTime? histLastSell;
+
+    if (cleared) {
+      // 历史卡：累计已完成轮（可能多轮）。不显份额/持仓市值。
+      final List<HoldCycle> rounds = info?.completed ?? const <HoldCycle>[];
+      histRealized = info?.historyRealizedMinor ?? holding.realizedProfitMinor;
+      histInvested = info?.historyInvestedMinor ?? 0;
+      histAvgCost = info?.historyAvgCostMinor ?? 0;
+      histRatio = histInvested == 0 ? 0.0 : histRealized / histInvested;
+      if (rounds.isNotEmpty) {
+        histFirstBuy = rounds.first.startedAt;
+        histLastSell = rounds.last.endedAt;
+        if (histLastSell != null) {
+          // 历史持仓天数 = 首次买入 → 最近卖出（清仓时点）。
+          histDays = histLastSell.difference(histFirstBuy).inDays.abs();
+        }
+      }
+      costAvgMinor = histInvested; // 清仓路径不消费（仅保证 definite assignment）
+      profitMinor = histRealized; // 总盈亏 = 历史清仓金额
+      costLabel = '成本';
+      badgeLabel = holding.quantityMicros == 0 ? '已清仓' : '历史清仓';
+      badgeColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    } else if (info != null &&
+        info.open != null &&
+        holding.quantityMicros > 0) {
+      // 当前轮（不计历史）：成本/盈亏只看这一轮。
+      final HoldCycle open = info.open!;
+      final int dilutedCost = open.dilutedCostValueMinor;
+      costAvgMinor = open.dilutedAvgCostMinor;
+      profitMinor = marketMinor - dilutedCost;
+      costLabel = '成本单价';
+      badgeLabel = investmentTypeLabel(
+        holding.type,
+        holding.symbol,
+        name: holding.name,
+        all: ref.watch(investmentListProvider).valueOrNull,
+      );
+      badgeColor = AppPalette.primary;
+    } else {
+      // 兜底（无流水解析）：沿用行级摊薄口径。
+      costAvgMinor = holding.dilutedAvgCostMinor;
+      profitMinor = holding.dilutedProfitMinor;
+      costLabel = '成本单价';
+      badgeLabel = investmentTypeLabel(
+        holding.type,
+        holding.symbol,
+        name: holding.name,
+        all: ref.watch(investmentListProvider).valueOrNull,
+      );
+      badgeColor = AppPalette.primary;
+    }
+
+    final Color profitColor = profitMinor > 0
         ? AppPalette.stock(true, dark: isDark)
-        : profit < 0
+        : profitMinor < 0
             ? AppPalette.stock(false, dark: isDark)
-            : AppPalette.textSecondary;
+            : Theme.of(context).colorScheme.onSurfaceVariant;
 
-    final String? updatedLabel = holding.priceUpdatedAt == null
-        ? null
-        : DateFormat('MM-dd HH:mm').format(
-            DateTime.fromMillisecondsSinceEpoch(
-              holding.priceUpdatedAt!,
-              isUtc: true,
-            ).toLocal(),
-          );
-
-    // 买入/卖出日期（流水派生，见 investmentFlowDatesProvider）。
-    final (DateTime? firstBuy, DateTime? lastSell) =
-        ref.watch(investmentFlowDatesProvider).valueOrNull?[holding.id] ??
-            (null, null);
-    String? dayLabel(DateTime? d) =>
-        d == null ? null : DateFormat('yyyy-MM-dd').format(d);
-    final String? buyLabel = dayLabel(firstBuy);
-    final String? sellLabel = dayLabel(lastSell);
-
-    return Card(
+    return HairlineCard(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppPalette.hairline),
-      ),
+      padding: EdgeInsets.zero,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (BuildContext _) => HoldingDetailPage(holdingId: holding.id),
+            builder: (BuildContext _) => HoldingDetailPage(
+              holdingId: holding.id,
+              // 清仓 Tab 下、份额仍 > 0 的卡 = 历史清仓卡，进入累计历史复盘视图。
+              historyMode: cleared && holding.quantityMicros > 0,
+            ),
           ),
         ),
         onLongPress: () => _showPriceEditor(context, ref),
@@ -400,87 +492,203 @@ class _HoldingCard extends ConsumerWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  _badge(
-                    cleared
-                        ? '已清仓'
-                        : investmentTypeLabel(
-                            holding.type,
-                            holding.symbol,
-                            name: holding.name,
-                            all: ref.watch(investmentListProvider).valueOrNull,
-                          ),
-                    cleared ? AppPalette.textTertiary : AppPalette.primary,
-                  ),
+                  _badge(badgeLabel, badgeColor),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      '${holding.symbol}  ${holding.name}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppPalette.textPrimary,
-                      ),
+                    // 名称在前（主字号），代码在后（小一号、次级色）。
+                    child: Row(
+                      children: <Widget>[
+                        Flexible(
+                          child: Text(
+                            holding.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          holding.symbol,
+                          style: t.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                <String>[
-                  '${holding.quantity.toStringAsFixed(4)} 份',
-                  '成本 ${Money.fromMinor(holding.avgCostMinor).format()}',
-                  '现价 ${Money.fromMinor(holding.currentPriceMinor).format()}',
-                  if (buyLabel != null) '买入 $buyLabel',
-                  if (sellLabel != null) '卖出 $sellLabel',
-                  if (updatedLabel != null) updatedLabel,
-                ].join(' · '),
-                style: t.bodySmall?.copyWith(color: AppPalette.textSecondary),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        '持仓市值',
-                        style:
-                            t.bodySmall?.copyWith(color: AppPalette.textSecondary),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        Money.fromMinor(holding.marketValueMinor).format(),
-                        style: t.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppPalette.textPrimary,
+              if (cleared) ...<Widget>[
+                // 历史卡：不显份额/持仓市值。大字对 = 累计投入 | 总盈亏(历史清仓)。
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          '累计投入',
+                          style: t.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
                         ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      Text(
-                        '浮动盈亏',
-                        style:
-                            t.bodySmall?.copyWith(color: AppPalette.textSecondary),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${Money.fromMinor(profit).formatSigned()}  '
-                        '${(holding.profitRatio * 100).toStringAsFixed(2)}%',
-                        style: t.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: profitColor,
+                        const SizedBox(height: 2),
+                        Text(
+                          Money.fromMinor(histInvested).format(),
+                          style: t.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                         ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        Text(
+                          '总盈亏',
+                          style: t.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          Money.fromMinor(histRealized).formatSigned(),
+                          style: t.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: profitColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // 指标行：成本(清仓单价) | 收益 | 现价。
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _histMetric(
+                        context,
+                        t,
+                        '成本',
+                        histAvgCost == 0
+                            ? '—'
+                            : Money.fromMinor(histAvgCost).format(),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                    Expanded(
+                      child: _histMetric(
+                        context,
+                        t,
+                        '收益',
+                        histInvested == 0
+                            ? '—'
+                            : '${(histRatio * 100).toStringAsFixed(2)}%',
+                        color: profitColor,
+                      ),
+                    ),
+                    Expanded(
+                      child: _histMetric(
+                        context,
+                        t,
+                        '现价',
+                        Money.fromMinor(holding.currentPriceMinor).format(),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // 日期行：持仓天数 | 首次买入 | 最近卖出。
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _histMetric(
+                        context,
+                        t,
+                        '持仓天数',
+                        histDays < 0 ? '—' : '$histDays 天',
+                      ),
+                    ),
+                    Expanded(
+                      child: _histMetric(
+                          context, t, '首次买入', _fmtYmd(histFirstBuy)),
+                    ),
+                    Expanded(
+                      child: _histMetric(
+                          context, t, '最近卖出', _fmtYmd(histLastSell)),
+                    ),
+                  ],
+                ),
+              ] else ...<Widget>[
+                // 持仓卡：副行只显份额 / 成本 / 现价；买卖日期与行情更新时间
+                // 不进卡片（详情页「首次买入 / 最近卖出」行可见）。
+                Text(
+                  <String>[
+                    '份额 ${formatQuantity(qtyMicros / InvestmentRepository.quantityScale)}',
+                    '$costLabel ${Money.fromMinor(costAvgMinor).format()}',
+                    '现价 ${Money.fromMinor(holding.currentPriceMinor).format()}',
+                  ].join(' · '),
+                  style: t.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          '持仓市值',
+                          style: t.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          Money.fromMinor(marketMinor).format(),
+                          style: t.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        Text(
+                          '总盈亏',
+                          style: t.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          Money.fromMinor(profitMinor).formatSigned(),
+                          style: t.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: profitColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -503,6 +711,28 @@ class _HoldingCard extends ConsumerWidget {
           color: color,
         ),
       ),
+    );
+  }
+
+  /// 历史卡指标项：标签在上（次级色）、值在下（加粗）。
+  Widget _histMetric(
+      BuildContext context, TextTheme t, String label, String value,
+      {Color? color}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(label,
+            style: t.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: t.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: color ?? Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ],
     );
   }
 
@@ -531,9 +761,10 @@ class _HoldingCard extends ConsumerWidget {
             onPressed: () => Navigator.of(dialog).pop(false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          PrimaryButton(
+            label: '更新',
             onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('更新'),
+            fullWidth: false,
           ),
         ],
       ),
@@ -571,86 +802,70 @@ Future<void> showHoldingEditor(
   // 底部弹窗（与全应用弹层统一：圆角 24 + 拖拽条 + 键盘避让）。
   // 只维护标的元信息：代码 / 名称 / 品种；份额、成本、现价一律由
   // 记账表单的买卖交易驱动（编辑时原值透传，不动账）。
-  final bool? saved = await showModalBottomSheet<bool>(
-    context: context,
+  final bool? saved = await showAppModalSheet<bool>(
+    context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (BuildContext sheet) => StatefulBuilder(
-      builder: (BuildContext ctx, StateSetter setState) => Padding(
+    surfaceColor: AppPalette.white,
+    body: StatefulBuilder(
+      builder: (BuildContext context, StateSetter setState) => Padding(
         // 键盘避让：输入框唤起系统键盘时弹层整体升到键盘上方。
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppPalette.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  // 拖拽条
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(top: 10, bottom: 6),
-                      decoration: BoxDecoration(
-                        color: AppPalette.hairline,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // 标题行：编辑持仓 / 新增持仓 + 关闭
+                Row(
+                  children: <Widget>[
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 22),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      onPressed: () => Navigator.of(context).pop(false),
                     ),
+                  ],
+                ),
+                Text(
+                  holding == null ? '新增持仓' : '编辑持仓',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
-                  // 标题行：编辑持仓 / 新增持仓 + 关闭
-                  Row(
-                    children: <Widget>[
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 22),
-                        color: AppPalette.textTertiary,
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    holding == null ? '新增持仓' : '编辑持仓',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: symbolController,
-                    decoration: const InputDecoration(labelText: '代码（如 110022）'),
-                    autofocus: true,
-                  ),
-                  const FormGap(),
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: '名称'),
-                  ),
-                  const FormGap(),
-                  EnumDropdown<InvestmentType>(
-                    label: '品种',
-                    value: type,
-                    values: InvestmentType.displayOrder,
-                    labelOf: (InvestmentType t) => t.label,
-                    onChanged: (InvestmentType t) => setState(() => type = t),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                    child: const Text('保存'),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: symbolController,
+                  decoration: const InputDecoration(labelText: '代码（如 110022）'),
+                  autofocus: true,
+                ),
+                const FormGap(),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: '名称'),
+                ),
+                const FormGap(),
+                EnumDropdown<InvestmentType>(
+                  label: '品种',
+                  value: type,
+                  values: InvestmentType.displayOrder,
+                  labelOf: (InvestmentType t) => t.label,
+                  onChanged: (InvestmentType t) => setState(() => type = t),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48)),
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('保存'),
+                ),
+              ],
             ),
           ),
         ),

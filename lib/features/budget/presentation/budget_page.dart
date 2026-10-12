@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/app_button.dart';
 import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -139,9 +140,10 @@ Future<void> showBudgetEditor(
             onPressed: () => Navigator.of(dialog).pop(false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          PrimaryButton(
+            label: '保存',
             onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('保存'),
+            fullWidth: false,
           ),
         ],
       ),

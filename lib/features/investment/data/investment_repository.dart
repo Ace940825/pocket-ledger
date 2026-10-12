@@ -20,7 +20,13 @@ import 'market/security_meta_repository.dart';
 /// - 单价 avgCostMinor / currentPriceMinor 以「分」存整数；
 /// - 市值 = quantityMicros × priceMinor ÷ 1e6，先乘后除，避免先除丢精度。
 class InvestmentRepository {
-  const InvestmentRepository(this._db, this._txnRepo);
+  /// 注册通用流水编辑/删除后的派生列重算钩子（见
+  /// [TransactionRepository.onInvestmentFlowChanged]）：投资买卖流水被
+  /// 通用编辑器改动或删除时，自动重算受影响持仓的 realizedProfitMinor，
+  /// 堵住「缓存列只随 recordBuy/recordSell/updateTrade 更新」的时效缺口。
+  InvestmentRepository(this._db, this._txnRepo) {
+    TransactionRepository.onInvestmentFlowChanged = _recomputeRealized;
+  }
 
   final AppDatabase _db;
   final TransactionRepository _txnRepo;
@@ -242,9 +248,7 @@ class InvestmentRepository {
     final DateTime now = DateTime.now();
     final DateTime ts =
         DateTime.fromMillisecondsSinceEpoch(updatedAt, isUtc: true).toLocal();
-    return now.year == ts.year &&
-        now.month == ts.month &&
-        now.day == ts.day;
+    return now.year == ts.year && now.month == ts.month && now.day == ts.day;
   }
 
   /// 删除持仓：软删持仓本体，并级联软删名下全部买卖流水
@@ -274,6 +278,60 @@ class InvestmentRepository {
       // 级联删关联买卖流水（余额冲销由 remove 自理）。
       await _txnRepo.removeAllByRelatedId(id);
     });
+  }
+
+  /// 重算某持仓的已实现盈亏（分）并写回缓存列
+  /// [InvestmentHoldings.realizedProfitMinor]。
+  ///
+  /// 按买卖流水重放（同顶层 [realizedProfitMinorFor]），结果精确、随流水编辑/
+  /// 删除自愈。值漂移时写回并 bump updatedAt + 标脏入同步队列——否则云端旧
+  /// 快照会按 LWW 把重算结果盖回（同步拉取按 updatedAt 判本地行去留）。
+  Future<void> _recomputeRealized(String hid) async {
+    final List<Transaction> flows = await (_db.select(_db.transactions)
+          ..where((Transactions t) =>
+              t.relatedId.equals(hid) &
+              t.sourceModule.equals(SourceModule.investment.index)))
+        .get();
+    final int realized = realizedProfitMinorFor(hid, flows);
+    final InvestmentHolding? row = await (_db.select(_db.investmentHoldings)
+          ..where((InvestmentHoldings t) => t.id.equals(hid)))
+        .getSingleOrNull();
+    // 值未漂移则不写：避免启动对账每轮都空写入 / 重复入同步队列。
+    if (row == null || row.realizedProfitMinor == realized) return;
+    final int now = _now;
+    await (_db.update(_db.investmentHoldings)
+          ..where((InvestmentHoldings t) => t.id.equals(hid)))
+        .write(
+      InvestmentHoldingsCompanion(
+        realizedProfitMinor: Value<int>(realized),
+        // 必须随写回 bump updatedAt + 标脏并入同步队列：同步引擎按
+        // updatedAt LWW 应用云端行，不 bump 的话启动重算出的新值会被
+        // 服务端旧快照原样盖回（表现为「重启也没变化」）。
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+    await enqueueSyncOp(
+      _db,
+      table: 'investment_holdings',
+      recordId: hid,
+      opType: SyncOpType.update,
+      updatedAt: now,
+      payload: <String, Object?>{
+        'realizedProfitMinor': realized,
+      },
+    );
+  }
+
+  /// 全量重算所有未删持仓的已实现盈亏（启动存量回填 / 数据修复用）。
+  Future<void> recomputeAllRealized() async {
+    final List<InvestmentHolding> holdings =
+        await (_db.select(_db.investmentHoldings)
+              ..where((InvestmentHoldings t) => t.deleted.equals(false)))
+            .get();
+    for (final InvestmentHolding h in holdings) {
+      await _recomputeRealized(h.id);
+    }
   }
 
   CategoryRepository get _catRepo => CategoryRepository(_db);
@@ -315,12 +373,10 @@ class InvestmentRepository {
     return '$head\n$meta\n$userNote';
   }
 
-  /// 份额整数放大 1e6，转可读字符串：去掉尾随多余的 0（1000000 → '1'、1050000 → '1.05'）。
-  String _fmtQty(int micros) {
-    final double q = micros / InvestmentRepository.quantityScale;
-    // 固定 4 位小数，与表单「可得份额」口径一致。
-    return q.toStringAsFixed(4);
-  }
+  /// 份额整数放大 1e6，转可读字符串：最多 4 位小数、去掉尾随多余的 0。
+  /// 例：1000000 → '1'、1050000 → '1.05'、2500000000 → '2500'。
+  String _fmtQty(int micros) =>
+      formatQuantity(micros / InvestmentRepository.quantityScale);
 
   /// 记录买入：新建或增资持仓，并记一笔资金流水（支出，不计入收支统计）。
   ///
@@ -361,22 +417,22 @@ class InvestmentRepository {
     return _db.transaction<String>(() async {
       if (holdingId == null) {
         await _db.into(_db.investmentHoldings).insert(
-          InvestmentHoldingsCompanion(
-            id: Value<String>(hid),
-            bookId: Value<String>(bookId),
-            symbol: Value<String>(symbol.trim().toUpperCase()),
-            name: Value<String>(name.trim()),
-            type: Value<InvestmentType>(type),
-            quantityMicros: Value<int>(deltaMicros),
-            avgCostMinor: Value<int>(priceMinor),
-            currentPriceMinor: Value<int>(priceMinor),
-            priceUpdatedAt: Value<int?>(_now),
-            accountId: Value<String?>(accountId),
-            note: Value<String?>(note),
-            updatedAt: Value<int>(_now),
-            dirty: const Value<bool>(true),
-          ),
-        );
+              InvestmentHoldingsCompanion(
+                id: Value<String>(hid),
+                bookId: Value<String>(bookId),
+                symbol: Value<String>(symbol.trim().toUpperCase()),
+                name: Value<String>(name.trim()),
+                type: Value<InvestmentType>(type),
+                quantityMicros: Value<int>(deltaMicros),
+                avgCostMinor: Value<int>(priceMinor),
+                currentPriceMinor: Value<int>(priceMinor),
+                priceUpdatedAt: Value<int?>(_now),
+                accountId: Value<String?>(accountId),
+                note: Value<String?>(note),
+                updatedAt: Value<int>(_now),
+                dirty: const Value<bool>(true),
+              ),
+            );
         await enqueueSyncOp(
           _db,
           table: 'investment_holdings',
@@ -557,6 +613,8 @@ class InvestmentRepository {
         excludeFromStats: true,
         excludeFromBudget: true,
       );
+      // 卖出后重算并缓存已实现盈亏（落袋亏损从此可见）。
+      await _recomputeRealized(holdingId);
     });
   }
 
@@ -585,8 +643,8 @@ class InvestmentRepository {
     if (original.sourceModule != SourceModule.investment) {
       throw const ValidationFailure('非投资流水不能走投资改单');
     }
-    final String oldHid = original.relatedId ??
-        (throw const ValidationFailure('原流水缺少关联持仓'));
+    final String oldHid =
+        original.relatedId ?? (throw const ValidationFailure('原流水缺少关联持仓'));
     if (amountMinor <= 0) throw const ValidationFailure('金额必须大于 0');
     if (priceMinor <= 0) throw const ValidationFailure('单价必须大于 0');
     if (feeMinor < 0) throw const ValidationFailure('手续费不能为负');
@@ -623,8 +681,8 @@ class InvestmentRepository {
     return _db.transaction<String>(() async {
       // ① 回滚原持仓的旧交易影响（编辑时改持仓则旧持仓单独回滚）。
       final InvestmentHolding? oldHolding = await (_db.select(
-            _db.investmentHoldings,
-          )..where((InvestmentHoldings t) => t.id.equals(oldHid)))
+        _db.investmentHoldings,
+      )..where((InvestmentHoldings t) => t.id.equals(oldHid)))
           .getSingleOrNull();
       if (oldHolding != null) {
         int qty = oldHolding.quantityMicros;
@@ -664,8 +722,8 @@ class InvestmentRepository {
 
       // ② 应用新交易到目标持仓（hid 可能等于 oldHid：读到的是①回滚后的行）。
       final InvestmentHolding? target = await (_db.select(
-            _db.investmentHoldings,
-          )..where((InvestmentHoldings t) => t.id.equals(hid)))
+        _db.investmentHoldings,
+      )..where((InvestmentHoldings t) => t.id.equals(hid)))
           .getSingleOrNull();
       if (target == null) throw const ValidationFailure('持仓不存在');
       int qty = target.quantityMicros;
@@ -747,6 +805,9 @@ class InvestmentRepository {
         excludeFromStats: true,
         excludeFromBudget: true,
       );
+      // 改单后重算并缓存相关持仓的已实现盈亏（旧/新持仓都要覆盖）。
+      await _recomputeRealized(hid);
+      if (oldHid != hid) await _recomputeRealized(oldHid);
       return hid;
     });
   }
@@ -779,15 +840,69 @@ extension InvestmentMath on InvestmentHolding {
   int get costValueMinor =>
       (quantityMicros * avgCostMinor) ~/ InvestmentRepository.quantityScale;
 
-  /// 浮动盈亏（分），正数为盈利
+  /// 浮动盈亏（分）= 市值 − 持仓成本（未摊薄口径，仅内部用），正数为盈利
   int get profitMinor => marketValueMinor - costValueMinor;
 
   /// 盈亏比例，成本为 0 时返回 0 而不是无穷大
   double get profitRatio =>
       costValueMinor == 0 ? 0 : profitMinor / costValueMinor;
 
+  /// 摊薄总成本（分）= 持仓成本 − 已实现盈亏。
+  ///
+  /// 卖出亏损（已实现为负）摊入剩余持仓使成本升高——现价涨回摊薄成本即整体
+  /// 回本；卖出盈利则摊薄成本降低。清仓（份额为 0）时无摊薄意义，返回 0
+  /// （此时亏损已全部落袋，见已实现盈亏，不再折进成本）。
+  int get dilutedCostValueMinor =>
+      quantityMicros == 0 ? 0 : costValueMinor - realizedProfitMinor;
+
+  /// 摊薄成本单价（分/份，四舍五入）
+  int get dilutedAvgCostMinor => quantityMicros == 0
+      ? 0
+      : (dilutedCostValueMinor * InvestmentRepository.quantityScale +
+              quantityMicros ~/ 2) ~/
+          quantityMicros;
+
+  /// 总盈亏（摊薄口径，分）= 市值 − 摊薄总成本，已包含持仓收益（已实现盈亏），
+  /// 即「若现在清仓的总盈亏」。
+  ///
+  /// 清仓（份额为 0）时市值与成本均为 0，总盈亏回落为**全部落袋的持仓收益**，
+  /// 供后期复盘（不为 0）。
+  int get dilutedProfitMinor => quantityMicros == 0
+      ? realizedProfitMinor
+      : marketValueMinor - dilutedCostValueMinor;
+
+  /// 摊薄口径盈亏比例，摊薄成本为 0 时返回 0
+  double get dilutedProfitRatio => dilutedCostValueMinor == 0
+      ? 0
+      : dilutedProfitMinor / dilutedCostValueMinor;
+
   /// 实际份额（用于展示）
   double get quantity => quantityMicros / InvestmentRepository.quantityScale;
+}
+
+/// 累计买入成本（分）：按时间顺序重放流水，累加每笔买入的**净额**（流水金额 − 手续费）。
+///
+/// 与 [realizedProfitMinorFor] 同一套口径（买入净额计入成本基数）。
+/// 清仓后它就是收益率的分母：收益率 = 持仓收益 ÷ 累计买入成本。
+int investedCostMinorFor(List<Transaction> flows) {
+  int invested = 0;
+  for (final Transaction f in flows) {
+    if (f.type != TxnType.expense) continue;
+    final (int, int, int)? meta = InvestmentRepository.parseTradeMeta(f.note);
+    // 买入流水金额含手续费，投资净额 = 流水金额 − 费（元信息缺失按 0 费兜底）。
+    invested += f.amountMinor - (meta?.$2 ?? 0);
+  }
+  return invested;
+}
+
+/// 金额/数量格式化：最多 [maxDigits] 位小数，去除末尾多余的 0 与小数点。
+///
+/// 例：2500.0 → '2500'、0.5 → '0.5'、1.25 → '1.25'、0.0003 → '0.0003'。
+/// 先按 [maxDigits] 四舍五入规避浮点误差（如 2500.0000001）。
+String formatQuantity(double value, {int maxDigits = 4}) {
+  final double rounded = double.parse(value.toStringAsFixed(maxDigits));
+  final String s = rounded.toStringAsFixed(maxDigits);
+  return s.contains('.') ? s.replaceFirst(RegExp(r'\.?0+$'), '') : s;
 }
 
 /// 按代码格式识别股票交易市场：A股 / 港股 / 美股；无法识别返回空串。
@@ -835,4 +950,214 @@ String investmentTypeLabel(
     }
   }
   return market.isEmpty ? '股票' : market;
+}
+
+/// 从某持仓的买卖流水按时间顺序重放，核算**已实现盈亏**（分）。
+///
+/// 移动加权成本法：维护 (持股 qtyMicros, 成本基数 costMicros=Σ投资净额×scale)，
+/// 买入把净额计入成本基数（费不计入，与 [recordBuy] 口径一致），
+/// 卖出按当时均价计算 已实现 = 到账金额 − 已卖份额成本；到账金额 = 收入流水金额
+/// （流水已扣手续费），已卖份额成本 = deltaMicros × 卖出时均价 ÷ scale。
+///
+/// 仅依赖流水备注元信息反解份额/单价/手续费（[parseTradeMeta]）；
+/// 反解失败的卖出贡献 0（最差少算、绝不编造），与 [updateTrade] 兜底口径一致。
+/// 本函数是 canonical 口径，[AppDatabase._replayRealizedProfit] 为其 DB 层复刻。
+int realizedProfitMinorFor(String hid, List<Transaction> flows) {
+  final List<Transaction> sorted = flows.toList()
+    ..sort(
+        (Transaction a, Transaction b) => a.occurredAt.compareTo(b.occurredAt));
+  int qtyMicros = 0;
+  int costMicros = 0; // 单位：分·micros
+  int realized = 0; // 分
+  for (final Transaction f in sorted) {
+    final (int, int, int)? meta = InvestmentRepository.parseTradeMeta(f.note);
+    final int fee = meta?.$2 ?? 0;
+    final int delta = meta?.$3 ?? 0;
+    if (f.type == TxnType.expense) {
+      // 买入流水金额含手续费，投资净额 = 流水金额 − 费。
+      final int net = f.amountMinor - fee;
+      qtyMicros += delta;
+      costMicros += net * InvestmentRepository.quantityScale;
+    } else if (f.type == TxnType.income && delta > 0) {
+      // 卖出：到账 = 流水金额（已扣费）；已实现 = 到账 − 已卖份额成本。
+      final int avg = qtyMicros == 0 ? 0 : costMicros ~/ qtyMicros;
+      final int costRemoved =
+          (delta * avg) ~/ InvestmentRepository.quantityScale;
+      realized += f.amountMinor - costRemoved;
+      qtyMicros -= delta;
+    }
+  }
+  return realized;
+}
+
+/// 单轮（一轮 = 一次建仓到清仓/当前的完整买卖周期）重放结果。
+///
+/// 成本/已实现/投入均以「分」为单位（与 [InvestmentMath] 同口径，便于直接相减）。
+class HoldCycle {
+  const HoldCycle({
+    required this.qtyMicros,
+    required this.costValueMinor,
+    required this.realizedMinor,
+    required this.investedMinor,
+    required this.startedAt,
+    this.endedAt,
+    this.boughtQtyMicros = 0,
+  });
+
+  /// 当前轮未平仓份额（micros）
+  final int qtyMicros;
+
+  /// 移动加权持仓成本基数（分）
+  final int costValueMinor;
+
+  /// 本轮已实现盈亏（分，卖出落袋，含本轮内部分减仓）
+  final int realizedMinor;
+
+  /// 本轮累计买入净额（分，金额 − 手续费）
+  final int investedMinor;
+
+  /// 本轮累计买入份额（micros，含其后已卖出的部分）
+  final int boughtQtyMicros;
+
+  /// 本轮建仓日
+  final DateTime startedAt;
+
+  /// 清仓日；未清仓为 null
+  final DateTime? endedAt;
+
+  /// 摊薄总成本（分）= 持仓成本 − 本轮已实现盈亏（亏损摊入剩余持仓使成本升高）。
+  int get dilutedCostValueMinor =>
+      qtyMicros == 0 ? 0 : costValueMinor - realizedMinor;
+
+  /// 摊薄成本单价（分/份，四舍五入）
+  int get dilutedAvgCostMinor => qtyMicros == 0
+      ? 0
+      : (dilutedCostValueMinor * InvestmentRepository.quantityScale +
+              qtyMicros ~/ 2) ~/
+          qtyMicros;
+
+  /// 本轮总盈亏（摊薄口径，分）= 当前市值 − 摊薄总成本；清仓时为落袋收益。
+  int dilutedProfitMinor(int marketValueMinor) =>
+      qtyMicros == 0 ? realizedMinor : marketValueMinor - dilutedCostValueMinor;
+
+  /// 本轮摊薄口径收益率（分母为摊薄成本）
+  double dilutedProfitRatio(int marketValueMinor) => dilutedCostValueMinor == 0
+      ? 0
+      : dilutedProfitMinor(marketValueMinor) / dilutedCostValueMinor;
+
+  /// 清仓后单价成本（分/份，四舍五入）= 本轮累计买入净额 ÷ 本轮累计买入份额。
+  ///
+  /// 完成轮（qty 已归零）即清仓时算得的单价成本；未平仓轮为该轮简单平均买价。
+  int get clearedAvgCostMinor => boughtQtyMicros == 0
+      ? 0
+      : (investedMinor * InvestmentRepository.quantityScale +
+              boughtQtyMicros ~/ 2) ~/
+          boughtQtyMicros;
+}
+
+/// 某持仓的轮次划分结果：已完成轮列表 + 当前未平仓轮（可能 null）。
+class HoldingCycleInfo {
+  const HoldingCycleInfo({required this.completed, this.open});
+
+  final List<HoldCycle> completed;
+  final HoldCycle? open;
+
+  /// 历史累计已实现盈亏（已完成轮合计，分）
+  int get historyRealizedMinor =>
+      completed.fold(0, (int a, HoldCycle c) => a + c.realizedMinor);
+
+  /// 历史累计买入成本（已完成轮合计，分）
+  int get historyInvestedMinor =>
+      completed.fold(0, (int a, HoldCycle c) => a + c.investedMinor);
+
+  /// 历史累计买入份额（已完成轮合计，micros）
+  int get historyBoughtQtyMicros =>
+      completed.fold(0, (int a, HoldCycle c) => a + c.boughtQtyMicros);
+
+  /// 清仓后单价成本（分/份，四舍五入）= 历史累计投入 ÷ 历史累计买入份额。
+  int get historyAvgCostMinor => historyBoughtQtyMicros == 0
+      ? 0
+      : (historyInvestedMinor * InvestmentRepository.quantityScale +
+              historyBoughtQtyMicros ~/ 2) ~/
+          historyBoughtQtyMicros;
+
+  /// 是否含历史已完成轮（用于持仓/清仓双卡判定）
+  bool get hasHistory => completed.isNotEmpty;
+}
+
+/// 按「零位穿越」切分某持仓的买卖流水为多个轮。
+///
+/// 份额从 0 增至正即开新一轮；落回 0 即该轮结束（清仓）。返回已完成轮 +
+/// 当前未平仓轮。每轮内部用移动加权成本法（与 [realizedProfitMinorFor] 同口径）：
+/// 买入净额累进成本基数，卖出按当时均价计已实现 = 到账 − 已卖份额成本。
+///
+/// 用于「清仓后再买入 = 新一轮」：持仓卡只看当前轮（成本/盈亏不带历史包袱），
+/// 清仓卡累计历史已完成轮，再次清仓时并入并保留单一清仓卡。
+(List<HoldCycle> completed, HoldCycle? open) replayHoldCycles(
+  List<Transaction> flows,
+) {
+  final List<Transaction> sorted = flows.toList()
+    ..sort(
+        (Transaction a, Transaction b) => a.occurredAt.compareTo(b.occurredAt));
+  final List<HoldCycle> completed = <HoldCycle>[];
+  int qty = 0;
+  int cost = 0; // 分
+  int realized = 0; // 分
+  int invested = 0; // 分
+  int bought = 0; // micros，本轮累计买入份额
+  DateTime? startedAt;
+  for (final Transaction f in sorted) {
+    final (int, int, int)? meta = InvestmentRepository.parseTradeMeta(f.note);
+    final int fee = meta?.$2 ?? 0;
+    final int delta = meta?.$3 ?? 0;
+    final DateTime d = DateTime.fromMillisecondsSinceEpoch(
+      f.occurredAt,
+      isUtc: true,
+    ).toLocal();
+    if (f.type == TxnType.expense) {
+      if (qty == 0) startedAt = d;
+      final int net = f.amountMinor - fee;
+      qty += delta;
+      bought += delta;
+      cost += net;
+      invested += net;
+    } else if (f.type == TxnType.income && delta > 0) {
+      final int avg =
+          qty == 0 ? 0 : (cost * InvestmentRepository.quantityScale) ~/ qty;
+      final int costRemoved =
+          (delta * avg) ~/ InvestmentRepository.quantityScale;
+      realized += f.amountMinor - costRemoved;
+      qty -= delta;
+      cost -= costRemoved;
+      if (qty == 0) {
+        completed.add(HoldCycle(
+          qtyMicros: 0,
+          costValueMinor: 0,
+          realizedMinor: realized,
+          investedMinor: invested,
+          startedAt: startedAt ?? d,
+          endedAt: d,
+          boughtQtyMicros: bought,
+        ));
+        qty = 0;
+        cost = 0;
+        realized = 0;
+        invested = 0;
+        bought = 0;
+        startedAt = null;
+      }
+    }
+  }
+  final HoldCycle? open = qty == 0
+      ? null
+      : HoldCycle(
+          qtyMicros: qty,
+          costValueMinor: cost,
+          realizedMinor: realized,
+          investedMinor: invested,
+          startedAt: startedAt!,
+          endedAt: null,
+          boughtQtyMicros: bought,
+        );
+  return (completed, open);
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import '../../core/constants/app_dimens.dart';
 import '../../core/theme/forest_design_tokens.dart';
 
@@ -24,8 +26,11 @@ import '../../core/theme/forest_design_tokens.dart';
 /// - [onOperator] 传 null 时不渲染 − / +（见上，除非 [fourColumns]=true）；
 /// - [showSave] = false 时不渲染内置「保存」键（调用方自带保存行）；
 /// - [allowDecimal] = false 时为整数模式，禁用「.」键（如执行次数 / 天数）；
-/// - [maxDecimalDigits] 放宽小数位（投资净值等场景传 4）。
-class AmountKeypad extends StatelessWidget {
+/// - [maxDecimalDigits] 放宽小数位（投资净值等场景传 4）；
+/// - [replaceOnFirstInput] 开启「首键替换」：预填非空时首次按数字 /
+///   小数点键整体丢弃预填、从新输入开始（小青账同款），删除键视为主动
+///   编辑预填并解除替换。所有带预填值的录入场景应开启（2026-10-13 全局统一）。
+class AmountKeypad extends StatefulWidget {
   const AmountKeypad({
     super.key,
     required this.value,
@@ -39,6 +44,7 @@ class AmountKeypad extends StatelessWidget {
     this.showSave = true,
     this.allowDecimal = true,
     this.maxDecimalDigits = 2,
+    this.replaceOnFirstInput = false,
   });
 
   final String value;
@@ -66,10 +72,45 @@ class AmountKeypad extends StatelessWidget {
   /// 小数最大位数（投资净值等场景可放宽到 4）。
   final int maxDecimalDigits;
 
+  /// 「首键替换」引信开关（语义见类文档）；实际引信状态由 State 持有，
+  /// 每个键盘实例只在预填非空时的首个数字 / 小数点键生效一次。
+  final bool replaceOnFirstInput;
+
+  @override
+  State<AmountKeypad> createState() => _AmountKeypadState();
+}
+
+class _AmountKeypadState extends State<AmountKeypad> {
+  /// 替换模式引信：仅在 [AmountKeypad.replaceOnFirstInput] 且预填非空时的
+  /// 首个数字 / 小数点键生效；任意按键（含删除）后解除，实例内不复位。
+  bool _replaceArmed = true;
+
+  // ── 字段局部别名：让下方 _input / _backspace / build 保持原 Stateless
+  // 写法逐字节不变，只把「值来源」切到 widget 上。
+  String get value => widget.value;
+  ValueChanged<String> get onChanged => widget.onChanged;
+  VoidCallback get onSave => widget.onSave;
+  VoidCallback? get onSaveAndMore => widget.onSaveAndMore;
+  VoidCallback? get onBackspace => widget.onBackspace;
+  ValueChanged<String>? get onOperator => widget.onOperator;
+  bool get enabled => widget.enabled;
+  bool get fourColumns => widget.fourColumns;
+  bool get showSave => widget.showSave;
+  bool get allowDecimal => widget.allowDecimal;
+  int get maxDecimalDigits => widget.maxDecimalDigits;
+
   static const int _maxIntegerDigits = 12;
 
   void _input(String s) {
     if (!enabled) return;
+    // 「首键替换」：预填非空时首个数字 / 小数点键整体丢弃预填、从新输入
+    // 开始（小青账同款）。小数点键从 "0." 起步，数字键单字符起步。
+    if (widget.replaceOnFirstInput && _replaceArmed && value.isNotEmpty) {
+      setState(() => _replaceArmed = false);
+      onChanged(s == '.' ? '0.' : s);
+      return;
+    }
+    _replaceArmed = false;
     if (s == '.') {
       if (!allowDecimal) return;
       if (value.contains('.')) return;
@@ -90,6 +131,8 @@ class AmountKeypad extends StatelessWidget {
 
   void _backspace() {
     if (!enabled) return;
+    // 删除键视为主动编辑预填：解除替换模式，之后退化为普通逐字删除。
+    _replaceArmed = false;
     if (value.isNotEmpty) {
       onChanged(value.substring(0, value.length - 1));
     } else {
@@ -113,9 +156,7 @@ class AmountKeypad extends StatelessWidget {
                 showLabel: false,
                 onTap: enabled ? _backspace : null,
               )
-            : (showIdleAgain
-                ? _AkKey(label: '再记', onTap: null)
-                : null));
+            : (showIdleAgain ? _AkKey(label: '再记', onTap: null) : null));
 
     final List<Widget> cells = <Widget>[
       _AkDigit('1', () => _input('1')),
@@ -193,8 +234,7 @@ class AmountKeypad extends StatelessWidget {
         return SizedBox(
           height: height,
           child: GridView.count(
-            keyboardDismissBehavior:
-                ScrollViewKeyboardDismissBehavior.onDrag,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             crossAxisCount: cols,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: gap,
@@ -217,19 +257,19 @@ class _AkDigit extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: ForestSurface.card,
-        border: Border.all(color: ForestNeutral.hairline),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: AppPalette.ink.withValues(alpha: 0.059),
-            offset: const Offset(0, 1),
-            blurRadius: 3,
-          ),
-        ],
-      ),
+    return HairlineCard(
+      backgroundColor: context.colors.surface,
+      borderColor: Theme.of(context).colorScheme.outline,
+      radius: 14,
+      padding: EdgeInsets.zero,
+      shadows: <BoxShadow>[
+        BoxShadow(
+          color:
+              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.059),
+          offset: const Offset(0, 1),
+          blurRadius: 3,
+        ),
+      ],
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
@@ -237,7 +277,7 @@ class _AkDigit extends StatelessWidget {
           child: Text(
             label,
             style: theme.textTheme.headlineSmall?.copyWith(
-              color: ForestNeutral.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -269,21 +309,23 @@ class _AkKey extends StatelessWidget {
     final Color contentColor = isSave
         ? Theme.of(context).colorScheme.onPrimary
         : isAgain
-            ? (active ? ForestNeutral.textSecondary : theme.disabledColor)
+            ? (active
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : theme.disabledColor)
             : active
-                ? ForestNeutral.textPrimary
+                ? Theme.of(context).colorScheme.onSurface
                 : theme.disabledColor;
     return Container(
       decoration: BoxDecoration(
         color: isSave
             ? null
             : isAgain
-                ? ForestBg.sunken
-                : ForestSurface.card,
-        gradient: isSave ? ForestGradients.sage : null,
+                ? context.colors.surfaceContainerHighest
+                : context.colors.surface,
+        gradient: isSave ? context.app.sageGradient : null,
         border: isSave || isAgain
             ? null
-            : Border.all(color: ForestNeutral.hairline),
+            : Border.all(color: Theme.of(context).colorScheme.outline),
         borderRadius: BorderRadius.circular(14),
         boxShadow: isSave
             ? <BoxShadow>[
@@ -297,7 +339,10 @@ class _AkKey extends StatelessWidget {
                 ? null
                 : <BoxShadow>[
                     BoxShadow(
-                      color: AppPalette.ink.withValues(alpha: 0.059),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.059),
                       offset: const Offset(0, 1),
                       blurRadius: 3,
                     ),
@@ -352,6 +397,7 @@ class NumKeypad extends StatelessWidget {
     this.allowDecimal = true,
     this.maxDecimalDigits = 2,
     this.confirmLabel = '完成',
+    this.replaceOnFirstInput = false,
   });
 
   final String value;
@@ -372,6 +418,9 @@ class NumKeypad extends StatelessWidget {
   /// 确认键文案（标准键盘固定为「保存」，此字段保留以兼容旧调用方）。
   final String confirmLabel;
 
+  /// 「首键替换」透传（语义见 [AmountKeypad.replaceOnFirstInput]）。
+  final bool replaceOnFirstInput;
+
   @override
   Widget build(BuildContext context) {
     return AmountKeypad(
@@ -380,6 +429,7 @@ class NumKeypad extends StatelessWidget {
       onSave: onConfirm ?? onHide ?? () {},
       allowDecimal: allowDecimal,
       maxDecimalDigits: maxDecimalDigits,
+      replaceOnFirstInput: replaceOnFirstInput,
       showSave: true,
       fourColumns: true,
     );
@@ -447,7 +497,7 @@ Future<String?> showAmountKeypad({
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: value.isEmpty
-                        ? AppPalette.textTertiary
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
                         : Theme.of(ctx).colorScheme.onSurface,
                   ),
                 ),
@@ -458,6 +508,9 @@ Future<String?> showAmountKeypad({
                 allowDecimal: allowDecimal,
                 maxDecimalDigits: maxDecimalDigits,
                 confirmLabel: confirmLabel,
+                // 弹层以 initial（当前值）预填 → 全局开启「首键替换」，
+                // 首次按数字键整体替换预填（KeypadField 一并生效）。
+                replaceOnFirstInput: true,
                 onChanged: (String v) => set(() => value = v),
                 onHide: () => Navigator.of(ctx).pop(null),
                 onConfirm: () => Navigator.of(ctx).pop(value),

@@ -95,9 +95,9 @@ class AttachmentThumb extends StatelessWidget {
                 width: size,
                 height: size,
                 color: AppPalette.surfaceLight,
-                child: const Icon(
+                child: Icon(
                   Icons.broken_image_outlined,
-                  color: AppPalette.textTertiary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -114,7 +114,8 @@ class AttachmentThumb extends StatelessWidget {
                   color: Colors.black54, // ignore: no_raw_colors
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.cancel, size: 18, color: Colors.white), // ignore: no_raw_colors
+                child: const Icon(Icons.cancel,
+                    size: 18, color: Colors.white), // ignore: no_raw_colors
               ),
             ),
           ),
@@ -148,11 +149,11 @@ Future<void> openImageViewer(
               child: Image(
                 image: provider,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Center(
+                errorBuilder: (_, __, ___) => Center(
                   child: Icon(
                     Icons.broken_image_outlined,
                     size: 48,
-                    color: AppPalette.textTertiary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),

@@ -51,8 +51,7 @@ final AutoDisposeStreamProvider<List<Transaction>>
     reportPeriodTransactionsProvider =
     StreamProvider.autoDispose<List<Transaction>>((Ref ref) {
   final String bookId = ref.watch(currentBookIdProvider);
-  final ({int startAt, int endAt}) range =
-      ref.watch(reportPeriodRangeProvider);
+  final ({int startAt, int endAt}) range = ref.watch(reportPeriodRangeProvider);
   return ref.watch(transactionsDaoProvider).watchRange(
         bookId: bookId,
         startAt: range.startAt,

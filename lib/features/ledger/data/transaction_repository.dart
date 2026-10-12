@@ -87,6 +87,7 @@ class TransactionRepository {
           toAccountId: Value<String?>(toAccountId),
           categoryId: Value<String?>(categoryId),
           occurredAt: Value<int>(occurredAt),
+          createdAt: Value<int>(now),
           note: Value<String?>(note),
           sourceModule: Value<SourceModule>(sourceModule),
           relatedId: Value<String?>(relatedId),
@@ -160,6 +161,13 @@ class TransactionRepository {
       return id;
     });
   }
+
+  /// 投资派生列重算钩子（静态回调，避免 ledger → investment 反向 import 成环）：
+  /// 投资买卖流水经**通用编辑 / 删除**路径（编辑页 / 明细弹窗 / 滑动删除 /
+  /// 批量清理）改动后，由 InvestmentRepository 在构造时注册，对受影响持仓
+  /// 重算 realizedProfitMinor 缓存列。投资仓储自身的 recordBuy / recordSell /
+  /// updateTrade 已内置重算，不依赖此钩子。
+  static Future<void> Function(String holdingId)? onInvestmentFlowChanged;
 
   /// 更新一条流水。
   ///
@@ -281,9 +289,10 @@ class TransactionRepository {
               Value<bool>(excludeFromStats ?? original.excludeFromStats),
           excludeFromBudget:
               Value<bool>(excludeFromBudget ?? original.excludeFromBudget),
-          isReimbursable: Value<bool>(isReimbursable ?? original.isReimbursable),
-          reimbursementAccountId:
-              Value<String?>(reimbursementAccountId ?? original.reimbursementAccountId),
+          isReimbursable:
+              Value<bool>(isReimbursable ?? original.isReimbursable),
+          reimbursementAccountId: Value<String?>(
+              reimbursementAccountId ?? original.reimbursementAccountId),
           latitude: Value<double?>(latitude ?? original.latitude),
           longitude: Value<double?>(longitude ?? original.longitude),
           placeName: Value<String?>(placeName ?? original.placeName),
@@ -303,7 +312,8 @@ class TransactionRepository {
         now,
         fromAmountMinor: newFromAmountMinor,
         discountMinor: newDiscount,
-        reimbursementAccountId: reimbursementAccountId ?? original.reimbursementAccountId,
+        reimbursementAccountId:
+            reimbursementAccountId ?? original.reimbursementAccountId,
       );
 
       await _enqueue(
@@ -338,6 +348,16 @@ class TransactionRepository {
         },
       );
     });
+
+    // 投资买卖流水被通用编辑改动（编辑页停留在支出/收入 Tab 保存即走这里）：
+    // 通知投资侧重算该持仓的 realizedProfitMinor 缓存列。原/新任一侧是投资
+    // 模块即触发——模块被改走时旧持仓同样要重算，把这笔从重放中剔除。
+    if (original.relatedId != null &&
+        (original.sourceModule == SourceModule.investment ||
+            identity.sourceModule == SourceModule.investment)) {
+      await TransactionRepository.onInvestmentFlowChanged
+          ?.call(original.relatedId!);
+    }
   }
 
   /// 按 ID 批量取流水（保持传入顺序，跳过不存在 / 已删除的 ID）。
@@ -400,7 +420,8 @@ class TransactionRepository {
   ///
   /// 仅修改 categoryId，不影响金额与账户余额，因此无需调整余额 delta。
   /// 返回被迁移的流水笔数。
-  Future<int> reassignCategory(String fromId, String toId) async {    final List<String> ids =
+  Future<int> reassignCategory(String fromId, String toId) async {
+    final List<String> ids =
         await _db.transactionsDao.findIdsByCategory(fromId);
     if (ids.isEmpty) return 0;
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -455,11 +476,10 @@ class TransactionRepository {
       );
 
       // 级联软删关联报销记录（bill.detail「是否报销」随之消失）。
-      final List<Reimbursement> linked =
-          await (_db.select(_db.reimbursements)
-                ..where((Reimbursements t) => t.transactionId.equals(id))
-                ..where((Reimbursements t) => t.deleted.equals(false)))
-              .get();
+      final List<Reimbursement> linked = await (_db.select(_db.reimbursements)
+            ..where((Reimbursements t) => t.transactionId.equals(id))
+            ..where((Reimbursements t) => t.deleted.equals(false)))
+          .get();
       if (linked.isNotEmpty) {
         await (_db.update(_db.reimbursements)
               ..where((Reimbursements t) => t.transactionId.equals(id))
@@ -489,7 +509,7 @@ class TransactionRepository {
         final List<Reimbursement> candidates = await (_db.select(
           _db.reimbursements,
         )..where((Reimbursements t) =>
-            t.bookId.equals(txn.bookId) & t.deleted.equals(false)))
+                t.bookId.equals(txn.bookId) & t.deleted.equals(false)))
             .get();
         for (final Reimbursement r in candidates) {
           final List<ReimbAllocEntry> entries =
@@ -501,14 +521,13 @@ class TransactionRepository {
           }
           final int alloc = entries[idx].allocMinor;
           entries.removeAt(idx);
-          final bool wasReimbursed =
-              r.status == ReimbursementStatus.reimbursed;
+          final bool wasReimbursed = r.status == ReimbursementStatus.reimbursed;
           // 已报销：amountMinor=账单总额，恢复后待收金额 =
           // 账单总额 − 剩余台账合计（超额报销时台账含超出账单的部分，
           // 超出额不计回待收，与保存链路的封顶核销同口径）；
           // 待报销：部分抵扣时 amountMinor 已减过，加回即可。
-          final int restAllocSum = entries
-              .fold<int>(0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
+          final int restAllocSum = entries.fold<int>(
+              0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
           final int restoredAmount = wasReimbursed
               ? (r.amountMinor - restAllocSum).clamp(0, r.amountMinor)
               : r.amountMinor + alloc;
@@ -576,8 +595,7 @@ class TransactionRepository {
         final bool hasOffsets = (await _db.customSelect(
           'SELECT 1 FROM lend_flow_offsets WHERE txn_id = ? LIMIT 1',
           variables: <Variable<Object>>[Variable<Object>(txn.id)],
-        )
-                .get())
+        ).get())
             .isNotEmpty;
         if (!hasOffsets) {
           final LendRecord? rec = await (_db.select(_db.lendRecords)
@@ -606,6 +624,13 @@ class TransactionRepository {
         }
       }
     });
+
+    // 投资买卖流水被通用删除（明细弹窗 / 滑动删除 / 批量清理都经此）：
+    // 通知投资侧重算该持仓的 realizedProfitMinor。「删除持仓」的级联软删
+    // （removeAllByRelatedId）也走本方法，持仓已删时重算写回无害。
+    if (txn.sourceModule == SourceModule.investment && txn.relatedId != null) {
+      await TransactionRepository.onInvestmentFlowChanged?.call(txn.relatedId!);
+    }
   }
 
   /// 转账：**只写一条**流水（`accountId = 转出方`，`toAccountId = 转入方`）。
@@ -664,7 +689,8 @@ class TransactionRepository {
     String transferName;
     String transferIconKey;
     if (fromType.isLiabilitySide &&
-        (toCat == AccountCategory.capital || toCat == AccountCategory.investment)) {
+        (toCat == AccountCategory.capital ||
+            toCat == AccountCategory.investment)) {
       transferName = '取现';
       transferIconKey = 'withdrawal';
     } else if ((fromCat == AccountCategory.capital ||
@@ -782,8 +808,8 @@ class TransactionRepository {
           await _adjustAccountDelta(accountId, actual, now, inflow: false);
           // 报销账户（应收桶）恒为资产方向：+实付。
           if (reimbursementAccountId != null) {
-            await _db.accountsDao.adjustBalance(
-                reimbursementAccountId, actual, now);
+            await _db.accountsDao
+                .adjustBalance(reimbursementAccountId, actual, now);
           }
         }
       case TxnType.transfer:
@@ -816,8 +842,8 @@ class TransactionRepository {
         if (actual > 0) {
           await _adjustAccountDelta(accountId, actual, now, inflow: true);
           if (reimbursementAccountId != null) {
-            await _db.accountsDao.adjustBalance(
-                reimbursementAccountId, -actual, now);
+            await _db.accountsDao
+                .adjustBalance(reimbursementAccountId, -actual, now);
           }
         }
       case TxnType.transfer:
@@ -828,6 +854,86 @@ class TransactionRepository {
               inflow: false);
         }
     }
+  }
+
+  /// 校验账户余额是否与流水重算一致，并可一键校正。
+  ///
+  /// 返回 `(expected, stored, fixed)` 三元组：
+  /// - 借还(lend/borrow)账户：余额 = 名下未结清借还记录合计
+  ///   （本金 − 优惠 − 已还），与 [reconcileDesignatedLendBalance] 同口径；
+  /// - 其余账户：用与 [_applyBalanceDelta] **严格一致**的公式，遍历名下
+  ///   全部流水（含转账转入侧，排除软删）重算现金余额。
+  ///
+  /// [fix]=true 且不一致时，把余额写回期望值并置 dirty、入队同步；
+  /// [fix]=false 仅返回偏差，由调用方决定是否校正（二次确认）。
+  Future<(int expected, int stored, bool fixed)> verifyAccountBalance({
+    required String accountId,
+    required String bookId,
+    bool fix = false,
+  }) async {
+    final Account? acc = await _db.accountsDao.getById(accountId);
+    if (acc == null) return (0, 0, false);
+
+    final int expected;
+    if (acc.type == AccountType.lend || acc.type == AccountType.borrow) {
+      final LendDirection dir = acc.type == AccountType.lend
+          ? LendDirection.lendOut
+          : LendDirection.borrowIn;
+      final List<LendRecord> records =
+          await (_db.select(_db.lendRecords)
+                ..where((LendRecords t) =>
+                    t.accountId.equals(acc.id) &
+                    t.direction.equals(dir.index) &
+                    t.status.equals(LendStatus.ongoing.index) &
+                    t.deleted.equals(false)))
+              .get();
+      expected = records.fold<int>(
+        0,
+        (int sum, LendRecord r) =>
+            sum + r.amountMinor - r.discountMinor - r.repaidMinor,
+      );
+    } else {
+      final List<Transaction> txns = await _db.transactionsDao
+          .watchByAccount(bookId: bookId, accountId: accountId)
+          .first;
+      int sum = 0;
+      for (final Transaction t in txns) {
+        switch (t.type) {
+          case TxnType.income:
+            sum += t.amountMinor;
+          case TxnType.expense:
+            final int actual = t.amountMinor - t.discountMinor;
+            if (actual > 0) sum -= actual;
+          case TxnType.transfer:
+            final int debit = t.amountMinor + t.feeMinor - t.discountMinor;
+            if (t.accountId == accountId) sum -= debit;
+            if (t.toAccountId == accountId) sum += t.amountMinor;
+        }
+      }
+      expected = sum;
+    }
+
+    final int stored = acc.balanceMinor;
+    if (expected == stored) return (expected, stored, false);
+    if (!fix) return (expected, stored, false);
+
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await (_db.update(_db.accounts)..where((Accounts t) => t.id.equals(acc.id)))
+        .write(
+      AccountsCompanion(
+        balanceMinor: Value<int>(expected),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      ),
+    );
+    await _enqueue(
+      tableName: 'accounts',
+      recordId: acc.id,
+      opType: SyncOpType.update,
+      updatedAt: now,
+      payload: <String, Object?>{'balanceMinor': expected},
+    );
+    return (expected, stored, true);
   }
 
   Future<void> _enqueue({

@@ -11,6 +11,7 @@ import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/tag_pill.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../providers/ledger_providers.dart';
@@ -79,8 +80,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                     error: (Object e, StackTrace? s) =>
                         Center(child: Text('加载失败：$e')),
                     data: (List<Transaction> all) {
-                      final List<Transaction> list =
-                          _filtered(all, categories);
+                      final List<Transaction> list = _filtered(all, categories);
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
@@ -97,21 +97,17 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                                     ],
                                   )
                                 : ListView.builder(
-                                    padding:
-                                        const EdgeInsets.only(bottom: 110),
+                                    padding: const EdgeInsets.only(bottom: 110),
                                     itemCount: list.length,
                                     itemBuilder:
                                         (BuildContext context, int index) {
                                       final Transaction txn = list[index];
                                       return _CleanTile(
                                         txn: txn,
-                                        category:
-                                            categories[txn.categoryId],
+                                        category: categories[txn.categoryId],
                                         account: accounts[txn.accountId],
-                                        toAccount:
-                                            accounts[txn.toAccountId],
-                                        checked:
-                                            _selected.contains(txn.id),
+                                        toAccount: accounts[txn.toAccountId],
+                                        checked: _selected.contains(txn.id),
                                         onToggle: () => _toggle(txn.id),
                                       );
                                     },
@@ -149,12 +145,12 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
       child: Stack(
         alignment: Alignment.center,
         children: <Widget>[
-          const Text(
+          Text(
             '账单清理',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: AppPalette.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           Positioned(
@@ -162,10 +158,10 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
             top: 0,
             bottom: 0,
             child: IconButton(
-              icon: const Icon(
+              icon: Icon(
                 Icons.arrow_back_ios_new,
                 size: 19,
-                color: AppPalette.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               onPressed: () => Navigator.of(context).maybePop(),
             ),
@@ -192,16 +188,16 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                 children: <Widget>[
                   Text(
                     _period.label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: AppPalette.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.keyboard_arrow_down_rounded,
                     size: 20,
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -218,7 +214,9 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: n > 0 ? ForestGreen.deep : AppPalette.textPrimary,
+                  color: n > 0
+                      ? ForestGreen.deep
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -317,9 +315,9 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
         children: <Widget>[
           Text(
             '共 $count 笔账单',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: AppPalette.textTertiary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const Spacer(),
@@ -344,7 +342,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: count == 0
-                      ? AppPalette.textTertiary
+                      ? Theme.of(context).colorScheme.onSurfaceVariant
                       : ForestGreen.deep,
                 ),
               ),
@@ -414,8 +412,9 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消',
-                style: TextStyle(color: AppPalette.textSecondary)),
+            child: Text('取消',
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -452,9 +451,11 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
           _deleting = false;
           _selected.clear();
         });
-        showAppToast(context, done == ids.length
-            ? '已清理 $done 笔账单'
-            : '已清理 $done 笔，${ids.length - done} 笔失败');
+        showAppToast(
+            context,
+            done == ids.length
+                ? '已清理 $done 笔账单'
+                : '已清理 $done 笔，${ids.length - done} 笔失败');
       }
     }
   }
@@ -489,12 +490,12 @@ class _TipCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 7),
-              const Text(
+              Text(
                 '提示',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: AppPalette.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
@@ -509,11 +510,11 @@ class _TipCard extends StatelessWidget {
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const <Widget>[
+              children: <Widget>[
                 Icon(
                   Icons.info_outline,
                   size: 14,
-                  color: AppPalette.textTertiary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 SizedBox(width: 6),
                 Expanded(
@@ -523,7 +524,7 @@ class _TipCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       height: 1.5,
-                      color: AppPalette.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -605,40 +606,40 @@ class _CleanTile extends StatelessWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: AppPalette.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ),
                         for (final String tag in tags) ...<Widget>[
                           const SizedBox(width: 6),
-                          _TagPill(tag),
+                          TagPill(tag),
                         ],
                       ],
                     ),
                     const SizedBox(height: 3),
                     Text(
                       dateLabel,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppPalette.textTertiary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       DateFormat('HH:mm').format(occurred),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppPalette.textTertiary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              _amountColumn(),
+              _amountColumn(context),
               const SizedBox(width: 12),
               // 圆形勾选框（最右）。
               Container(
@@ -686,7 +687,7 @@ class _CleanTile extends StatelessWidget {
     );
   }
 
-  Widget _amountColumn() {
+  Widget _amountColumn(BuildContext context) {
     final bool isExpense = txn.type == TxnType.expense;
     final bool hasDiscount = isExpense && txn.discountMinor > 0;
 
@@ -703,11 +704,12 @@ class _CleanTile extends StatelessWidget {
             children: <Widget>[
               Text(
                 '−${Money.fromMinor(txn.amountMinor).format()}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: AppPalette.textTertiary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   decoration: TextDecoration.lineThrough,
-                  decorationColor: AppPalette.textTertiary,
+                  decorationColor:
+                      Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 4),
@@ -726,7 +728,8 @@ class _CleanTile extends StatelessWidget {
           Text(
             switch (txn.type) {
               TxnType.income => '+${Money.fromMinor(txn.amountMinor).format()}',
-              TxnType.expense => '−${Money.fromMinor(txn.amountMinor).format()}',
+              TxnType.expense =>
+                '−${Money.fromMinor(txn.amountMinor).format()}',
               TxnType.transfer => Money.fromMinor(txn.amountMinor).format(),
             },
             style: TextStyle(
@@ -736,7 +739,7 @@ class _CleanTile extends StatelessWidget {
                   ? AppPalette.income
                   : txn.type == TxnType.expense
                       ? AppPalette.expense
-                      : AppPalette.textPrimary,
+                      : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         if (hasDiscount)
@@ -751,32 +754,6 @@ class _CleanTile extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// 绿色描边标签胶囊（已关联 / 存钱计划）。
-class _TagPill extends StatelessWidget {
-  const _TagPill(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: ForestGreen.soft,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w600,
-          color: ForestGreen.deep,
-        ),
-      ),
     );
   }
 }

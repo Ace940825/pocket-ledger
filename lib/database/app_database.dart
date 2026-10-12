@@ -68,7 +68,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 31;
+  int get schemaVersion => 34;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -399,6 +399,50 @@ class AppDatabase extends _$AppDatabase {
             await _ensureRollingPlansTable();
           }
 
+          if (from < 32) {
+            // v32：持仓表加「已实现盈亏」缓存列（卖出落袋盈亏，避免亏损只藏在
+            // 现金里、持仓卡看不见）。原生 SQL 思路与 security_meta 同（避开
+            // build_runner 代码生成）；加列用幂等 [_addColumnIfMissing]。
+            await _addColumnIfMissing(
+              m,
+              investmentHoldings,
+              investmentHoldings.realizedProfitMinor,
+            );
+            // 存量回填：旧库已有卖出流水的持仓，按流水重放核算写入新列。
+            await _backfillRealizedProfit();
+          }
+
+          if (from < 33) {
+            // v33：补齐「行情接入」会话漏写的持仓表两列（当前价/币种）。
+            // 当时只在 tables.dart 加列、未补迁移，导致创建早于该次改动的
+            // 旧库 SELECT * 读不到这两列 → 映射非空 int 崩溃。幂等加列。
+            await _addColumnIfMissing(
+              m,
+              investmentHoldings,
+              investmentHoldings.currentPriceMinor,
+            );
+            await _addColumnIfMissing(
+              m,
+              investmentHoldings,
+              investmentHoldings.currency,
+            );
+          }
+
+          if (from < 34) {
+            // v34：流水表加「真实记录时间」created_at（UTC 毫秒），与业务发生
+            // 时间 occurred_at 解耦，使「坚持记账第 X 天」按真实记账起点算、
+            // 不被改业务日期影响。列可空，老库加列后回填 occurred_at。
+            await _addColumnIfMissing(
+              m,
+              transactions,
+              transactions.createdAt,
+            );
+            // 老数据回填：created_at 缺失的行用业务时间 occurred_at 顶上。
+            await customStatement(
+              'UPDATE transactions SET created_at = occurred_at WHERE created_at IS NULL',
+            );
+          }
+
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
           // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
           await _createIndexes();
@@ -406,6 +450,10 @@ class AppDatabase extends _$AppDatabase {
         beforeOpen: (OpeningDetails details) async {
           // 启用外键约束，保证账户与流水的引用完整性
           await customStatement('PRAGMA foreign_keys = ON');
+          // 兜底对账：确保持仓表三列（当前价/币种/已实现盈亏）存在，覆盖任何
+          // 漏迁移/半迁移的存量库。每次打开自愈，避免 SELECT * 读不到列 →
+          // 映射非空 int 崩溃。幂等（PRAGMA 探测后仅在缺失时 ALTER）。
+          await _ensureInvestmentHoldingColumns();
         },
       );
 
@@ -429,6 +477,109 @@ class AppDatabase extends _$AppDatabase {
     if (!exists) {
       await m.addColumn(table, column);
     }
+  }
+
+  /// v32 存量回填：给已有持仓按买卖流水重放核算已实现盈亏（分）写入新列。
+  ///
+  /// 仅用于升级旧库；此后每次买卖由 [InvestmentRepository] 精确维护该列，
+  /// 无需再重放。与 [InvestmentRepository.realizedProfitMinorFor] 同公式
+  /// （移动加权成本法），改公式需同步两处。
+  Future<void> _backfillRealizedProfit() async {
+    final List<InvestmentHolding> holdings = await (select(investmentHoldings)
+          ..where((InvestmentHoldings t) => t.deleted.equals(false)))
+        .get();
+    if (holdings.isEmpty) return;
+    final List<Transaction> flows = await (select(transactions)
+          ..where(
+            (Transactions t) =>
+                t.sourceModule.equals(SourceModule.investment.index),
+          ))
+        .get();
+    final Map<String, List<Transaction>> grouped =
+        <String, List<Transaction>>{};
+    for (final Transaction f in flows) {
+      final String? hid = f.relatedId;
+      if (hid == null) continue;
+      (grouped[hid] ??= <Transaction>[]).add(f);
+    }
+    for (final InvestmentHolding h in holdings) {
+      final int realized = _replayRealizedProfit(grouped[h.id]);
+      if (realized == 0) continue;
+      await (update(investmentHoldings)
+            ..where((InvestmentHoldings t) => t.id.equals(h.id)))
+          .write(
+        InvestmentHoldingsCompanion(realizedProfitMinor: Value<int>(realized)),
+      );
+    }
+  }
+
+  /// 兜底：确保持仓表三列（当前价/币种/已实现盈亏）存在。
+  ///
+  /// 任何漏写迁移或中途失败的存量库，下次打开即自愈，避免 `SELECT *`
+  /// 读不到列 → `map()` 把 null 赋给非空 int 字段崩溃。幂等：先用
+  /// `PRAGMA table_info` 探测，仅在列缺失时 `ALTER TABLE ... ADD COLUMN`
+  /// （与 [Migrator.addColumn] 同口径：NOT NULL + DEFAULT，存量行填默认值）。
+  Future<void> _ensureInvestmentHoldingColumns() async {
+    final List<QueryRow> info = await customSelect(
+      'PRAGMA table_info(investment_holdings)',
+    ).get();
+    final Set<String> existing =
+        info.map((QueryRow r) => r.read<String>('name')).toSet();
+    const Map<String, String> defs = <String, String>{
+      'current_price_minor': 'INTEGER NOT NULL DEFAULT 0',
+      'currency': "TEXT NOT NULL DEFAULT 'CNY'",
+      'realized_profit_minor': 'INTEGER NOT NULL DEFAULT 0',
+    };
+    for (final MapEntry<String, String> e in defs.entries) {
+      if (!existing.contains(e.key)) {
+        await customStatement(
+          'ALTER TABLE investment_holdings ADD COLUMN ${e.key} ${e.value}',
+        );
+      }
+    }
+  }
+
+  /// 与 [InvestmentRepository.realizedProfitMinorFor] 同公式的本地重放。
+  ///
+  /// DB 层不反向依赖仓储（避免 database↔features 循环 import），故在此复刻
+  /// 解析与计算；[InvestmentRepository] 的版本为 canonical，二者口径须一致。
+  static final RegExp _investMetaRe = RegExp(
+    r'份额\s+([\d.]+)\s*·\s*单价\s*¥?\s*([\d,]+(?:\.\d+)?)\s*·\s*手续费\s*¥?\s*([\d,]+(?:\.\d+)?)',
+  );
+
+  static int _replayRealizedProfit(List<Transaction>? flows) {
+    final List<Transaction> sorted = (flows ?? const <Transaction>[])
+      ..sort((Transaction a, Transaction b) =>
+          a.occurredAt.compareTo(b.occurredAt));
+    const int scale = 1000000;
+    int qtyMicros = 0;
+    int costMicros = 0; // 分·micros
+    int realized = 0;
+    for (final Transaction f in sorted) {
+      int fee = 0;
+      int delta = 0;
+      if (f.note != null) {
+        final RegExpMatch? m = _investMetaRe.firstMatch(f.note!);
+        if (m != null) {
+          fee = ((double.tryParse(m.group(3)!.replaceAll(',', '')) ?? 0) * 100)
+              .round();
+          delta = ((double.tryParse(m.group(1)!) ?? 0) * scale).round();
+        }
+      }
+      if (f.type == TxnType.expense) {
+        // 买入流水金额含手续费，投资净额 = 金额 − 费。
+        final int net = f.amountMinor - fee;
+        qtyMicros += delta;
+        costMicros += net * scale;
+      } else if (f.type == TxnType.income && delta > 0) {
+        // 卖出：到账 = 流水金额（已扣费）；已实现 = 到账 − 已卖份额成本。
+        final int avg = qtyMicros == 0 ? 0 : costMicros ~/ qtyMicros;
+        final int costRemoved = (delta * avg) ~/ scale;
+        realized += f.amountMinor - costRemoved;
+        qtyMicros -= delta;
+      }
+    }
+    return realized;
   }
 
   /// 幂等建表：借还流水冲销台账（[LendRepository] 用于跨账户冲销反向恢复）。

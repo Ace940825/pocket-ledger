@@ -48,7 +48,7 @@ class ScreenshotOcrService {
     if (!isConfigured) {
       return const ParseResult(<BillRow>[], <String>[
         '识别服务未配置：请在设置页填入阿里云百炼 API Key，'
-        '或在出包时加 --dart-define=SCREENSHOT_OCR_API_KEY=<你的Key>。',
+            '或在出包时加 --dart-define=SCREENSHOT_OCR_API_KEY=<你的Key>。',
       ]);
     }
     if (images.isEmpty) return const ParseResult(<BillRow>[], <String>[]);
@@ -124,7 +124,8 @@ class ScreenshotOcrService {
       }
       return ParseResult(rows, errors);
     } on DioException catch (e) {
-      return ParseResult(<BillRow>[], <String>['识别请求失败：${e.message ?? e.type}']);
+      return ParseResult(
+          <BillRow>[], <String>['识别请求失败：${e.message ?? e.type}']);
     } catch (e) {
       return ParseResult(<BillRow>[], <String>['识别失败：$e']);
     }
@@ -134,10 +135,10 @@ class ScreenshotOcrService {
   String _extractContent(Map<String, dynamic> json) {
     final dynamic choices = json['choices'];
     if (choices is List && choices.isNotEmpty) {
-      final dynamic msg = choices.first is Map
-          ? (choices.first as Map)['message']
-          : null;
-      if (msg is Map && msg['content'] is String) return msg['content'] as String;
+      final dynamic msg =
+          choices.first is Map ? (choices.first as Map)['message'] : null;
+      if (msg is Map && msg['content'] is String)
+        return msg['content'] as String;
     }
     // 兜底：部分实现直接把文本放顶层。
     if (json['content'] is String) return json['content'] as String;
@@ -147,7 +148,8 @@ class ScreenshotOcrService {
   /// 从模型文本里稳健地抽取 items 数组（兼容 markdown 围栏 / 包裹对象 / 裸数组）。
   List<dynamic> _extractItems(String text) {
     String s = text.trim();
-    final RegExp fence = RegExp(r'```(?:json)?\s*([\s\S]*?)```', caseSensitive: false);
+    final RegExp fence =
+        RegExp(r'```(?:json)?\s*([\s\S]*?)```', caseSensitive: false);
     final Match? m = fence.firstMatch(s);
     if (m != null) s = m.group(1)!.trim();
 

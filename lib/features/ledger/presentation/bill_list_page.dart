@@ -8,13 +8,16 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/loading_state.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/tag_pill.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/txn_icon.dart';
 import 'widgets/txn_slidable.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 
 /// 「账单列表」页（我的 → 账单管理 → 账单列表，小青账布局）。
 ///
@@ -73,10 +76,10 @@ class _BillListPageState extends ConsumerState<BillListPage> {
                     shape: BoxShape.circle,
                     color: AppPalette.neutralSoft,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.close,
                     size: 20,
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -89,10 +92,9 @@ class _BillListPageState extends ConsumerState<BillListPage> {
               ),
             Expanded(
               child: txnsAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const LoadingState(),
                 error: (Object e, StackTrace? s) =>
-                    Center(child: Text('加载失败：$e')),
+                    ErrorState(message: '加载失败：$e'),
                 data: (List<Transaction> all) {
                   final List<Transaction> list = _sorted(all);
                   if (list.isEmpty) {
@@ -143,8 +145,8 @@ class _BillListPageState extends ConsumerState<BillListPage> {
     switch (_sort) {
       case _SortMode.time:
         // 发生时间倒序（watchAll 已按此排序，稳妥起见再排一次）。
-        list.sort((Transaction a, Transaction b) =>
-            b.occurredAt - a.occurredAt);
+        list.sort(
+            (Transaction a, Transaction b) => b.occurredAt - a.occurredAt);
       case _SortMode.createdAt:
         // 创建时间倒序：流水 ID 为 UUIDv7（时间有序），字典序即创建顺序，
         // 无需加 createdAt 列即可精确还原录入先后。
@@ -168,13 +170,11 @@ class _BillListPageState extends ConsumerState<BillListPage> {
   }
 
   Future<void> _pickSort() async {
-    final _SortMode? picked = await showModalBottomSheet<_SortMode>(
-      context: context,
-      backgroundColor: AppPalette.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext context) => _SortSheet(current: _sort),
+    final _SortMode? picked = await showAppModalSheet<_SortMode>(
+      context,
+      showHandle: false,
+      surfaceColor: AppPalette.white,
+      body: _SortSheet(current: _sort),
     );
     if (picked != null) {
       setState(() => _sort = picked);
@@ -190,10 +190,10 @@ class _BillListPageState extends ConsumerState<BillListPage> {
         children: <Widget>[
           Text(
             '账单明细(共$count笔)',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: AppPalette.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const Spacer(),
@@ -250,24 +250,24 @@ class _TipBanner extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 7),
-              const Text(
+              Text(
                 '提示',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: AppPalette.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             '按创建时间查询，可辅助查询到近期记账但记错日期的账单，'
             '如今天记账不小心选择了上年日期。',
             style: TextStyle(
               fontSize: 12.5,
               height: 1.5,
-              color: AppPalette.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -317,22 +317,22 @@ class _SortSheet extends StatelessWidget {
                           shape: BoxShape.circle,
                           color: AppPalette.neutralSoft,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.close,
                           size: 18,
-                          color: AppPalette.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
                   ),
-                  const Align(
+                  Align(
                     alignment: Alignment.center,
                     child: Text(
                       '选取排序规则',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: AppPalette.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -341,8 +341,7 @@ class _SortSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             for (int i = 0; i < _options.length; i++) ...<Widget>[
-              if (i > 0)
-                const Divider(height: 1, color: AppPalette.divider),
+              if (i > 0) const Divider(height: 1, color: AppPalette.divider),
               InkWell(
                 borderRadius: BorderRadius.circular(10),
                 onTap: () => Navigator.of(context).pop(_options[i]),
@@ -362,14 +361,14 @@ class _SortSheet extends StatelessWidget {
                               : FontWeight.w400,
                           color: _options[i] == current
                               ? ForestGreen.deep
-                              : AppPalette.textPrimary,
+                              : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const Spacer(),
-                      const Icon(
+                      Icon(
                         Icons.chevron_right,
                         size: 22,
-                        color: AppPalette.textTertiary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ],
                   ),
@@ -449,33 +448,33 @@ class _BillTile extends StatelessWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: AppPalette.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ),
                         for (final String tag in tags) ...<Widget>[
                           const SizedBox(width: 6),
-                          _TagPill(tag),
+                          TagPill(tag),
                         ],
                       ],
                     ),
                     const SizedBox(height: 3),
                     Text(
                       dateLabel,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppPalette.textTertiary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       DateFormat('HH:mm').format(occurred),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppPalette.textTertiary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -535,11 +534,12 @@ class _BillTile extends StatelessWidget {
             children: <Widget>[
               Text(
                 '−${Money.fromMinor(txn.amountMinor).format()}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: AppPalette.textTertiary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   decoration: TextDecoration.lineThrough,
-                  decorationColor: AppPalette.textTertiary,
+                  decorationColor:
+                      Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 4),
@@ -556,17 +556,18 @@ class _BillTile extends StatelessWidget {
         else if (txn.type == TxnType.transfer)
           Text(
             Money.fromMinor(txn.amountMinor).format(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: AppPalette.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           )
         else
           Text(
             switch (txn.type) {
               TxnType.income => '+${Money.fromMinor(txn.amountMinor).format()}',
-              TxnType.expense => '−${Money.fromMinor(txn.amountMinor).format()}',
+              TxnType.expense =>
+                '−${Money.fromMinor(txn.amountMinor).format()}',
               TxnType.transfer => Money.fromMinor(txn.amountMinor).format(),
             },
             style: TextStyle(
@@ -595,9 +596,9 @@ class _BillTile extends StatelessWidget {
               accountLabel,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: AppPalette.textTertiary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -618,27 +619,3 @@ class _BillTile extends StatelessWidget {
 /// 「优惠X.XX」红色小字（划线原价下方）。
 
 /// 绿色描边标签胶囊（已关联 / 存钱计划）。
-class _TagPill extends StatelessWidget {
-  const _TagPill(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: ForestGreen.soft,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w600,
-          color: ForestGreen.deep,
-        ),
-      ),
-    );
-  }
-}

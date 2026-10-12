@@ -243,8 +243,7 @@ final Provider<({int startAt, int endAt})> ledgerPeriodRangeProvider =
 final AutoDisposeStreamProvider<int> periodIncomeProvider =
     StreamProvider.autoDispose<int>((Ref ref) {
   final String bookId = ref.watch(currentBookIdProvider);
-  final ({int startAt, int endAt}) range =
-      ref.watch(ledgerPeriodRangeProvider);
+  final ({int startAt, int endAt}) range = ref.watch(ledgerPeriodRangeProvider);
   return ref.watch(transactionsDaoProvider).watchTotalInRange(
         bookId: bookId,
         startAt: range.startAt,
@@ -257,8 +256,7 @@ final AutoDisposeStreamProvider<int> periodIncomeProvider =
 final AutoDisposeStreamProvider<int> periodExpenseProvider =
     StreamProvider.autoDispose<int>((Ref ref) {
   final String bookId = ref.watch(currentBookIdProvider);
-  final ({int startAt, int endAt}) range =
-      ref.watch(ledgerPeriodRangeProvider);
+  final ({int startAt, int endAt}) range = ref.watch(ledgerPeriodRangeProvider);
   return ref.watch(transactionsDaoProvider).watchTotalInRange(
         bookId: bookId,
         startAt: range.startAt,
@@ -271,8 +269,7 @@ final AutoDisposeStreamProvider<int> periodExpenseProvider =
 final AutoDisposeStreamProvider<List<Transaction>> periodTransactionsProvider =
     StreamProvider.autoDispose<List<Transaction>>((Ref ref) {
   final String bookId = ref.watch(currentBookIdProvider);
-  final ({int startAt, int endAt}) range =
-      ref.watch(ledgerPeriodRangeProvider);
+  final ({int startAt, int endAt}) range = ref.watch(ledgerPeriodRangeProvider);
   return ref.watch(transactionsDaoProvider).watchRange(
         bookId: bookId,
         startAt: range.startAt,
@@ -464,8 +461,9 @@ List<Transaction> applyLedgerAdvancedFilter(
     }
     // 收支类型（任一命中即可）。
     if (f.flowTypes.isNotEmpty) {
-      final bool ok = (f.flowTypes.contains('支出') && t.type == TxnType.expense) ||
-          (f.flowTypes.contains('收入') && t.type == TxnType.income);
+      final bool ok =
+          (f.flowTypes.contains('支出') && t.type == TxnType.expense) ||
+              (f.flowTypes.contains('收入') && t.type == TxnType.income);
       if (!ok) return false;
     }
     // 账单类型（任一命中即可）。
@@ -513,8 +511,7 @@ List<Transaction> applyLedgerAdvancedFilter(
     // 分类 / 「其他」系统类目（任一命中即可）。
     // 分类命中：直接选中的分类 id，或流水分类的父分类 id（一级含子级）。
     if (f.categoryIds.isNotEmpty || f.others.isNotEmpty) {
-      final Category? cat =
-          t.categoryId == null ? null : catById[t.categoryId];
+      final Category? cat = t.categoryId == null ? null : catById[t.categoryId];
       bool ok = false;
       if (f.categoryIds.isNotEmpty && cat != null) {
         ok = f.categoryIds.contains(cat.id) ||

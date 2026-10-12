@@ -105,9 +105,8 @@ Future<void> revertLendRepaid(
   int amount,
 ) async {
   if (amount <= 0) return;
-  final int newRepaid = (record.repaidMinor - amount) < 0
-      ? 0
-      : record.repaidMinor - amount;
+  final int newRepaid =
+      (record.repaidMinor - amount) < 0 ? 0 : record.repaidMinor - amount;
   final LendStatus newStatus =
       newRepaid + record.discountMinor >= record.amountMinor
           ? LendStatus.settled
@@ -191,8 +190,8 @@ Future<void> restoreLendOffsetOnFlowRemoved(
   if (hits.isNotEmpty) {
     for (final ({String id, int amount}) h in hits) {
       final LendRecord? record = await (db.select(db.lendRecords)
-            ..where((LendRecords t) => t.id.equals(h.id) &
-                t.deleted.equals(false)))
+            ..where(
+                (LendRecords t) => t.id.equals(h.id) & t.deleted.equals(false)))
           .getSingleOrNull();
       if (record == null) continue;
       await revertLendRepaid(db, record, h.amount);
@@ -208,8 +207,8 @@ Future<void> restoreLendOffsetOnFlowRemoved(
         _kOffsetNoteVerbs.any((String v) => note.startsWith(v));
     if (!isOffsetFlow) return;
     final LendRecord? record = await (db.select(db.lendRecords)
-          ..where((LendRecords t) =>
-              t.id.equals(rid) & t.deleted.equals(false)))
+          ..where(
+              (LendRecords t) => t.id.equals(rid) & t.deleted.equals(false)))
         .getSingleOrNull();
     if (record == null || record.repaidMinor <= 0) return;
     final int amount = txn.amountMinor < record.repaidMinor

@@ -29,14 +29,14 @@ class MoneyText extends StatelessWidget {
     return Text(
       signed ? money.formatSigned() : money.format(),
       style: base.copyWith(
-        color: color ?? _resolveColor(),
+        color: color ?? _resolveColor(context),
         fontWeight: FontWeight.w600,
       ),
     );
   }
 
-  Color? _resolveColor() {
-    if (money.isZero) return AppPalette.textSecondary;
+  Color? _resolveColor(BuildContext context) {
+    if (money.isZero) return Theme.of(context).colorScheme.onSurfaceVariant;
     return money.isPositive ? AppPalette.income : AppPalette.expense;
   }
 }

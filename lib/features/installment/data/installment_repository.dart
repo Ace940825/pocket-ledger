@@ -279,14 +279,13 @@ class InstallmentRepository {
   Future<void> postDuePeriods() async {
     final int nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
 
-    final List<InstallmentPeriod> due =
-        await (_db.select(_db.installmentPeriods)
-              ..where(
-                (InstallmentPeriods t) =>
-                    t.deleted.equals(false) &
-                    t.dueAt.isSmallerOrEqualValue(nowMs),
-              ))
-            .get();
+    final List<InstallmentPeriod> due = await (_db
+            .select(_db.installmentPeriods)
+          ..where(
+            (InstallmentPeriods t) =>
+                t.deleted.equals(false) & t.dueAt.isSmallerOrEqualValue(nowMs),
+          ))
+        .get();
     if (due.isEmpty) return;
 
     final Set<String> planIds =
@@ -341,9 +340,8 @@ class InstallmentRepository {
   ) async {
     final List<int> fees = feeByPeriodOf(plan);
     final int feeIndex = period.periodIndex - 1;
-    final int fee = feeIndex >= 0 && feeIndex < fees.length
-        ? fees[feeIndex]
-        : 0;
+    final int fee =
+        feeIndex >= 0 && feeIndex < fees.length ? fees[feeIndex] : 0;
     final int principal = period.amountMinor - fee;
     // 备注两行排版：第一行标题（「XX第N期分期入账」），第二行本金/利息
     // 明细（无手续费期次省略第二行），备注行按 \n 换行展示。
@@ -428,25 +426,27 @@ class InstallmentRepository {
       final int billingDay = acc.billingDay!;
 
       // 1. 该账户下已入账（有订单流水）的未删期次，且关联付款账户 == acc。
-      final List<InstallmentPeriod> posted = await (_db.select(_db.installmentPeriods)
-            ..where((InstallmentPeriods p) =>
-                p.deleted.equals(false) & p.transactionId.isNotNull()))
-          .get();
+      final List<InstallmentPeriod> posted =
+          await (_db.select(_db.installmentPeriods)
+                ..where((InstallmentPeriods p) =>
+                    p.deleted.equals(false) & p.transactionId.isNotNull()))
+              .get();
       if (posted.isEmpty) continue;
-      final Set<String> planIds = posted.map((InstallmentPeriod p) => p.planId).toSet();
-      final List<InstallmentPlan> planRows = await (_db.select(_db.installmentPlans)
-            ..where((InstallmentPlans t) =>
-                t.id.isIn(planIds) & t.deleted.equals(false)))
-          .get();
+      final Set<String> planIds =
+          posted.map((InstallmentPeriod p) => p.planId).toSet();
+      final List<InstallmentPlan> planRows =
+          await (_db.select(_db.installmentPlans)
+                ..where((InstallmentPlans t) =>
+                    t.id.isIn(planIds) & t.deleted.equals(false)))
+              .get();
       final Map<String, InstallmentPlan> plans = <String, InstallmentPlan>{
         for (final InstallmentPlan p in planRows) p.id: p,
       };
-      final List<InstallmentPeriod> periods = posted
-          .where((InstallmentPeriod p) {
-            final InstallmentPlan? plan = plans[p.planId];
-            return plan != null && plan.accountId == acc.id;
-          })
-          .toList();
+      final List<InstallmentPeriod> periods =
+          posted.where((InstallmentPeriod p) {
+        final InstallmentPlan? plan = plans[p.planId];
+        return plan != null && plan.accountId == acc.id;
+      }).toList();
       if (periods.isEmpty) continue;
 
       // 2. 该账户收到的还款（转账转入腿：toAccountId == acc.id）。
@@ -488,7 +488,8 @@ class InstallmentRepository {
 
         final Set<String> matched = <String>{};
         if (billedTotal > 0 &&
-            totalRepaid * 100 >= billedTotal * (autoRepayCoverRatio * 100).round()) {
+            totalRepaid * 100 >=
+                billedTotal * (autoRepayCoverRatio * 100).round()) {
           // 整单 70% 兜底：该周期全部期次标记已还。
           for (final InstallmentPeriod p in group) matched.add(p.id);
         } else {
@@ -496,7 +497,8 @@ class InstallmentRepository {
           int remaining = totalRepaid;
           final List<InstallmentPeriod> ordered = List<InstallmentPeriod>.from(
             group,
-          )..sort((InstallmentPeriod a, InstallmentPeriod b) => a.dueAt.compareTo(b.dueAt));
+          )..sort((InstallmentPeriod a, InstallmentPeriod b) =>
+              a.dueAt.compareTo(b.dueAt));
           for (final InstallmentPeriod p in ordered) {
             if (remaining >= p.amountMinor) {
               matched.add(p.id);
@@ -634,9 +636,10 @@ class InstallmentRepository {
   }
 
   /// 提前结清：为剩余未还本金生成一笔「一次性还清」订单流水，计划随即
-  /// 转为已结束（[InstallmentPlans.isFinished] 由 [_refreshPlanProgress]
-  /// 按明细重算），未还期次一次性标记已还（与 [finishPlan] 同口径，
-  /// 清自动溯源，reconcile 不再触碰）。
+  /// 转为已结束（[InstallmentPlans.isFinished] 显式置位，见下），**已入账**
+  /// 的未还期次标记已还（清自动溯源，reconcile 不再触碰），
+  /// **未入账期次保持未勾选**（2026-10-13 口径：勾选 = 真实还过，结清订单
+  /// 已一次性了结全部债务，不再伪造未入账期次的「已还」勾选）。
   ///
   /// 口径（2026-10-10 与用户确认）：
   /// - 结清订单金额 = 剩余未还**本金**（未到期期次的利息不再收取），
@@ -696,14 +699,19 @@ class InstallmentRepository {
       accountId: plan.accountId!,
       categoryId: catId,
       occurredAt: DateTime.now().toLocal().millisecondsSinceEpoch,
-      note: '${plan.title}提前结清\n剩余本金 ${Money.fromMinor(remainingPrincipal).format()}',
+      note:
+          '${plan.title}提前结清\n剩余本金 ${Money.fromMinor(remainingPrincipal).format()}',
       sourceModule: SourceModule.installment,
       relatedId: plan.id,
     );
 
-    // 未还期次一次性标记已还（手动口径），计划进度重算后 isFinished=true。
+    // 已入账的未还期次标记已还（手动口径）；未入账期次保持未勾选
+    // （2026-10-13 口径），计划 isFinished 在下方显式置位。
+    final List<InstallmentPeriod> toMarkPaid = unpaid
+        .where((InstallmentPeriod p) => p.transactionId != null)
+        .toList(growable: false);
     await _db.transaction<void>(() async {
-      for (final InstallmentPeriod p in unpaid) {
+      for (final InstallmentPeriod p in toMarkPaid) {
         await (_db.update(_db.installmentPeriods)
               ..where((InstallmentPeriods t) => t.id.equals(p.id)))
             .write(
@@ -725,6 +733,26 @@ class InstallmentRepository {
         await _unmarkAutoPaid(p.id);
       }
       await _refreshPlanProgress(planId, now);
+      // 未入账期次未勾选 → paidCount < 总期数，_refreshPlanProgress 不会
+      // 置 isFinished；结清订单已一次性了结全部债务，这里显式完结计划
+      // （与 markPlanRefunded 同口径，postDuePeriods 跳过、期次不再入账）。
+      await (_db.update(_db.installmentPlans)
+            ..where((InstallmentPlans t) => t.id.equals(planId)))
+          .write(
+        InstallmentPlansCompanion(
+          isFinished: const Value<bool>(true),
+          updatedAt: Value<int>(now),
+          dirty: const Value<bool>(true),
+        ),
+      );
+      await enqueueSyncOp(
+        _db,
+        table: 'installment_plans',
+        recordId: planId,
+        opType: SyncOpType.update,
+        updatedAt: now,
+        payload: <String, Object?>{'isFinished': true},
+      );
     });
   }
 

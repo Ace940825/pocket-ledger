@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_drag_handle.dart';
 import '../../../theme/app_colors.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
@@ -91,8 +94,8 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.6,
       ),
-      decoration: const BoxDecoration(
-        color: ForestBg.paper,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
@@ -102,11 +105,11 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: <Color>[AppPalette.mintWhisper, ForestBg.paper],
+                colors: <Color>[AppPalette.mintWhisper, context.colors.surface],
               ),
               borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
@@ -115,20 +118,18 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
               children: <Widget>[
                 // 拖拽条 grab：36×4，鼠尾草绿 35% 透明。
                 Center(
-                  child: Container(
+                  child: SheetDragHandle(
                     width: 36,
                     height: 4,
-                    decoration: BoxDecoration(
-                      color: AppPalette.sageRibbon.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
+                    margin: EdgeInsets.zero,
+                    color: AppPalette.sageRibbon.withValues(alpha: 0.35),
                   ),
                 ),
                 const SizedBox(height: 8),
                 _buildHeader(),
                 if (list.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 10),
-                  const Row(
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: <Widget>[
                       Text(
@@ -136,7 +137,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
-                          color: ForestNeutral.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           letterSpacing: 0.7,
                         ),
                       ),
@@ -201,24 +202,28 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                   height: 30,
                   decoration: BoxDecoration(
                     // 设计稿 .s-close：半透明白 + 发丝线（浮在晕染带上）。
-                    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.75),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surface
+                        .withValues(alpha: 0.75),
                     shape: BoxShape.circle,
-                    border: Border.all(color: ForestNeutral.hairline),
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.outline),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.close,
                     size: 15,
-                    color: ForestNeutral.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
             ),
-            const Text(
+            Text(
               '账单模板',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: ForestNeutral.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
                 letterSpacing: 0.02,
               ),
             ),
@@ -251,12 +256,12 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                       ),
                     ],
                   ),
-                  child: const Text(
+                  child: Text(
                     '添加',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppPalette.creamSoft,
+                      color: context.colors.surfaceContainerLow,
                     ),
                   ),
                 ),
@@ -269,7 +274,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
   // 空态：小票插画 + 提示（与设计稿一致）。
   Widget _buildEmpty() => Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const <Widget>[
+        children: <Widget>[
           SizedBox(height: 18),
           TagEmptyIllustration(width: 150),
           SizedBox(height: 12),
@@ -277,7 +282,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
             '没有发现模板哦，试着去添加一个~',
             style: TextStyle(
               fontSize: 13.5,
-              color: ForestNeutral.textTertiary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           SizedBox(height: 18),
@@ -287,71 +292,70 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
   // 底部栏：左侧计数（选中时显示已选名称）+ 右侧深墨「套用」胶囊。
   Widget _buildFooter(List<RecordTemplate> list) {
     final bool enabled = _selectedId != null;
-    return Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: ForestNeutral.hairline)),
-        ),
-        padding: EdgeInsets.fromLTRB(
-          16,
-          10,
-          16,
-          10 + MediaQuery.paddingOf(context).bottom,
-        ),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: Text(
-                enabled
-                    ? '已选「${list.firstWhere((RecordTemplate x) => x.id == _selectedId).name}」'
-                    : '${list.length} 个模板',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: ForestGreen.deep,
-                  fontWeight: FontWeight.w700,
-                ),
+    return BottomActionBar(
+      backgroundColor: Colors.transparent,
+      padding: EdgeInsets.fromLTRB(
+        16,
+        10,
+        16,
+        10 + MediaQuery.paddingOf(context).bottom,
+      ),
+      useSafeArea: false,
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              enabled
+                  ? '已选「${list.firstWhere((RecordTemplate x) => x.id == _selectedId).name}」'
+                  : '${list.length} 个模板',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: ForestGreen.deep,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 12),
-            SizedBox(
-              height: 40,
-              child: InkWell(
-                onTap: enabled
-                    ? () {
-                        final RecordTemplate t = list.firstWhere(
-                          (RecordTemplate x) => x.id == _selectedId,
-                        );
-                        widget.onApply(t);
-                        Navigator.of(context).pop();
-                      }
-                    : null,
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    // 设计稿 .C .s-foot .go：深墨底 + 米白字。
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            height: 40,
+            child: InkWell(
+              onTap: enabled
+                  ? () {
+                      final RecordTemplate t = list.firstWhere(
+                        (RecordTemplate x) => x.id == _selectedId,
+                      );
+                      widget.onApply(t);
+                      Navigator.of(context).pop();
+                    }
+                  : null,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  // 设计稿 .C .s-foot .go：深墨底 + 米白字。
+                  color: enabled
+                      ? Theme.of(context).colorScheme.onSurface
+                      : context.colors.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '套用',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
                     color: enabled
-                        ? ForestNeutral.textPrimary
-                        : ForestBg.sunken,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '套用',
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      color: enabled
-                          ? AppPalette.creamSoft
-                          : ForestNeutral.textTertiary,
-                    ),
+                        ? context.colors.surfaceContainerLow
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -2,6 +2,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
+import 'package:pocket_ledger/shared/widgets/tag_chip.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
@@ -58,6 +63,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
   /// 离屏测量两作用域列表高度用的 key（取较大者作为稳定弹窗高度）。
   final GlobalKey _measureGeneralKey = GlobalKey();
   final GlobalKey _measureLedgerKey = GlobalKey();
+
   /// 通用 / 账本独立作用域的稳定列表高度（取两屏较大者）。
   double? _unifiedListHeight;
 
@@ -91,8 +97,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
   }
 
   void _toggleAll(TagGroupRow group, bool select) {
-    final List<String> names =
-        group.tags.map((Tag t) => t.name).toList();
+    final List<String> names = group.tags.map((Tag t) => t.name).toList();
     setState(() {
       if (select) {
         _current.addAll(names);
@@ -102,9 +107,10 @@ class _TagSheetState extends ConsumerState<TagSheet> {
     });
   }
 
-  List<String> get _allSelected =>
-      <String>{..._selected[TagScope.general]!, ..._selected[TagScope.ledger]!}
-          .toList();
+  List<String> get _allSelected => <String>{
+        ..._selected[TagScope.general]!,
+        ..._selected[TagScope.ledger]!
+      }.toList();
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +156,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
           // 上限 60% 屏高；列表统一高度超出剩余空间时被 Flexible 自动压缩。
           constraints: BoxConstraints(maxHeight: screenH * 0.6),
           decoration: BoxDecoration(
-            color: ForestBg.paper,
+            color: context.colors.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
@@ -204,28 +210,24 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   child: InkWell(
                     onTap: () => Navigator.of(context).pop(_allSelected),
                     borderRadius: BorderRadius.circular(20),
-                    child: Container(
+                    child: SunkenBox(
                       width: 32,
                       height: 32,
-                      decoration: BoxDecoration(
-                        color: ForestBg.sunken,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: ForestNeutral.hairline),
-                      ),
-                      child: const Icon(
+                      shape: BoxShape.circle,
+                      child: Icon(
                         Icons.close,
                         size: 16,
-                        color: AppPalette.ink3,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
                 ),
-                const Text(
+                Text(
                   '标签',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: AppPalette.ink,
+                    color: Theme.of(context).colorScheme.onSurface,
                     letterSpacing: 0.02,
                   ),
                 ),
@@ -247,15 +249,15 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: AppPalette.ink,
+                        color: Theme.of(context).colorScheme.onSurface,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text(
+                      child: Text(
                         '添加',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppPalette.creamSoft,
+                          color: context.colors.surfaceContainerLow,
                         ),
                       ),
                     ),
@@ -280,27 +282,28 @@ class _TagSheetState extends ConsumerState<TagSheet> {
           ),
           const SizedBox(height: 8),
           // 搜索框（设计稿：沙底无边框）
-          Container(
+          SunkenBox(
+            radius: 12,
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 4),
-            decoration: BoxDecoration(
-              color: ForestBg.sunken,
-              borderRadius: BorderRadius.circular(12),
-            ),
             child: Row(
               children: <Widget>[
-                const Icon(Icons.search, size: 18, color: AppPalette.ink3),
+                Icon(Icons.search,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _searchCtl,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       // 覆盖全局主题：无白色填充、无任何描边（含聚焦绿框）
                       filled: false,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       hintText: '搜索标签',
-                      hintStyle:
-                          TextStyle(fontSize: 14, color: AppPalette.ink3),
+                      hintStyle: TextStyle(
+                          fontSize: 14,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
                       border: InputBorder.none,
                       isCollapsed: true,
                       contentPadding: EdgeInsets.symmetric(vertical: 8),
@@ -314,10 +317,10 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       _searchCtl.clear();
                       setState(() => _query = '');
                     },
-                    child: const Icon(
+                    child: Icon(
                       Icons.close,
                       size: 16,
-                      color: AppPalette.ink3,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
               ],
@@ -326,31 +329,24 @@ class _TagSheetState extends ConsumerState<TagSheet> {
           const SizedBox(height: 10),
           // 虚线分界
           _DashedDivider(
-            label: _scope == TagScope.general
-                ? '以下为通用标签'
-                : '以下为账本独立标签',
+            label: _scope == TagScope.general ? '以下为通用标签' : '以下为账本独立标签',
           ),
           const SizedBox(height: 8),
         ],
       );
 
   /// 底部栏：已选计数 + 确定（上缘发丝线，对齐设计稿 .sheet-foot）。
-  Widget _buildFooter(List<TagGroupRow> groups) => Container(
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: ForestNeutral.hairline),
-          ),
-        ),
+  Widget _buildFooter(List<TagGroupRow> groups) => BottomActionBar(
+        backgroundColor: Colors.transparent,
         padding: const EdgeInsets.only(top: 6),
+        useSafeArea: false,
         child: Row(
           children: <Widget>[
             Text(
               // 设计稿口径：无分组时空白；有分组未选 →「尚未选择标签」
               groups.isEmpty
                   ? ''
-                  : (_current.isEmpty
-                      ? '尚未选择标签'
-                      : '已选 ${_current.length} 个标签'),
+                  : (_current.isEmpty ? '尚未选择标签' : '已选 ${_current.length} 个标签'),
               style: const TextStyle(
                 fontSize: 12.5,
                 color: AppPalette.deepGreen,
@@ -367,7 +363,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   padding: const EdgeInsets.symmetric(horizontal: 22),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    gradient: ForestGradients.sageMid,
+                    gradient: context.app.sageGradientMid,
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: <BoxShadow>[
                       BoxShadow(
@@ -417,7 +413,9 @@ class _TagSheetState extends ConsumerState<TagSheet> {
         child: Text(
           _query.isEmpty ? '没有发现标签哦，试着去添加一个~' : '未找到「$_query」相关标签',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 13.5, color: AppPalette.ink3),
+          style: TextStyle(
+              fontSize: 13.5,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -425,8 +423,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.only(top: 4, bottom: 4),
       itemCount: visible.length,
-      separatorBuilder: (BuildContext ctx, int i) =>
-          const SizedBox(height: 8),
+      separatorBuilder: (BuildContext ctx, int i) => const SizedBox(height: 8),
       itemBuilder: (BuildContext ctx, int i) => _buildCard(visible[i]),
     );
   }
@@ -459,13 +456,9 @@ class _TagSheetState extends ConsumerState<TagSheet> {
     final bool hasTags = g.tags.isNotEmpty;
     final bool allSelected =
         hasTags && g.tags.every((Tag t) => _current.contains(t.name));
-    return Container(
+    return HairlineCard(
+      radius: 12,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: ForestSurface.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ForestNeutral.hairline),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -483,10 +476,10 @@ class _TagSheetState extends ConsumerState<TagSheet> {
               Expanded(
                 child: Text(
                   g.category.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: AppPalette.ink,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -503,10 +496,10 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   onPressed: () => _toggleAll(g, !allSelected),
                   child: Text(
                     allSelected ? '取消全选' : '全选',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppPalette.ink,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -519,7 +512,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
               runSpacing: 6,
               children: <Widget>[
                 for (final Tag t in g.tags)
-                  _TagChip(
+                  TagChip(
                     label: t.name,
                     selected: _current.contains(t.name),
                     onTap: () => _toggle(t.name),
@@ -535,85 +528,19 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                 vertical: 7,
               ),
               decoration: BoxDecoration(
-                color: ForestBg.sunken,
+                color: context.colors.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 'ⓘ「${g.category.name}」为标签分组，请添加具体的标签再使用哦~',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppPalette.ink3,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   height: 1.7,
                 ),
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// 标签 chip：选中 = 鼠尾草绿渐变 + 墨绿字加粗 + 投影；未选 = 沙底灰绿字。
-/// 对齐设计稿 chip 结构：`#` 前缀（未选时深绿、选中时墨绿）+ 名称。
-class _TagChip extends StatelessWidget {
-  const _TagChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          gradient: selected ? ForestGradients.sageMid : null,
-          color: selected ? null : ForestBg.sunken,
-          borderRadius: BorderRadius.circular(999),
-          border: selected
-              ? null
-              : Border.all(color: ForestNeutral.hairline),
-          boxShadow: selected
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: AppPalette.stockDown.withValues(alpha: 0.165),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(
-              '#',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: selected ? ForestSage.ink : ForestGreen.deep,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                color: selected
-                    ? ForestSage.ink
-                    : ForestNeutral.textPrimary,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -634,7 +561,9 @@ class _DashedDivider extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Text(
             label,
-            style: const TextStyle(fontSize: 12, color: AppPalette.ink3),
+            style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
         const Expanded(child: _HorizontalDashed()),
@@ -649,7 +578,7 @@ class _HorizontalDashed extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _HDashedPainter(color: ForestNeutral.hairline),
+      painter: _HDashedPainter(color: Theme.of(context).colorScheme.outline),
     );
   }
 }
@@ -685,7 +614,7 @@ class _GlobalEmpty extends StatelessWidget {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: const <Widget>[
+        children: <Widget>[
           TagEmptyIllustration(width: 150),
           SizedBox(height: 14),
           Text(
@@ -693,7 +622,7 @@ class _GlobalEmpty extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: AppPalette.ink3,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               height: 1.7,
             ),
           ),

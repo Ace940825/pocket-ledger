@@ -8,11 +8,18 @@
 /// 从 [AccountPickerSheet] 标题栏齿轮键打开（区别于记账页面设置）。
 
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/round_close_button.dart';
+import 'package:pocket_ledger/shared/widgets/settings_tile.dart';
+import 'package:pocket_ledger/shared/widgets/line_icons.dart';
+import '../../../shared/widgets/sheet_drag_handle.dart';
 import '../../../theme/app_colors.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 import '../../../database/app_database.dart';
 import '../../../routing/app_router.dart';
 import '../providers/recording_settings_provider.dart';
@@ -42,8 +49,8 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
     final double s = k.clamp(0.85, 1.15);
 
     return Container(
-      decoration: const BoxDecoration(
-        color: ForestBg.paper,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: ForestElevation.sheet,
       ),
@@ -57,14 +64,11 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
             children: <Widget>[
               // 拖拽条
               Center(
-                child: Container(
+                child: SheetDragHandle(
                   width: 36 * s,
                   height: 4 * s,
                   margin: EdgeInsets.only(top: 10 * s),
-                  decoration: BoxDecoration(
-                    color: AppPalette.sage800.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+                  color: AppPalette.sage800.withValues(alpha: 0.22),
                 ),
               ),
               // 标题栏：✕ + 居中标题
@@ -72,8 +76,12 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(vertical: 13 * s),
                 child: Row(
                   children: <Widget>[
-                    _CloseBtn(
-                        size: 30 * s, onTap: () => Navigator.pop(context)),
+                    RoundCloseButton(
+                        size: 30 * s,
+                        iconSize: 16,
+                        onTap: () => Navigator.pop(context),
+                        backgroundColor:
+                            context.colors.surfaceContainerHighest),
                     Expanded(
                       child: Center(
                         child: Text(
@@ -82,7 +90,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                             fontSize: 16 * s,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.02,
-                            color: ForestNeutral.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -117,19 +125,30 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                 ),
               ),
               // 行卡片容器
-              Container(
-                decoration: BoxDecoration(
-                  color: ForestSurface.card,
-                  border: Border.all(color: AppPalette.sage900.withValues(alpha: 0.071)),
-                  borderRadius: BorderRadius.circular(16 * s),
-                ),
+              HairlineCard(
+                backgroundColor: context.colors.surface,
+                borderColor: AppPalette.sage900.withValues(alpha: 0.071),
+                radius: 16 * s,
+                padding: EdgeInsets.zero,
                 child: Column(
                   children: <Widget>[
-                    _SettingRow(
-                      s: s,
-                      icon: '🔔',
-                      title: '未选择资产提示',
-                      subtitle: '没有选择资产会弹出提示',
+                    SettingsTile(
+                      scale: s,
+                      card: false,
+                      leadingIcon: LineIcon(LineIconKind.info,
+                          size: 19 * s, color: ForestGreen.deep),
+                      label: '未选择资产提示',
+                      labelStyle: TextStyle(
+                        fontSize: 14 * s,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      sub: '没有选择资产会弹出提示',
+                      subStyle: TextStyle(
+                        fontSize: 11 * s,
+                        height: 1.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       trailing: Switch(
                         value: settings.promptWhenNoAsset,
                         activeThumbColor: ForestGreen.cta,
@@ -139,13 +158,28 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                       ),
                     ),
                     _hairline(s),
-                    _SettingRow(
-                      s: s,
-                      icon: '✅',
-                      title: '资产余额不足校验',
+                    SettingsTile(
+                      scale: s,
+                      card: false,
+                      leadingIcon: LineIcon(LineIconKind.shieldCheck,
+                          size: 19 * s, color: ForestGreen.deep),
+                      label: '资产余额不足校验',
+                      labelStyle: TextStyle(
+                        fontSize: 14 * s,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                       badge: '仅新增',
-                      subtitle: '开启后，资产余额扣减不可为负数\n'
+                      badgeColor: ForestGreen.soft,
+                      badgeTextColor: ForestGreen.deep,
+                      badgeRadius: 999,
+                      sub: '开启后，资产余额扣减不可为负数\n'
                           '如银行卡剩余1元记账2元将无法记录',
+                      subStyle: TextStyle(
+                        fontSize: 11 * s,
+                        height: 1.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       trailing: Switch(
                         value: settings.balanceInsufficientCheck,
                         activeThumbColor: ForestGreen.cta,
@@ -156,11 +190,23 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                       ),
                     ),
                     _hairline(s),
-                    _SettingRow(
-                      s: s,
-                      icon: '📒',
-                      title: '默认选择资产账户',
-                      subtitle: '记账页面默认选择的资产账户',
+                    SettingsTile(
+                      scale: s,
+                      card: false,
+                      leadingIcon: LineIcon(LineIconKind.account,
+                          size: 19 * s, color: ForestGreen.deep),
+                      label: '默认选择资产账户',
+                      labelStyle: TextStyle(
+                        fontSize: 14 * s,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      sub: '记账页面默认选择的资产账户',
+                      subStyle: TextStyle(
+                        fontSize: 11 * s,
+                        height: 1.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       trailing: _ValuePill(
                         s: s,
                         label: settings.defaultAssetAccount ?? '默认账户',
@@ -178,7 +224,10 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
   }
 
   Widget _hairline(double s) => Divider(
-      height: 1, thickness: 1, color: AppPalette.sage800.withValues(alpha: 0.102), indent: 14 * s);
+      height: 1,
+      thickness: 1,
+      color: AppPalette.sage800.withValues(alpha: 0.102),
+      indent: 14 * s);
 
   /// 二级弹窗：完整版账户选择列表（无齿轮键），点卡片直接确认返回。
   Future<void> _pickDefaultAccount(BuildContext context, WidgetRef ref) async {
@@ -216,129 +265,6 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
 
 // ───────────────────── 小组件 ─────────────────────
 
-/// 关闭按钮：圆形暖沙底 ✕
-class _CloseBtn extends StatelessWidget {
-  final double size;
-  final VoidCallback onTap;
-
-  const _CloseBtn({required this.size, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: const BoxDecoration(
-          color: ForestBg.sunken,
-          shape: BoxShape.circle,
-        ),
-        alignment: Alignment.center,
-        child:
-            const Icon(Icons.close, size: 16, color: ForestNeutral.textPrimary),
-      ),
-    );
-  }
-}
-
-/// 设置行：图标 tile + 标题（可带徽标）+ 副标题 + 右侧控件
-class _SettingRow extends StatelessWidget {
-  final double s;
-  final String icon;
-  final String title;
-  final String? badge;
-  final String subtitle;
-  final Widget trailing;
-
-  const _SettingRow({
-    required this.s,
-    required this.icon,
-    required this.title,
-    this.badge,
-    required this.subtitle,
-    required this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 14 * s, vertical: 13 * s),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          // 图标 tile
-          Container(
-            width: 38 * s,
-            height: 38 * s,
-            decoration: BoxDecoration(
-              color: ForestGreen.soft,
-              borderRadius: BorderRadius.circular(11 * s),
-            ),
-            alignment: Alignment.center,
-            child: Text(icon, style: TextStyle(fontSize: 17 * s)),
-          ),
-          SizedBox(width: 12 * s),
-          // 文本区
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 14 * s,
-                          fontWeight: FontWeight.w700,
-                          color: ForestNeutral.textPrimary,
-                        ),
-                      ),
-                    ),
-                    if (badge != null) ...<Widget>[
-                      SizedBox(width: 6 * s),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 7 * s,
-                          vertical: 1.5 * s,
-                        ),
-                        decoration: BoxDecoration(
-                          color: ForestGreen.soft,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          badge!,
-                          style: TextStyle(
-                            fontSize: 9.5 * s,
-                            fontWeight: FontWeight.w700,
-                            color: ForestGreen.deep,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                SizedBox(height: 3 * s),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11 * s,
-                    height: 1.5,
-                    color: AppPalette.ink3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 8 * s),
-          trailing,
-        ],
-      ),
-    );
-  }
-}
-
 /// 第三行右侧值胶囊：「默认账户 ›」/「账户名 ›」
 class _ValuePill extends StatelessWidget {
   final double s;
@@ -359,7 +285,8 @@ class _ValuePill extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 5 * s),
         decoration: BoxDecoration(
           color: AppPalette.mintSurface,
-          border: Border.all(color: AppPalette.stockDown.withValues(alpha: 0.302)),
+          border:
+              Border.all(color: AppPalette.stockDown.withValues(alpha: 0.302)),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(

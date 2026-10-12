@@ -3,20 +3,27 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
-import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/core/utils/note_utils.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_drag_handle.dart';
+import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../../core/errors/failures.dart';
-import '../../../../core/theme/forest_design_tokens.dart';
-import '../../../../database/app_database.dart';
-import '../../../../domain/enums.dart';
-import '../../../../providers/app_providers.dart';
-import '../../../../routing/app_router.dart';
-import '../../../../shared/models/money.dart';
-import '../../../../shared/widgets/line_icons.dart';
-import '../../../../shared/widgets/modal_sheet_registry.dart';
+import '../../../theme/app_colors.dart';
+import '../../../core/errors/failures.dart';
+import '../../../core/theme/forest_design_tokens.dart';
+import '../../../database/app_database.dart';
+import '../../../domain/enums.dart';
+import '../../../providers/app_providers.dart';
+import '../../../routing/app_router.dart';
+import '../../../shared/models/money.dart';
+import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/modal_sheet_registry.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../reimbursement/data/reimbursement_repository.dart';
@@ -87,8 +94,8 @@ class TransactionDetailSheet extends ConsumerWidget {
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.5,
-      decoration: const BoxDecoration(
-        color: ForestBg.raised,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(ForestRadius.xl),
         ),
@@ -127,7 +134,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                   if (attachments.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 14),
                     // 卡片二 · 附件
-                    _buildAttachmentCard(attachments),
+                    _buildAttachmentCard(context, attachments),
                   ],
                   // 位置：不再单设卡片，合并进「账单」卡备注上方一行。
                   // 借还模块流水（借出本金 / 还债 / 债务消减 / 坏账计提）
@@ -135,8 +142,8 @@ class TransactionDetailSheet extends ConsumerWidget {
                   // 投资模块买卖流水同理：买入卖出没有退款语义。
                   if (transaction.type == TxnType.expense &&
                       transaction.sourceModule != SourceModule.lend &&
-                      transaction.sourceModule != SourceModule.investment)
-                    ...<Widget>[
+                      transaction.sourceModule !=
+                          SourceModule.investment) ...<Widget>[
                     const SizedBox(height: 14),
                     // 卡片三 · 报销 / 退款
                     _buildReimbRefundCard(
@@ -205,15 +212,11 @@ class TransactionDetailSheet extends ConsumerWidget {
       account?.name ?? '无',
     ].join(' · ');
 
-    return Container(
+    return HairlineCard(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
-      decoration: BoxDecoration(
-        color: ForestSurface.card,
-        border: Border.all(color: ForestNeutral.hairline),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: ForestElevation.card,
-      ),
+      radius: 24,
+      shadows: ForestElevation.card,
       child: Stack(
         clipBehavior: Clip.none,
         children: <Widget>[
@@ -223,7 +226,9 @@ class TransactionDetailSheet extends ConsumerWidget {
             bottom: -22,
             child: Text(
               '❦',
-              style: TextStyle(fontSize: 110, color: AppPalette.ctaGreen.withValues(alpha: 0.078)),
+              style: TextStyle(
+                  fontSize: 110,
+                  color: AppPalette.ctaGreen.withValues(alpha: 0.078)),
             ),
           ),
           Column(
@@ -260,10 +265,10 @@ class TransactionDetailSheet extends ConsumerWidget {
                             (transaction.type == TxnType.transfer
                                 ? '转账'
                                 : '未分类'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: ForestNeutral.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           height: 1.25,
                         ),
                       ),
@@ -284,9 +289,9 @@ class TransactionDetailSheet extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 summary,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: ForestNeutral.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               if (chips.isNotEmpty) ...<Widget>[
@@ -330,30 +335,30 @@ class TransactionDetailSheet extends ConsumerWidget {
     rows.add(_kv('时间', DateFormat('yyyy-MM-dd HH:mm').format(occurred)));
     rows.add(_kv('账本', book?.name ?? '默认账本'));
     rows.add(
-        _kvTap(
-          '资产账户',
-          account?.name ?? '无',
-          // 所有账户（含报销账户）统一进资产详情页（与账户页点击口径一致）
-          onTap: account == null
-              ? null
-              : () => context.push('/accounts/${account.id}/transactions'),
-        ),
+      _kvTap(
+        context,
+        '资产账户',
+        account?.name ?? '无',
+        // 所有账户（含报销账户）统一进资产详情页（与账户页点击口径一致）
+        onTap: account == null
+            ? null
+            : () => context.push('/accounts/${account.id}/transactions'),
+      ),
     );
     // 位置：备注上方一行（仅当该流水附加了 GPS 坐标时显示），
     // 有逆地理编码地名显地名，否则显坐标；点击复制，便于分享 / 地图检索。
     if (transaction.latitude != null) {
-      final String coords =
-          '${transaction.latitude!.toStringAsFixed(5)}, '
+      final String coords = '${transaction.latitude!.toStringAsFixed(5)}, '
           '${transaction.longitude!.toStringAsFixed(5)}';
       final String place = transaction.placeName ?? '';
       rows.add(
         _kvTap(
+          context,
           '位置',
           place.isNotEmpty ? '$place ($coords)' : coords,
           onTap: () {
-            Clipboard.setData(ClipboardData(text: place.isNotEmpty
-                ? '$place ($coords)'
-                : coords));
+            Clipboard.setData(ClipboardData(
+                text: place.isNotEmpty ? '$place ($coords)' : coords));
             showAppToast(context, '已复制位置');
           },
         ),
@@ -363,13 +368,14 @@ class TransactionDetailSheet extends ConsumerWidget {
     // 元信息行做不断行处理：「份额 x · 单价 y · 手续费 z」每个单元完整
     // 显示在一行，放不下时整个单元换到下一行（右对齐由 _kv 的 end 保证）。
     final String note = transaction.note?.trim() ?? '';
-    rows.add(_kv('备注', note.isEmpty ? '无' : _keepUnitsUnbroken(note)));
+    rows.add(_kv('备注', note.isEmpty ? '无' : keepNoteUnitsUnbroken(note)));
     // 借还本金流水：追加「借出账户 / 借款账户」行（右边账户名可点）。
     final Widget? lendRow = _lendAccountRow(context, ref);
     if (lendRow != null) rows.add(lendRow);
     if (tags.isNotEmpty) {
       rows.add(
         _kvCustom(
+          context,
           '标签',
           Wrap(
             spacing: 8,
@@ -405,7 +411,7 @@ class TransactionDetailSheet extends ConsumerWidget {
     return _Card(
       title: '账单',
       child: Column(
-        children: _withDividers(rows),
+        children: _withDividers(context, rows),
       ),
     );
   }
@@ -436,16 +442,16 @@ class TransactionDetailSheet extends ConsumerWidget {
     final String? lendAccountId = record?.accountId;
     if (lendAccountId == null) return null;
     final Map<String, Account> accounts = <String, Account>{
-      for (final Account a in ref.watch(accountsProvider).valueOrNull ??
-          const <Account>[])
+      for (final Account a
+          in ref.watch(accountsProvider).valueOrNull ?? const <Account>[])
         a.id: a,
     };
     final Account? lendAccount = accounts[lendAccountId];
     if (lendAccount == null) return null;
-    final String label = record!.direction == LendDirection.lendOut
-        ? '借出账户'
-        : '借款账户';
+    final String label =
+        record!.direction == LendDirection.lendOut ? '借出账户' : '借款账户';
     return _kvTap(
+      context,
       label,
       lendAccount.name,
       valueColor: ForestGreen.label,
@@ -453,7 +459,7 @@ class TransactionDetailSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildAttachmentCard(List<String> attachments) {
+  Widget _buildAttachmentCard(BuildContext context, List<String> attachments) {
     return _Card(
       title: '附件',
       child: SingleChildScrollView(
@@ -462,7 +468,7 @@ class TransactionDetailSheet extends ConsumerWidget {
         child: Row(
           spacing: 10,
           children: <Widget>[
-            for (final String src in attachments) _buildPhoto(src),
+            for (final String src in attachments) _buildPhoto(context, src),
           ],
         ),
       ),
@@ -471,7 +477,7 @@ class TransactionDetailSheet extends ConsumerWidget {
 
   /// 卡片二·b · 位置已并入「账单」卡（备注上方一行，见 _buildBillCard）。
 
-  Widget _buildPhoto(String src) {
+  Widget _buildPhoto(BuildContext context, String src) {
     final Widget image =
         (src.startsWith('http://') || src.startsWith('https://'))
             ? Image.network(src, fit: BoxFit.cover)
@@ -482,7 +488,7 @@ class TransactionDetailSheet extends ConsumerWidget {
         width: 76,
         height: 76,
         decoration: BoxDecoration(
-          border: Border.all(color: ForestNeutral.hairline),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
         ),
         child: image,
       ),
@@ -510,10 +516,10 @@ class TransactionDetailSheet extends ConsumerWidget {
         // 报销账户取账单上的报销账户，报销账单自动勾选本账单。
         onTap: reimbursable
             ? () => openRecordSheet(
-                context,
-                initialTab: RecordTab.reimbursement,
-                reimburseSourceId: transaction.id,
-              )
+                  context,
+                  initialTab: RecordTab.reimbursement,
+                  reimburseSourceId: transaction.id,
+                )
             : () => _onRefund(context, ref),
       ),
       child: reimbursable
@@ -547,12 +553,10 @@ class TransactionDetailSheet extends ConsumerWidget {
     final int receivedMinor =
         allocs.fold<int>(0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
     return Column(
-      children: _withDividers(<Widget>[
+      children: _withDividers(context, <Widget>[
         _kv(
           '报销收入',
-          linked == null
-              ? '无'
-              : Money.fromMinor(receivedMinor).format(),
+          linked == null ? '无' : Money.fromMinor(receivedMinor).format(),
         ),
         // 关联收入：可点击跳「报销账单详情」（原账单 + 关联收入账单互跳）。
         if (allocs.isEmpty || linked == null)
@@ -562,12 +566,14 @@ class TransactionDetailSheet extends ConsumerWidget {
           )
         else
           _kvTap(
+            context,
             '关联收入',
             '${allocs.length} 笔',
             valueColor: ForestGreen.label,
             onTap: () => showReimbursementRecordSheet(context, linked),
           ),
         _kvCustom(
+          context,
           '是否报销',
           // 与其它行一致：值区贴右对齐。
           Align(
@@ -581,6 +587,7 @@ class TransactionDetailSheet extends ConsumerWidget {
         ),
         if (reimbAccount != null)
           _kvTap(
+            context,
             '报销账户',
             reimbAccount.name,
             valueColor: ForestGreen.label,
@@ -637,14 +644,14 @@ class TransactionDetailSheet extends ConsumerWidget {
     return refundsAsync.when(
       data: (List<Transaction> refunds) {
         if (refunds.isEmpty) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.symmetric(vertical: 15),
             child: Center(
               child: Text(
                 '无退款账单',
                 style: TextStyle(
                   fontSize: 13,
-                  color: ForestNeutral.textTertiary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -666,8 +673,8 @@ class TransactionDetailSheet extends ConsumerWidget {
             margin: const EdgeInsets.symmetric(vertical: 8),
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             decoration: BoxDecoration(
-              color: ForestBg.paper,
-              border: Border.all(color: ForestNeutral.hairline),
+              color: context.colors.surface,
+              border: Border.all(color: Theme.of(context).colorScheme.outline),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -714,9 +721,9 @@ class TransactionDetailSheet extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Text(
                         time,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: ForestNeutral.textTertiary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -779,9 +786,9 @@ class TransactionDetailSheet extends ConsumerWidget {
         child: Center(
           child: Text(
             '加载失败：$e',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: ForestNeutral.textTertiary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -795,9 +802,8 @@ class TransactionDetailSheet extends ConsumerWidget {
   /// 头部左边是报销账单标题、右边「关联」徽章，下面是关联账单行
   /// （点击可打开该账单的详情）。
   Widget _buildReimbLinkedCard(BuildContext context, WidgetRef ref) {
-    final List<Reimbursement>? linkedList = ref
-        .watch(reimbursementsByIncomeIdProvider(transaction.id))
-        .valueOrNull;
+    final List<Reimbursement>? linkedList =
+        ref.watch(reimbursementsByIncomeIdProvider(transaction.id)).valueOrNull;
     if (linkedList == null || linkedList.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -819,8 +825,9 @@ class TransactionDetailSheet extends ConsumerWidget {
     Reimbursement r,
   ) {
     final String? billId = r.transactionId;
-    final AsyncValue<Transaction?> billAsync =
-        billId == null ? const AsyncValue<Transaction?>.data(null) : ref.watch(transactionDetailProvider(billId));
+    final AsyncValue<Transaction?> billAsync = billId == null
+        ? const AsyncValue<Transaction?>.data(null)
+        : ref.watch(transactionDetailProvider(billId));
     final Transaction? bill = billAsync.valueOrNull;
     // 关联账单行展示原账单类目：图标 + 颜色 + 标题兜底都取账单类目。
     final Map<String, Category> categories =
@@ -840,14 +847,10 @@ class TransactionDetailSheet extends ConsumerWidget {
       ).toLocal(),
     );
 
-    return Container(
+    return HairlineCard(
+      radius: 20,
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-      decoration: BoxDecoration(
-        color: ForestSurface.card,
-        border: Border.all(color: ForestNeutral.hairline),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: ForestElevation.card,
-      ),
+      shadows: ForestElevation.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -929,18 +932,19 @@ class TransactionDetailSheet extends ConsumerWidget {
                               : (billCategory?.name ?? r.title),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
-                            color: ForestNeutral.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           time,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: ForestNeutral.textTertiary,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -956,10 +960,10 @@ class TransactionDetailSheet extends ConsumerWidget {
                   ),
                   if (billAsync.valueOrNull != null) ...<Widget>[
                     const SizedBox(width: 4),
-                    const LineIcon(
+                    LineIcon(
                       LineIconKind.chevronRight,
                       size: 14,
-                      color: ForestNeutral.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ],
                 ],
@@ -1006,15 +1010,11 @@ class TransactionDetailSheet extends ConsumerWidget {
       ).toLocal(),
     );
 
-    return Container(
+    return HairlineCard(
+      radius: 20,
       margin: const EdgeInsets.only(top: 14),
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-      decoration: BoxDecoration(
-        color: ForestSurface.card,
-        border: Border.all(color: ForestNeutral.hairline),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: ForestElevation.card,
-      ),
+      shadows: ForestElevation.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -1089,18 +1089,19 @@ class TransactionDetailSheet extends ConsumerWidget {
                               : (billCategory?.name ?? '原账单'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
-                            color: ForestNeutral.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           time,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: ForestNeutral.textTertiary,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -1138,10 +1139,10 @@ class TransactionDetailSheet extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(width: 4),
-                  const LineIcon(
+                  LineIcon(
                     LineIconKind.chevronRight,
                     size: 14,
-                    color: ForestNeutral.textTertiary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -1154,116 +1155,55 @@ class TransactionDetailSheet extends ConsumerWidget {
 
   // ── 通用小组件 ─────────────────────────────────────
 
-  Widget _buildGrab() => Container(
+  Widget _buildGrab() => SheetDragHandle(
         width: 40,
         height: 4,
         margin: const EdgeInsets.fromLTRB(0, 12, 0, 4),
-        decoration: BoxDecoration(
-          color: ForestNeutral.hairlineStrong,
-          borderRadius: BorderRadius.circular(ForestRadius.pill),
+        color: ForestNeutral.hairlineStrong,
+      );
+
+  Widget _kv(String label, String value, {Color? valueColor}) => InfoKVRow(
+        label: label,
+        value: Text(
+          value,
+          textAlign: TextAlign.end,
+          style: valueColor == null
+              ? null
+              : TextStyle(fontWeight: FontWeight.w500, color: valueColor),
         ),
-      );
-
-  /// 备注元信息行（如「份额 524.6667 · 单价 ¥36.00 · 手续费 ¥0.00」）的
-  /// 不断行处理：把每个「·」单元内部的普通空格换成不断行空格（\u00A0），
-  /// 换行机会只保留在「·」分隔符两侧——单元永不拆行，一行放不下时
-  /// 整个单元落到下一行（右对齐由 [_kv] 的 textAlign end 保证）。
-  /// 仅改显示文案，不动数据库里存储的备注原文，历史流水同样生效。
-  String _keepUnitsUnbroken(String text) {
-    final List<String> outLines = <String>[];
-    for (final String line in text.split('\n')) {
-      if (!line.contains('·')) {
-        outLines.add(line);
-        continue;
-      }
-      outLines.add(
-        line
-            .split('·')
-            .map((String p) => p.trim().replaceAll(' ', '\u00A0'))
-            .join(' · '),
-      );
-    }
-    return outLines.join('\n');
-  }
-
-  Widget _kv(String label, String value, {Color? valueColor}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              flex: 3,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: _kBody,
-                  color: ForestNeutral.textSecondary,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 7,
-              child: Text(
-                value,
-                textAlign: TextAlign.end,
-                style: TextStyle(
-                  fontSize: _kBody,
-                  fontWeight: FontWeight.w500,
-                  color: valueColor ?? ForestNeutral.textPrimary,
-                ),
-              ),
-            ),
-          ],
-        ),
       );
 
-  Widget _kvTap(String label, String value,
+  Widget _kvTap(BuildContext context, String label, String value,
           {Color? valueColor, VoidCallback? onTap}) =>
-      Padding(
+      InfoKVRow(
+        label: label,
+        onTap: onTap,
         padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Row(
+        value: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
           children: <Widget>[
-            Expanded(
-              flex: 3,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: _kBody,
-                  color: ForestNeutral.textSecondary,
-                ),
-              ),
+            Text(
+              value,
+              textAlign: TextAlign.end,
+              style: valueColor == null
+                  ? null
+                  : TextStyle(fontWeight: FontWeight.w500, color: valueColor),
             ),
-            Expanded(
-              flex: 7,
-              child: GestureDetector(
-                onTap: onTap,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: <Widget>[
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: _kBody,
-                        fontWeight: FontWeight.w500,
-                        color: valueColor ?? ForestNeutral.textPrimary,
-                      ),
-                    ),
-                    if (onTap != null) ...<Widget>[
-                      const SizedBox(width: 4),
-                      const LineIcon(
-                        LineIconKind.chevronRight,
-                        size: 14,
-                        color: ForestNeutral.textTertiary,
-                      ),
-                    ],
-                  ],
-                ),
+            if (onTap != null) ...<Widget>[
+              const SizedBox(width: 4),
+              LineIcon(
+                LineIconKind.chevronRight,
+                size: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-            ),
+            ],
           ],
         ),
       );
 
-  Widget _kvCustom(String label, Widget value) => Padding(
+  Widget _kvCustom(BuildContext context, String label, Widget value) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1274,9 +1214,9 @@ class TransactionDetailSheet extends ConsumerWidget {
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: _kBody,
-                    color: ForestNeutral.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -1290,7 +1230,7 @@ class TransactionDetailSheet extends ConsumerWidget {
       );
 
   /// 在行之间插入发丝线，末行不显示。
-  List<Widget> _withDividers(List<Widget> rows) {
+  List<Widget> _withDividers(BuildContext context, List<Widget> rows) {
     if (rows.length <= 1) return rows;
     final List<Widget> result = <Widget>[];
     for (int i = 0; i < rows.length; i++) {
@@ -1299,7 +1239,7 @@ class TransactionDetailSheet extends ConsumerWidget {
         result.add(Divider(
           height: 1,
           thickness: 1,
-          color: ForestNeutral.hairline,
+          color: Theme.of(context).colorScheme.outline,
         ));
       }
     }
@@ -1372,23 +1312,12 @@ class TransactionDetailSheet extends ConsumerWidget {
   // ── 操作 ───────────────────────────────────────────
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('删除流水'),
-        content: const Text('删除后账户余额会相应回滚，此操作不可撤销。'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text('删除',
-                style: TextStyle(color: ForestSemantic.expense)),
-          ),
-        ],
-      ),
+    final bool? confirm = await     showConfirm(
+      context,
+      title: '删除流水',
+      content: '删除后账户余额会相应回滚，此操作不可撤销。',
+      confirmText: '删除',
+      danger: true,
     );
     if (confirm != true) return;
 
@@ -1431,14 +1360,10 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return HairlineCard(
       padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-      decoration: BoxDecoration(
-        color: ForestSurface.card,
-        border: Border.all(color: ForestNeutral.hairline),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: ForestElevation.card,
-      ),
+      radius: 20,
+      shadows: ForestElevation.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -1498,16 +1423,18 @@ class _CircleBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: SizedBox(
         width: 36,
         height: 36,
-        decoration: BoxDecoration(
-          color: ForestSurface.card,
-          border: Border.all(color: ForestNeutral.hairline),
-          borderRadius: BorderRadius.circular(ForestRadius.pill),
-        ),
-        child: Center(
-          child: LineIcon(icon, size: 15, color: ForestNeutral.deepInk),
+        child: HairlineCard(
+          backgroundColor: context.colors.surface,
+          borderColor: Theme.of(context).colorScheme.outline,
+          radius: ForestRadius.pill,
+          padding: EdgeInsets.zero,
+          child: Center(
+            child: LineIcon(icon,
+                size: 15, color: Theme.of(context).colorScheme.onSurface),
+          ),
         ),
       ),
     );
@@ -1568,10 +1495,10 @@ class _JumpNav extends StatelessWidget {
         ),
         child: Text(
           label,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).colorScheme.onPrimary,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onPrimary,
             letterSpacing: 0.4,
           ),
         ),
@@ -1593,12 +1520,9 @@ class _ReimbSegmentToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SunkenBox(
+      radius: ForestRadius.pill,
       padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: ForestBg.sunken,
-        borderRadius: BorderRadius.circular(ForestRadius.pill),
-      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         spacing: 3,
@@ -1638,7 +1562,7 @@ class _SegmentItem extends StatelessWidget {
         margin: EdgeInsets.zero,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: BoxDecoration(
-          color: active ? ForestSurface.card : Colors.transparent,
+          color: active ? context.colors.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(ForestRadius.pill),
           boxShadow: active ? ForestElevation.xs : null,
         ),
@@ -1647,7 +1571,9 @@ class _SegmentItem extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            color: active ? ForestGreen.deep : ForestNeutral.textSecondary,
+            color: active
+                ? ForestGreen.deep
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),

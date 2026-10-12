@@ -61,8 +61,8 @@ class MarketService {
   /// USD→CNY 实时汇率（加密货币折算用）。失败返回兜底常量。
   Future<double> fetchUsdCnyRate() async {
     try {
-      final Response<dynamic> resp = await _dio
-          .get('https://open.er-api.com/v6/latest/USD');
+      final Response<dynamic> resp =
+          await _dio.get('https://open.er-api.com/v6/latest/USD');
       final Map<String, dynamic> j = resp.data is String
           ? jsonDecode(resp.data as String) as Map<String, dynamic>
           : resp.data as Map<String, dynamic>;
@@ -79,13 +79,14 @@ class MarketService {
   // ── 基金：天天基金 ──
 
   Future<List<SecurityCandidate>> _fetchFundList() async {
-    final Response<dynamic> resp = await _dio
-        .get('https://fund.eastmoney.com/js/fundcode_search.js');
+    final Response<dynamic> resp =
+        await _dio.get('https://fund.eastmoney.com/js/fundcode_search.js');
     final String body =
         resp.data is String ? resp.data as String : resp.data.toString();
     final int start = body.indexOf('[');
     final int end = body.lastIndexOf(']');
-    if (start < 0 || end < 0 || end <= start) return const <SecurityCandidate>[];
+    if (start < 0 || end < 0 || end <= start)
+      return const <SecurityCandidate>[];
     final List<dynamic> parsed =
         jsonDecode(body.substring(start, end + 1)) as List<dynamic>;
     final List<SecurityCandidate> out = <SecurityCandidate>[];
@@ -118,9 +119,10 @@ class MarketService {
       if (s < 0 || e < 0 || e <= s) return null;
       final Map<String, dynamic> j =
           jsonDecode(body.substring(s + 1, e)) as Map<String, dynamic>;
-      final String? raw =
-          (j['gsz']?.toString().isNotEmpty == true ? j['gsz']?.toString() : null) ??
-              j['dwjz']?.toString();
+      final String? raw = (j['gsz']?.toString().isNotEmpty == true
+              ? j['gsz']?.toString()
+              : null) ??
+          j['dwjz']?.toString();
       final double? v = raw == null ? null : double.tryParse(raw);
       if (v == null) return null;
       return Quote(

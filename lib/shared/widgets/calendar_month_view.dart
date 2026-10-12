@@ -98,8 +98,7 @@ class _CalendarMonthViewState extends State<CalendarMonthView> {
           children: <Widget>[
             Text(
               DateFormat('yyyy年M月').format(_months[_index]),
-              style: const TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -139,8 +138,9 @@ class _CalendarMonthViewState extends State<CalendarMonthView> {
           '$day',
           style: TextStyle(
             fontSize: 13.5,
-            fontWeight:
-                inMonth && (future || isToday) ? FontWeight.w700 : FontWeight.w400,
+            fontWeight: inMonth && (future || isToday)
+                ? FontWeight.w700
+                : FontWeight.w400,
             color: !inMonth
                 ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45)
                 : (future || isToday)
@@ -153,7 +153,8 @@ class _CalendarMonthViewState extends State<CalendarMonthView> {
 
     Widget cell(int day, bool inMonth) {
       final DateTime date = DateTime(month.year, month.month, day);
-      final Widget? custom = widget.dayCellBuilder?.call(context, date, inMonth);
+      final Widget? custom =
+          widget.dayCellBuilder?.call(context, date, inMonth);
       Widget content = custom ?? defaultCell(day, inMonth);
       if (inMonth && widget.onDayTap != null) {
         content = GestureDetector(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/app_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_toast.dart';
@@ -106,23 +108,12 @@ Future<bool> confirmDelete(
   required String title,
   String content = '删除后不可撤销。',
 }) async {
-  final bool? confirmed = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext dialog) => AlertDialog(
-      title: Text(title),
-      content: Text(content),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(dialog).pop(false),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialog).pop(true),
-          child: const Text('删除'),
-        ),
-      ],
-    ),
-  );
+  final bool? confirmed = await     showConfirm(
+      context,
+      title: title,
+      content: content,
+      confirmText: '删除',
+    );
   return confirmed ?? false;
 }
 

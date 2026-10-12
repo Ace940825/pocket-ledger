@@ -1,6 +1,7 @@
 import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,8 @@ import 'package:intl/intl.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../shared/widgets/section_header.dart';
+import '../../../shared/widgets/avatar_tile.dart';
+import '../../../shared/widgets/app_button.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -73,13 +76,16 @@ class _LendPageState extends ConsumerState<LendPage> {
         unassigned.isEmpty;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? Theme.of(context).colorScheme.surface : ForestBg.paper,
+      backgroundColor: isDark
+          ? Theme.of(context).colorScheme.surface
+          : context.colors.surface,
       appBar: AppBar(
-        backgroundColor:
-            isDark ? Theme.of(context).colorScheme.surface : ForestBg.paper,
-        foregroundColor:
-            isDark ? ForestNeutral.textPrimary : ForestNeutral.deepInk,
+        backgroundColor: isDark
+            ? Theme.of(context).colorScheme.surface
+            : context.colors.surface,
+        foregroundColor: isDark
+            ? Theme.of(context).colorScheme.onSurface
+            : Theme.of(context).colorScheme.onSurface,
         elevation: 0,
         centerTitle: true,
         title: const Text('借还'),
@@ -98,7 +104,8 @@ class _LendPageState extends ConsumerState<LendPage> {
                       ongoingCount: ongoingCnt[a.id] ?? 0,
                       settledCount: settledCnt[a.id] ?? 0,
                       isDark: isDark,
-                      onTap: () => context.push('/accounts/${a.id}/transactions'),
+                      onTap: () =>
+                          context.push('/accounts/${a.id}/transactions'),
                       onEdit: () => context.push('/accounts/${a.id}/edit'),
                     ),
                 ],
@@ -111,7 +118,8 @@ class _LendPageState extends ConsumerState<LendPage> {
                       ongoingCount: ongoingCnt[a.id] ?? 0,
                       settledCount: settledCnt[a.id] ?? 0,
                       isDark: isDark,
-                      onTap: () => context.push('/accounts/${a.id}/transactions'),
+                      onTap: () =>
+                          context.push('/accounts/${a.id}/transactions'),
                       onEdit: () => context.push('/accounts/${a.id}/edit'),
                     ),
                 ],
@@ -134,22 +142,11 @@ class _LendPageState extends ConsumerState<LendPage> {
     WidgetRef ref,
     LendRecord record,
   ) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: const Text('删除这条借还记录？'),
-        content: const Text('删除后不可撤销。'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+    final bool? confirmed = await     showConfirm(
+      context,
+      title: '删除这条借还记录？',
+      content: '删除后不可撤销。',
+      confirmText: '删除',
     );
     if (confirmed != true || !context.mounted) return;
     try {
@@ -205,16 +202,12 @@ class _LendAccountCard extends StatelessWidget {
               // 行1：头像 ｜ 绿竖条 + 账户名 + 编辑胶囊（图标与名称并排）。
               Row(
                 children: <Widget>[
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? ForestGreen.deep.withValues(alpha: 0.22)
-                          : ForestGreen.soft,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
+                  AvatarTile(
+                    size: 38,
+                    radius: 12,
+                    backgroundColor: isDark
+                        ? ForestGreen.deep.withValues(alpha: 0.22)
+                        : ForestGreen.soft,
                     child: LineIcon(
                       LineIconKind.lend,
                       size: 20,
@@ -289,8 +282,8 @@ class _LendAccountCard extends StatelessWidget {
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: isDark
-                          ? ForestNeutral.textPrimary
-                          : ForestNeutral.deepInk,
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context).colorScheme.onSurface,
                       fontFeatures: const <FontFeature>[
                         FontFeature.tabularFigures(),
                       ],
@@ -299,9 +292,9 @@ class _LendAccountCard extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     isLendOut ? '待收回' : '待归还',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: ForestNeutral.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -324,10 +317,10 @@ class _LendAccountCard extends StatelessWidget {
                     ForestAccent.gold,
                   ),
                   const Spacer(),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right,
                     size: 18,
-                    color: ForestNeutral.textTertiary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -346,7 +339,8 @@ class _LendAccountCard extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: fg),
+          style:
+              TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: fg),
         ),
       );
 }
@@ -387,8 +381,7 @@ class _UnassignedTile extends StatelessWidget {
           if (record.dueAt != null)
             Text(
               '到期 ${DateFormat('MM-dd').format(
-                DateTime.fromMillisecondsSinceEpoch(record.dueAt!,
-                    isUtc: true),
+                DateTime.fromMillisecondsSinceEpoch(record.dueAt!, isUtc: true),
               )}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -440,15 +433,17 @@ class _NoLendEmpty extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isDark ? ForestNeutral.textPrimary : ForestNeutral.deepInk,
+              color: isDark
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             '到账户页新建借出 / 借入类型账户后，这里会显示对应卡片',
             style: TextStyle(
               fontSize: 12,
-              color: ForestNeutral.textTertiary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 18),

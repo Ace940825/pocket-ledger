@@ -81,12 +81,12 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
                   borderRadius: BorderRadius.circular(AppDimens.radiusLg),
                 ),
                 padding: const EdgeInsets.all(AppDimens.spaceMd),
-                child: const Text(
+                child: Text(
                   '选择账单 / 收据截图，云端识别后自动填好金额、收支方向与分类，'
                   '确认即可入账。截图仅用于本次识别，服务端不长期存储。',
                   style: TextStyle(
                     fontSize: 12.5,
-                    color: AppPalette.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     height: 1.5,
                   ),
                 ),
@@ -132,9 +132,10 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
       return Container(
         height: 200,
         alignment: Alignment.center,
-        child: const Text(
+        child: Text(
           '还没有选择截图',
-          style: TextStyle(color: AppPalette.textSecondary),
+          style:
+              TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -170,7 +171,8 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
                     color: AppPalette.black54,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.close, size: 14, color: AppPalette.white),
+                  child: const Icon(Icons.close,
+                      size: 14, color: AppPalette.white),
                 ),
               ),
             ),

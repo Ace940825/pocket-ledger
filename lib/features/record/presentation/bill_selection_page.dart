@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/tinted_icon_box.dart';
+import '../../../shared/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
+import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/line_icons.dart';
@@ -12,6 +15,16 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
+
+/// 退款可选的原账单来源模块：仅日常支出与分期。
+///
+/// 投资买入/卖出、借出、坏账计提、还债/债务消减等虽是 expense 流水，
+/// 但不属于消费退款场景，不应出现在「选择原账单」列表里。
+const List<SourceModule> _refundableSourceModules = <SourceModule>[
+  SourceModule.ledger,
+  SourceModule.installment,
+];
 
 /// 账单选择页面返回的结果：用户确认后返回选中的流水列表。
 ///
@@ -87,14 +100,19 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
       body: SafeArea(
         child: asyncTxns.when(
           data: (List<Transaction> list) {
-            final List<Transaction> filtered = _applyMonthFilter(list);
+          // 先按来源模块收窄（仅日常支出 + 分期），再做月份筛选。
+          final List<Transaction> scoped = list
+              .where((Transaction t) =>
+                  _refundableSourceModules.contains(t.sourceModule))
+              .toList(growable: false);
+          final List<Transaction> filtered = _applyMonthFilter(scoped);
             return Column(
               children: <Widget>[
                 _buildFilterBar(filtered),
                 const Divider(height: 1),
                 Expanded(
                   child: filtered.isEmpty
-                      ? const Center(child: Text('暂无账单'))
+                      ? const EmptyState(message: '暂无账单')
                       : ListView.separated(
                           padding: const EdgeInsets.only(
                             bottom: AppDimens.spaceLg,
@@ -155,9 +173,9 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
 
     return InkWell(
       onTap: () async {
-        final DateTime? picked = await showModalBottomSheet<DateTime>(
-          context: context,
-          builder: (BuildContext ctx) => SafeArea(
+        final DateTime? picked = await showAppModalSheet<DateTime>(
+          context,
+          body: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
@@ -166,7 +184,7 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
                   trailing: current == null
                       ? const Icon(Icons.check, color: AppPalette.primary)
                       : null,
-                  onTap: () => Navigator.of(ctx).pop(null),
+                  onTap: () => Navigator.of(context).pop(null),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -174,13 +192,12 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () async {
                     final CalendarSelection? sel = await CalendarSheet.show(
-                      ctx,
+                      context,
                       mode: CalendarSheetMode.month,
-                      initialMonth:
-                          _filterMonth ?? DateTime.now(),
+                      initialMonth: _filterMonth ?? DateTime.now(),
                     );
                     if (sel is CalendarMonth) {
-                      Navigator.of(ctx).pop(DateTime(sel.year, sel.month));
+                      Navigator.of(context).pop(DateTime(sel.year, sel.month));
                     }
                   },
                 ),
@@ -327,15 +344,15 @@ class _BillTile extends ConsumerWidget {
         ? Color(category!.colorValue!)
         : AppPalette.expense;
     final Widget leadIcon = billCatKey != null && billCatKey.isNotEmpty
-        ? LineIcon(categoryLineKind(billCatKey) ?? LineIconKind.star, size: 20, color: tint)
+        ? LineIcon(categoryLineKind(billCatKey) ?? LineIconKind.star,
+            size: 20, color: tint)
         : Icon(Icons.category_outlined, size: 20, color: tint);
 
     // 退款标注：被退款过的原账单显示「退款 ¥X=¥Y」
     // （X=累计已退合计，Y=剩余=实付−已退，与流水列表同口径）。
-    final List<Transaction> refunds = ref
-            .watch(refundsByRelatedIdProvider(transaction.id))
-            .valueOrNull ??
-        const <Transaction>[];
+    final List<Transaction> refunds =
+        ref.watch(refundsByRelatedIdProvider(transaction.id)).valueOrNull ??
+            const <Transaction>[];
     final int refundedMinor =
         refunds.fold<int>(0, (int s, Transaction r) => s + r.amountMinor);
     final int paidMinor = transaction.amountMinor - transaction.discountMinor;
@@ -349,7 +366,7 @@ class _BillTile extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            _CircleIcon(child: leadIcon, tint: tint),
+            TintedIconBox(child: leadIcon, tint: tint, size: 40, circle: true),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Column(
@@ -367,13 +384,13 @@ class _BillTile extends ConsumerWidget {
                   Text(
                     DateFormat('M月d日').format(occurred),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppPalette.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   Text(
                     DateFormat('HH:mm').format(occurred),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppPalette.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -392,11 +409,12 @@ class _BillTile extends ConsumerWidget {
                     children: <Widget>[
                       Text(
                         '-${Money.fromMinor(transaction.amountMinor).format()}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppPalette.textTertiary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           decoration: TextDecoration.lineThrough,
-                          decorationColor: AppPalette.textTertiary,
+                          decorationColor:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -451,28 +469,6 @@ class _BillTile extends ConsumerWidget {
   }
 }
 
-class _CircleIcon extends StatelessWidget {
-  const _CircleIcon({required this.child, required this.tint});
-
-  final Widget child;
-  final Color tint;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: isDark ? 0.18 : 0.12),
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: child,
-    );
-  }
-}
-
 class _SelectionCircle extends StatelessWidget {
   const _SelectionCircle({required this.selected});
 
@@ -487,12 +483,15 @@ class _SelectionCircle extends StatelessWidget {
         shape: BoxShape.circle,
         color: selected ? AppPalette.primary : Colors.transparent,
         border: Border.all(
-          color: selected ? AppPalette.primary : AppPalette.textTertiary,
+          color: selected
+              ? AppPalette.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
           width: 1.5,
         ),
       ),
       child: selected
-          ? Icon(Icons.check, size: 14, color: Theme.of(context).colorScheme.onPrimary)
+          ? Icon(Icons.check,
+              size: 14, color: Theme.of(context).colorScheme.onPrimary)
           : null,
     );
   }

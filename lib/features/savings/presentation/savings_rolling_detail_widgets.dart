@@ -3,9 +3,11 @@ import 'package:intl/intl.dart';
 
 import '../../../database/app_database.dart';
 import '../../../theme/app_colors.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/sheet_drag_handle.dart';
 import '../../record/providers/recording_settings_provider.dart' show appPrefs;
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
@@ -719,8 +721,8 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
-        decoration: const BoxDecoration(
-          color: AppPalette.cream,
+        decoration: BoxDecoration(
+          color: context.colors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SingleChildScrollView(
@@ -730,30 +732,24 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
+                child: SheetDragHandle(
                   margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: AppPalette.hairline,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
                 ),
               ),
-              const Text(
+              Text(
                 '计划调整',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: AppPalette.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 '已存入的存单不受影响（利率 / 本金在存入时锁定），调整从所设期起生效',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppPalette.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 14),
@@ -830,20 +826,20 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text(
+          Text(
             '周期修改',
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              color: AppPalette.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
+          Text(
             '建仓月数与单笔存期（月）；已存入的存单不受影响，调整后重建模拟',
             style: TextStyle(
               fontSize: 11.5,
-              color: AppPalette.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
@@ -876,20 +872,20 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text(
+          Text(
             '滚存停止方式',
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              color: AppPalette.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
+          Text(
             '存单到期后自动续存何时停止；「轮」= 建仓期数个月',
             style: TextStyle(
               fontSize: 11.5,
-              color: AppPalette.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
@@ -932,12 +928,12 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                 decoration: BoxDecoration(
                   color: items[i].$1 == selected
                       ? AppPalette.softGreen
-                      : AppPalette.cream,
+                      : context.colors.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: items[i].$1 == selected
                         ? AppPalette.sage300
-                        : AppPalette.hairline,
+                        : Theme.of(context).colorScheme.outline,
                   ),
                 ),
                 alignment: Alignment.center,
@@ -959,7 +955,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                             : FontWeight.w500,
                         color: items[i].$1 == selected
                             ? AppPalette.deepGreen
-                            : AppPalette.textSecondary,
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -993,18 +989,18 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
         children: <Widget>[
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              color: AppPalette.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11.5,
-              color: AppPalette.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
@@ -1013,9 +1009,9 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 emptyText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppPalette.textTertiary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             )
@@ -1089,10 +1085,10 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
       maxDecimalDigits: 2,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
+        hintStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w400,
-          color: AppPalette.textTertiary,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
         isDense: true,
         prefixIcon: prefix == null
@@ -1110,7 +1106,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
               ),
         prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         filled: true,
-        fillColor: AppPalette.cream,
+        fillColor: context.colors.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

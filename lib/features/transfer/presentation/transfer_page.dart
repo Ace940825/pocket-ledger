@@ -1,13 +1,15 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_dimens.dart';
-import '../../../../core/errors/failures.dart';
-import '../../../../core/utils/date_utils.dart';
-import '../../../../providers/app_providers.dart';
-import '../../../../shared/widgets/form_fields.dart';
+import '../../../core/constants/app_dimens.dart';
+import '../../../core/errors/failures.dart';
+import '../../../core/utils/date_utils.dart';
+import '../../../providers/app_providers.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
@@ -124,7 +126,8 @@ class _TransferPageState extends ConsumerState<TransferPage> {
       resolved = picked.date;
     } else if (picked is CalendarPeriod) {
       final DateTime s = picked.start;
-      resolved = DateTime(s.year, s.month, s.day, _occurredAt.hour, _occurredAt.minute);
+      resolved = DateTime(
+          s.year, s.month, s.day, _occurredAt.hour, _occurredAt.minute);
     } else {
       return;
     }

@@ -157,7 +157,8 @@ class RecordingSettings {
       defaultAssetAccount: resetDefaultAssetAccount
           ? null
           : (defaultAssetAccount ?? this.defaultAssetAccount),
-      accountPickerListView: accountPickerListView ?? this.accountPickerListView,
+      accountPickerListView:
+          accountPickerListView ?? this.accountPickerListView,
     );
   }
 
@@ -203,19 +204,18 @@ class RecordingSettings {
       return raw?.toDouble() ?? fallback;
     }
 
-    bool boolOr(String key, bool fallback) =>
-        (json[key] as bool?) ?? fallback;
+    bool boolOr(String key, bool fallback) => (json[key] as bool?) ?? fallback;
 
     return RecordingSettings(
-      themeStyle: enumOr('themeStyle', KeyboardThemeStyle.values,
-          KeyboardThemeStyle.simple),
-      formula: enumOr('formula', KeyboardFormula.values,
-          KeyboardFormula.plusMinus),
+      themeStyle: enumOr(
+          'themeStyle', KeyboardThemeStyle.values, KeyboardThemeStyle.simple),
+      formula:
+          enumOr('formula', KeyboardFormula.values, KeyboardFormula.plusMinus),
       numberOrder: enumOr('numberOrder', KeyboardNumberOrder.values,
           KeyboardNumberOrder.ascending),
       heightScale: dblOr('heightScale', 1.0),
-      subMode: enumOr('subMode', KeyboardSubMode.values,
-          KeyboardSubMode.simple),
+      subMode:
+          enumOr('subMode', KeyboardSubMode.values, KeyboardSubMode.simple),
       topAreaRows: (json['topAreaRows'] as String?) ?? '1行',
       amountPosition: (json['amountPosition'] as String?) ?? '右',
       funcButtonRows: (json['funcButtonRows'] as String?) ?? '单行',
