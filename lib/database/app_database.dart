@@ -212,17 +212,29 @@ class AppDatabase extends _$AppDatabase {
             // v12：模板新增「示例金额 / 转入账户 / 借还对方」三列，
             // 支撑模板页独立录入（不落流水）与模板卡金额/账户摘要展示。
             await _addColumnIfMissing(
-                m, recordTemplates, recordTemplates.amountMinor);
+              m,
+              recordTemplates,
+              recordTemplates.amountMinor,
+            );
             await _addColumnIfMissing(
-                m, recordTemplates, recordTemplates.toAccountId);
+              m,
+              recordTemplates,
+              recordTemplates.toAccountId,
+            );
             await _addColumnIfMissing(
-                m, recordTemplates, recordTemplates.counterparty);
+              m,
+              recordTemplates,
+              recordTemplates.counterparty,
+            );
           }
 
           if (from < 13) {
             // v13：模板新增「示例优惠」列，保存/回填记一笔的优惠金额。
             await _addColumnIfMissing(
-                m, recordTemplates, recordTemplates.discountMinor);
+              m,
+              recordTemplates,
+              recordTemplates.discountMinor,
+            );
           }
 
           if (from < 14) {
@@ -322,13 +334,25 @@ class AppDatabase extends _$AppDatabase {
             // 金额模式系数 / 百分比模式百分比」四列。旧弹性计划三列均为
             // null，排期回退均摊（见 savings_schedule.dart），不崩。
             await _addColumnIfMissing(
-                m, savingsGoals, savingsGoals.elasticMode);
+              m,
+              savingsGoals,
+              savingsGoals.elasticMode,
+            );
             await _addColumnIfMissing(
-                m, savingsGoals, savingsGoals.elasticBaseMinor);
+              m,
+              savingsGoals,
+              savingsGoals.elasticBaseMinor,
+            );
             await _addColumnIfMissing(
-                m, savingsGoals, savingsGoals.elasticStepMinor);
+              m,
+              savingsGoals,
+              savingsGoals.elasticStepMinor,
+            );
             await _addColumnIfMissing(
-                m, savingsGoals, savingsGoals.elasticPercentHundred);
+              m,
+              savingsGoals,
+              savingsGoals.elasticPercentHundred,
+            );
           }
 
           if (from < 24) {
@@ -549,8 +573,9 @@ class AppDatabase extends _$AppDatabase {
 
   static int _replayRealizedProfit(List<Transaction>? flows) {
     final List<Transaction> sorted = (flows ?? const <Transaction>[])
-      ..sort((Transaction a, Transaction b) =>
-          a.occurredAt.compareTo(b.occurredAt));
+      ..sort(
+        (Transaction a, Transaction b) => a.occurredAt.compareTo(b.occurredAt),
+      );
     const int scale = 1000000;
     int qtyMicros = 0;
     int costMicros = 0; // 分·micros

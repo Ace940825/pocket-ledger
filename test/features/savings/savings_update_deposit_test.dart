@@ -3,7 +3,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:pocket_ledger/database/app_database.dart';
-import 'package:pocket_ledger/domain/enums.dart';
 import 'package:pocket_ledger/features/savings/data/savings_repository.dart';
 
 /// 储蓄「修改已存入期卡金额」回归测试（真 SQLite，内存库）。
@@ -61,7 +60,7 @@ void main() {
     // 台账行金额应更新。
     final SavingsDeposit row = await (db.select(db.savingsDeposits)
             ..where((SavingsDeposits t) =>
-                t.goalId.equals(goalId) & t.dayIndex.equals(2)))
+                t.goalId.equals(goalId) & t.dayIndex.equals(2),))
         .getSingle();
     expect(row.amountMinor, 1000000);
 
@@ -78,7 +77,7 @@ void main() {
     await repo.updateDeposit(goalId: goalId, dayIndex: 1, amountMinor: 5000);
     final SavingsDeposit row = await (db.select(db.savingsDeposits)
             ..where((SavingsDeposits t) =>
-                t.goalId.equals(goalId) & t.dayIndex.equals(1)))
+                t.goalId.equals(goalId) & t.dayIndex.equals(1),))
         .getSingle();
     expect(row.amountMinor, 5000);
     final SavingsGoal goal = await (db.select(db.savingsGoals)

@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
-import 'package:pocket_ledger/shared/widgets/sheet_drag_handle.dart';
-import '../../../theme/app_colors.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
+import 'package:pocket_ledger/shared/widgets/empty_state.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
-import '../../../providers/app_providers.dart';
-import '../../../features/tags/presentation/tag_empty_illustration.dart';
+import '../../../theme/app_colors.dart';
 import '../providers/record_template_providers.dart';
-import '../record_tab.dart';
 import 'record_template_page.dart';
 
 /// 模板草稿：模板模式记一笔页「保存」时打包返回的可入库字段。
@@ -64,11 +62,11 @@ class RecordTemplateSheet extends ConsumerStatefulWidget {
     required BuildContext context,
     required ValueChanged<RecordTemplate> onApply,
   }) {
-    return showModalBottomSheet<void>(
-      context: context,
+    return showAppModalSheet<void>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => RecordTemplateSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: RecordTemplateSheet(
         onApply: onApply,
       ),
     );
@@ -94,37 +92,16 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.6,
       ),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          // 顶部淡绿晕染带（方案 C）：拖拽条 + 头部 + 「最近使用」引导语。
+          // 顶部区：头部 + 「最近使用」引导语（晕染底已移除，与统一外壳风格一致）。
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[AppPalette.mintWhisper, context.colors.surface],
-              ),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                // 拖拽条 grab：36×4，鼠尾草绿 35% 透明。
-                Center(
-                  child: SheetDragHandle(
-                    width: 36,
-                    height: 4,
-                    margin: EdgeInsets.zero,
-                    color: AppPalette.sageRibbon.withValues(alpha: 0.35),
-                  ),
-                ),
                 const SizedBox(height: 8),
                 _buildHeader(),
                 if (list.isNotEmpty) ...<Widget>[
@@ -141,7 +118,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                           letterSpacing: 0.7,
                         ),
                       ),
-                      Text(
+                      const Text(
                         '轻触套用',
                         style: TextStyle(
                           fontSize: 11,
@@ -178,7 +155,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                   ),
           ),
           if (list.isNotEmpty) ...<Widget>[
-            SizedBox(height: 6),
+            const SizedBox(height: 6),
             _buildFooter(list),
           ],
         ],
@@ -208,7 +185,8 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                         .withValues(alpha: 0.75),
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: Theme.of(context).colorScheme.outline),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                   child: Icon(
                     Icons.close,
@@ -233,7 +211,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                 onTap: () async {
                   await Navigator.of(context).push<void>(
                     MaterialPageRoute<void>(
-                      builder: (BuildContext ctx) => RecordTemplatePage(),
+                      builder: (BuildContext ctx) => const RecordTemplatePage(),
                     ),
                   );
                   if (mounted) setState(() {});
@@ -252,7 +230,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                       BoxShadow(
                         color: AppPalette.ctaGreenDeep.withValues(alpha: 0.251),
                         blurRadius: 10,
-                        offset: Offset(0, 3),
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
@@ -271,22 +249,10 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
         ),
       );
 
-  // 空态：小票插画 + 提示（与设计稿一致）。
-  Widget _buildEmpty() => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          SizedBox(height: 18),
-          TagEmptyIllustration(width: 150),
-          SizedBox(height: 12),
-          Text(
-            '没有发现模板哦，试着去添加一个~',
-            style: TextStyle(
-              fontSize: 13.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          SizedBox(height: 18),
-        ],
+  // 空态：线稿图标 + 提示（统一走共享 EmptyState，与报表页票据线稿一致）。
+  Widget _buildEmpty() => const EmptyState(
+        icon: Icons.receipt_long_outlined,
+        message: '没有发现模板哦，试着去添加一个~',
       );
 
   // 底部栏：左侧计数（选中时显示已选名称）+ 右侧深墨「套用」胶囊。

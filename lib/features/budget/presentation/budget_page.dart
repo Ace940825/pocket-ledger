@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/app_button.dart';
-import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/form_dialog.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../core/utils/date_utils.dart';
@@ -11,6 +10,7 @@ import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
+import '../../../theme/app_colors.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../data/budget_repository.dart';
 import '../providers/budget_providers.dart';
@@ -65,10 +65,10 @@ Future<void> showBudgetEditor(
 
   final bool? saved = await showDialog<bool>(
     context: context,
-    builder: (BuildContext dialog) => StatefulBuilder(
-      builder: (BuildContext ctx, StateSetter setState) => AlertDialog(
-        title: Text(budget == null ? '新增预算' : '编辑预算'),
-        content: SingleChildScrollView(
+    builder: (BuildContext _) => StatefulBuilder(
+      builder: (BuildContext ctx, StateSetter setState) => FormDialog(
+        title: budget == null ? '新增预算' : '编辑预算',
+        body: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -135,17 +135,6 @@ Future<void> showBudgetEditor(
             ],
           ),
         ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          PrimaryButton(
-            label: '保存',
-            onPressed: () => Navigator.of(dialog).pop(true),
-            fullWidth: false,
-          ),
-        ],
       ),
     ),
   );

@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
 import '../../../core/utils/note_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../../../theme/theme.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
-import '../../../shared/widgets/section_header.dart';
 import '../data/investment_repository.dart';
 import '../providers/investment_providers.dart';
 import 'investment_page.dart';
@@ -45,7 +46,7 @@ class HoldingDetailPage extends ConsumerWidget {
     if (holding == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('持仓详情')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const LoadingState(),
       );
     }
 
@@ -73,9 +74,7 @@ class HoldingDetailPage extends ConsumerWidget {
         ref.watch(investmentCycleInfoProvider).valueOrNull?[holdingId]?.open;
     final int? roundStartMs = (historyMode || holding.quantityMicros == 0)
         ? null
-        : (openCycle != null
-            ? openCycle.startedAt.millisecondsSinceEpoch
-            : null);
+        : (openCycle?.startedAt.millisecondsSinceEpoch);
 
     return Scaffold(
       appBar: AppBar(
@@ -279,7 +278,8 @@ class _InfoCard extends ConsumerWidget {
           Text(
             label,
             style: t.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -354,8 +354,8 @@ class _InfoCard extends ConsumerWidget {
                       // 历史视图不显持仓市值：大字对 = 累计投入 | 总盈亏。
                       histView ? '累计投入' : '持仓市值',
                       style: t.bodySmall?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -376,8 +376,8 @@ class _InfoCard extends ConsumerWidget {
                     Text(
                       '总盈亏',
                       style: t.bodySmall?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -621,7 +621,7 @@ class _FlowList extends ConsumerWidget {
       },
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator()),
+        child: LoadingState(),
       ),
       error: (Object e, StackTrace _) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 24),

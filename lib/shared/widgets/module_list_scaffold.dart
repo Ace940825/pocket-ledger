@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
-import 'package:pocket_ledger/shared/widgets/app_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
 import 'app_toast.dart';
 
@@ -95,7 +95,7 @@ class ModuleListScaffold<T> extends StatelessWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingState(),
         error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
       ),
     );
@@ -108,12 +108,12 @@ Future<bool> confirmDelete(
   required String title,
   String content = '删除后不可撤销。',
 }) async {
-  final bool? confirmed = await     showConfirm(
-      context,
-      title: title,
-      content: content,
-      confirmText: '删除',
-    );
+  final bool? confirmed = await showConfirm(
+    context,
+    title: title,
+    content: content,
+    confirmText: '删除',
+  );
   return confirmed ?? false;
 }
 

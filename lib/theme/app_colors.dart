@@ -140,7 +140,7 @@ class AppPalette {
   // =====================================================================
 
   /// 由调色板生成 Material ColorScheme（亮色）
-  static ColorScheme get lightScheme => ColorScheme.light().copyWith(
+  static ColorScheme get lightScheme => const ColorScheme.light().copyWith(
         primary: ctaGreen,
         onPrimary: cream,
         primaryContainer: sage100,
@@ -162,7 +162,7 @@ class AppPalette {
       );
 
   /// 由调色板生成 Material ColorScheme（暗色）
-  static ColorScheme get darkScheme => ColorScheme.dark().copyWith(
+  static ColorScheme get darkScheme => const ColorScheme.dark().copyWith(
         primary: const Color(0xFF8FB883), // D1 暗：CTA 森林绿
         onPrimary: const Color(0xFF1A2114),
         primaryContainer: sage900,

@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
-import '../../../shared/models/money.dart';
-import '../../../shared/widgets/app_toast.dart';
-import '../../../shared/widgets/info_tip_row.dart';
-import '../../../core/errors/failures.dart';
-import '../data/savings_repository.dart';
-import '../../../shared/widgets/amount_keypad.dart';
-import '../../../shared/widgets/calculator_sheet.dart';
-import '../providers/savings_providers.dart';
 import '../../../routing/app_router.dart';
+import '../../../shared/models/money.dart';
+import '../../../shared/widgets/account_select_pill.dart';
+import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/info_tip_row.dart';
+import '../../../shared/widgets/label_pill.dart';
+import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/menu_item.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
+import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart';
-import '../../../shared/widgets/calendar_sheet.dart';
-import '../../../shared/widgets/line_icons.dart';
-import '../../../shared/widgets/sheet_scaffold.dart';
-import '../../../shared/widgets/menu_item.dart';
+import '../providers/savings_providers.dart';
 import 'savings_modes.dart';
 import 'savings_schedule.dart';
 
@@ -106,24 +106,6 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     setState(() => _kbTarget = null);
   }
 
-  /// 通用计算器入口：弹表达式计算器（四则运算 / AA 分摊），结果（元）回填对应字段。
-  /// [target] 同 [_kbTarget]：'amount' = 每期/目标金额，'rate' = 递增系数。
-  Future<void> _openCalculator(String target) async {
-    final TextEditingController ctrl =
-        target == 'amount' ? _amountController : _elasticRateController;
-    final double? r = await showModalBottomSheet<double>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => CalculatorSheet(initial: ctrl.text),
-    );
-    if (r != null) {
-      final String s = _fmtCalc(r);
-      ctrl.text = s;
-      ctrl.selection = TextSelection.collapsed(offset: s.length);
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -132,15 +114,16 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     // 参照小青账：12 月定额 / 定额默认 100.0，星期 / 52 周 / 弹性默认 10.0，
     // 灵活存钱法默认目标金额 5000.0，其余 1.0。
     _amountController = TextEditingController(
-        text: switch (widget.mode) {
-      SavingsMode.monthly12 || SavingsMode.fixed => '100.0',
-      SavingsMode.weekday ||
-      SavingsMode.weeks52 ||
-      SavingsMode.elastic =>
-        '10.0',
-      SavingsMode.flexible => '5000.0',
-      _ => '1.0',
-    });
+      text: switch (widget.mode) {
+        SavingsMode.monthly12 || SavingsMode.fixed => '100.0',
+        SavingsMode.weekday ||
+        SavingsMode.weeks52 ||
+        SavingsMode.elastic =>
+          '10.0',
+        SavingsMode.flexible => '5000.0',
+        _ => '1.0',
+      },
+    );
     // 递增系数默认 2.0（参照小青账示例）。
     _elasticRateController = TextEditingController(text: '2.0');
     _startDate = DateTime.now();
@@ -317,10 +300,11 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                             // 灵活存钱法：目标金额；其余模式：每期金额（基数 N）。
                             _amountLabel,
                             style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant),
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                           ),
                         ),
                       ),
@@ -400,7 +384,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                   _section(
                     title: '存钱快捷属性',
                     children: <Widget>[
-                      InfoTipRow(
+                      const InfoTipRow(
                         text: '快捷属性适用于完成存钱任务快捷填充属性使用。',
                       ),
                       const SizedBox(height: 12),
@@ -563,8 +547,9 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
           counterText: '',
           hintText: hint,
           hintStyle: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontSize: 14),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 14,
+          ),
           filled: true,
           fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           border: OutlineInputBorder(
@@ -602,13 +587,6 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
           ),
         ),
         prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-        // 通用计算器入口：点图标弹表达式计算器，四则运算 / AA 分摊结果回填本字段。
-        suffixIcon: IconButton(
-          icon: const Icon(Icons.calculate_outlined, size: 20),
-          color: _greenDeep,
-          tooltip: '计算器',
-          onPressed: () => _openCalculator('amount'),
-        ),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
@@ -637,8 +615,9 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
           child: Text(
             '递增系数',
             style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         Row(
@@ -667,13 +646,6 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                   ),
                   prefixIconConstraints:
                       const BoxConstraints(minWidth: 0, minHeight: 0),
-                  // 通用计算器入口：递增系数也可用表达式计算器录入。
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.calculate_outlined, size: 20),
-                    color: _greenDeep,
-                    tooltip: '计算器',
-                    onPressed: () => _openCalculator('rate'),
-                  ),
                   filled: true,
                   fillColor:
                       Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -727,42 +699,41 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
       showHandle: false,
       body: SafeArea(
         child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Stack(
-                alignment: Alignment.center,
-                children: <Widget>[
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                    child: Text(
-                      '选择模式',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                    ),
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  child: Text(
+                    '选择模式',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
-                  Positioned(
-                    left: 10,
-                    top: 8,
-                    child: IconButton(
-                      icon: const Icon(Icons.close, size: 22),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
+                ),
+                Positioned(
+                  left: 10,
+                  top: 8,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, size: 22),
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
-                ],
-              ),
-              MenuItem(
-                title: '金额模式',
-                subtitle: '上次存钱+递增数值',
-                onTap: () => Navigator.of(context).pop(false),
-              ),
-              MenuItem(
-                title: '百分比模式',
-                subtitle: '上次存钱*递增数值百分比+上次存钱',
-                onTap: () => Navigator.of(context).pop(true),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
+                ),
+              ],
+            ),
+            MenuItem(
+              title: '金额模式',
+              subtitle: '上次存钱+递增数值',
+              onTap: () => Navigator.of(context).pop(false),
+            ),
+            MenuItem(
+              title: '百分比模式',
+              subtitle: '上次存钱*递增数值百分比+上次存钱',
+              onTap: () => Navigator.of(context).pop(true),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
     if (percent != null && percent != _elasticPercent) {
@@ -798,15 +769,19 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                   child: Text(
                     '选择$title',
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                ...options.map((String o) => ListTile(
-                      title: Text(o, style: const TextStyle(fontSize: 15)),
-                      trailing:
-                          o == value ? const Icon(Icons.check, size: 20) : null,
-                      onTap: () => Navigator.of(context).pop(o),
-                    )),
+                ...options.map(
+                  (String o) => ListTile(
+                    title: Text(o, style: const TextStyle(fontSize: 15)),
+                    trailing:
+                        o == value ? const Icon(Icons.check, size: 20) : null,
+                    onTap: () => Navigator.of(context).pop(o),
+                  ),
+                ),
                 const SizedBox(height: 6),
               ],
             ),
@@ -838,14 +813,17 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                   Text(
                     title,
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: TextStyle(
-                        fontSize: 12.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      fontSize: 12.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -853,12 +831,15 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
             Text(
               value,
               style: TextStyle(
-                  fontSize: 13.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                fontSize: 13.5,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
-            Icon(Icons.chevron_right,
-                size: 22,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.chevron_right,
+              size: 22,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -889,96 +870,94 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
           return SafeArea(
             top: false,
             child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const Center(
-                    child: Text(
-                      '执行次数',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Center(
+                  child: Text(
+                    '执行次数',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '计划按此次数结束（如 12 表示存满 12 期后完成）',
+                  style: TextStyle(fontSize: 13, color: AppPalette.neutralGray),
+                ),
+                const SizedBox(height: 12),
+                // 只读显示框：录入走工程内数字键盘，不唤起系统键盘。
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppPalette.surfaceMist,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    value.isEmpty ? '填入执行次数，如 12' : value,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: value.isEmpty
+                          ? AppPalette.neutralGray.withValues(alpha: 0.6)
+                          : Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '计划按此次数结束（如 12 表示存满 12 期后完成）',
-                    style:
-                        TextStyle(fontSize: 13, color: AppPalette.neutralGray),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+                  child: NumKeypad(
+                    value: value,
+                    // 编辑既有计划时次数已预填 → 首键整体替换（全局统一）。
+                    replaceOnFirstInput: true,
+                    onChanged: (String v) => setSheetState(() => value = v),
+                    // 收起键 = 关闭弹层（等同取消）。
+                    onHide: () => Navigator.of(ctx).pop(null),
+                    onConfirm: save,
+                    // 执行次数为整数，忽略「.」键。
+                    allowDecimal: false,
                   ),
-                  const SizedBox(height: 12),
-                  // 只读显示框：录入走工程内数字键盘，不唤起系统键盘。
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppPalette.surfaceMist,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      value.isEmpty ? '填入执行次数，如 12' : value,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: value.isEmpty
-                            ? AppPalette.neutralGray.withValues(alpha: 0.6)
-                            : Theme.of(context).colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(null),
+                        child: const Text('取消'),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
-                    child: NumKeypad(
-                      value: value,
-                      // 编辑既有计划时次数已预填 → 首键整体替换（全局统一）。
-                      replaceOnFirstInput: true,
-                      onChanged: (String v) => setSheetState(() => value = v),
-                      // 收起键 = 关闭弹层（等同取消）。
-                      onHide: () => Navigator.of(ctx).pop(null),
-                      onConfirm: save,
-                      // 执行次数为整数，忽略「.」键。
-                      allowDecimal: false,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(null),
-                          child: const Text('取消'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DecoratedBox(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: <Color>[
-                                AppPalette.sageMist,
-                                AppPalette.sageRibbon
-                              ],
-                            ),
-                            borderRadius: BorderRadius.all(Radius.circular(28)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: <Color>[
+                              AppPalette.sageMist,
+                              AppPalette.sageRibbon,
+                            ],
                           ),
-                          child: SizedBox(
-                            height: 44,
-                            child: TextButton(
-                              onPressed: save,
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size.fromHeight(44),
-                                foregroundColor: AppPalette.white,
-                              ),
-                              child: const Text('保存'),
+                          borderRadius: BorderRadius.all(Radius.circular(28)),
+                        ),
+                        child: SizedBox(
+                          height: 44,
+                          child: TextButton(
+                            onPressed: save,
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size.fromHeight(44),
+                              foregroundColor: AppPalette.white,
                             ),
+                            child: const Text('保存'),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -1022,15 +1001,18 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                   Text(
                     DateFormat('yyyy年M月d日').format(_startDate),
                     style: TextStyle(
-                        fontSize: 12.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      fontSize: 12.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right,
-                size: 22,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.chevron_right,
+              size: 22,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -1085,7 +1067,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
           child: Switch(
             value: _monthEnd,
             onChanged: (bool v) => setState(() => _monthEnd = v),
-            activeColor: Theme.of(context).colorScheme.onPrimary,
+            activeThumbColor: Theme.of(context).colorScheme.onPrimary,
             activeTrackColor: _greenDeep,
           ),
         ),
@@ -1129,14 +1111,18 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
               Text(
                 bookName,
                 style: TextStyle(
-                    fontSize: 12.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  fontSize: 12.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
         ),
-        Icon(Icons.chevron_right,
-            size: 22, color: Theme.of(context).colorScheme.onSurfaceVariant),
+        Icon(
+          Icons.chevron_right,
+          size: 22,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ],
     );
   }
@@ -1155,38 +1141,12 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
               ),
             ),
             const SizedBox(width: 12),
-            _labelPill('扣款账户'),
+            const LabelPill(label: '扣款账户'),
           ],
         ),
         const SizedBox(height: 10),
-        // 「转至」分隔 chip。
-        Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppPalette.surfaceMist,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const Text(
-                  '¥',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppPalette.sageInk,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text('转至',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
-              ],
-            ),
-          ),
-        ),
+        // 「转至」分隔胶囊。
+        const Center(child: LabelPill(label: '转至', icon: Icons.currency_yuan)),
         const SizedBox(height: 10),
         Row(
           children: <Widget>[
@@ -1198,7 +1158,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
               ),
             ),
             const SizedBox(width: 12),
-            _labelPill('入款账户'),
+            const LabelPill(label: '入款账户'),
           ],
         ),
       ],
@@ -1220,63 +1180,10 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
         break;
       }
     }
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
+    return AccountSelectPill(
+      label: label,
+      accountName: acc?.name,
       onTap: onTap,
-      child: Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: acc == null ? AppPalette.surfaceMist : _greenSoft,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          children: <Widget>[
-            if (acc == null)
-              const LineIcon(
-                LineIconKind.account,
-                size: 18,
-                color: AppPalette.sageInk,
-              )
-            else
-              Icon(Icons.check, size: 18, color: _greenDeep),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                acc?.name ?? label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: acc == null
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
-                      : _greenDeep,
-                  fontWeight: acc == null ? FontWeight.w400 : FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 右侧静态标签胶囊（扣款账户 / 入款账户）。
-  Widget _labelPill(String label) {
-    return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceMist,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-            fontSize: 14,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
-      ),
     );
   }
 
@@ -1337,11 +1244,11 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     required String title,
     String? selectedId,
   }) {
-    return showModalBottomSheet<Account>(
-      context: context,
-      backgroundColor: Colors.transparent,
+    return showAppModalSheet<Account>(
+      context,
       isScrollControlled: true,
-      builder: (BuildContext ctx) => AccountPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: AccountPickerSheet(
         filter: fundAccountsOnly,
         selectedId: selectedId,
         title: title,
@@ -1354,7 +1261,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
         onManage: () {
           if (mounted) context.push(Routes.accountManage);
         },
-        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc),
+        onConfirm: (Account? acc) => Navigator.of(context).pop(acc),
       ),
     );
   }
@@ -1490,14 +1397,6 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
   }
 }
 
-/// 计算器结果（double）转金额字符串：保留两位小数、去掉悬挂的 0 与小数点。
-String _fmtCalc(double v) {
-  final String s = v.toStringAsFixed(2);
-  return s.contains('.')
-      ? s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')
-      : s;
-}
-
 /// 工程内数字键盘（存钱创建页专用，样式对齐记账页按键）：
 /// 4×4 网格——数字 1-9、`.`、`0`、`00`；右列 = 删除 / 收起 / 完成。
 /// 录入规则与记账页一致：整数最多 12 位、小数最多 2 位。
@@ -1506,8 +1405,6 @@ class _SavingsKeypad extends StatelessWidget {
     required this.value,
     required this.onChanged,
     required this.onHide,
-    this.onConfirm,
-    this.allowDecimal = true,
   });
 
   // 与页面同款鼠尾草渐变（完成键）。
@@ -1518,18 +1415,11 @@ class _SavingsKeypad extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onHide;
 
-  /// 确认键（✓）回调；缺省与 [onHide] 同义（页内录入场景=收起即完成）。
-  final VoidCallback? onConfirm;
-
-  /// 是否允许小数点（执行次数等整数场景传 false 忽略「.」键）。
-  final bool allowDecimal;
-
   static const int _maxIntegerDigits = 12;
   static const int _maxDecimalDigits = 2;
 
   void _input(String s) {
     if (s == '.') {
-      if (!allowDecimal) return;
       if (value.contains('.')) return;
       onChanged(value.isEmpty ? '0.' : '$value.');
       return;
@@ -1552,7 +1442,6 @@ class _SavingsKeypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
     return SizedBox(
       height: 196,
       child: GridView.count(
@@ -1574,8 +1463,12 @@ class _SavingsKeypad extends StatelessWidget {
           _key(context, label: '7', onTap: () => _input('7')),
           _key(context, label: '8', onTap: () => _input('8')),
           _key(context, label: '9', onTap: () => _input('9')),
-          _key(context,
-              icon: Icons.check, onTap: onConfirm ?? onHide, sage: true),
+          _key(
+            context,
+            icon: Icons.check,
+            onTap: onHide,
+            sage: true,
+          ),
           _key(context, label: '.', onTap: () => _input('.')),
           _key(context, label: '0', onTap: () => _input('0')),
           _key(context, label: '00', onTap: () => _input('00')),

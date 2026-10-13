@@ -511,7 +511,8 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   Future<int> updateTx(TransactionsCompanion companion) {
     return (update(transactions)
           ..where(
-              ($TransactionsTable tbl) => tbl.id.equals(companion.id.value)))
+            ($TransactionsTable tbl) => tbl.id.equals(companion.id.value),
+          ))
         .write(companion);
   }
 
@@ -519,8 +520,10 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   Future<List<String>> findIdsByCategory(String categoryId) {
     return (selectOnly(transactions)
           ..addColumns(<Expression<Object>>[transactions.id])
-          ..where(transactions.categoryId.equals(categoryId) &
-              transactions.deleted.equals(false)))
+          ..where(
+            transactions.categoryId.equals(categoryId) &
+                transactions.deleted.equals(false),
+          ))
         .map((TypedResult row) => row.read(transactions.id)!)
         .get();
   }

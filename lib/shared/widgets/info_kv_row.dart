@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_dimens.dart';
-
 /// 信息键值行（全应用统一）：左标签 + 右值，可选点击。
 ///
 /// 用于详情页 / 设置页的「标签 : 值」单行。文字色走主题，暗色自动适配。

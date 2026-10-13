@@ -1,42 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
-import 'package:pocket_ledger/shared/widgets/app_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
-import '../../../routing/app_router.dart';
+import '../../../providers/app_providers.dart';
+import '../../../providers/asset_stats_settings.dart';
 import '../../../shared/models/money.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../shared/widgets/action_group.dart';
 import '../../../shared/widgets/action_row.dart';
+import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
-import '../data/account_icon.dart';
-import '../../../providers/asset_stats_settings.dart';
-import '../../record/record_tab.dart';
-import '../../record/presentation/record_sheet.dart';
+import '../../../theme/app_colors.dart';
+import '../../investment/providers/investment_providers.dart';
+import '../../ledger/data/transaction_repository.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
-import '../../ledger/data/transaction_repository.dart';
-import '../providers/accounts_providers.dart';
-import '../../investment/providers/investment_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
-import '../../../providers/app_providers.dart';
+import '../../record/presentation/record_sheet.dart';
+import '../../record/record_tab.dart';
+import '../data/account_icon.dart';
+import '../providers/accounts_providers.dart';
 import 'account_ledger_grouping.dart';
 import 'widgets/account_transaction_tile.dart';
 import 'widgets/asset_stats_settings_sheet.dart';
-import '../../../shared/widgets/calendar_sheet.dart';
-import '../../../shared/widgets/app_toast.dart';
-import '../../../shared/widgets/amount_keypad.dart';
 
 /// 单个账户的资产详情页（小青账「资产详情」复刻）。
 ///
@@ -274,15 +271,21 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
               ActionGroup(
                 children: <Widget>[
                   ActionRow(
-                    icon: const LineIcon(LineIconKind.pencil,
-                        size: 17, color: ForestGreen.deep),
+                    icon: const LineIcon(
+                      LineIconKind.pencil,
+                      size: 17,
+                      color: ForestGreen.deep,
+                    ),
                     title: '编辑账户',
                     subtitle: '修改名称、余额与备注',
                     onTap: () => Navigator.of(context).pop('edit'),
                   ),
                   ActionRow(
-                    icon: const LineIcon(LineIconKind.excludeStats,
-                        size: 17, color: ForestGreen.deep),
+                    icon: const LineIcon(
+                      LineIconKind.excludeStats,
+                      size: 17,
+                      color: ForestGreen.deep,
+                    ),
                     title: '隐藏账户',
                     subtitle: '不再显示在账户列表，数据保留',
                     onTap: () => Navigator.of(context).pop('archive'),
@@ -293,15 +296,21 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
               ActionGroup(
                 children: <Widget>[
                   ActionRow(
-                    icon: const Icon(Icons.swap_horiz,
-                        size: 17, color: ForestGreen.deep),
+                    icon: const Icon(
+                      Icons.swap_horiz,
+                      size: 17,
+                      color: ForestGreen.deep,
+                    ),
                     title: '账单迁移',
                     subtitle: '把本账户账单挪到其他账户',
                     onTap: () => Navigator.of(context).pop('migrate'),
                   ),
                   ActionRow(
-                    icon: const LineIcon(LineIconKind.moneyBag,
-                        size: 17, color: ForestGreen.deep),
+                    icon: const LineIcon(
+                      LineIconKind.moneyBag,
+                      size: 17,
+                      color: ForestGreen.deep,
+                    ),
                     title: '金额校验',
                     subtitle: '账面有偏差时一键核对',
                     onTap: () => Navigator.of(context).pop('verify'),
@@ -312,16 +321,22 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
               ActionGroup(
                 children: <Widget>[
                   ActionRow(
-                    icon: const LineIcon(LineIconKind.trash,
-                        size: 17, color: ForestSemantic.expense),
+                    icon: const LineIcon(
+                      LineIconKind.trash,
+                      size: 17,
+                      color: ForestSemantic.expense,
+                    ),
                     title: '账单清理',
                     subtitle: '软删除本账户全部账单',
                     danger: true,
                     onTap: () => Navigator.of(context).pop('clear'),
                   ),
                   ActionRow(
-                    icon: const Icon(Icons.delete_forever,
-                        size: 17, color: ForestSemantic.expense),
+                    icon: const Icon(
+                      Icons.delete_forever,
+                      size: 17,
+                      color: ForestSemantic.expense,
+                    ),
                     title: '删除账户',
                     subtitle: '流水记录保留，此操作不可撤销',
                     danger: true,
@@ -362,28 +377,33 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
     final List<Transaction> all =
         await ref.read(accountAllTransactionsProvider(account.id).future);
     final List<Transaction> owned = all
-        .where((Transaction t) =>
-            t.accountId == account.id && t.sourceModule != SourceModule.lend)
+        .where(
+          (Transaction t) =>
+              t.accountId == account.id && t.sourceModule != SourceModule.lend,
+        )
         .toList();
     if (owned.isEmpty) {
       if (mounted) showAppToast(context, '该账户没有可迁移的账单');
       return;
     }
-    final String? targetId = await showModalBottomSheet<String>(
-      context: context,
+    if (!mounted) return;
+    final String? targetId = await showAppModalSheet<String>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => AccountPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: AccountPickerSheet(
         title: '迁移到账户',
         showNoneRow: false,
         showSettings: false,
         filter: (List<Account> list) => list
-            .where((Account a) =>
-                a.type.category != AccountCategory.receivable &&
-                a.type.category != AccountCategory.payable &&
-                a.id != account.id)
+            .where(
+              (Account a) =>
+                  a.type.category != AccountCategory.receivable &&
+                  a.type.category != AccountCategory.payable &&
+                  a.id != account.id,
+            )
             .toList(),
-        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id),
+        onConfirm: (Account? acc) => Navigator.of(context).pop(acc?.id),
       ),
     );
     if (targetId == null || !mounted) return;
@@ -461,13 +481,16 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
     final List<Transaction> all =
         await ref.read(accountAllTransactionsProvider(account.id).future);
     final List<Transaction> owned = all
-        .where((Transaction t) =>
-            t.accountId == account.id && t.sourceModule != SourceModule.lend)
+        .where(
+          (Transaction t) =>
+              t.accountId == account.id && t.sourceModule != SourceModule.lend,
+        )
         .toList();
     if (owned.isEmpty) {
       if (mounted) showAppToast(context, '该账户没有可清理的账单');
       return;
     }
+    if (!mounted) return;
     final bool? ok = await showConfirm(
       context,
       title: '清理全部账单？',

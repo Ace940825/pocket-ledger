@@ -590,8 +590,16 @@ class _LineIconPainter extends CustomPainter {
   }
 
   /// 仅用于优惠券的竖向虚线（dash=实线段长，gap=间隙）。
-  void _dashLine(Canvas c, Paint paint, double x, double y1, double x2,
-      double y2, double dash, double gap) {
+  void _dashLine(
+    Canvas c,
+    Paint paint,
+    double x,
+    double y1,
+    double x2,
+    double y2,
+    double dash,
+    double gap,
+  ) {
     double y = y1;
     while (y < y2) {
       final double end = (y + dash) > y2 ? y2 : y + dash;
@@ -627,11 +635,11 @@ class _LineIconPainter extends CustomPainter {
   }
 
   void _discount(Path p) {
-    p.addRRect(RRect.fromLTRBXY(4, 6, 20, 18, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(4, 6, 20, 18, 2, 2));
   }
 
   void _photo(Path p) {
-    p.addRRect(RRect.fromLTRBXY(4, 5, 20, 19, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(4, 5, 20, 19, 2, 2));
     p.addOval(Rect.fromCircle(center: const Offset(9, 10), radius: 1.5));
     p.moveTo(5, 17);
     p.lineTo(9, 13);
@@ -651,7 +659,7 @@ class _LineIconPainter extends CustomPainter {
   }
 
   void _book(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 5, 19, 19, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(5, 5, 19, 19, 2, 2));
     _line(p, 5, 9, 19, 9);
     _line(p, 8, 13, 16, 13);
     _line(p, 8, 16, 16, 16);
@@ -683,7 +691,7 @@ class _LineIconPainter extends CustomPainter {
   }
 
   void _calendar(Path p) {
-    p.addRRect(RRect.fromLTRBXY(4, 5.5, 20, 20.5, 2.5, 2.5));
+    p.addRRect(const RRect.fromLTRBXY(4, 5.5, 20, 20.5, 2.5, 2.5));
     _line(p, 4, 10, 20, 10);
     _line(p, 8, 3.5, 8, 6.5);
     _line(p, 16, 3.5, 16, 6.5);
@@ -693,7 +701,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 分期：日历框（横线 + 双耳）+ 框内「¥」（逐期入账）。
   void _installment(Path p) {
-    p.addRRect(RRect.fromLTRBXY(4, 5.5, 20, 20.5, 2.5, 2.5));
+    p.addRRect(const RRect.fromLTRBXY(4, 5.5, 20, 20.5, 2.5, 2.5));
     _line(p, 4, 10, 20, 10);
     _line(p, 8, 3.5, 8, 6.5);
     _line(p, 16, 3.5, 16, 6.5);
@@ -707,7 +715,7 @@ class _LineIconPainter extends CustomPainter {
   /// 甜点（蛋糕：烛火 + 蜡烛 + 糕体 + 底盘）。
   void _cake(Path p) {
     _line(p, 5.5, 19.8, 18.5, 19.8);
-    p.addRRect(RRect.fromLTRBXY(6.5, 13.2, 17.5, 19.8, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(6.5, 13.2, 17.5, 19.8, 1.5, 1.5));
     _line(p, 6.5, 15.8, 17.5, 15.8);
     _line(p, 12, 10.2, 12, 13.2);
     p.addOval(Rect.fromCircle(center: const Offset(12, 8.2), radius: 1.1));
@@ -725,7 +733,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 摄影（相机：机身 + 顶部取景凸起 + 镜头）。
   void _camera(Path p) {
-    p.addRRect(RRect.fromLTRBXY(3.5, 7.8, 20.5, 18.5, 2.5, 2.5));
+    p.addRRect(const RRect.fromLTRBXY(3.5, 7.8, 20.5, 18.5, 2.5, 2.5));
     p.moveTo(9, 7.8);
     p.lineTo(10, 5.5);
     p.lineTo(14, 5.5);
@@ -794,7 +802,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 午餐：便当盒（圆角盒 + 提手 + 分隔）。
   void _lunch(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 7.85, 19, 18.85, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(5, 7.85, 19, 18.85, 2, 2));
     p.moveTo(10, 7.85);
     p.lineTo(10, 6.05);
     p.quadraticBezierTo(10, 5.15, 11, 5.15);
@@ -809,7 +817,7 @@ class _LineIconPainter extends CustomPainter {
   void _dinner(Path p) {
     p.moveTo(6.5, 14.85);
     p.cubicTo(6.5, 6.85, 17.5, 6.85, 17.5, 14.85);
-    p.addOval(Rect.fromLTRB(4, 14.25, 20, 17.45));
+    p.addOval(const Rect.fromLTRB(4, 14.25, 20, 17.45));
     p.addOval(Rect.fromCircle(center: const Offset(12, 7.65), radius: 1.1));
   }
 
@@ -820,14 +828,14 @@ class _LineIconPainter extends CustomPainter {
     p.lineTo(14.8, 20.4);
     p.lineTo(16, 9.4);
     p.close();
-    p.addRRect(RRect.fromLTRBXY(7.2, 7.4, 16.8, 9.8, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(7.2, 7.4, 16.8, 9.8, 1, 1));
     p.moveTo(13, 7.4);
     p.lineTo(14.6, 3.6);
   }
 
   /// 团购券：票券（圆角票 + 两侧缺口 + ¥ 印记）。
   void _coupon(Path p) {
-    p.addRRect(RRect.fromLTRBXY(4, 7.5, 20, 16.5, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(4, 7.5, 20, 16.5, 2, 2));
     p.addOval(Rect.fromCircle(center: const Offset(4, 12), radius: 1.6));
     p.addOval(Rect.fromCircle(center: const Offset(20, 12), radius: 1.6));
     p.moveTo(12, 9.5);
@@ -852,7 +860,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 交通：巴士。
   void _bus(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 4.35, 19, 16.85, 2.5, 2.5));
+    p.addRRect(const RRect.fromLTRBXY(5, 4.35, 19, 16.85, 2.5, 2.5));
     _line(p, 5, 10.85, 19, 10.85);
     p.addOval(Rect.fromCircle(center: const Offset(9, 18.35), radius: 1.3));
     p.addOval(Rect.fromCircle(center: const Offset(15, 18.35), radius: 1.3));
@@ -917,13 +925,13 @@ class _LineIconPainter extends CustomPainter {
 
   /// 通讯：手机。
   void _smartphone(Path p) {
-    p.addRRect(RRect.fromLTRBXY(7.5, 3, 16.5, 21, 2.5, 2.5));
+    p.addRRect(const RRect.fromLTRBXY(7.5, 3, 16.5, 21, 2.5, 2.5));
     _line(p, 10.5, 18.5, 13.5, 18.5);
   }
 
   /// 人情：礼盒 + 缎带 + 蝴蝶结。
   void _giftRibbon(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5.5, 8, 18.5, 18.5, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(5.5, 8, 18.5, 18.5, 1.5, 1.5));
     _line(p, 12, 8, 12, 18.5);
     _line(p, 12, 8, 9, 5.5);
     _line(p, 12, 8, 15, 5.5);
@@ -969,7 +977,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 兼职/工作：公文包。
   void _briefcase(Path p) {
-    p.addRRect(RRect.fromLTRBXY(4.5, 7.35, 19.5, 18.35, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(4.5, 7.35, 19.5, 18.35, 2, 2));
     p.moveTo(9, 7.35);
     p.lineTo(9, 5.65);
     p.arcToPoint(
@@ -991,7 +999,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 红包：红包封 + 弧线封口 + 圆印。
   void _redPacket(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 6, 19, 18, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(5, 6, 19, 18, 2, 2));
     p.moveTo(5, 9);
     p.cubicTo(8, 11.4, 16, 11.4, 19, 9);
     p.addOval(Rect.fromCircle(center: const Offset(12, 13), radius: 1.5));
@@ -999,7 +1007,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 退款：票据 + 回退箭头。
   void _refundArrow(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 8, 19, 16, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(5, 8, 19, 16, 1.5, 1.5));
     _line(p, 15, 12, 12, 12);
     _line(p, 12, 12, 13.6, 10.5);
     _line(p, 12, 12, 13.6, 13.5);
@@ -1116,7 +1124,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 点心（Dim Sum）。
   void _dimSum(Path p) {
-    p.addOval(Rect.fromLTRB(5, 14.75, 19, 19.75));
+    p.addOval(const Rect.fromLTRB(5, 14.75, 19, 19.75));
     p.moveTo(5, 17.25);
     p.lineTo(5, 11.25);
     p.quadraticBezierTo(12, 8.25, 19, 11.25);
@@ -1150,7 +1158,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 零食（Snack）。
   void _snack(Path p) {
-    p.addOval(Rect.fromLTRB(5, 7, 21, 17));
+    p.addOval(const Rect.fromLTRB(5, 7, 21, 17));
     p.addOval(Rect.fromCircle(center: const Offset(10, 11), radius: 1));
     p.addOval(Rect.fromCircle(center: const Offset(15, 10), radius: 1));
     p.addOval(Rect.fromCircle(center: const Offset(16, 13), radius: 1));
@@ -1162,7 +1170,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 运费（Shipping）。
   void _shipping(Path p) {
-    p.addRRect(RRect.fromLTRBXY(6, 6, 18, 15, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(6, 6, 18, 15, 1, 1));
     p.moveTo(6, 9);
     p.lineTo(12, 12);
     p.lineTo(18, 9);
@@ -1191,15 +1199,15 @@ class _LineIconPainter extends CustomPainter {
 
   /// 美妆护肤（Beauty）。
   void _beauty(Path p) {
-    p.addRRect(RRect.fromLTRBXY(8.15, 4, 12.15, 11, 1, 1));
-    p.addRRect(RRect.fromLTRBXY(7.15, 11, 13.15, 20, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(8.15, 4, 12.15, 11, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(7.15, 11, 13.15, 20, 1, 1));
     _line(p, 8.15, 7, 12.15, 7);
     p.addOval(Rect.fromCircle(center: const Offset(14.65, 15), radius: 2.2));
   }
 
   /// 数码电器（Electronics）。
   void _digital(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 5.5, 19, 14.5, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(5, 5.5, 19, 14.5, 1.5, 1.5));
     p.moveTo(9, 18.5);
     p.lineTo(15, 18.5);
     _line(p, 12, 14.5, 12, 18.5);
@@ -1207,7 +1215,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 生活耗材（Consumables）。
   void _consumable(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5.5, 7.5, 15.5, 16.5, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(5.5, 7.5, 15.5, 16.5, 2, 2));
     p.addOval(Rect.fromCircle(center: const Offset(10.5, 12), radius: 2));
     p.moveTo(15.5, 9.5);
     p.lineTo(18.5, 9.5);
@@ -1290,7 +1298,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 公共交通（Public Transit）。
   void _transit(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 4.9, 19, 17.9, 2.5, 2.5));
+    p.addRRect(const RRect.fromLTRBXY(5, 4.9, 19, 17.9, 2.5, 2.5));
     _line(p, 5, 11.9, 19, 11.9);
     p.addOval(Rect.fromCircle(center: const Offset(8.5, 17.9), radius: 1.2));
     p.addOval(Rect.fromCircle(center: const Offset(15.5, 17.9), radius: 1.2));
@@ -1299,7 +1307,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 加油充电（Fuel/Charge）。
   void _fuel(Path p) {
-    p.addRRect(RRect.fromLTRBXY(6.5, 8.5, 14.5, 19.5, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(6.5, 8.5, 14.5, 19.5, 1.5, 1.5));
     _line(p, 6.5, 11.5, 14.5, 11.5);
     p.moveTo(14.5, 12.5);
     p.lineTo(17.5, 12.5);
@@ -1336,7 +1344,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 城际出行（Intercity）。
   void _intercity(Path p) {
-    p.addRRect(RRect.fromLTRBXY(7, 6.4, 17, 17.4, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(7, 6.4, 17, 17.4, 2, 2));
     _line(p, 7, 11.4, 17, 11.4);
     p.addOval(Rect.fromCircle(center: const Offset(10, 18.4), radius: 1.2));
     p.addOval(Rect.fromCircle(center: const Offset(14, 18.4), radius: 1.2));
@@ -1346,7 +1354,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 装修维护（Renovation）。
   void _renovation(Path p) {
-    p.addRRect(RRect.fromLTRBXY(6, 5, 15, 9, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(6, 5, 15, 9, 1, 1));
     _line(p, 10, 9, 10, 14);
     _line(p, 10, 14, 14, 14);
     _line(p, 6, 19, 18, 19);
@@ -1377,7 +1385,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 话费网费（Telecom）。
   void _telecom(Path p) {
-    p.addRRect(RRect.fromLTRBXY(9, 4, 17, 20, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(9, 4, 17, 20, 2, 2));
     _line(p, 12, 17, 14, 17);
     p.moveTo(7, 8);
     p.quadraticBezierTo(10, 5, 13, 8);
@@ -1420,7 +1428,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 线下娱乐（Offline Fun）。
   void _offlineFun(Path p) {
-    p.addRRect(RRect.fromLTRBXY(4, 7.5, 20, 16.5, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(4, 7.5, 20, 16.5, 2, 2));
     _line(p, 12, 7.5, 12, 16.5);
     _line(p, 7, 10.5, 9, 10.5);
     _line(p, 7, 13, 9, 13);
@@ -1428,7 +1436,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 数字娱乐（Digital Fun）。
   void _digitalFun(Path p) {
-    p.addRRect(RRect.fromLTRBXY(8, 4, 16, 20, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(8, 4, 16, 20, 2, 2));
     p.moveTo(11, 10);
     p.lineTo(11, 14);
     p.lineTo(14, 12);
@@ -1437,7 +1445,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 旅游度假（Vacation）。
   void _travelVacation(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5.75, 9.25, 17.75, 20.25, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(5.75, 9.25, 17.75, 20.25, 2, 2));
     p.moveTo(8.75, 9.25);
     p.lineTo(8.75, 7.25);
     p.lineTo(14.75, 7.25);
@@ -1450,7 +1458,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 收藏爱好（Hobby）。
   void _hobby(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 6, 19, 18, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(5, 6, 19, 18, 1.5, 1.5));
     p.moveTo(8, 15);
     p.lineTo(11, 11);
     p.lineTo(13, 13);
@@ -1461,7 +1469,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 就医购药（Clinic）。
   void _clinic(Path p) {
-    p.addRRect(RRect.fromLTRBXY(8.5, 4.5, 15.5, 19.5, 3.5, 3.5));
+    p.addRRect(const RRect.fromLTRBXY(8.5, 4.5, 15.5, 19.5, 3.5, 3.5));
     _line(p, 12, 9.5, 12, 14.5);
     _line(p, 9.5, 12, 14.5, 12);
   }
@@ -1602,7 +1610,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 取现：信用卡（圆角卡 + 卡面横纹）+ 向下箭头（负债账户取出现金）。
   void _withdrawal(Path p) {
-    p.addRRect(RRect.fromLTRBXY(4, 4.5, 20, 10.5, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(4, 4.5, 20, 10.5, 2, 2));
     _line(p, 4, 7.5, 20, 7.5);
     _line(p, 12, 13, 12, 19.5);
     _line(p, 9.5, 17, 12, 19.5);
@@ -1611,8 +1619,8 @@ class _LineIconPainter extends CustomPainter {
 
   /// 内部转账：左右两个账户 + 双向箭头（账户间内部划转）。
   void _internalTransfer(Path p) {
-    p.addRRect(RRect.fromLTRBXY(3.5, 9, 8.5, 15, 1.5, 1.5));
-    p.addRRect(RRect.fromLTRBXY(15.5, 9, 20.5, 15, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(3.5, 9, 8.5, 15, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(15.5, 9, 20.5, 15, 1.5, 1.5));
     _line(p, 8.8, 12, 15.2, 12);
     _line(p, 10.8, 10.4, 8.8, 12);
     _line(p, 10.8, 13.6, 8.8, 12);
@@ -1629,8 +1637,8 @@ class _LineIconPainter extends CustomPainter {
   /// 存款存入：储蓄罐 + 罐腹内向下箭头（钱落进罐里）。
   void _depositIn(Path p) {
     // 罐体
-    p.addOval(Rect.fromLTRB(5.9, 7.05, 19.9, 17.05));
-    p.addOval(Rect.fromLTRB(4.1, 10.55, 6.7, 13.55));
+    p.addOval(const Rect.fromLTRB(5.9, 7.05, 19.9, 17.05));
+    p.addOval(const Rect.fromLTRB(4.1, 10.55, 6.7, 13.55));
     p.moveTo(8.4, 7.25);
     p.lineTo(9.7, 4.85);
     p.lineTo(11.2, 7.25);
@@ -1647,8 +1655,8 @@ class _LineIconPainter extends CustomPainter {
   /// 存款取出：储蓄罐 + 罐腹内向上箭头（钱从罐里取出）。
   void _depositOut(Path p) {
     // 罐体
-    p.addOval(Rect.fromLTRB(5.9, 7.05, 19.9, 17.05));
-    p.addOval(Rect.fromLTRB(4.1, 10.55, 6.7, 13.55));
+    p.addOval(const Rect.fromLTRB(5.9, 7.05, 19.9, 17.05));
+    p.addOval(const Rect.fromLTRB(4.1, 10.55, 6.7, 13.55));
     p.moveTo(8.4, 7.25);
     p.lineTo(9.7, 4.85);
     p.lineTo(11.2, 7.25);
@@ -1683,7 +1691,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 还债：欠条 + 侧旁向下箭头（支出，向债主还款）。
   void _repayDebt(Path p) {
-    p.addRRect(RRect.fromLTRBXY(4.75, 6.75, 13.75, 17.75, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(4.75, 6.75, 13.75, 17.75, 1.5, 1.5));
     _line(p, 7.25, 10.25, 11.25, 10.25);
     _line(p, 7.25, 13.75, 11.25, 13.75);
     _line(p, 17.25, 6.25, 17.25, 13.25);
@@ -1693,7 +1701,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 收债：欠条 + 侧旁向上箭头（收入，向欠款人催收）。
   void _collectDebt(Path p) {
-    p.addRRect(RRect.fromLTRBXY(10.25, 6.25, 19.25, 17.25, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(10.25, 6.25, 19.25, 17.25, 1.5, 1.5));
     _line(p, 12.75, 9.75, 16.75, 9.75);
     _line(p, 12.75, 13.25, 16.75, 13.25);
     _line(p, 6.75, 17.75, 6.75, 10.75);
@@ -1703,14 +1711,14 @@ class _LineIconPainter extends CustomPainter {
 
   /// 债务消减：欠条 + 下方减号（部分减免 / 打折）。
   void _debtReduce(Path p) {
-    p.addRRect(RRect.fromLTRBXY(7, 5.25, 17, 15.25, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(7, 5.25, 17, 15.25, 1.5, 1.5));
     _line(p, 9.5, 10.25, 14.5, 10.25);
     _line(p, 9, 18.75, 15, 18.75);
   }
 
   /// 坏账计提：欠条 + 贯穿斜杠（核销 / 坏账作废）。
   void _badDebt(Path p) {
-    p.addRRect(RRect.fromLTRBXY(7, 5.25, 17, 15.25, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(7, 5.25, 17, 15.25, 1.5, 1.5));
     _line(p, 9.5, 10.25, 14.5, 10.25);
     _line(p, 5.5, 18.75, 18.5, 5.75);
   }
@@ -1734,7 +1742,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 缴税（Tax）。
   void _tax(Path p) {
-    p.addRRect(RRect.fromLTRBXY(6, 4, 18, 20, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(6, 4, 18, 20, 1.5, 1.5));
     _line(p, 9, 9, 15, 9);
     _line(p, 9, 12, 15, 12);
     _line(p, 9, 15, 13, 15);
@@ -1780,7 +1788,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 大额投入（CapEx）。
   void _capex(Path p) {
-    p.addRRect(RRect.fromLTRBXY(6, 4.5, 18, 19.5, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(6, 4.5, 18, 19.5, 1, 1));
     _line(p, 9, 7.5, 9, 9.5);
     _line(p, 12, 7.5, 12, 9.5);
     _line(p, 15, 7.5, 15, 9.5);
@@ -1791,7 +1799,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 职业收入：工牌（卡片 + 挂绳 + 头像 + 文字线）。
   void _incomeJob(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 9.45, 19, 18.45, 2, 2));
+    p.addRRect(const RRect.fromLTRBXY(5, 9.45, 19, 18.45, 2, 2));
     _line(p, 10.5, 9.45, 11, 6.45);
     _line(p, 13.5, 9.45, 13, 6.45);
     p.addOval(Rect.fromCircle(center: const Offset(12, 6.45), radius: 0.9));
@@ -1821,9 +1829,9 @@ class _LineIconPainter extends CustomPainter {
 
   /// 津贴补助：硬币堆 + ¥。
   void _allowance(Path p) {
-    p.addOval(Rect.fromLTRB(6, 13, 18, 17));
-    p.addOval(Rect.fromLTRB(6, 10, 18, 14));
-    p.addOval(Rect.fromLTRB(6, 7, 18, 11));
+    p.addOval(const Rect.fromLTRB(6, 13, 18, 17));
+    p.addOval(const Rect.fromLTRB(6, 10, 18, 14));
+    p.addOval(const Rect.fromLTRB(6, 7, 18, 11));
     _line(p, 12, 7.5, 12, 10.5);
     _line(p, 10.7, 8.3, 13.3, 8.3);
     _line(p, 11, 9.3, 13, 9.3);
@@ -1844,12 +1852,12 @@ class _LineIconPainter extends CustomPainter {
     _line(p, 5, 10.5, 5, 16.5);
     _line(p, 19, 10.5, 19, 16.5);
     _line(p, 5, 16.5, 19, 16.5);
-    p.addRRect(RRect.fromLTRBXY(10, 11.5, 14, 16.5, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(10, 11.5, 14, 16.5, 1, 1));
   }
 
   /// 个体经营：手推车（车斗 + 顶棚 + 双轮）。
   void _soleProprietor(Path p) {
-    p.addRRect(RRect.fromLTRBXY(6, 9.6, 18, 14.6, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(6, 9.6, 18, 14.6, 1, 1));
     _line(p, 6, 9.6, 12, 5.6);
     _line(p, 18, 9.6, 12, 5.6);
     _line(p, 7, 5.6, 17, 5.6);
@@ -1859,7 +1867,7 @@ class _LineIconPainter extends CustomPainter {
 
   /// 副业兼职：笔记本（屏幕 + 键盘弧 + 内容线）。
   void _incomeSide(Path p) {
-    p.addRRect(RRect.fromLTRBXY(6, 4.75, 18, 13.75, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(6, 4.75, 18, 13.75, 1.5, 1.5));
     _line(p, 4, 16.75, 20, 16.75);
     p.moveTo(4, 16.75);
     p.quadraticBezierTo(12, 19.25, 20, 16.75);
@@ -1875,12 +1883,12 @@ class _LineIconPainter extends CustomPainter {
     _line(p, 12, 12.15, 17.5, 15.65);
     _line(p, 12, 12.15, 12.5, 6.15);
     _line(p, 10, 6.15, 15.5, 6.15);
-    p.addRRect(RRect.fromLTRBXY(7.5, 8.15, 11.5, 12.15, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(7.5, 8.15, 11.5, 12.15, 1, 1));
   }
 
   /// 视频收入：摄像机（机身 + 镜头锥 + 提带 + 录制点）。
   void _videoIncome(Path p) {
-    p.addRRect(RRect.fromLTRBXY(5, 9, 15, 17, 1.5, 1.5));
+    p.addRRect(const RRect.fromLTRBXY(5, 9, 15, 17, 1.5, 1.5));
     p.moveTo(15, 11.5);
     p.lineTo(19, 9.5);
     p.lineTo(19, 16.5);
@@ -1895,9 +1903,9 @@ class _LineIconPainter extends CustomPainter {
   void _securities(Path p) {
     _line(p, 4, 19, 20, 19);
     _line(p, 8, 6, 8, 18);
-    p.addRRect(RRect.fromLTRBXY(6, 9, 10, 14, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(6, 9, 10, 14, 1, 1));
     _line(p, 15, 5, 15, 17);
-    p.addRRect(RRect.fromLTRBXY(13, 8, 17, 12, 1, 1));
+    p.addRRect(const RRect.fromLTRBXY(13, 8, 17, 12, 1, 1));
   }
 
   /// 利息收入：百分号硬币（大圆 + %）。

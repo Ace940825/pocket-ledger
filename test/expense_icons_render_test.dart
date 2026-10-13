@@ -42,7 +42,7 @@ void main() {
     // 断言：每个支出 iconKey 都有 LineIcon 映射（记一笔不再回退 Material）。
     for (final String k in expenseIconKeys) {
       expect(categoryLineKind(k), isNotNull,
-          reason: 'iconKey "$k" 缺少 LineIcon 映射，会回退 Material');
+          reason: 'iconKey "$k" 缺少 LineIcon 映射，会回退 Material',);
     }
 
     await tester.pumpWidget(

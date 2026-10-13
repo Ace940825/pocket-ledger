@@ -5,9 +5,8 @@ import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/category_icons.dart';
-import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
@@ -133,9 +132,9 @@ class _ReportCategoryDetailPageState
                     child: Text(
                       '共 ${mine.length} 笔 · 合计 ${Money.fromMinor(totalMinor).format(showSymbol: false)}',
                       style: TextStyle(
-                          fontSize: 12,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
@@ -173,8 +172,10 @@ class _ReportCategoryDetailPageState
       padding: const EdgeInsets.only(bottom: AppDimens.spaceSm),
       child: Row(
         children: <Widget>[
-          const Text('账单明细',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          const Text(
+            '账单明细',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
           const Spacer(),
           InkWell(
             borderRadius: BorderRadius.circular(12),
@@ -188,8 +189,9 @@ class _ReportCategoryDetailPageState
               child: Text(
                 _byAmount ? '按金额' : '按时间',
                 style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurface),
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
           ),
@@ -257,15 +259,17 @@ class _ReportCategoryDetailPageState
           Text(
             '${d.month}月${d.day}日$suffix',
             style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const Spacer(),
           Text(
             '$prefix:${Money.fromMinor(daySum).format(showSymbol: false)}',
             style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -323,8 +327,11 @@ class _ReportCategoryDetailPageState
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
-              child: CategoryGlyph(cat?.iconKey,
-                  size: 20, color: AppPalette.sageInk),
+              child: CategoryGlyph(
+                cat?.iconKey,
+                size: 20,
+                color: AppPalette.sageInk,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -336,14 +343,18 @@ class _ReportCategoryDetailPageState
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w500),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 3),
-                  Text(hhmm,
-                      style: TextStyle(
-                          fontSize: 11,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant)),
+                  Text(
+                    hhmm,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -356,7 +367,7 @@ class _ReportCategoryDetailPageState
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       Text(
-                        '${sign}${Money.fromMinor(t.amountMinor).format(showSymbol: false)}',
+                        '$sign${Money.fromMinor(t.amountMinor).format(showSymbol: false)}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -390,16 +401,21 @@ class _ReportCategoryDetailPageState
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       '优惠${Money.fromMinor(t.discountMinor).format(showSymbol: false)}',
-                      style: TextStyle(fontSize: 11, color: AppPalette.expense),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppPalette.expense,
+                      ),
                     ),
                   ),
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text(accountName,
-                      style: TextStyle(
-                          fontSize: 11,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant)),
+                  child: Text(
+                    accountName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ],
             ),

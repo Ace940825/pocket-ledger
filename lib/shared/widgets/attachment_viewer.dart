@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
+import '../../theme/app_colors.dart';
 
 /// 图片附件展示与查看的共享组件。
 ///
@@ -114,8 +114,11 @@ class AttachmentThumb extends StatelessWidget {
                   color: Colors.black54, // ignore: no_raw_colors
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.cancel,
-                    size: 18, color: Colors.white), // ignore: no_raw_colors
+                child: const Icon(
+                  Icons.cancel,
+                  size: 18,
+                  color: Colors.white, // ignore: no_raw_colors
+                ),
               ),
             ),
           ),

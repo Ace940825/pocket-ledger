@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 import '../../theme/app_dimens.dart';
 
 /// 奶油卡 + 发丝线描边（全应用统一卡片底盘）。

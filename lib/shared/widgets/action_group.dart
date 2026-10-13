@@ -57,26 +57,32 @@ class ActionGroup extends StatelessWidget {
   }
 }
 
-/// 深色上下文菜单项（与 ActionGroup/ActionRow 同族，全应用统一）。
+/// 弹层菜单项（与 ActionGroup/ActionRow/SectionLabel 同族，全应用统一）。
 ///
-/// 用于深色背景弹层（如标签管理页的类别操作菜单），单行文字 + 整行点击。
+/// 用于底部弹层的单行菜单项，整行可点击。通过 [isDark] 适配容器底色：
+/// - true：深色容器（如标签管理页类别菜单的 sage900 背景）→ 文字用浅色；
+/// - false：浅色容器（奶油/卡面）→ 文字用深墨。
 /// [danger]=true 时文字转警示红（[ForestSemantic.expense]，对齐 ActionRow
-/// 的危险语义）。取代标签页私有的 `_MenuItem`。
+/// 危险语义）。取代标签页私有的 `_MenuItem`。
 class MenuItem extends StatelessWidget {
   const MenuItem({
     required this.label,
     required this.onTap,
     this.danger = false,
+    this.isDark = false,
     super.key,
   });
 
   final String label;
   final VoidCallback onTap;
   final bool danger;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
+    final Color textColor = danger
+        ? ForestSemantic.expense
+        : (isDark ? ForestSurface.raised : ForestNeutral.textPrimary);
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -84,12 +90,7 @@ class MenuItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 14.5,
-            color: danger
-                ? ForestSemantic.expense
-                : theme.colorScheme.surfaceContainerHighest,
-          ),
+          style: TextStyle(fontSize: 14.5, color: textColor),
         ),
       ),
     );

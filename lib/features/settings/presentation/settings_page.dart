@@ -3,14 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
-import '../../../sync/sync_engine.dart';
-import 'sync_config_card.dart';
 import '../../../shared/widgets/hairline_card.dart';
 import '../../../shared/widgets/menu_item.dart';
+import '../../../sync/sync_engine.dart';
+import 'sync_config_card.dart';
 
 /// 同步状态卡片：展示适配器、上次同步时间、待同步条数，并提供手动同步。
 class SyncStatusCard extends ConsumerWidget {
@@ -41,11 +40,13 @@ class SyncStatusCard extends ConsumerWidget {
                 InfoKVRow(label: '模式', value: Text(s.adapterName)),
                 InfoKVRow(
                   label: '上次同步',
-                  value: Text(s.lastSyncedAt == null || s.lastSyncedAt == 0
-                      ? '从未同步'
-                      : DateTime.fromMillisecondsSinceEpoch(
-                          s.lastSyncedAt!,
-                        ).toLocal().toString().substring(0, 19)),
+                  value: Text(
+                    s.lastSyncedAt == null || s.lastSyncedAt == 0
+                        ? '从未同步'
+                        : DateTime.fromMillisecondsSinceEpoch(
+                            s.lastSyncedAt!,
+                          ).toLocal().toString().substring(0, 19),
+                  ),
                 ),
                 InfoKVRow(label: '待同步', value: Text('${s.pendingCount} 条')),
                 if (s.error != null)

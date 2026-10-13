@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
 import '../../../core/constants/app_dimens.dart';
 import '../../../routing/app_router.dart';
@@ -28,8 +30,8 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
   bool _busy = false;
 
   Future<void> _pickGallery() async {
-    final List<XFile>? picked = await _picker.pickMultiImage();
-    if (picked != null && picked.isNotEmpty) {
+    final List<XFile> picked = await _picker.pickMultiImage();
+    if (picked.isNotEmpty) {
       setState(() => _images.addAll(picked));
     }
   }
@@ -49,7 +51,7 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (result.rows.isNotEmpty) {
-      if (mounted) context.push(Routes.billImport, extra: result);
+      if (mounted) unawaited(context.push(Routes.billImport, extra: result));
     } else if (result.errors.isNotEmpty) {
       if (mounted) showAppToast(context, result.errors.first);
     } else {
@@ -118,7 +120,7 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
             const Positioned.fill(
               child: ColoredBox(
                 color: AppPalette.scrimBlack20,
-                child: Center(child: CircularProgressIndicator()),
+                child: LoadingState(),
               ),
             ),
         ],
@@ -171,8 +173,11 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
                     color: AppPalette.black54,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.close,
-                      size: 14, color: AppPalette.white),
+                  child: const Icon(
+                    Icons.close,
+                    size: 14,
+                    color: AppPalette.white,
+                  ),
                 ),
               ),
             ),

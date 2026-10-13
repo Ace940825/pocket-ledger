@@ -140,7 +140,7 @@ class InstallmentRepeatRule {
           return '$prefix $dayLabel'.trim();
         }
         final String daysLabel =
-            days.map((int d) => d == -1 ? '月末' : '${d}日').join('、');
+            days.map((int d) => d == -1 ? '月末' : '$d日').join('、');
         return '$prefix $daysLabel'.trim();
       case RepeatUnit.year:
         final String monthLabel = month == null ? '' : '$month 月';

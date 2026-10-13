@@ -216,9 +216,8 @@ class TransactionRepository {
     final List<String>? newAttachmentList =
         attachmentUrls ?? _decodeAttachmentUrls(original.attachmentUrls);
     final String? newAttachmentUrls = _encodeAttachmentUrls(newAttachmentList);
-    final String? newTagsJson = tags == null
-        ? original.tags
-        : (tags!.isEmpty ? null : jsonEncode(tags!));
+    final String? newTagsJson =
+        tags == null ? original.tags : (tags.isEmpty ? null : jsonEncode(tags));
 
     if (newAmount <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -292,7 +291,8 @@ class TransactionRepository {
           isReimbursable:
               Value<bool>(isReimbursable ?? original.isReimbursable),
           reimbursementAccountId: Value<String?>(
-              reimbursementAccountId ?? original.reimbursementAccountId),
+            reimbursementAccountId ?? original.reimbursementAccountId,
+          ),
           latitude: Value<double?>(latitude ?? original.latitude),
           longitude: Value<double?>(longitude ?? original.longitude),
           placeName: Value<String?>(placeName ?? original.placeName),
@@ -508,8 +508,10 @@ class TransactionRepository {
           txn.sourceModule == SourceModule.reimbursement) {
         final List<Reimbursement> candidates = await (_db.select(
           _db.reimbursements,
-        )..where((Reimbursements t) =>
-                t.bookId.equals(txn.bookId) & t.deleted.equals(false)))
+        )..where(
+                (Reimbursements t) =>
+                    t.bookId.equals(txn.bookId) & t.deleted.equals(false),
+              ))
             .get();
         for (final Reimbursement r in candidates) {
           final List<ReimbAllocEntry> entries =
@@ -527,7 +529,9 @@ class TransactionRepository {
           // 超出额不计回待收，与保存链路的封顶核销同口径）；
           // 待报销：部分抵扣时 amountMinor 已减过，加回即可。
           final int restAllocSum = entries.fold<int>(
-              0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
+            0,
+            (int s, ReimbAllocEntry e) => s + e.allocMinor,
+          );
           final int restoredAmount = wasReimbursed
               ? (r.amountMinor - restAllocSum).clamp(0, r.amountMinor)
               : r.amountMinor + alloc;
@@ -539,7 +543,8 @@ class TransactionRepository {
               amountMinor: Value<int>(restoredAmount),
               status: wasReimbursed
                   ? const Value<ReimbursementStatus>(
-                      ReimbursementStatus.pending)
+                      ReimbursementStatus.pending,
+                    )
                   : const Value<ReimbursementStatus>.absent(),
               receivedAt: wasReimbursed
                   ? const Value<int?>(null)
@@ -599,8 +604,10 @@ class TransactionRepository {
             .isNotEmpty;
         if (!hasOffsets) {
           final LendRecord? rec = await (_db.select(_db.lendRecords)
-                ..where((LendRecords t) =>
-                    t.id.equals(txn.relatedId!) & t.deleted.equals(false)))
+                ..where(
+                  (LendRecords t) =>
+                      t.id.equals(txn.relatedId!) & t.deleted.equals(false),
+                ))
               .getSingleOrNull();
           if (rec != null) {
             await (_db.update(_db.lendRecords)
@@ -816,8 +823,12 @@ class TransactionRepository {
         final int debit = fromAmountMinor ?? amountMinor;
         await _adjustAccountDelta(accountId, debit, now, inflow: false);
         if (toAccountId != null) {
-          await _adjustAccountDelta(toAccountId, amountMinor, now,
-              inflow: true);
+          await _adjustAccountDelta(
+            toAccountId,
+            amountMinor,
+            now,
+            inflow: true,
+          );
         }
     }
   }
@@ -850,8 +861,12 @@ class TransactionRepository {
         final int debit = fromAmountMinor ?? amountMinor;
         await _adjustAccountDelta(accountId, debit, now, inflow: true);
         if (toAccountId != null) {
-          await _adjustAccountDelta(toAccountId, amountMinor, now,
-              inflow: false);
+          await _adjustAccountDelta(
+            toAccountId,
+            amountMinor,
+            now,
+            inflow: false,
+          );
         }
     }
   }
@@ -879,14 +894,15 @@ class TransactionRepository {
       final LendDirection dir = acc.type == AccountType.lend
           ? LendDirection.lendOut
           : LendDirection.borrowIn;
-      final List<LendRecord> records =
-          await (_db.select(_db.lendRecords)
-                ..where((LendRecords t) =>
-                    t.accountId.equals(acc.id) &
-                    t.direction.equals(dir.index) &
-                    t.status.equals(LendStatus.ongoing.index) &
-                    t.deleted.equals(false)))
-              .get();
+      final List<LendRecord> records = await (_db.select(_db.lendRecords)
+            ..where(
+              (LendRecords t) =>
+                  t.accountId.equals(acc.id) &
+                  t.direction.equals(dir.index) &
+                  t.status.equals(LendStatus.ongoing.index) &
+                  t.deleted.equals(false),
+            ))
+          .get();
       expected = records.fold<int>(
         0,
         (int sum, LendRecord r) =>

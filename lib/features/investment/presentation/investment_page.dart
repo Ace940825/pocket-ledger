@@ -1,25 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
-import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/form_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/amount_keypad.dart';
-import '../../../shared/widgets/module_list_scaffold.dart';
 import '../../../shared/widgets/empty_state.dart';
-import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/module_list_scaffold.dart';
+import '../../../theme/theme.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../data/investment_repository.dart';
+import '../data/market/security_meta_repository.dart';
 import '../providers/investment_providers.dart';
 import 'holding_detail_page.dart';
-import '../../../theme/theme.dart';
+import 'widgets/security_candidate_tile.dart';
 
 /// 投资页：顶部组合汇总卡 + 持仓 / 清仓双 Tab（对齐分期入口布局）。
 ///
@@ -42,7 +45,11 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      await ref.read(refreshPricesProvider.future);
+      // 手动刷新绕过「每天一次」节流（force）：既尊重用户主动意图，
+      // 也在行情解析出错修正后能立即重取正确价。
+      await ref
+          .read(investmentRepositoryProvider)
+          .refreshAllPrices(force: true);
     } catch (_) {
       // 离线/限流：保留旧价。
     } finally {
@@ -85,9 +92,12 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
           // 清仓 Tab：份额为 0 的清仓卡，或「当前持仓但含历史轮」的历史清仓卡。
           // 持仓 Tab：仅份额 > 0 的当前轮卡片。
           final List<InvestmentHolding> filtered = list
-              .where((InvestmentHolding h) => _showCleared
-                  ? (h.quantityMicros == 0 || (cyc[h.id]?.hasHistory ?? false))
-                  : h.quantityMicros > 0)
+              .where(
+                (InvestmentHolding h) => _showCleared
+                    ? (h.quantityMicros == 0 ||
+                        (cyc[h.id]?.hasHistory ?? false))
+                    : h.quantityMicros > 0,
+              )
               .toList(growable: false);
           return Column(
             children: <Widget>[
@@ -146,7 +156,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingState(),
         error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
       ),
     );
@@ -266,7 +276,8 @@ class _PortfolioSummaryCard extends ConsumerWidget {
             Text(
               '总资产',
               style: theme.textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -535,9 +546,9 @@ class _HoldingCard extends ConsumerWidget {
                         Text(
                           '累计投入',
                           style: t.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -556,9 +567,9 @@ class _HoldingCard extends ConsumerWidget {
                         Text(
                           '总盈亏',
                           style: t.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -621,11 +632,19 @@ class _HoldingCard extends ConsumerWidget {
                     ),
                     Expanded(
                       child: _histMetric(
-                          context, t, '首次买入', _fmtYmd(histFirstBuy)),
+                        context,
+                        t,
+                        '首次买入',
+                        _fmtYmd(histFirstBuy),
+                      ),
                     ),
                     Expanded(
                       child: _histMetric(
-                          context, t, '最近卖出', _fmtYmd(histLastSell)),
+                        context,
+                        t,
+                        '最近卖出',
+                        _fmtYmd(histLastSell),
+                      ),
                     ),
                   ],
                 ),
@@ -639,7 +658,8 @@ class _HoldingCard extends ConsumerWidget {
                     '现价 ${Money.fromMinor(holding.currentPriceMinor).format()}',
                   ].join(' · '),
                   style: t.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -651,9 +671,9 @@ class _HoldingCard extends ConsumerWidget {
                         Text(
                           '持仓市值',
                           style: t.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -672,9 +692,9 @@ class _HoldingCard extends ConsumerWidget {
                         Text(
                           '总盈亏',
                           style: t.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -716,14 +736,21 @@ class _HoldingCard extends ConsumerWidget {
 
   /// 历史卡指标项：标签在上（次级色）、值在下（加粗）。
   Widget _histMetric(
-      BuildContext context, TextTheme t, String label, String value,
-      {Color? color}) {
+    BuildContext context,
+    TextTheme t,
+    String label,
+    String value, {
+    Color? color,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(label,
-            style: t.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        Text(
+          label,
+          style: t.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 2),
         Text(
           value,
@@ -743,9 +770,10 @@ class _HoldingCard extends ConsumerWidget {
     );
     final bool? ok = await showDialog<bool>(
       context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: Text('更新 ${holding.symbol} 现价'),
-        content: KeypadField(
+      builder: (BuildContext _) => FormDialog(
+        title: '更新 ${holding.symbol} 现价',
+        confirmText: '更新',
+        body: KeypadField(
           controller: controller,
           allowDecimal: true,
           maxDecimalDigits: 4,
@@ -756,17 +784,6 @@ class _HoldingCard extends ConsumerWidget {
             helperText: '支持 4 位小数，用于基金净值',
           ),
         ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          PrimaryButton(
-            label: '更新',
-            onPressed: () => Navigator.of(dialog).pop(true),
-            fullWidth: false,
-          ),
-        ],
       ),
     );
     if (ok != true || !context.mounted) return;
@@ -783,6 +800,48 @@ class _HoldingCard extends ConsumerWidget {
     } on AppFailure catch (e) {
       if (context.mounted) showToast(context, e.message);
     }
+  }
+}
+
+/// 候选库后台加载防重入集合（按品种）。
+final Set<InvestmentType> _holdingMetaLoading = <InvestmentType>{};
+
+/// 触发某品种候选库后台加载（首拉/每周），完成后刷新补全 provider。
+/// 全部 9 个品种均已接候选库（fund/crypto/stock/bond/metal/forex/futures/option/other），
+/// 走 [MarketService.ensureCandidates]，内部对未覆盖品种空返回，故此处不再按品种过滤。
+void _ensureMetaLoaded(WidgetRef ref, InvestmentType type) {
+  if (_holdingMetaLoading.contains(type)) return;
+  _holdingMetaLoading.add(type);
+  final Future<void> _ = ref
+      .read(marketServiceProvider)
+      .ensureCandidates(type)
+      .then((_) => ref.invalidate(securityMetaSearchProvider))
+      .catchError((Object _) {
+    // 忽略：候选库为空时仅手输可用。
+  }).whenComplete(() => _holdingMetaLoading.remove(type));
+}
+
+/// 新建持仓代码框按品种给示例提示。
+String _symbolHint(InvestmentType type) {
+  switch (type) {
+    case InvestmentType.stock:
+      return '如 600000 / 600000.SH / AAPL';
+    case InvestmentType.fund:
+      return '如 110022';
+    case InvestmentType.crypto:
+      return '如 BTCUSDT';
+    case InvestmentType.forex:
+      return '如 USD/CNY';
+    case InvestmentType.bond:
+      return '如 019742.SH';
+    case InvestmentType.metal:
+      return '如 XAU / 119.XAU';
+    case InvestmentType.futures:
+      return '如 AG2501（自动识别 114.AG2501）';
+    case InvestmentType.option:
+      return '如 CU2501C70000（自动识别 114.…）';
+    case InvestmentType.other:
+      return '如 LC2501（非标品种，自动识别 114.…）';
   }
 }
 
@@ -842,8 +901,54 @@ Future<void> showHoldingEditor(
                 const SizedBox(height: 12),
                 TextField(
                   controller: symbolController,
-                  decoration: const InputDecoration(labelText: '代码（如 110022）'),
+                  decoration: InputDecoration(
+                    labelText: '代码 / 标的',
+                    hintText: _symbolHint(type),
+                  ),
                   autofocus: true,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const FormGap(),
+                Consumer(
+                  builder: (BuildContext context, WidgetRef ref, _) {
+                    final String q = symbolController.text.trim();
+                    if (q.isEmpty) return const SizedBox.shrink();
+                    _ensureMetaLoaded(ref, type);
+                    final AsyncValue<List<SecurityCandidate>> meta = ref.watch(
+                      securityMetaSearchProvider(MetaQuery(q, type)),
+                    );
+                    return meta.when(
+                      data: (List<SecurityCandidate> cands) {
+                        if (cands.isEmpty) return const SizedBox.shrink();
+                        return HairlineCard(
+                          radius: 12,
+                          margin: const EdgeInsets.only(top: 6),
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              for (final SecurityCandidate c in cands)
+                                SecurityCandidateTile(
+                                  candidate: c,
+                                  onTap: () {
+                                    symbolController.text = c.symbol;
+                                    if (nameController.text.isEmpty) {
+                                      nameController.text = c.name;
+                                    }
+                                    setState(() {});
+                                    FocusManager.instance.primaryFocus
+                                        ?.unfocus();
+                                  },
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (Object _, StackTrace? __) =>
+                          const SizedBox.shrink(),
+                    );
+                  },
                 ),
                 const FormGap(),
                 TextField(
@@ -861,7 +966,8 @@ Future<void> showHoldingEditor(
                 const SizedBox(height: 16),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48)),
+                    minimumSize: const Size.fromHeight(48),
+                  ),
                   onPressed: () => Navigator.of(context).pop(true),
                   child: const Text('保存'),
                 ),

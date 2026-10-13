@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'app_button.dart';
+import 'form_dialog.dart';
 
 /// 单字段文本输入弹窗（全应用统一）。
 ///
@@ -35,9 +35,12 @@ Future<String?> showTextInput(
 
   final bool confirmed = await showDialog<bool>(
         context: context,
-        builder: (BuildContext dialogContext) => AlertDialog(
-          title: Text(title),
-          content: Form(
+        builder: (BuildContext dialogContext) => FormDialog(
+          title: title,
+          confirmText: confirmText,
+          cancelText: cancelText,
+          onBeforeConfirm: () => formKey.currentState?.validate() ?? true,
+          body: Form(
             key: formKey,
             child: TextFormField(
               controller: controller,
@@ -56,21 +59,6 @@ Future<String?> showTextInput(
                   validator == null ? null : (String? v) => validator(v ?? ''),
             ),
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(cancelText),
-            ),
-            PrimaryButton(
-              label: confirmText,
-              fullWidth: false,
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? true) {
-                  Navigator.of(dialogContext).pop(true);
-                }
-              },
-            ),
-          ],
         ),
       ) ??
       false;

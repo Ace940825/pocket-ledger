@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
+import 'sheet_scaffold.dart';
 
 /// 「选择日期」底部弹窗（共享组件）：纯 1~31 数字宫格（7 列顺序排布，
 /// 不带月份标题/星期表头），选中日浅绿实心圆白字；底部右侧
@@ -15,14 +16,12 @@ Future<int?> showDayPickSheet(
   String title = '选择日期',
   int initialDay = 1,
 }) {
-  return showModalBottomSheet<int>(
-    context: context,
-    backgroundColor: AppPalette.white,
+  return showAppModalSheet<int>(
+    context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (BuildContext context) => _DayPickSheet(
+    bodyPadding: EdgeInsets.zero,
+    surfaceColor: AppPalette.white,
+    body: _DayPickSheet(
       title: title,
       initialDay: initialDay.clamp(1, 31),
     ),
@@ -50,109 +49,106 @@ class _DayPickSheetState extends State<_DayPickSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // 头部：X 圆钮（浅灰底）+ 居中标题。
-            SizedBox(
-              height: 32,
-              child: Stack(
-                children: <Widget>[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppPalette.neutralSoft,
-                        ),
-                        child: Icon(
-                          Icons.close,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      widget.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            // 纯 1~31 数字宫格：7 列顺序排布（1 号固定左上，与日历星期对位无关）。
-            GridView.count(
-              crossAxisCount: 7,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 14,
-              padding: EdgeInsets.zero,
-              childAspectRatio: 1,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // 头部：X 圆钮（浅灰底）+ 居中标题。
+          SizedBox(
+            height: 32,
+            child: Stack(
               children: <Widget>[
-                for (int day = 1; day <= 31; day++) _dayCell(day),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // 底部右侧：取消 + 确定（绿色胶囊）。
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: TextButton.styleFrom(
-                    foregroundColor:
-                        Theme.of(context).colorScheme.onSurfaceVariant,
-                    textStyle: const TextStyle(fontSize: 15),
-                  ),
-                  child: const Text('取消'),
-                ),
-                const SizedBox(width: 12),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: () => Navigator.of(context).pop(_selectedDay),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).pop(),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 8,
+                      width: 28,
+                      height: 28,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppPalette.neutralSoft,
                       ),
-                      decoration: BoxDecoration(
-                        color: AppPalette.sageLeaf,
-                        borderRadius: BorderRadius.circular(18),
+                      child: Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                      child: const Text(
-                        '确定',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppPalette.white,
-                        ),
-                      ),
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.center,
+                  child: Text(
+                    widget.title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 18),
+          // 纯 1~31 数字宫格：7 列顺序排布（1 号固定左上，与日历星期对位无关）。
+          GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 14,
+            padding: EdgeInsets.zero,
+            childAspectRatio: 1,
+            children: <Widget>[
+              for (int day = 1; day <= 31; day++) _dayCell(day),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // 底部右侧：取消 + 确定（绿色胶囊）。
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      Theme.of(context).colorScheme.onSurfaceVariant,
+                  textStyle: const TextStyle(fontSize: 15),
+                ),
+                child: const Text('取消'),
+              ),
+              const SizedBox(width: 12),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () => Navigator.of(context).pop(_selectedDay),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppPalette.sageLeaf,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Text(
+                      '确定',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppPalette.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

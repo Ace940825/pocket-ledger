@@ -66,7 +66,7 @@ void main() {
     final raw.Database db = raw.sqlite3.open(dbPath());
     final int n = db
         .select(
-          "SELECT count(*) AS c FROM sqlite_master "
+          'SELECT count(*) AS c FROM sqlite_master '
           "WHERE type = 'table' AND name = '$name'",
         )
         .first['c'] as int;

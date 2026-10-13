@@ -1,15 +1,16 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
 import '../../../../shared/widgets/app_toast.dart';
+import '../../../../shared/widgets/sheet_scaffold.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../record/presentation/account_picker_sheet.dart';
 import '../../providers/ledger_providers.dart';
@@ -85,23 +86,25 @@ class TxnSlidable extends ConsumerWidget {
   /// 迁移：把流水改挂到另一账户（余额先回滚旧账户再应用到新账户，
   /// 由 [TransactionRepository.updateTransaction] 统一处理）。
   Future<void> _migrate(BuildContext context, WidgetRef ref) async {
-    final String? targetId = await showModalBottomSheet<String>(
-      context: context,
+    final String? targetId = await showAppModalSheet<String>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => AccountPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: AccountPickerSheet(
         title: '迁移到账户',
         showNoneRow: false,
         showSettings: false,
         // 借出/借入/报销账户余额为派生不变量（由各模块仓储统一维护），
         // 不允许挂普通流水；同时排除流水当前所在账户（原地迁移无意义）。
         filter: (List<Account> all) => all
-            .where((Account a) =>
-                a.type.category != AccountCategory.receivable &&
-                a.type.category != AccountCategory.payable &&
-                a.id != txn.accountId)
+            .where(
+              (Account a) =>
+                  a.type.category != AccountCategory.receivable &&
+                  a.type.category != AccountCategory.payable &&
+                  a.id != txn.accountId,
+            )
             .toList(),
-        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id),
+        onConfirm: (Account? acc) => Navigator.of(context).pop(acc?.id),
       ),
     );
     if (targetId == null || !context.mounted) return;
@@ -160,7 +163,7 @@ class TxnSlidable extends ConsumerWidget {
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
-    final bool? confirm = await     showConfirm(
+    final bool? confirm = await showConfirm(
       context,
       title: '删除流水',
       content: '删除后账户余额会相应回滚，此操作不可撤销。',

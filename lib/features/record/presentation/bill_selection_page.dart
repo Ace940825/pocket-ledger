@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/tinted_icon_box.dart';
-import '../../../shared/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
+import 'package:pocket_ledger/shared/widgets/tinted_icon_box.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/category_icons.dart';
-import '../../../shared/widgets/line_icons.dart';
-import '../../accounts/providers/accounts_providers.dart';
-import '../../ledger/providers/ledger_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
-import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/line_icons.dart';
+import '../../../theme/app_colors.dart';
+import '../../accounts/providers/accounts_providers.dart';
+import '../../ledger/providers/ledger_providers.dart';
 
 /// 退款可选的原账单来源模块：仅日常支出与分期。
 ///
@@ -100,12 +100,14 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
       body: SafeArea(
         child: asyncTxns.when(
           data: (List<Transaction> list) {
-          // 先按来源模块收窄（仅日常支出 + 分期），再做月份筛选。
-          final List<Transaction> scoped = list
-              .where((Transaction t) =>
-                  _refundableSourceModules.contains(t.sourceModule))
-              .toList(growable: false);
-          final List<Transaction> filtered = _applyMonthFilter(scoped);
+            // 先按来源模块收窄（仅日常支出 + 分期），再做月份筛选。
+            final List<Transaction> scoped = list
+                .where(
+                  (Transaction t) =>
+                      _refundableSourceModules.contains(t.sourceModule),
+                )
+                .toList(growable: false);
+            final List<Transaction> filtered = _applyMonthFilter(scoped);
             return Column(
               children: <Widget>[
                 _buildFilterBar(filtered),
@@ -137,7 +139,7 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const LoadingState(),
           error: (Object e, _) => Center(child: Text('账单加载失败：$e')),
         ),
       ),
@@ -196,7 +198,7 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
                       mode: CalendarSheetMode.month,
                       initialMonth: _filterMonth ?? DateTime.now(),
                     );
-                    if (sel is CalendarMonth) {
+                    if (sel is CalendarMonth && mounted) {
                       Navigator.of(context).pop(DateTime(sel.year, sel.month));
                     }
                   },
@@ -344,8 +346,11 @@ class _BillTile extends ConsumerWidget {
         ? Color(category!.colorValue!)
         : AppPalette.expense;
     final Widget leadIcon = billCatKey != null && billCatKey.isNotEmpty
-        ? LineIcon(categoryLineKind(billCatKey) ?? LineIconKind.star,
-            size: 20, color: tint)
+        ? LineIcon(
+            categoryLineKind(billCatKey) ?? LineIconKind.star,
+            size: 20,
+            color: tint,
+          )
         : Icon(Icons.category_outlined, size: 20, color: tint);
 
     // 退款标注：被退款过的原账单显示「退款 ¥X=¥Y」
@@ -366,7 +371,7 @@ class _BillTile extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            TintedIconBox(child: leadIcon, tint: tint, size: 40, circle: true),
+            TintedIconBox(tint: tint, size: 40, circle: true, child: leadIcon),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Column(
@@ -490,8 +495,11 @@ class _SelectionCircle extends StatelessWidget {
         ),
       ),
       child: selected
-          ? Icon(Icons.check,
-              size: 14, color: Theme.of(context).colorScheme.onPrimary)
+          ? Icon(
+              Icons.check,
+              size: 14,
+              color: Theme.of(context).colorScheme.onPrimary,
+            )
           : null,
     );
   }

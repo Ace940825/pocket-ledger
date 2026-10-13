@@ -1,13 +1,11 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/summary_bar.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -84,17 +82,21 @@ class _CategoryTransactionsPageState
     }).toList();
     // 全局排序：按时间倒序，或按实付金额（原额−优惠）倒序。
     if (_sortMode == _SortMode.time) {
-      filtered.sort((Transaction a, Transaction b) =>
-          b.occurredAt.compareTo(a.occurredAt));
+      filtered.sort(
+        (Transaction a, Transaction b) => b.occurredAt.compareTo(a.occurredAt),
+      );
     } else {
-      filtered.sort((Transaction a, Transaction b) =>
-          (b.amountMinor - b.discountMinor)
-              .compareTo(a.amountMinor - a.discountMinor));
+      filtered.sort(
+        (Transaction a, Transaction b) => (b.amountMinor - b.discountMinor)
+            .compareTo(a.amountMinor - a.discountMinor),
+      );
     }
 
     final int count = filtered.length;
     final int totalMinor = filtered.fold<int>(
-        0, (int m, Transaction t) => m + t.amountMinor - t.discountMinor);
+      0,
+      (int m, Transaction t) => m + t.amountMinor - t.discountMinor,
+    );
     final String name = category?.name ?? '分类';
 
     return Scaffold(
@@ -109,13 +111,15 @@ class _CategoryTransactionsPageState
             _buildSummaryBar(context, count, totalMinor),
             Expanded(
               child: listAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const LoadingState(),
                 error: (Object e, StackTrace _) => Center(
-                  child: Text('加载失败 $e',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant)),
+                  child: Text(
+                    '加载失败 $e',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
                 data: (_) {
                   if (filtered.isEmpty) {
@@ -123,9 +127,9 @@ class _CategoryTransactionsPageState
                       child: Text(
                         data.isEmpty ? '该分类下暂无账单' : '该分类 ${period.label} 暂无账单',
                         style: TextStyle(
-                            fontSize: 13,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant),
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     );
                   }
@@ -163,12 +167,15 @@ class _CategoryTransactionsPageState
                           .shadow
                           .withValues(alpha: 0.078),
                       blurRadius: 8,
-                      offset: Offset(0, 2),
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: Icon(Icons.close,
-                    size: 20, color: Theme.of(context).colorScheme.onSurface),
+                child: Icon(
+                  Icons.close,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
           ),
@@ -227,7 +234,8 @@ class _CategoryTransactionsPageState
           // 排序切换：时间（最近在前）⇄ 金额（从大到小），点一下互换。
           GestureDetector(
             onTap: () => setState(
-                () => _sortMode = byAmount ? _SortMode.time : _SortMode.amount),
+              () => _sortMode = byAmount ? _SortMode.time : _SortMode.amount,
+            ),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
@@ -253,8 +261,11 @@ class _CategoryTransactionsPageState
                     ),
                   ),
                   const SizedBox(width: 3),
-                  const Icon(Icons.swap_vert_rounded,
-                      size: 14, color: ForestGreen.deep),
+                  const Icon(
+                    Icons.swap_vert_rounded,
+                    size: 14,
+                    color: ForestGreen.deep,
+                  ),
                 ],
               ),
             ),

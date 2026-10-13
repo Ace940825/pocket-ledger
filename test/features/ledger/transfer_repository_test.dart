@@ -213,9 +213,9 @@ void main() {
     final Account toAcc = accounts.firstWhere((Account a) => a.id == to);
 
     expect(fromAcc.balanceMinor, -100300,
-        reason: '编辑后转出方仍应按 1003 元扣款');
+        reason: '编辑后转出方仍应按 1003 元扣款',);
     expect(toAcc.balanceMinor, 100000,
-        reason: '编辑后转入方到账金额仍为 1000 元');
+        reason: '编辑后转入方到账金额仍为 1000 元',);
   });
 
   test('转出与转入是同一账户时抛校验错误', () async {

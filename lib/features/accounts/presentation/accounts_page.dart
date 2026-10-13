@@ -2,28 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../theme/app_colors.dart';
-import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
+import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/avatar_tile.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/money_text.dart';
-import '../../../shared/widgets/avatar_tile.dart';
+import '../../../theme/app_colors.dart';
+import '../../investment/providers/investment_providers.dart';
 import '../../lend/providers/lend_providers.dart';
-import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../data/account_group_collapse.dart';
 import '../data/account_group_order.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
-import '../../investment/providers/investment_providers.dart';
-import '../../../providers/app_providers.dart';
-import '../../../shared/widgets/app_toast.dart';
-import '../../../shared/widgets/confirm_dialog.dart';
 
 /// 账户列表页（分组卡片布局）。
 ///
@@ -268,7 +268,7 @@ class _Body extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const LoadingState(),
       error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
     );
   }
@@ -354,14 +354,14 @@ class _Body extends ConsumerWidget {
     List<Account> group,
   ) {
     return (int oldIndex, int newIndex) async {
+      // onReorderItem 的 newIndex 已内置「移除 oldIndex 后」的目标下标修正，
+      // 调用方不要再做 -1（与 applyVisibleReorder 的注释同口径）。
       final List<String> ids = group.map((Account a) => a.id).toList();
       if (ids.length <= 1) return;
       if (oldIndex < 0 || oldIndex >= ids.length) return;
-      int target = newIndex;
-      if (target > oldIndex) target -= 1;
-      if (target < 0 || target >= ids.length) return;
+      if (newIndex < 0 || newIndex >= ids.length) return;
       final String moved = ids.removeAt(oldIndex);
-      ids.insert(target, moved);
+      ids.insert(newIndex, moved);
       await ref.read(accountsDaoProvider).reorder(ids);
     };
   }
@@ -623,7 +623,7 @@ class _AccountBody extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       buildDefaultDragHandles: false,
       padding: EdgeInsets.zero,
-      onReorder: onReorder,
+      onReorderItem: onReorder,
       children: <Widget>[
         for (int i = 0; i < accounts.length; i++)
           Slidable(
@@ -1018,8 +1018,11 @@ class _SummaryRow extends StatelessWidget {
                 ),
           ),
           const SizedBox(width: AppDimens.spaceXs),
-          Icon(Icons.chevron_right,
-              size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            Icons.chevron_right,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ],
       ),
     );
@@ -1130,11 +1133,13 @@ class _NetHeaderItem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(label,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: labelColor)),
+        Text(
+          label,
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(color: labelColor),
+        ),
         const SizedBox(height: 2),
         MoneyText(
           Money.fromMinor(amountMinor),

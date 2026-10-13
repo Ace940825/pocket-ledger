@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/badge_pill.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 import 'package:pocket_ledger/shared/widgets/settings_tile.dart';
-import 'package:pocket_ledger/shared/widgets/badge_pill.dart';
-import '../../../shared/widgets/sheet_drag_handle.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
+import '../../../theme/app_colors.dart';
 import '../providers/recording_settings_provider.dart';
 
 /// 功能按钮固定调色板（账户/图片/标签/不计入/模板），集中为令牌以遵守「页面不抓原始调色板」。
@@ -30,12 +30,11 @@ class RecordingSettingsSheet extends ConsumerStatefulWidget {
 
   /// [initialTab]：0=一般，1=默认（默认选择资产设置），2=分类。
   static Future<void> show(BuildContext context, {int initialTab = 0}) {
-    return showModalBottomSheet<void>(
-      context: context,
+    return showAppModalSheet<void>(
+      context,
       isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => RecordingSettingsSheet(initialTab: initialTab),
+      bodyPadding: EdgeInsets.zero,
+      body: RecordingSettingsSheet(initialTab: initialTab),
     );
   }
 
@@ -69,44 +68,26 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
-      child: Container(
+      child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.66,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppDimens.radiusXl),
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: <Widget>[
-              _buildHandle(context),
-              _buildHeader(context),
-              _buildVersionToggle(),
-              _buildTabBar(),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: <Widget>[
-                    _GeneralTab(version: _version),
-                    _DefaultTab(version: _version),
-                    _CategoryTab(version: _version),
-                  ],
-                ),
+        child: Column(
+          children: <Widget>[
+            _buildHeader(context),
+            _buildVersionToggle(),
+            _buildTabBar(),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: <Widget>[
+                  _GeneralTab(version: _version),
+                  _DefaultTab(version: _version),
+                  _CategoryTab(version: _version),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _buildHandle(BuildContext context) {
-    return SheetDragHandle(
-      width: 36,
-      height: 4,
-      margin: const EdgeInsets.only(top: 8, bottom: 8),
-      color: Theme.of(context).colorScheme.outline,
     );
   }
 
@@ -127,8 +108,10 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
           ),
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: Icon(Icons.close,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            child: Icon(
+              Icons.close,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -388,7 +371,7 @@ class _DefaultTab extends ConsumerWidget {
             badgeColor: AppPalette.warn,
             onTap: () => _SimpleSettingsSheet.show(context, '智能记忆'),
           ),
-          _RemovedTile(
+          const _RemovedTile(
             label: '重新加载数据',
             sub: '已移除 → 自动刷新',
           ),
@@ -505,8 +488,6 @@ Widget _buildOptNote(String text) {
   );
 }
 
-
-
 class _RemovedTile extends StatelessWidget {
   const _RemovedTile({required this.label, required this.sub});
 
@@ -547,7 +528,7 @@ class _RemovedTile extends StatelessWidget {
                 ],
               ),
             ),
-            BadgePill(text: '已移除', color: AppPalette.expense),
+            const BadgePill(text: '已移除', color: AppPalette.expense),
           ],
         ),
       ),
@@ -555,82 +536,64 @@ class _RemovedTile extends StatelessWidget {
   }
 }
 
-
 class _SimpleSettingsSheet extends StatelessWidget {
   const _SimpleSettingsSheet({required this.title});
 
   final String title;
 
   static Future<void> show(BuildContext context, String title) {
-    return showModalBottomSheet<void>(
-      context: context,
+    return showAppModalSheet<void>(
+      context,
       isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _SimpleSettingsSheet(title: title),
+      bodyPadding: EdgeInsets.zero,
+      body: _SimpleSettingsSheet(title: title),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: MediaQuery.of(context).size.height * 0.5,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusXl),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: <Widget>[
-            _buildHandle(context),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+      child: Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Icon(Icons.close,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-            Divider(height: 1, color: Theme.of(context).colorScheme.outline),
-            Expanded(
-              child: Center(
-                child: Text(
-                  '「$title」设置页（占位）',
-                  style: TextStyle(
-                    fontSize: 14,
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Icon(
+                    Icons.close,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: Theme.of(context).colorScheme.outline),
+          Expanded(
+            child: Center(
+              child: Text(
+                '「$title」设置页（占位）',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildHandle(BuildContext context) {
-    return SheetDragHandle(
-      width: 36,
-      height: 4,
-      margin: const EdgeInsets.only(top: 8, bottom: 8),
-      color: Theme.of(context).colorScheme.outline,
     );
   }
 }
@@ -639,87 +602,68 @@ class _KeyboardThemeSheet extends ConsumerWidget {
   const _KeyboardThemeSheet();
 
   static Future<void> show(BuildContext context) {
-    return showModalBottomSheet<void>(
-      context: context,
+    return showAppModalSheet<void>(
+      context,
       isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _KeyboardThemeSheet(),
+      bodyPadding: EdgeInsets.zero,
+      body: const _KeyboardThemeSheet(),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
+    return SizedBox(
       height: MediaQuery.of(context).size.height * 0.84,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusXl),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: <Widget>[
-            _buildHandle(context),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Row(
+      child: Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    '键盘主题',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Icon(
+                    Icons.close,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: Theme.of(context).colorScheme.outline),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      '键盘主题',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Icon(
-                      Icons.close,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                  _buildSectionTitle(context, '基础设置'),
+                  _buildThemeRow(ref),
+                  _buildFormulaRow(ref),
+                  _buildOrderRow(ref),
+                  _buildHeightSlider(context, ref),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle(context, '高级设置'),
+                  _buildSubModeTabs(context, ref),
+                  _buildAdvancedRows(ref),
+                  const SizedBox(height: 120),
                 ],
               ),
             ),
-            Divider(height: 1, color: Theme.of(context).colorScheme.outline),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    _buildSectionTitle(context, '基础设置'),
-                    _buildThemeRow(ref),
-                    _buildFormulaRow(ref),
-                    _buildOrderRow(ref),
-                    _buildHeightSlider(context, ref),
-                    const SizedBox(height: 24),
-                    _buildSectionTitle(context, '高级设置'),
-                    _buildSubModeTabs(context, ref),
-                    _buildAdvancedRows(ref),
-                    const SizedBox(height: 120),
-                  ],
-                ),
-              ),
-            ),
-            const _KeyboardPreview(),
-          ],
-        ),
+          ),
+          const _KeyboardPreview(),
+        ],
       ),
-    );
-  }
-
-  Widget _buildHandle(BuildContext context) {
-    return SheetDragHandle(
-      width: 36,
-      height: 4,
-      margin: const EdgeInsets.only(top: 8, bottom: 8),
-      color: Theme.of(context).colorScheme.outline,
     );
   }
 
@@ -787,10 +731,13 @@ class _KeyboardThemeSheet extends ConsumerWidget {
         children: <Widget>[
           SizedBox(
             width: 22,
-            child: Text('◎',
-                style: TextStyle(
-                    fontSize: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            child: Text(
+              '◎',
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
           Text(
             '键盘高度比例',
@@ -1014,8 +961,9 @@ class _KeyboardPreview extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
-            top: BorderSide(color: Theme.of(context).colorScheme.outline)),
-        borderRadius: BorderRadius.vertical(
+          top: BorderSide(color: Theme.of(context).colorScheme.outline),
+        ),
+        borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppDimens.radiusXl),
         ),
       ),
@@ -1033,30 +981,35 @@ class _KeyboardPreview extends ConsumerWidget {
   Widget _buildFuncButtons(BuildContext context, RecordingSettings settings) {
     final List<_FuncBtn> buttons = <_FuncBtn>[
       const _FuncBtn(
-          label: '账户',
-          icon: Icons.account_balance_outlined,
-          color: _funcAccount,
-          textColor: _funcAccountText),
+        label: '账户',
+        icon: Icons.account_balance_outlined,
+        color: _funcAccount,
+        textColor: _funcAccountText,
+      ),
       _FuncBtn(
-          label: '图片',
-          icon: Icons.image_outlined,
-          color: _funcImage,
-          textColor: Theme.of(context).colorScheme.onPrimary),
+        label: '图片',
+        icon: Icons.image_outlined,
+        color: _funcImage,
+        textColor: Theme.of(context).colorScheme.onPrimary,
+      ),
       _FuncBtn(
-          label: '标签',
-          icon: Icons.label_outlined,
-          color: _funcTag,
-          textColor: Theme.of(context).colorScheme.onPrimary),
+        label: '标签',
+        icon: Icons.label_outlined,
+        color: _funcTag,
+        textColor: Theme.of(context).colorScheme.onPrimary,
+      ),
       _FuncBtn(
-          label: '不计入',
-          icon: Icons.block,
-          color: _funcExclude,
-          textColor: Theme.of(context).colorScheme.onPrimary),
+        label: '不计入',
+        icon: Icons.block,
+        color: _funcExclude,
+        textColor: Theme.of(context).colorScheme.onPrimary,
+      ),
       _FuncBtn(
-          label: '模板',
-          icon: Icons.edit_note,
-          color: _funcTemplate,
-          textColor: Theme.of(context).colorScheme.onPrimary),
+        label: '模板',
+        icon: Icons.edit_note,
+        color: _funcTemplate,
+        textColor: Theme.of(context).colorScheme.onPrimary,
+      ),
     ];
 
     final bool iconBg = settings.iconBackground == '开启';
@@ -1104,8 +1057,11 @@ class _KeyboardPreview extends ConsumerWidget {
             );
           }),
           const Spacer(),
-          Icon(Icons.settings_outlined,
-              size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            Icons.settings_outlined,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ],
       ),
     );
@@ -1137,11 +1093,13 @@ class _KeyboardPreview extends ConsumerWidget {
             ),
             Row(
               children: <Widget>[
-                Icon(Icons.calendar_today_outlined,
-                    size: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 4),
-                Text(
+                const Text(
                   '9月20日',
                   style: TextStyle(
                     fontSize: 13,
@@ -1197,9 +1155,11 @@ class _KeyboardPreview extends ConsumerWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(Icons.calendar_today_outlined,
-                      size: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.calendar_today_outlined,
+                    size: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '9月20日',
@@ -1276,47 +1236,83 @@ class _KeyboardPreview extends ConsumerWidget {
     final List<Widget> rows = <Widget>[];
 
     if (settings.formula == KeyboardFormula.plusMinus) {
-      rows.add(Row(children: <Widget>[
-        ...numRows[0].map((String n) => keyCell(n)),
-        keyCell('⌫'),
-      ]));
-      rows.add(Row(children: <Widget>[
-        ...numRows[1].map((String n) => keyCell(n)),
-        keyCell('−'),
-      ]));
-      rows.add(Row(children: <Widget>[
-        ...numRows[2].map((String n) => keyCell(n)),
-        keyCell('+'),
-      ]));
-      rows.add(Row(children: <Widget>[
-        keyCell('再记'),
-        keyCell('0'),
-        keyCell('.'),
-        keyCell('保存', save: true),
-      ]));
+      rows.add(
+        Row(
+          children: <Widget>[
+            ...numRows[0].map((String n) => keyCell(n)),
+            keyCell('⌫'),
+          ],
+        ),
+      );
+      rows.add(
+        Row(
+          children: <Widget>[
+            ...numRows[1].map((String n) => keyCell(n)),
+            keyCell('−'),
+          ],
+        ),
+      );
+      rows.add(
+        Row(
+          children: <Widget>[
+            ...numRows[2].map((String n) => keyCell(n)),
+            keyCell('+'),
+          ],
+        ),
+      );
+      rows.add(
+        Row(
+          children: <Widget>[
+            keyCell('再记'),
+            keyCell('0'),
+            keyCell('.'),
+            keyCell('保存', save: true),
+          ],
+        ),
+      );
     } else {
-      rows.add(Row(children: <Widget>[
-        ...numRows[0].map((String n) => keyCell(n)),
-        keyCell('⌫'),
-      ]));
-      rows.add(Row(children: <Widget>[
-        ...numRows[1].map((String n) => keyCell(n)),
-        keyCell('÷'),
-      ]));
-      rows.add(Row(children: <Widget>[
-        ...numRows[2].map((String n) => keyCell(n)),
-        keyCell('×'),
-      ]));
-      rows.add(Row(children: <Widget>[
-        keyCell('.'),
-        keyCell('0'),
-        keyCell('−'),
-        keyCell('+'),
-      ]));
-      rows.add(Row(children: <Widget>[
-        keyCell('再记', flex: 2),
-        keyCell('保存', save: true, flex: 2),
-      ]));
+      rows.add(
+        Row(
+          children: <Widget>[
+            ...numRows[0].map((String n) => keyCell(n)),
+            keyCell('⌫'),
+          ],
+        ),
+      );
+      rows.add(
+        Row(
+          children: <Widget>[
+            ...numRows[1].map((String n) => keyCell(n)),
+            keyCell('÷'),
+          ],
+        ),
+      );
+      rows.add(
+        Row(
+          children: <Widget>[
+            ...numRows[2].map((String n) => keyCell(n)),
+            keyCell('×'),
+          ],
+        ),
+      );
+      rows.add(
+        Row(
+          children: <Widget>[
+            keyCell('.'),
+            keyCell('0'),
+            keyCell('−'),
+            keyCell('+'),
+          ],
+        ),
+      );
+      rows.add(
+        Row(
+          children: <Widget>[
+            keyCell('再记', flex: 2),
+            keyCell('保存', save: true, flex: 2),
+          ],
+        ),
+      );
     }
 
     return Container(
@@ -1327,7 +1323,10 @@ class _KeyboardPreview extends ConsumerWidget {
   }
 
   BoxDecoration _keyDecoration(
-      BuildContext context, RecordingSettings settings, bool save) {
+    BuildContext context,
+    RecordingSettings settings,
+    bool save,
+  ) {
     if (save) {
       return BoxDecoration(
         color: AppPalette.primary,

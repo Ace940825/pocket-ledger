@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
 import '../../theme/app_dimens.dart';
 
 /// 底部粘性操作栏（全应用统一）：奶油底 + 顶部发丝线，承载保存/取消按钮。

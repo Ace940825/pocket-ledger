@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
+import '../../core/constants/app_dimens.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-import '../../core/constants/app_dimens.dart';
-import '../../core/theme/forest_design_tokens.dart';
+import 'sheet_scaffold.dart';
 
 /// 工程内数字键盘（记一笔底部键盘的**标准形态**，全工程统一复用）。
 ///
@@ -156,7 +156,7 @@ class _AmountKeypadState extends State<AmountKeypad> {
                 showLabel: false,
                 onTap: enabled ? _backspace : null,
               )
-            : (showIdleAgain ? _AkKey(label: '再记', onTap: null) : null));
+            : (showIdleAgain ? const _AkKey(label: '再记', onTap: null) : null));
 
     final List<Widget> cells = <Widget>[
       _AkDigit('1', () => _input('1')),
@@ -452,72 +452,65 @@ Future<String?> showAmountKeypad({
   String confirmLabel = '完成',
 }) async {
   String value = initial;
-  return showModalBottomSheet<String>(
-    context: context,
+  return showAppModalSheet<String>(
+    context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (BuildContext ctx) => StatefulBuilder(
+    bodyPadding: EdgeInsets.zero,
+    body: StatefulBuilder(
       builder: (BuildContext ctx, StateSetter set) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              if (title.isNotEmpty) ...<Widget>[
-                Center(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppPalette.surfaceMist,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (title.isNotEmpty) ...<Widget>[
+              Center(
                 child: Text(
-                  value.isEmpty ? (title.isEmpty ? '请输入' : title) : value,
-                  style: TextStyle(
+                  title,
+                  style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: value.isEmpty
-                        ? Theme.of(context).colorScheme.onSurfaceVariant
-                        : Theme.of(ctx).colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              NumKeypad(
-                value: value,
-                allowDecimal: allowDecimal,
-                maxDecimalDigits: maxDecimalDigits,
-                confirmLabel: confirmLabel,
-                // 弹层以 initial（当前值）预填 → 全局开启「首键替换」，
-                // 首次按数字键整体替换预填（KeypadField 一并生效）。
-                replaceOnFirstInput: true,
-                onChanged: (String v) => set(() => value = v),
-                onHide: () => Navigator.of(ctx).pop(null),
-                onConfirm: () => Navigator.of(ctx).pop(value),
               ),
               const SizedBox(height: 16),
             ],
-          ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: AppPalette.surfaceMist,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                value.isEmpty ? (title.isEmpty ? '请输入' : title) : value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: value.isEmpty
+                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      : Theme.of(ctx).colorScheme.onSurface,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            NumKeypad(
+              value: value,
+              allowDecimal: allowDecimal,
+              maxDecimalDigits: maxDecimalDigits,
+              confirmLabel: confirmLabel,
+              // 弹层以 initial（当前值）预填 → 全局开启「首键替换」，
+              // 首次按数字键整体替换预填（KeypadField 一并生效）。
+              replaceOnFirstInput: true,
+              onChanged: (String v) => set(() => value = v),
+              onHide: () => Navigator.of(ctx).pop(null),
+              onConfirm: () => Navigator.of(ctx).pop(value),
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     ),

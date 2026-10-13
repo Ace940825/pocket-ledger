@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
-import '../../../shared/widgets/category_icons.dart';
-import '../../../shared/widgets/category_widgets.dart';
-import '../../../shared/widgets/line_icons.dart';
 import '../../../routing/app_router.dart';
-import '../providers/categories_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
-import '../../../shared/widgets/menu_item.dart';
+import '../../../shared/widgets/category_widgets.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/menu_item.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
+import '../../../theme/app_colors.dart';
+import '../providers/categories_providers.dart';
 
 /// 分类管理页：按小青账模板重构。
 ///
@@ -50,7 +50,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
             Expanded(
               child: categories.when(
                 data: (List<Category> list) => _buildList(list),
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const LoadingState(),
                 error: (Object e, _) => Center(child: Text('加载失败：$e')),
               ),
             ),
@@ -604,8 +604,11 @@ class _SubcategoryChip extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
               child: isAdd
-                  ? Icon(Icons.add_circle_outline,
-                      color: AppPalette.primary, size: 24)
+                  ? const Icon(
+                      Icons.add_circle_outline,
+                      color: AppPalette.primary,
+                      size: 24,
+                    )
                   : CategoryGlyph(
                       category!.iconKey,
                       color: color,
@@ -672,113 +675,86 @@ Future<void> _showSortSheet(
   // 从哪个类型进来就默认展示哪一段。
   CategoryType current = type;
 
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    shape: RoundedRectangleBorder(
-      borderRadius:
-          BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+  await showAppModalSheet<void>(
+    context,
+    title: '分类排序',
+    titleTrailing: IconButton(
+      onPressed: () => Navigator.of(context).pop(),
+      icon: const Icon(Icons.close),
     ),
-    builder: (BuildContext sheet) => SafeArea(
-      child: StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setSheetState) {
-          // 当前段的一级分类（与 segments 里的实例同一引用，拖拽后原地更新）。
-          final List<Category> items = segments[current]!;
-          return SizedBox(
-            height: MediaQuery.of(ctx).size.height * 0.7,
-            child: Column(
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(AppDimens.spaceMd),
-                  child: Row(
-                    children: <Widget>[
-                      const SizedBox(width: 48),
-                      const Expanded(
-                        child: Text(
-                          '分类排序',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
+    isScrollControlled: true,
+    body: StatefulBuilder(
+      builder: (BuildContext ctx, StateSetter setSheetState) {
+        // 当前段的一级分类（与 segments 里的实例同一引用，拖拽后原地更新）。
+        final List<Category> items = segments[current]!;
+        return Column(
+          children: <Widget>[
+            // 支出 / 收入 分段切换：两段各自独立排序，互不影响。
+            Padding(
+              padding: const EdgeInsets.only(top: AppDimens.spaceSm),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  TypeTab(
+                    label: _typeLabel(CategoryType.expense),
+                    selected: current == CategoryType.expense,
+                    onTap: () => setSheetState(
+                      () => current = CategoryType.expense,
+                    ),
                   ),
-                ),
-                const Divider(height: 1),
-                // 支出 / 收入 分段切换：两段各自独立排序，互不影响。
-                Padding(
-                  padding: const EdgeInsets.only(top: AppDimens.spaceSm),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      TypeTab(
-                        label: _typeLabel(CategoryType.expense),
-                        selected: current == CategoryType.expense,
-                        onTap: () => setSheetState(
-                          () => current = CategoryType.expense,
-                        ),
-                      ),
-                      const SizedBox(width: AppDimens.spaceXl),
-                      TypeTab(
-                        label: _typeLabel(CategoryType.income),
-                        selected: current == CategoryType.income,
-                        onTap: () => setSheetState(
-                          () => current = CategoryType.income,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: AppDimens.spaceXl),
+                  TypeTab(
+                    label: _typeLabel(CategoryType.income),
+                    selected: current == CategoryType.income,
+                    onTap: () => setSheetState(
+                      () => current = CategoryType.income,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppDimens.spaceSm),
-                Expanded(
-                  child: items.length < 2
-                      ? Center(
-                          child: Text(
-                            '该类型分类不足两个，无需排序',
-                            style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant),
-                          ),
-                        )
-                      : ReorderableListView(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: AppDimens.spaceSm,
-                          ),
-                          buildDefaultDragHandles: true,
-                          onReorderItem: (int oldIndex, int newIndex) async {
-                            setSheetState(() {
-                              final Category moved = items.removeAt(oldIndex);
-                              items.insert(newIndex, moved);
-                            });
-                            final List<String> ids =
-                                items.map((Category c) => c.id).toList();
-                            await ref
-                                .read(categoryRepositoryProvider)
-                                .reorderParents(ids);
-                          },
-                          children: <Widget>[
-                            for (final Category c in items)
-                              _SortTile(
-                                key: ValueKey<String>(c.id),
-                                category: c,
-                              ),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-              ],
+                ],
+              ),
             ),
-          );
-        },
-      ),
+            const SizedBox(height: AppDimens.spaceSm),
+            Expanded(
+              child: items.length < 2
+                  ? Center(
+                      child: Text(
+                        '该类型分类不足两个，无需排序',
+                        style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                      ),
+                    )
+                  : ReorderableListView(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppDimens.spaceSm,
+                      ),
+                      buildDefaultDragHandles: true,
+                      onReorderItem: (int oldIndex, int newIndex) async {
+                        setSheetState(() {
+                          final Category moved = items.removeAt(oldIndex);
+                          items.insert(newIndex, moved);
+                        });
+                        final List<String> ids =
+                            items.map((Category c) => c.id).toList();
+                        await ref
+                            .read(categoryRepositoryProvider)
+                            .reorderParents(ids);
+                      },
+                      children: <Widget>[
+                        for (final Category c in items)
+                          _SortTile(
+                            key: ValueKey<String>(c.id),
+                            category: c,
+                          ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: AppDimens.spaceMd),
+          ],
+        );
+      },
     ),
   );
 }
@@ -804,8 +780,10 @@ class _SortTile extends StatelessWidget {
         child: CategoryGlyph(category.iconKey, color: color, size: 22),
       ),
       title: Text(category.name),
-      trailing: Icon(Icons.drag_handle,
-          color: Theme.of(context).colorScheme.onSurfaceVariant),
+      trailing: Icon(
+        Icons.drag_handle,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
     );
   }
 }
@@ -824,8 +802,10 @@ Future<void> _showChangeParentSheet(
   }
 
   final List<Category> candidates = all
-      .where((Category c) =>
-          c.parentId == null && c.id != category.id && !c.isSystem)
+      .where(
+        (Category c) =>
+            c.parentId == null && c.id != category.id && !c.isSystem,
+      )
       .toList()
     ..sort((Category a, Category b) => a.sortOrder.compareTo(b.sortOrder));
   if (candidates.isEmpty) {
@@ -833,69 +813,34 @@ Future<void> _showChangeParentSheet(
     return;
   }
 
-  final Category? target = await showModalBottomSheet<Category>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    shape: RoundedRectangleBorder(
-      borderRadius:
-          BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+  final Category? target = await showAppModalSheet<Category>(
+    context,
+    title: '改为子分类',
+    titleTrailing: IconButton(
+      onPressed: () => Navigator.of(context).pop(),
+      icon: const Icon(Icons.close),
     ),
-    builder: (BuildContext sheet) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceMd),
-            child: Row(
-              children: <Widget>[
-                IconButton(
-                  onPressed: () => Navigator.of(sheet).pop(),
-                  icon: const Icon(Icons.close),
-                ),
-                const Expanded(
-                  child: Text(
-                    '改为子分类',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 48),
-              ],
+    isScrollControlled: true,
+    body: ListView.builder(
+      itemCount: candidates.length,
+      itemBuilder: (BuildContext ctx, int i) {
+        final Category t = candidates[i];
+        final Color color =
+            t.colorValue != null ? Color(t.colorValue!) : AppPalette.primary;
+        return ListTile(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppPalette.surfaceLight,
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
             ),
+            child: CategoryGlyph(t.iconKey, color: color, size: 22),
           ),
-          const Divider(height: 1),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: candidates.length,
-              itemBuilder: (BuildContext ctx, int i) {
-                final Category t = candidates[i];
-                final Color color = t.colorValue != null
-                    ? Color(t.colorValue!)
-                    : AppPalette.primary;
-                return ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppPalette.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                    ),
-                    child: CategoryGlyph(t.iconKey, color: color, size: 22),
-                  ),
-                  title: Text(t.name),
-                  onTap: () => Navigator.of(ctx).pop(t),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: AppDimens.spaceMd),
-        ],
-      ),
+          title: Text(t.name),
+          onTap: () => Navigator.of(ctx).pop(t),
+        );
+      },
     ),
   );
 
@@ -967,73 +912,45 @@ Future<void> _showChildSortSheet(
     return;
   }
 
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    shape: RoundedRectangleBorder(
-      borderRadius:
-          BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
+  await showAppModalSheet<void>(
+    context,
+    title: '子分类排序',
+    titleTrailing: IconButton(
+      onPressed: () => Navigator.of(context).pop(),
+      icon: const Icon(Icons.close),
     ),
-    builder: (BuildContext sheet) => SafeArea(
-      child: StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setSheetState) {
-          return SizedBox(
-            height: MediaQuery.of(ctx).size.height * 0.7,
-            child: Column(
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(AppDimens.spaceMd),
-                  child: Row(
-                    children: <Widget>[
-                      const SizedBox(width: 48),
-                      const Expanded(
-                        child: Text(
-                          '子分类排序',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
+    isScrollControlled: true,
+    body: StatefulBuilder(
+      builder: (BuildContext ctx, StateSetter setSheetState) {
+        return Column(
+          children: <Widget>[
+            Expanded(
+              child: ReorderableListView(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppDimens.spaceSm,
                 ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ReorderableListView(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppDimens.spaceSm,
-                    ),
-                    buildDefaultDragHandles: true,
-                    onReorderItem: (int oldIndex, int newIndex) async {
-                      setSheetState(() {
-                        final Category moved = items.removeAt(oldIndex);
-                        items.insert(newIndex, moved);
-                      });
-                      final List<String> ids =
-                          items.map((Category c) => c.id).toList();
-                      await ref
-                          .read(categoryRepositoryProvider)
-                          .reorderChildren(parentId, ids);
-                    },
-                    children: <Widget>[
-                      for (final Category c in items)
-                        _SortTile(key: ValueKey<String>(c.id), category: c),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppDimens.spaceMd),
-              ],
+                buildDefaultDragHandles: true,
+                onReorderItem: (int oldIndex, int newIndex) async {
+                  setSheetState(() {
+                    final Category moved = items.removeAt(oldIndex);
+                    items.insert(newIndex, moved);
+                  });
+                  final List<String> ids =
+                      items.map((Category c) => c.id).toList();
+                  await ref
+                      .read(categoryRepositoryProvider)
+                      .reorderChildren(parentId, ids);
+                },
+                children: <Widget>[
+                  for (final Category c in items)
+                    _SortTile(key: ValueKey<String>(c.id), category: c),
+                ],
+              ),
             ),
-          );
-        },
-      ),
+            const SizedBox(height: AppDimens.spaceMd),
+          ],
+        );
+      },
     ),
   );
 }

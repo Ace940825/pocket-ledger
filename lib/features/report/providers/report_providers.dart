@@ -9,9 +9,9 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../inventory/providers/inventory_providers.dart';
 import '../../investment/data/investment_repository.dart';
 import '../../investment/providers/investment_providers.dart';
-import '../../lend/providers/lend_providers.dart';
 import '../../ledger/providers/ledger_providers.dart'
     show LedgerAdvancedFilter, LedgerPeriod;
+import '../../lend/providers/lend_providers.dart';
 import '../data/report_repository.dart';
 
 /// 报表统计分支：月支出 / 月收入 / 其他（不计收支 + 转账）。

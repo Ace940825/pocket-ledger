@@ -182,7 +182,7 @@ void main() {
           id: Value<String>(id),
           bookId: const Value<String>('b1'),
           name: Value<String>(id),
-          type: Value<AccountType>(AccountType.cash),
+          type: const Value<AccountType>(AccountType.cash),
           updatedAt: const Value<int>(0),
         ),
       );

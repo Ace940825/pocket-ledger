@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/app_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/form_dialog.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -144,7 +144,7 @@ class _ItemTile extends ConsumerWidget {
           ),
           if (warn)
             Padding(
-              padding: EdgeInsets.only(left: 4),
+              padding: const EdgeInsets.only(left: 4),
               child: Icon(
                 Icons.warning_amber_rounded,
                 size: 14,
@@ -219,10 +219,10 @@ Future<void> showInventoryEditor(
 
   final bool? saved = await showDialog<bool>(
     context: context,
-    builder: (BuildContext dialog) => StatefulBuilder(
-      builder: (BuildContext ctx, StateSetter setState) => AlertDialog(
-        title: Text(item == null ? '登记物品' : '编辑物品'),
-        content: SingleChildScrollView(
+    builder: (BuildContext _) => StatefulBuilder(
+      builder: (BuildContext ctx, StateSetter setState) => FormDialog(
+        title: item == null ? '登记物品' : '编辑物品',
+        body: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -283,17 +283,6 @@ Future<void> showInventoryEditor(
             ],
           ),
         ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('取消'),
-          ),
-          PrimaryButton(
-            label: '保存',
-            onPressed: () => Navigator.of(dialog).pop(true),
-            fullWidth: false,
-          ),
-        ],
       ),
     ),
   );

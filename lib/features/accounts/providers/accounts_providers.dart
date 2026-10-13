@@ -40,7 +40,9 @@ final AutoDisposeStreamProviderFamily<List<Transaction>,
     return ref
         .watch(transactionsDaoProvider)
         .watchByAccountWithLendLinks(
-            bookId: bookId, accountId: params.accountId)
+          bookId: bookId,
+          accountId: params.accountId,
+        )
         .map(
           (List<Transaction> list) => list
               .where(

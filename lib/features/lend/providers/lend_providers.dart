@@ -29,10 +29,12 @@ final AutoDisposeStreamProvider<int> lendOutOngoingProvider =
   final String bookId = ref.watch(currentBookIdProvider);
   return ref.watch(lendRepositoryProvider).watch(bookId).map(
         (List<LendRecord> records) => records
-            .where((LendRecord r) =>
-                r.direction == LendDirection.lendOut &&
-                r.status == LendStatus.ongoing &&
-                (r.accountId == null || r.accountId!.isEmpty))
+            .where(
+              (LendRecord r) =>
+                  r.direction == LendDirection.lendOut &&
+                  r.status == LendStatus.ongoing &&
+                  (r.accountId == null || r.accountId!.isEmpty),
+            )
             .fold<int>(
               0,
               (int sum, LendRecord r) =>
@@ -49,10 +51,12 @@ final AutoDisposeStreamProvider<int> borrowInOngoingProvider =
   final String bookId = ref.watch(currentBookIdProvider);
   return ref.watch(lendRepositoryProvider).watch(bookId).map(
         (List<LendRecord> records) => records
-            .where((LendRecord r) =>
-                r.direction == LendDirection.borrowIn &&
-                r.status == LendStatus.ongoing &&
-                (r.accountId == null || r.accountId!.isEmpty))
+            .where(
+              (LendRecord r) =>
+                  r.direction == LendDirection.borrowIn &&
+                  r.status == LendStatus.ongoing &&
+                  (r.accountId == null || r.accountId!.isEmpty),
+            )
             .fold<int>(
               0,
               (int sum, LendRecord r) =>
@@ -110,8 +114,10 @@ final AutoDisposeStreamProviderFamily<Map<String, int>, LendDirection>
       }
       return Map<String, int>.fromEntries(
         result.entries.toList()
-          ..sort((MapEntry<String, int> a, MapEntry<String, int> b) =>
-              b.value.compareTo(a.value)),
+          ..sort(
+            (MapEntry<String, int> a, MapEntry<String, int> b) =>
+                b.value.compareTo(a.value),
+          ),
       );
     },
   );

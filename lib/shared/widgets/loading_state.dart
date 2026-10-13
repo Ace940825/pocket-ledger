@@ -65,7 +65,9 @@ class LoadingState extends StatelessWidget {
           ),
       ],
     );
-    return expand ? SizedBox.expand(child: Center(child: child)) : Center(child: child);
+    return expand
+        ? SizedBox.expand(child: Center(child: child))
+        : Center(child: child);
   }
 }
 
@@ -109,6 +111,8 @@ class ErrorState extends StatelessWidget {
           ),
       ],
     );
-    return expand ? SizedBox.expand(child: Center(child: child)) : Center(child: child);
+    return expand
+        ? SizedBox.expand(child: Center(child: child))
+        : Center(child: child);
   }
 }

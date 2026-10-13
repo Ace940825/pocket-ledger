@@ -8,8 +8,9 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/empty_state.dart';
-import '../../../shared/widgets/loading_state.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/loading_state.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../shared/widgets/tag_pill.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -17,7 +18,6 @@ import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/txn_icon.dart';
 import 'widgets/txn_slidable.dart';
-import '../../../shared/widgets/sheet_scaffold.dart';
 
 /// 「账单列表」页（我的 → 账单管理 → 账单列表，小青账布局）。
 ///
@@ -146,7 +146,8 @@ class _BillListPageState extends ConsumerState<BillListPage> {
       case _SortMode.time:
         // 发生时间倒序（watchAll 已按此排序，稳妥起见再排一次）。
         list.sort(
-            (Transaction a, Transaction b) => b.occurredAt - a.occurredAt);
+          (Transaction a, Transaction b) => b.occurredAt - a.occurredAt,
+        );
       case _SortMode.createdAt:
         // 创建时间倒序：流水 ID 为 UUIDv7（时间有序），字典序即创建顺序，
         // 无需加 createdAt 列即可精确还原录入先后。

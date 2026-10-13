@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../database/app_database.dart';
-import '../../../theme/app_colors.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
-import '../../../shared/widgets/sheet_drag_handle.dart';
+import '../../../theme/app_colors.dart';
 import '../../record/providers/recording_settings_provider.dart' show appPrefs;
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
@@ -112,7 +111,8 @@ class _RollingTimelineCardState extends State<RollingTimelineCard> {
             : (years.isEmpty ? nowYear : years.first));
     final List<(RollingDeposit, DateTime, DateTime)> yearDeposits = dated
         .where(
-            ((RollingDeposit, DateTime, DateTime) x) => x.$2.year == activeYear)
+          ((RollingDeposit, DateTime, DateTime) x) => x.$2.year == activeYear,
+        )
         .toList();
 
     // 月序 → 排期项（存单 seq = 月序，供存入状态 / 点卡存入）。
@@ -192,7 +192,9 @@ class _RollingTimelineCardState extends State<RollingTimelineCard> {
                           .$2,
                   onTap: (!d.isRoll && entryByIndex[d.seq] != null)
                       ? () => widget.onEntryTap(
-                          entryByIndex[d.seq]!, widget.depositedByIndex[d.seq])
+                            entryByIndex[d.seq]!,
+                            widget.depositedByIndex[d.seq],
+                          )
                       : null,
                 ),
             ],
@@ -254,7 +256,7 @@ class _RollingTimelineCardState extends State<RollingTimelineCard> {
     final bool deposited = !d.isRoll && saved != null;
     if (deposited) {
       final (:int interestU, :int maturityU) = RollingCalculator.depositOutcome(
-        principalMinor: saved!.amountMinor,
+        principalMinor: saved.amountMinor,
         rateBp: d.rateBp,
         termMonths: d.maturityMonth - d.depositMonth,
       );
@@ -287,7 +289,7 @@ class _RollingTimelineCardState extends State<RollingTimelineCard> {
     // （修改存入金额后利息同步；利率/期限仍取该存单锁定值）；
     // 未存入或滚存单：按计划模拟值。
     final int effPrincipalMinor =
-        deposited ? saved!.amountMinor : d.principalMinor;
+        deposited ? saved.amountMinor : d.principalMinor;
     // 「累计」= 该存单**自己的**到期本息：每期新存单是独立存单，不跨期
     // 累加；滚存单本金本身已含上期滚入本息。已存入按实际本金折算。
     final (int effInterestU, int cumMinor) = _depositInterestAndCum(d, saved);
@@ -479,7 +481,9 @@ class _RollingGridCard extends StatelessWidget {
                   child: Text(
                     DateFormat('MM月dd日').format(depositDate),
                     style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -712,105 +716,85 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      // 避让系统键盘（本弹层虽全用共享键盘，仍保留以防万一）。
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Center(
-                child: SheetDragHandle(
-                  margin: const EdgeInsets.only(bottom: 12),
+    // 外壳（圆角 + 拖柄 + 标题）由 showAppModalSheet 统一提供，title='计划调整'。
+    return Column(
+      mainAxisSize: MainAxisSize.max,
+      children: <Widget>[
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  '已存入的存单不受影响（利率 / 本金在存入时锁定），调整从所设期起生效',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              Text(
-                '计划调整',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.onSurface,
+                const SizedBox(height: 14),
+                // 周期修改：建仓期数 / 单笔期限（整数，月）。
+                _periodSection(),
+                const SizedBox(height: 16),
+                // 滚存停止方式：永久 / N 轮 / 到目标（与创建页同款分段）。
+                _rollModeSection(),
+                const SizedBox(height: 16),
+                _section(
+                  title: '利率调整',
+                  subtitle: '银行浮动利率：某期起改用新利率（保存后覆盖旧调整）',
+                  rows: _rateRows,
+                  valueLabel: '新利率（%）',
+                  valueHint: '2.00',
+                  valuePrefix: '%',
+                  onAdd: () {
+                    if (_rateRows.isEmpty) {
+                      setState(() => _rateRows.add(_AdjustRow()));
+                    }
+                  },
+                  emptyText: '暂无利率调整，全部存入按基础年利率',
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '已存入的存单不受影响（利率 / 本金在存入时锁定），调整从所设期起生效',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                const SizedBox(height: 16),
+                _section(
+                  title: '金额调整',
+                  subtitle: '某期起每月存入改用新金额（保存后覆盖旧调整）',
+                  rows: _amountRows,
+                  valueLabel: '每月存入（元）',
+                  valueHint: '2000',
+                  valuePrefix: '¥',
+                  onAdd: () {
+                    if (_amountRows.isEmpty) {
+                      setState(() => _amountRows.add(_AdjustRow()));
+                    }
+                  },
+                  emptyText: '暂无金额调整，全部按每月存入本金',
                 ),
-              ),
-              const SizedBox(height: 14),
-              // 周期修改：建仓期数 / 单笔期限（整数，月）。
-              _periodSection(),
-              const SizedBox(height: 16),
-              // 滚存停止方式：永久 / N 轮 / 到目标（与创建页同款分段）。
-              _rollModeSection(),
-              const SizedBox(height: 16),
-              _section(
-                title: '利率调整',
-                subtitle: '银行浮动利率：某期起改用新利率（保存后覆盖旧调整）',
-                rows: _rateRows,
-                valueLabel: '新利率（%）',
-                valueHint: '2.00',
-                valuePrefix: '%',
-                onAdd: () {
-                  if (_rateRows.isEmpty) {
-                    setState(() => _rateRows.add(_AdjustRow()));
-                  }
-                },
-                emptyText: '暂无利率调整，全部存入按基础年利率',
-              ),
-              const SizedBox(height: 16),
-              _section(
-                title: '金额调整',
-                subtitle: '某期起每月存入改用新金额（保存后覆盖旧调整）',
-                rows: _amountRows,
-                valueLabel: '每月存入（元）',
-                valueHint: '2000',
-                valuePrefix: '¥',
-                onAdd: () {
-                  if (_amountRows.isEmpty) {
-                    setState(() => _amountRows.add(_AdjustRow()));
-                  }
-                },
-                emptyText: '暂无金额调整，全部按每月存入本金',
-              ),
-              const SizedBox(height: 20),
-              // 保存键（全站口径：深绿实底胶囊）。
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: FilledButton(
-                  onPressed: _save,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppPalette.deepGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                const SizedBox(height: 20),
+                // 保存键（全站口径：深绿实底胶囊）。
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: FilledButton(
+                    onPressed: _save,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppPalette.deepGreen,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      '保存',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                     ),
                   ),
-                  child: const Text(
-                    '保存',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -942,8 +926,11 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     if (items[i].$1 == selected) ...<Widget>[
-                      const Icon(Icons.check,
-                          size: 15, color: AppPalette.deepGreen),
+                      const Icon(
+                        Icons.check,
+                        size: 15,
+                        color: AppPalette.deepGreen,
+                      ),
                       const SizedBox(width: 4),
                     ],
                     Text(

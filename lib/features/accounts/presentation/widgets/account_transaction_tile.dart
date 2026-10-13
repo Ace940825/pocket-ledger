@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/tinted_icon_box.dart';
 
-import '../../../../theme/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
 import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/line_icons.dart';
 import '../../../../shared/widgets/money_text.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../accounts/providers/accounts_providers.dart';
 import '../../../ledger/presentation/widgets/txn_icon.dart';
 

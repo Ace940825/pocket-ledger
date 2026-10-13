@@ -1,16 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_theme.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 
 import '../../core/constants/app_dimens.dart';
 import '../../core/theme/forest_design_tokens.dart';
 import '../../core/utils/date_utils.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
 import 'app_toast.dart';
-import 'sheet_drag_handle.dart';
+import 'sheet_scaffold.dart';
 
 /// 口袋账本「全局共用日历组件」。
 ///
@@ -64,14 +64,12 @@ class CalendarSheet {
     String? headerTitle,
     CalendarWeekStart weekStart = CalendarWeekStart.sunday,
   }) async {
-    return showModalBottomSheet<CalendarSelection>(
-      context: context,
+    return showAppModalSheet<CalendarSelection>(
+      context,
       isScrollControlled: true,
-      backgroundColor: context.colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext ctx) => _CalendarSheetBody(
+      bodyPadding: EdgeInsets.zero,
+      showHandle: showHandle,
+      body: _CalendarSheetBody(
         mode: mode,
         initialDate: initialDate ?? DateTime.now(),
         initialMonth: initialMonth,
@@ -211,7 +209,6 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   late DateTime _selected;
   late DateTime _displayedMonth;
   bool _isHourMode = false;
-  bool _nowPinned = false;
   bool _heroFloat = false;
   late final ScrollController _scrollController;
 
@@ -301,11 +298,6 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     final DateTime now = _localNow();
     _selected = widget.initialDate;
     _displayedMonth = DateTime(_selected.year, _selected.month);
-    _nowPinned = _selected.year == now.year &&
-        _selected.month == now.month &&
-        _selected.day == now.day &&
-        _selected.hour == now.hour &&
-        _selected.minute == now.minute;
     _scrollController = ScrollController()
       ..addListener(() {
         final bool f = _scrollController.offset > 4;
@@ -340,11 +332,13 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     // keepPage:false——挂载页一律由入口确定（_gotoXPage 重建控制器或直接跳），
     // 杜绝恢复旧浏览页造成「宫格页与页头脱钩」。
     _monthPageCtrl = PageController(
-        initialPage: _selMonth.year - _kGridFirstYear, keepPage: false);
+      initialPage: _selMonth.year - _kGridFirstYear,
+      keepPage: false,
+    );
     _yearPageCtrl = PageController(
-        initialPage:
-            (_windowStart(_selYear) - _kGridFirstYear) ~/ _kYearsPerPage,
-        keepPage: false);
+      initialPage: (_windowStart(_selYear) - _kGridFirstYear) ~/ _kYearsPerPage,
+      keepPage: false,
+    );
     _dayPageCtrl =
         PageController(initialPage: _dayPageOf(_selected), keepPage: false);
     if (ip?.mode == CalendarPeriodMode.custom) {
@@ -362,7 +356,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       _rangeViewMonth = DateTime(_selected.year, _selected.month);
     }
     _rangePageCtrl = PageController(
-        initialPage: _dayPageOf(_rangeViewMonth), keepPage: false);
+      initialPage: _dayPageOf(_rangeViewMonth),
+      keepPage: false,
+    );
   }
 
   @override
@@ -451,15 +447,23 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   // ---- 日模式操作 ----
 
   void _setHour(int v) => setState(() {
-        _nowPinned = false;
-        _selected = DateTime(_selected.year, _selected.month, _selected.day, v,
-            _selected.minute);
+        _selected = DateTime(
+          _selected.year,
+          _selected.month,
+          _selected.day,
+          v,
+          _selected.minute,
+        );
       });
 
   void _setMinute(int v) => setState(() {
-        _nowPinned = false;
         _selected = DateTime(
-            _selected.year, _selected.month, _selected.day, _selected.hour, v);
+          _selected.year,
+          _selected.month,
+          _selected.day,
+          _selected.hour,
+          v,
+        );
       });
 
   // ── 宫格落页：换新控制器 + ObjectKey 整树重建（确定性，免疫一切污染）──
@@ -487,9 +491,11 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
         c.position.hasViewportDimension &&
         c.position.viewportDimension > 0) {
       // 同视图内 ‹ › 步进：pager 正在屏上且已布局，原位动画最顺滑。
-      c.animateToPage(page,
-          duration: const Duration(milliseconds: 380),
-          curve: Curves.easeOutCubic);
+      c.animateToPage(
+        page,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeOutCubic,
+      );
       return;
     }
     final PageController next =
@@ -522,9 +528,11 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
         c.position.viewportDimension > 0) {
       // 自定义 pager 在屏上（cell 点击/箭头步进）：原位动画滑页最可靠，
       // 不走换控制器重建（从宫格 cell 内触发重建落位在真机上不可靠）。
-      c.animateToPage(page,
-          duration: const Duration(milliseconds: 380),
-          curve: Curves.easeOutCubic);
+      c.animateToPage(
+        page,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeOutCubic,
+      );
       return;
     }
     final PageController next =
@@ -632,7 +640,6 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       // 不是「退出周期视图」（旧逻辑置 _dayViewTab=null 会错误跳回日视图）。
       setState(() {
         _selected = now;
-        _nowPinned = true;
         _rangeStart = null;
         _rangeEnd = null;
         _rangeRStep = 's';
@@ -658,7 +665,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           _gotoMonthPage(now.year - _kGridFirstYear);
         case CalendarPeriodMode.year:
           _gotoYearPage(
-              (_windowStart(now.year) - _kGridFirstYear) ~/ _kYearsPerPage);
+            (_windowStart(now.year) - _kGridFirstYear) ~/ _kYearsPerPage,
+          );
         case CalendarPeriodMode.custom:
           break;
       }
@@ -670,7 +678,6 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     setState(() {
       _selected = now;
       _displayedMonth = DateTime(now.year, now.month);
-      _nowPinned = true;
       _rangeStart = null;
       _rangeEnd = null;
       _rangeRStep = 's';
@@ -734,8 +741,11 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           shape: BoxShape.circle,
         ),
         child: visible
-            ? Icon(Icons.gps_fixed,
-                size: 17, color: Theme.of(context).colorScheme.onSurfaceVariant)
+            ? Icon(
+                Icons.gps_fixed,
+                size: 17,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              )
             : null,
       ),
     );
@@ -749,7 +759,6 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   /// 页头宫格/‹›跳到任意月再点；想找很早的日期用页头年宫格直达。
   void _tapRangeDay(DateTime day) {
     setState(() {
-      _nowPinned = false;
       if (_rangeStart == null) {
         // ① 选起始日：停留当前月，下一步选截止日。
         _rangeStart = day;
@@ -849,49 +858,36 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   Widget _buildDay() {
     final double maxH = MediaQuery.of(context).size.height * 0.92;
     final DateTime now = _localNow();
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxH),
-        child: Container(
-          color: context.colors.surface,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (widget.showHandle) _buildHandle(),
-              if (widget.showHeader) _buildHeader(),
-              // 英雄时间卡（RECORD AT）仅在需要时间的场景渲染（记一笔）；
-              // 纯日期场景（存钱/分期/转账）与纯周期模式（流水页）均隐藏。
-              if (widget.showDayView && widget.showTime)
-                _buildHeroSeal(context),
-              Flexible(
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  child: Column(
-                    children: <Widget>[
-                      if (widget.showQuickChips || !widget.showDayView)
-                        _buildGranularityChips(),
-                      if (_dayViewTab == null)
-                        _fastspanDayBody()
-                      else
-                        _periodSection(now),
-                      const SizedBox(height: 2),
-                    ],
-                  ),
-                ),
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (widget.showHeader) _buildHeader(),
+          // 英雄时间卡（RECORD AT）仅在需要时间的场景渲染（记一笔）；
+          // 纯日期场景（存钱/分期/转账）与纯周期模式（流水页）均隐藏。
+          if (widget.showDayView && widget.showTime) _buildHeroSeal(context),
+          Flexible(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: Column(
+                children: <Widget>[
+                  if (widget.showQuickChips || !widget.showDayView)
+                    _buildGranularityChips(),
+                  if (_dayViewTab == null)
+                    _fastspanDayBody()
+                  else
+                    _periodSection(now),
+                  const SizedBox(height: 2),
+                ],
               ),
-              _buildDayFooter(),
-            ],
+            ),
           ),
-        ),
+          _buildDayFooter(),
+        ],
       ),
     );
   }
-
-  Widget _buildHandle() => SheetDragHandle(
-        width: 40,
-        height: 4,
-        margin: const EdgeInsets.only(top: 10),
-      );
 
   Widget _buildHeader() => Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -1381,7 +1377,11 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   }
 
   Widget _dayCellFastspan(
-      DateTime month, int day, DateTime todayOnly, DateTime selOnly) {
+    DateTime month,
+    int day,
+    DateTime todayOnly,
+    DateTime selOnly,
+  ) {
     final DateTime date = DateTime(month.year, month.month, day);
     final bool selected = date == selOnly;
     final bool isToday = date == todayOnly;
@@ -1399,9 +1399,13 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       behavior: HitTestBehavior.opaque,
       onTap: enabled
           ? () => setState(() {
-                _nowPinned = false;
-                _selected = DateTime(month.year, month.month, day,
-                    _selected.hour, _selected.minute);
+                _selected = DateTime(
+                  month.year,
+                  month.month,
+                  day,
+                  _selected.hour,
+                  _selected.minute,
+                );
               })
           : null,
       child: Center(
@@ -1562,10 +1566,13 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                   ),
                 ),
                 const SizedBox(width: 5),
-                Text('▾',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text(
+                  '▾',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1593,10 +1600,13 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               children: <Widget>[
                 _customAxisLabel(),
                 const SizedBox(width: 5),
-                Text('▾',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text(
+                  '▾',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1671,16 +1681,18 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
         ),
       );
 
-  Widget _buildFooter(
-          {required VoidCallback onConfirm,
-          required String label,
-          Widget? leading}) =>
+  Widget _buildFooter({
+    required VoidCallback onConfirm,
+    required String label,
+    Widget? leading,
+  }) =>
       Container(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
         decoration: BoxDecoration(
           color: context.colors.surface,
           border: Border(
-              top: BorderSide(color: Theme.of(context).colorScheme.outline)),
+            top: BorderSide(color: Theme.of(context).colorScheme.outline),
+          ),
         ),
         child: Column(
           children: <Widget>[
@@ -1690,8 +1702,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                   leading,
                   const SizedBox(width: 12),
                   Expanded(
-                      child:
-                          _ConfirmButton(onPressed: onConfirm, label: label)),
+                    child: _ConfirmButton(onPressed: onConfirm, label: label),
+                  ),
                 ],
               )
             else
@@ -1706,33 +1718,30 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   Widget _buildMonthPicker() {
     int year = widget.initialMonth?.year ?? _selected.year;
     final int selM = widget.initialMonth?.month ?? _selected.month;
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (widget.showHandle) _buildHandle(),
-          _sageBar(
-            title: '$year 年',
-            canDown: year < _localNow().year,
-            onPrev: () => setState(() => year--),
-            onNext: () => setState(() => year++),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _sageBar(
+          title: '$year 年',
+          canDown: year < _localNow().year,
+          onPrev: () => setState(() => year--),
+          onNext: () => setState(() => year++),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(AppDimens.spaceLg),
+          child: GridView.count(
+            crossAxisCount: 4,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 1.7,
+            children: <Widget>[
+              for (int m = 1; m <= 12; m++) _monthCell(year, m, selM),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceLg),
-            child: GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: 1.7,
-              children: <Widget>[
-                for (int m = 1; m <= 12; m++) _monthCell(year, m, selM),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1772,35 +1781,31 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   Widget _buildYearPicker() {
     int year = widget.initialYear ?? _selected.year;
     final int selY = widget.initialYear ?? _selected.year;
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (widget.showHandle) _buildHandle(),
-          _sageBar(
-            title: '$year 年',
-            canUp: year > widget.firstDate.year,
-            canDown: year < widget.lastDate.year,
-            onPrev: () => setState(() => year--),
-            onNext: () => setState(() => year++),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _sageBar(
+          title: '$year 年',
+          canUp: year > widget.firstDate.year,
+          canDown: year < widget.lastDate.year,
+          onPrev: () => setState(() => year--),
+          onNext: () => setState(() => year++),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(AppDimens.spaceLg),
+          child: GridView.count(
+            crossAxisCount: 4,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 1.7,
+            children: <Widget>[
+              for (int y = year - 5; y <= year + 6; y++) _yearPickCell(y, selY),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceLg),
-            child: GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: 1.7,
-              children: <Widget>[
-                for (int y = year - 5; y <= year + 6; y++)
-                  _yearPickCell(y, selY),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1841,59 +1846,57 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
 
   Widget _buildRangePicker() {
     final DateTime view = _rangeViewMonth;
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (widget.showHandle) _buildHandle(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    _rangeStart == null
-                        ? '选择开始日期'
-                        : _rangeEnd == null
-                            ? '选择结束日期'
-                            : '${_md(_rangeStart!)} - ${_md(_rangeEnd!)}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  _rangeStart == null
+                      ? '选择开始日期'
+                      : _rangeEnd == null
+                          ? '选择结束日期'
+                          : '${_md(_rangeStart!)} - ${_md(_rangeEnd!)}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-                _Arrow(
-                  icon: Icons.chevron_left,
-                  enabled: _isMonthAllowed(DateTime(view.year, view.month - 1)),
-                  onPressed: () => setState(() =>
-                      _rangeViewMonth = DateTime(view.year, view.month - 1)),
+              ),
+              _Arrow(
+                icon: Icons.chevron_left,
+                enabled: _isMonthAllowed(DateTime(view.year, view.month - 1)),
+                onPressed: () => setState(
+                  () => _rangeViewMonth = DateTime(view.year, view.month - 1),
                 ),
-                _Arrow(
-                  icon: Icons.chevron_right,
-                  enabled: _isMonthAllowed(DateTime(view.year, view.month + 1)),
-                  onPressed: () => setState(() =>
-                      _rangeViewMonth = DateTime(view.year, view.month + 1)),
+              ),
+              _Arrow(
+                icon: Icons.chevron_right,
+                enabled: _isMonthAllowed(DateTime(view.year, view.month + 1)),
+                onPressed: () => setState(
+                  () => _rangeViewMonth = DateTime(view.year, view.month + 1),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          _WeekdayRow(start: widget.weekStart),
-          _buildRangeGrid(view),
-          _buildFooter(
-            onConfirm: () {
-              if (_rangeStart == null || _rangeEnd == null) {
-                showAppToast(context, '请选择开始与结束日期');
-                return;
-              }
-              Navigator.of(context)
-                  .pop(CalendarRange(_rangeStart!, _rangeEnd!));
-            },
-            label: '确定',
-          ),
-        ],
-      ),
+        ),
+        _WeekdayRow(start: widget.weekStart),
+        _buildRangeGrid(view),
+        _buildFooter(
+          onConfirm: () {
+            if (_rangeStart == null || _rangeEnd == null) {
+              showAppToast(context, '请选择开始与结束日期');
+              return;
+            }
+            Navigator.of(context).pop(CalendarRange(_rangeStart!, _rangeEnd!));
+          },
+          label: '确定',
+        ),
+      ],
     );
   }
 
@@ -1904,7 +1907,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       for (int i = 0; i < leading; i++) null,
       for (int d = 1; d <= dim; d++) DateTime(view.year, view.month, d),
     ];
-    while (cells.length < 42) cells.add(null);
+    while (cells.length < 42) {
+      cells.add(null);
+    }
     final DateTime today = _localNow();
     final DateTime todayOnly = DateTime(today.year, today.month, today.day);
     return Padding(
@@ -1984,21 +1989,29 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           _weekCtrl = null;
         case CalendarPeriodMode.month:
           _monthYear--;
-          _gotoMonthPage((_monthYear - _kGridFirstYear)
-              .clamp(0, _kGridLastYear - _kGridFirstYear));
+          _gotoMonthPage(
+            (_monthYear - _kGridFirstYear)
+                .clamp(0, _kGridLastYear - _kGridFirstYear),
+          );
         case CalendarPeriodMode.year:
           _decadeStart = _windowStart(_decadeStart - _kYearsPerPage);
-          _gotoYearPage(((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
-              .clamp(0, _windowPageCount - 1));
+          _gotoYearPage(
+            ((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
+                .clamp(0, _windowPageCount - 1),
+          );
         case CalendarPeriodMode.custom:
           if (_rangeNavMode == 'month') {
             _monthYear--;
-            _gotoMonthPage((_monthYear - _kGridFirstYear)
-                .clamp(0, _kGridLastYear - _kGridFirstYear));
+            _gotoMonthPage(
+              (_monthYear - _kGridFirstYear)
+                  .clamp(0, _kGridLastYear - _kGridFirstYear),
+            );
           } else if (_rangeNavMode == 'year') {
             _decadeStart = _windowStart(_decadeStart - _kYearsPerPage);
-            _gotoYearPage(((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
-                .clamp(0, _windowPageCount - 1));
+            _gotoYearPage(
+              ((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
+                  .clamp(0, _windowPageCount - 1),
+            );
           } else {
             final DateTime c =
                 DateTime(_rangeViewMonth.year, _rangeViewMonth.month - 1);
@@ -2021,21 +2034,29 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           _weekCtrl = null;
         case CalendarPeriodMode.month:
           _monthYear++;
-          _gotoMonthPage((_monthYear - _kGridFirstYear)
-              .clamp(0, _kGridLastYear - _kGridFirstYear));
+          _gotoMonthPage(
+            (_monthYear - _kGridFirstYear)
+                .clamp(0, _kGridLastYear - _kGridFirstYear),
+          );
         case CalendarPeriodMode.year:
           _decadeStart = _windowStart(_decadeStart + _kYearsPerPage);
-          _gotoYearPage(((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
-              .clamp(0, _windowPageCount - 1));
+          _gotoYearPage(
+            ((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
+                .clamp(0, _windowPageCount - 1),
+          );
         case CalendarPeriodMode.custom:
           if (_rangeNavMode == 'month') {
             _monthYear++;
-            _gotoMonthPage((_monthYear - _kGridFirstYear)
-                .clamp(0, _kGridLastYear - _kGridFirstYear));
+            _gotoMonthPage(
+              (_monthYear - _kGridFirstYear)
+                  .clamp(0, _kGridLastYear - _kGridFirstYear),
+            );
           } else if (_rangeNavMode == 'year') {
             _decadeStart = _windowStart(_decadeStart + _kYearsPerPage);
-            _gotoYearPage(((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
-                .clamp(0, _windowPageCount - 1));
+            _gotoYearPage(
+              ((_decadeStart - _kGridFirstYear) ~/ _kYearsPerPage)
+                  .clamp(0, _windowPageCount - 1),
+            );
           } else {
             final DateTime c =
                 DateTime(_rangeViewMonth.year, _rangeViewMonth.month + 1);
@@ -2222,7 +2243,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
 
   Widget _periodMonthGrid(DateTime now) {
     _reconcileMonthPage();
-    final int pageCount = _kGridLastYear - _kGridFirstYear + 1;
+    const int pageCount = _kGridLastYear - _kGridFirstYear + 1;
     return SizedBox(
       height: _kSheetBodyHeight,
       child: PageView.builder(
@@ -2273,12 +2294,19 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                       final int d = _selected.day > last
                                           ? last
                                           : _selected.day;
-                                      _selected = DateTime(year, m, d,
-                                          _selected.hour, _selected.minute);
+                                      _selected = DateTime(
+                                        year,
+                                        m,
+                                        d,
+                                        _selected.hour,
+                                        _selected.minute,
+                                      );
                                       _displayedMonth = DateTime(year, m);
                                       _dayViewTab = null;
-                                      _gotoDayPage(_dayPageOf(_displayedMonth),
-                                          animate: true);
+                                      _gotoDayPage(
+                                        _dayPageOf(_displayedMonth),
+                                        animate: true,
+                                      );
                                     }
                                   }),
                                 ),
@@ -2631,7 +2659,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   /// 回到选起止日视图；回正起止高亮用的是当前浏览月）。
   Widget _rangeMonthGridNav() {
     _reconcileMonthPage();
-    final int pageCount = _kGridLastYear - _kGridFirstYear + 1;
+    const int pageCount = _kGridLastYear - _kGridFirstYear + 1;
     return SizedBox(
       height: _kSheetBodyHeight,
       child: PageView.builder(
@@ -2670,8 +2698,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                   // 双击：自定义日宫格跳到该月（不退出自定义）
                                   () => setState(() {
                                     _rangeViewMonth = DateTime(year, m);
-                                    _gotoRangePage(_dayPageOf(_rangeViewMonth),
-                                        animate: true);
+                                    _gotoRangePage(
+                                      _dayPageOf(_rangeViewMonth),
+                                      animate: true,
+                                    );
                                     _rangeNavMode = null;
                                   }),
                                 ),
@@ -2766,7 +2796,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.symmetric(
-            horizontal: AppDimens.spaceSm, vertical: 4),
+          horizontal: AppDimens.spaceSm,
+          vertical: 4,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
@@ -2774,9 +2806,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               icon: const Icon(Icons.chevron_left),
               onPressed: canUp ? onPrev : null,
             ),
-            Text(title,
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
             IconButton(
               icon: const Icon(Icons.chevron_right),
               onPressed: canDown ? onNext : null,
@@ -2869,7 +2902,7 @@ class _TimeDial extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       color: Theme.of(context).colorScheme.onPrimary,
                       fontFeatures: const <FontFeature>[
-                        FontFeature.tabularFigures()
+                        FontFeature.tabularFigures(),
                       ],
                     ),
                   ),
@@ -2909,9 +2942,6 @@ class _DialPainter extends CustomPainter {
   final int minute;
   final Color surface;
   final Color onSurface;
-
-  static const Color _sage1 = AppPalette.sageMist;
-  static const Color _sage2 = AppPalette.sageRibbon;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2989,8 +3019,11 @@ class _CloseButton extends StatelessWidget {
           radius: 17,
           padding: EdgeInsets.zero,
           child: IconButton(
-            icon: Icon(Icons.close,
-                size: 18, color: Theme.of(context).colorScheme.onSurface),
+            icon: Icon(
+              Icons.close,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
             padding: EdgeInsets.zero,
             onPressed: onPressed,
           ),
@@ -3049,8 +3082,11 @@ class _Arrow extends StatelessWidget {
         margin: const EdgeInsets.only(left: 6),
         radius: 10,
         child: IconButton(
-          icon: Icon(icon,
-              size: 16, color: Theme.of(context).colorScheme.onSurface),
+          icon: Icon(
+            icon,
+            size: 16,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
           onPressed: enabled ? onPressed : null,
@@ -3070,7 +3106,7 @@ class _WeekdayRow extends StatelessWidget {
     '三',
     '四',
     '五',
-    '六'
+    '六',
   ];
   static const Color _sageAccent = AppPalette.sageRibbon;
 

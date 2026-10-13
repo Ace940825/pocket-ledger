@@ -15,7 +15,7 @@ void main() {
       (WidgetTester tester) async {
     for (final String k in depositKeys) {
       expect(categoryLineKind(k), isNotNull,
-          reason: 'iconKey "$k" 缺少 LineIcon 映射，会回退 Material');
+          reason: 'iconKey "$k" 缺少 LineIcon 映射，会回退 Material',);
     }
 
     const List<LineIconKind> siblings = <LineIconKind>[
@@ -43,7 +43,7 @@ void main() {
                     children: <Widget>[
                       for (final String k in depositKeys)
                         LineIcon(categoryLineKind(k)!,
-                            size: 64, color: const Color(0xFF2E4A26)),
+                            size: 64, color: const Color(0xFF2E4A26),),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -53,7 +53,7 @@ void main() {
                     children: <Widget>[
                       for (final String k in depositKeys)
                         LineIcon(categoryLineKind(k)!,
-                            size: 40, color: const Color(0xFF2E4A26)),
+                            size: 40, color: const Color(0xFF2E4A26),),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -63,21 +63,21 @@ void main() {
                     children: <Widget>[
                       for (final String k in depositKeys)
                         LineIcon(categoryLineKind(k)!,
-                            size: 24, color: const Color(0xFF2E4A26)),
+                            size: 24, color: const Color(0xFF2E4A26),),
                     ],
                   ),
                   const SizedBox(height: 24),
                   const Divider(height: 1),
                   const SizedBox(height: 12),
                   const Text('同组既有图标（疏密比对）',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF7A8B72))),
+                      style: TextStyle(fontSize: 11, color: Color(0xFF7A8B72)),),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: <Widget>[
                       for (final LineIconKind kind in siblings)
                         LineIcon(kind,
-                            size: 40, color: const Color(0xFF2E4A26)),
+                            size: 40, color: const Color(0xFF2E4A26),),
                     ],
                   ),
                 ],

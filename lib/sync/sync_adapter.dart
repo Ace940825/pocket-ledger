@@ -1,5 +1,3 @@
-
-
 import '../domain/enums.dart';
 
 /// 一次待推送的变更操作。

@@ -1,28 +1,27 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/empty_state.dart';
-import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
-import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
 import '../../../shared/widgets/section_header.dart';
-import '../data/savings_repository.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
+import '../../../theme/app_colors.dart';
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
 import '../providers/savings_providers.dart';
 import 'savings_goal_detail_page.dart';
 import 'savings_goal_edit_page.dart';
 import 'savings_mode_create_page.dart';
-import 'savings_rolling_create_page.dart';
 import 'savings_mode_sheet.dart';
 import 'savings_modes.dart';
+import 'savings_rolling_create_page.dart';
 import 'savings_schedule.dart';
-import '../../../shared/widgets/sheet_scaffold.dart';
 
 /// 储蓄页：「计划 / 归档」双 Tab。
 /// - 计划：内嵌「存钱模式选择」双列九宫格，点卡直接进该模式创建页；
@@ -137,7 +136,7 @@ class _ArchivedList extends ConsumerWidget {
               _ArchivedTile(goal: list[index]),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const LoadingState(),
       error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
     );
   }
@@ -320,7 +319,10 @@ class SavingsGoalTile extends ConsumerWidget {
   /// 行2：头像 + 名称 + 备注行 ｜ 大字目标金额 + 模式胶囊·已存入。
   /// [displayMinor]：滚存计划 = 预计到期总额（预估），其余 = 目标金额。
   Widget _bodyRow(
-      BuildContext context, String? categoryLabel, int displayMinor) {
+    BuildContext context,
+    String? categoryLabel,
+    int displayMinor,
+  ) {
     final ThemeData theme = Theme.of(context);
     final String? note =
         (goal.note == null || goal.note!.isEmpty) ? null : goal.note;
@@ -349,7 +351,9 @@ class SavingsGoalTile extends ConsumerWidget {
                     child: Text(
                       goal.name,
                       style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -489,13 +493,15 @@ class SavingsGoalTile extends ConsumerWidget {
                     child: Text(
                       mode?.label ?? '储蓄计划',
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w700),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Text(
                     '已执行${goal.depositCount}/$totalPeriods次',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppPalette.deepGreen,
@@ -639,7 +645,8 @@ class _ArchivedTile extends ConsumerWidget {
               const SizedBox(width: 8),
               TextButton.icon(
                 style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error),
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                ),
                 onPressed: () async {
                   final bool ok = await confirmDelete(
                     context,

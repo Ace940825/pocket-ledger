@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
 import '../../theme/app_dimens.dart';
+import '../../theme/app_theme.dart';
 import 'hairline_card.dart';
 
 /// 菜单行（全应用统一）：左侧 tint 圆底图标 + 标题 + 可选副标题 + 右侧 chevron。
@@ -23,6 +23,7 @@ class MenuItem extends StatelessWidget {
     this.titleColor,
     this.subtitle,
     this.subtitleColor,
+
     /// 右侧「当前值」文本（如「简体中文」），显示在 chevron 左侧。
     /// 与 [subtitle]（标题下方次要说明）不同，[value] 用于「标题 …… 值 ›」
     /// 这类「入口 + 当前选中值」的设置行。

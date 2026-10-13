@@ -522,7 +522,7 @@ class FakeAccountRepository extends AccountRepository {
       cardNumber: cardNumber,
       status: status,
       includeInTotal: includeInTotal,
-    ));
+    ),);
     return 'fake-id';
   }
 }

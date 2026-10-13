@@ -6,13 +6,11 @@
 /// 账户后列表即时刷新，无需「重新加载」或重开弹窗。
 /// 调用方通过 [AccountPickerSheet.filter] 声明可选项口径（资金类 / 应收应付 /
 /// 报销账户等），过滤在每次流推送后重新套用。
+library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/sheet_drag_handle.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_dimens.dart';
@@ -20,6 +18,8 @@ import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../providers/recording_settings_provider.dart';
@@ -30,9 +30,11 @@ import 'default_asset_settings_sheet.dart';
 /// 资金类账户列表：排除「应收 / 应付」对方虚拟账户。
 /// 借还 tab 的借入/借出账户选择器单独按 payable/receivable 展示，不受影响。
 List<Account> fundAccountsOnly(List<Account> list) => list
-    .where((Account a) =>
-        a.type.category != AccountCategory.payable &&
-        a.type.category != AccountCategory.receivable)
+    .where(
+      (Account a) =>
+          a.type.category != AccountCategory.payable &&
+          a.type.category != AccountCategory.receivable,
+    )
     .toList();
 
 class _SheetA {
@@ -43,9 +45,10 @@ class _SheetA {
   // 选中卡阴影 rgba(60,138,96,.20)
   static List<BoxShadow> selShadow = <BoxShadow>[
     BoxShadow(
-        color: AppPalette.stockDown.withValues(alpha: 0.2),
-        blurRadius: 14,
-        offset: Offset(0, 4)),
+      color: AppPalette.stockDown.withValues(alpha: 0.2),
+      blurRadius: 14,
+      offset: const Offset(0, 4),
+    ),
   ];
   // 选中态加深余额色（浅绿底保证对比）
   static const Color selPos = AppPalette.pickerGreen;
@@ -189,75 +192,62 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
     // 桌面端默认会给可滚动区域挂系统滚动条，这里全局关掉
     final ScrollBehavior behavior =
         ScrollConfiguration.of(context).copyWith(scrollbars: false);
+    // 外壳（圆角 + 拖柄 + 安全区）由 showAppModalSheet 统一提供；
+    // 品牌化头部（_buildHeader：关闭 / 标题 / 齿轮 / 列表切换 / 添加）作为
+    // body 首子保留，避免把 11 处调用点的标题与操作逻辑搬到外壳。
     return ScrollConfiguration(
       behavior: behavior,
-      child: Container(
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              // 拖拽条
-              SheetDragHandle(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(top: 10),
-                color: AppPalette.sage800.withValues(alpha: 0.22),
-              ),
-              _buildHeader(),
-              // 弹窗内提示条（冲突提示等），出现时把主体轻轻下推。
-              AnimatedSize(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOut,
-                alignment: Alignment.topCenter,
-                child: _hint == null
-                    ? const SizedBox(width: double.infinity)
-                    : Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _buildHeader(),
+          // 弹窗内提示条（冲突提示等），出现时把主体轻轻下推。
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: _hint == null
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppPalette.pickerCream,
+                        border: Border.all(color: AppPalette.pickerClay),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(
+                            Icons.info_outline,
+                            size: 15,
+                            color: AppPalette.clayBrown,
                           ),
-                          decoration: BoxDecoration(
-                            color: AppPalette.pickerCream,
-                            border: Border.all(color: AppPalette.pickerClay),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              const Icon(
-                                Icons.info_outline,
-                                size: 15,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _hint!,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
                                 color: AppPalette.clayBrown,
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _hint!,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppPalette.clayBrown,
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-              ),
-              _buildBody(),
-              if (widget.showNoneRow) _buildNoneRow(),
-              _buildOps(),
-              const SizedBox(height: 14),
-            ],
+                    ),
+                  ),
           ),
-        ),
+          _buildBody(),
+          if (widget.showNoneRow) _buildNoneRow(),
+          _buildOps(),
+          const SizedBox(height: 14),
+        ],
       ),
     );
   }
@@ -340,7 +330,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
           height: bodyHeight,
           child: ListView.separated(
             itemCount: items.length,
-            separatorBuilder: (_, __) => Divider(
+            separatorBuilder: (_, __) => const Divider(
               height: 1,
               indent: 56,
             ),
@@ -627,7 +617,7 @@ class _AccountTile extends StatelessWidget {
       child: Stack(
         children: <Widget>[
           card,
-          Positioned(
+          const Positioned(
             top: 10,
             right: 12,
             child: SizedBox(
@@ -768,7 +758,7 @@ class _CardInner extends StatelessWidget {
       ),
       child: Text(
         '可用 ${available.format()}',
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 10,
           height: 1.2,
           fontWeight: FontWeight.w600,
@@ -885,7 +875,7 @@ class _PillBtn extends StatelessWidget {
                   BoxShadow(
                     color: AppPalette.stockDown.withValues(alpha: 0.278),
                     blurRadius: 12,
-                    offset: Offset(0, 4),
+                    offset: const Offset(0, 4),
                   ),
                 ]
               : null,
@@ -939,7 +929,7 @@ class _OpBtn extends StatelessWidget {
                       BoxShadow(
                         color: AppPalette.stockDown.withValues(alpha: 0.278),
                         blurRadius: 12,
-                        offset: Offset(0, 4),
+                        offset: const Offset(0, 4),
                       ),
                     ]
                   : null,

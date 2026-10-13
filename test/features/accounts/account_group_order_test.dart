@@ -190,12 +190,12 @@ void main() {
     test('oldIndex 越界时原样返回，不抛异常', () {
       expect(
         AccountGroupOrderNotifier.applyVisibleReorder(
-            base, visibleNoInvest, -1, 0),
+            base, visibleNoInvest, -1, 0,),
         base,
       );
       expect(
         AccountGroupOrderNotifier.applyVisibleReorder(
-            base, visibleNoInvest, 3, 0),
+            base, visibleNoInvest, 3, 0,),
         base,
       );
     });

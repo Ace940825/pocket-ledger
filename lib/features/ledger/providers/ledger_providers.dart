@@ -556,7 +556,7 @@ List<Transaction> applyLedgerAdvancedFilter(
     // 包含：命中任一选中账户（或勾选了游离账单且本单无账户）即可；
     // 不包含：排除选中的账户（及游离账单，若勾选）。
     if (f.hasAccountFilter) {
-      final bool none = t.accountId == null || t.accountId!.isEmpty;
+      final bool none = t.accountId.isEmpty;
       final bool hit =
           none ? f.accountIncludeNone : f.accountIds.contains(t.accountId);
       if (f.accountInclude ? !hit : hit) return false;

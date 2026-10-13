@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
-import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
+import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/avatar_tile.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
-import '../../../shared/widgets/avatar_tile.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
@@ -131,7 +132,7 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingState(),
         error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
       ),
     );
@@ -239,7 +240,7 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
   /// 左滑「完结」：未还期次一次性标记为已还（提前结清口径）。
   Future<void> _finishPlan(InstallmentPlan p) async {
     final int unpaid = p.totalPeriods - p.paidPeriods;
-    final bool? ok = await     showConfirm(
+    final bool? ok = await showConfirm(
       context,
       title: '完结「${p.title}」？',
       content: '将未还的 $unpaid 期一次性标记为已还，该计划随即完结。',
@@ -377,7 +378,8 @@ class _PlanCard extends StatelessWidget {
                     if (accountName != null) accountName!,
                   ].join(' · '),
                   style: t.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -389,9 +391,9 @@ class _PlanCard extends StatelessWidget {
                         Text(
                           '应还总额',
                           style: t.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -410,9 +412,9 @@ class _PlanCard extends StatelessWidget {
                         Text(
                           '待入账',
                           style: t.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -438,7 +440,8 @@ class _PlanCard extends StatelessWidget {
                 Text(
                   '已入账 ${plan.paidPeriods}/${plan.totalPeriods} 期',
                   style: t.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),

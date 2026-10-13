@@ -71,6 +71,7 @@ dependencies:
   # 直接 import 其 API（启用 Android Photo Picker 硬性锁定多选上限）
   image_picker_android: ^0.8.13
 
+  image_picker_platform_interface: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

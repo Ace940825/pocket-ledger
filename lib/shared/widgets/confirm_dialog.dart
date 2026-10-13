@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
 import '../../theme/app_dimens.dart';
+import '../../theme/app_theme.dart';
 
 /// 统一确认弹窗（全应用）。
 ///
@@ -22,7 +22,10 @@ class ConfirmDialog extends StatelessWidget {
   final String? title;
   final String content;
   final String confirmText;
-  final String cancelText;
+
+  /// 取消按钮文案；传 `null` 时不渲染取消按钮（单按钮说明型弹窗，
+  /// 如「关于 XX」帮助说明）。默认「取消」。
+  final String? cancelText;
   final bool danger;
   final VoidCallback? onConfirm;
   final VoidCallback? onCancel;
@@ -56,13 +59,14 @@ class ConfirmDialog extends StatelessWidget {
         AppDimens.md,
       ),
       actions: <Widget>[
-        TextButton(
-          onPressed: () {
-            onCancel?.call();
-            Navigator.of(context).pop(false);
-          },
-          child: Text(cancelText),
-        ),
+        if (cancelText != null)
+          TextButton(
+            onPressed: () {
+              onCancel?.call();
+              Navigator.of(context).pop(false);
+            },
+            child: Text(cancelText!),
+          ),
         TextButton(
           style: TextButton.styleFrom(foregroundColor: confirmColor),
           onPressed: () {
@@ -80,12 +84,13 @@ class ConfirmDialog extends StatelessWidget {
 ///
 /// 返回 `true`=确认 / `false`=取消按钮 / `null`=点遮罩关闭。
 /// 调用方统一用 `if (confirmed != true) return;` 处理非确认分支即可。
+/// [cancelText] 传 `null` 时不显示取消按钮（单按钮说明型）。
 Future<bool?> showConfirm(
   BuildContext context, {
   String? title,
   required String content,
   String confirmText = '确定',
-  String cancelText = '取消',
+  String? cancelText = '取消',
   bool danger = false,
 }) {
   return showDialog<bool>(

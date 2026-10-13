@@ -1,21 +1,21 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
-import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:pocket_ledger/shared/widgets/tag_chip.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../database/daos/tags_dao.dart';
 import '../../../domain/enums.dart';
-import '../../../providers/app_providers.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
 import '../providers/tag_providers.dart';
-import 'tag_empty_illustration.dart';
 import 'tag_manage_page.dart';
 import 'tag_scope_toggle.dart';
 
@@ -35,12 +35,11 @@ class TagSheet extends ConsumerStatefulWidget {
     BuildContext context, {
     List<String> initialSelected = const <String>[],
   }) {
-    return showModalBottomSheet<List<String>>(
-      context: context,
-      backgroundColor: Colors.transparent,
+    return showAppModalSheet<List<String>>(
+      context,
       isScrollControlled: true,
-      useSafeArea: true,
-      builder: (BuildContext ctx) => TagSheet(initialSelected: initialSelected),
+      bodyPadding: EdgeInsets.zero,
+      body: TagSheet(initialSelected: initialSelected),
     );
   }
 
@@ -109,7 +108,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
 
   List<String> get _allSelected => <String>{
         ..._selected[TagScope.general]!,
-        ..._selected[TagScope.ledger]!
+        ..._selected[TagScope.ledger]!,
       }.toList();
 
   @override
@@ -155,10 +154,6 @@ class _TagSheetState extends ConsumerState<TagSheet> {
         Container(
           // 上限 60% 屏高；列表统一高度超出剩余空间时被 Flexible 自动压缩。
           constraints: BoxConstraints(maxHeight: screenH * 0.6),
-          decoration: BoxDecoration(
-            color: context.colors.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -287,9 +282,11 @@ class _TagSheetState extends ConsumerState<TagSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 4),
             child: Row(
               children: <Widget>[
-                Icon(Icons.search,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.search,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -301,12 +298,12 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       focusedBorder: InputBorder.none,
                       hintText: '搜索标签',
                       hintStyle: TextStyle(
-                          fontSize: 14,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       border: InputBorder.none,
                       isCollapsed: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
                     ),
                     style: const TextStyle(fontSize: 14),
                   ),
@@ -353,7 +350,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            Spacer(),
+            const Spacer(),
             SizedBox(
               height: 36,
               child: InkWell(
@@ -369,7 +366,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       BoxShadow(
                         color: AppPalette.stockDown.withValues(alpha: 0.2),
                         blurRadius: 12,
-                        offset: Offset(0, 4),
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -414,8 +411,9 @@ class _TagSheetState extends ConsumerState<TagSheet> {
           _query.isEmpty ? '没有发现标签哦，试着去添加一个~' : '未找到「$_query」相关标签',
           textAlign: TextAlign.center,
           style: TextStyle(
-              fontSize: 13.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
+            fontSize: 13.5,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -562,8 +560,9 @@ class _DashedDivider extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         const Expanded(child: _HorizontalDashed()),
@@ -611,23 +610,9 @@ class _GlobalEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          TagEmptyIllustration(width: 150),
-          SizedBox(height: 14),
-          Text(
-            '没有发现标签哦，试着去添加一个~',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              height: 1.7,
-            ),
-          ),
-        ],
-      ),
+    return const EmptyState(
+      icon: Icons.label_outline,
+      message: '没有发现标签哦，试着去添加一个~',
     );
   }
 }

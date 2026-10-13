@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
 import '../../theme/app_dimens.dart';
 
 /// 汇总条（全应用统一）：「共 N 笔 · 合计 ¥X」一行，顶部发丝线。
@@ -40,7 +39,7 @@ class SummaryBar extends StatelessWidget {
           const Spacer(),
           if (trailing != null) ...<Widget>[
             trailing!,
-            const SizedBox(width: 8)
+            const SizedBox(width: 8),
           ],
           Text(
             totalText,

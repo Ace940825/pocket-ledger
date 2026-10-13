@@ -1,21 +1,18 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:file_picker/file_picker.dart';
 
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
-import '../../../domain/enums.dart';
-import '../../../providers/app_providers.dart';
+
 import '../../../shared/widgets/app_toast.dart';
 import '../../../theme/app_colors.dart';
+import '../../accounts/providers/accounts_providers.dart';
 import '../data/bill_io.dart';
 import '../providers/ledger_providers.dart';
-import '../../accounts/providers/accounts_providers.dart';
-import '../../categories/providers/categories_providers.dart';
 
 /// 「账单管理 → 账单导出」页。
 ///
@@ -40,7 +37,6 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final String bookId = ref.read(currentBookIdProvider);
       final List<Transaction> txns =
           await ref.read(bookAllTransactionsProvider.future);
       final List<Account> accounts = await ref.read(accountsProvider.future);
@@ -177,7 +173,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Padding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Text(
               '导出格式',
               style: TextStyle(
@@ -255,7 +251,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppPalette.ctaGreen,
                         ),
@@ -307,8 +303,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
           SelectableText(
             _path ?? '',
             style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppDimens.spaceSm),
           Container(

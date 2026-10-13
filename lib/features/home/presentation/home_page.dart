@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../theme/app_colors.dart';
-import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../core/constants/app_dimens.dart';
+import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
@@ -13,6 +13,7 @@ import '../../../shared/widgets/animated_money_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/fade_slide_in.dart';
 import '../../../shared/widgets/section_header.dart';
+import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../budget/providers/budget_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
@@ -21,7 +22,6 @@ import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../record/presentation/record_sheet.dart';
-import '../../record/record_tab.dart';
 
 /// 首页总览：顶部三张可横向滑动卡片（资产 / 预算 / 本月收支）+ 快捷入口 + 最近流水。
 class HomePage extends ConsumerWidget {
@@ -98,7 +98,7 @@ class HomePage extends ConsumerWidget {
               },
               loading: () => const SizedBox(
                 height: 120,
-                child: Center(child: CircularProgressIndicator()),
+                child: LoadingState(),
               ),
               error: (Object e, StackTrace? s) => SizedBox(
                 height: 120,
@@ -221,14 +221,17 @@ class _AssetsCard extends StatelessWidget {
           Text(
             '净资产',
             style: theme.textTheme.bodyMedium?.copyWith(
-                color: ForestAssetText.primary.withValues(alpha: 0.85)),
+              color: ForestAssetText.primary.withValues(alpha: 0.85),
+            ),
           ),
           const SizedBox(height: 2),
           AnimatedMoneyText(
             Money.fromMinor(netAssets),
             color: ForestAssetText.emphasis,
             style: theme.textTheme.headlineSmall?.copyWith(
-                color: ForestAssetText.emphasis, fontWeight: FontWeight.w600),
+              color: ForestAssetText.emphasis,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const Spacer(),
           Row(
@@ -293,16 +296,19 @@ class _BudgetCard extends StatelessWidget {
                 Text(
                   '剩余预算',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                      color: ForestAssetText.primary.withValues(alpha: 0.85)),
+                    color: ForestAssetText.primary.withValues(alpha: 0.85),
+                  ),
                 ),
                 const SizedBox(height: 2),
                 AnimatedMoneyText(
                   Money.fromMinor(
-                      summary.remaining >= 0 ? summary.remaining : 0),
+                    summary.remaining >= 0 ? summary.remaining : 0,
+                  ),
                   color: ForestAssetText.emphasis,
                   style: theme.textTheme.headlineSmall?.copyWith(
-                      color: ForestAssetText.emphasis,
-                      fontWeight: FontWeight.w600),
+                    color: ForestAssetText.emphasis,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const Spacer(),
                 Row(

@@ -3,8 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_dimens.dart';
 import '../../../routing/app_router.dart';
-import '../../../theme/app_colors.dart';
 import '../../../shared/widgets/section_header.dart';
+import '../../../theme/app_colors.dart';
 
 /// 「我的 → 账单管理」页（小青账布局）。
 ///
@@ -196,9 +196,11 @@ class _RowItem extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right,
-                size: 22,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.chevron_right,
+              size: 22,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),

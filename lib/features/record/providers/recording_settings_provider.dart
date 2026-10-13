@@ -208,11 +208,17 @@ class RecordingSettings {
 
     return RecordingSettings(
       themeStyle: enumOr(
-          'themeStyle', KeyboardThemeStyle.values, KeyboardThemeStyle.simple),
+        'themeStyle',
+        KeyboardThemeStyle.values,
+        KeyboardThemeStyle.simple,
+      ),
       formula:
           enumOr('formula', KeyboardFormula.values, KeyboardFormula.plusMinus),
-      numberOrder: enumOr('numberOrder', KeyboardNumberOrder.values,
-          KeyboardNumberOrder.ascending),
+      numberOrder: enumOr(
+        'numberOrder',
+        KeyboardNumberOrder.values,
+        KeyboardNumberOrder.ascending,
+      ),
       heightScale: dblOr('heightScale', 1.0),
       subMode:
           enumOr('subMode', KeyboardSubMode.values, KeyboardSubMode.simple),
@@ -312,13 +318,15 @@ class RecordingSettingsNotifier extends StateNotifier<RecordingSettings> {
 
   void setSubMode(KeyboardSubMode mode) {
     final Map<String, String> preset = _presets[mode]!;
-    _set(state.copyWith(
-      subMode: mode,
-      topAreaRows: preset['topAreaRows']!,
-      amountPosition: preset['amountPosition']!,
-      funcButtonRows: preset['funcButtonRows']!,
-      iconBackground: preset['iconBackground']!,
-    ));
+    _set(
+      state.copyWith(
+        subMode: mode,
+        topAreaRows: preset['topAreaRows']!,
+        amountPosition: preset['amountPosition']!,
+        funcButtonRows: preset['funcButtonRows']!,
+        iconBackground: preset['iconBackground']!,
+      ),
+    );
   }
 
   void setTopAreaRows(String value) {
@@ -376,16 +384,21 @@ class RecordingSettingsNotifier extends StateNotifier<RecordingSettings> {
   }
 
   void toggleBalanceInsufficientCheck() {
-    _set(state.copyWith(
-        balanceInsufficientCheck: !state.balanceInsufficientCheck));
+    _set(
+      state.copyWith(
+        balanceInsufficientCheck: !state.balanceInsufficientCheck,
+      ),
+    );
   }
 
   /// 设置默认选择的资产账户；传 null 表示恢复"默认账户"。
   void setDefaultAssetAccount(String? accountName) {
-    _set(state.copyWith(
-      defaultAssetAccount: accountName,
-      resetDefaultAssetAccount: accountName == null,
-    ));
+    _set(
+      state.copyWith(
+        defaultAssetAccount: accountName,
+        resetDefaultAssetAccount: accountName == null,
+      ),
+    );
   }
 
   /// 记忆账户选择弹窗的视图模式（列表 / 网格）。

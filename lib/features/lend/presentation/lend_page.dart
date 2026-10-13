@@ -1,23 +1,19 @@
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
-import '../../../shared/widgets/section_header.dart';
-import '../../../shared/widgets/avatar_tile.dart';
-import '../../../shared/widgets/app_button.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
-import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/avatar_tile.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../../../theme/theme.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/record_sheet.dart';
@@ -142,7 +138,7 @@ class _LendPageState extends ConsumerState<LendPage> {
     WidgetRef ref,
     LendRecord record,
   ) async {
-    final bool? confirmed = await     showConfirm(
+    final bool? confirmed = await showConfirm(
       context,
       title: '删除这条借还记录？',
       content: '删除后不可撤销。',

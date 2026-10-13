@@ -60,7 +60,7 @@ class InstallmentRepository {
   /// 注意子查询必须 [selectOnly] 只取 id 列：`IN (SELECT …)` 的子查询
   /// 只允许单列，整行 select 会在 SQLite 运行时报错（静态分析查不出来）。
   Stream<List<InstallmentPeriod>> watchBookPeriods(String bookId) {
-    final JoinedSelectStatement plansOfBook =
+    final JoinedSelectStatement<InstallmentPlans, dynamic> plansOfBook =
         _db.selectOnly(_db.installmentPlans)
           ..addColumns(<Expression<Object>>[_db.installmentPlans.id])
           ..where(
@@ -428,16 +428,20 @@ class InstallmentRepository {
       // 1. 该账户下已入账（有订单流水）的未删期次，且关联付款账户 == acc。
       final List<InstallmentPeriod> posted =
           await (_db.select(_db.installmentPeriods)
-                ..where((InstallmentPeriods p) =>
-                    p.deleted.equals(false) & p.transactionId.isNotNull()))
+                ..where(
+                  (InstallmentPeriods p) =>
+                      p.deleted.equals(false) & p.transactionId.isNotNull(),
+                ))
               .get();
       if (posted.isEmpty) continue;
       final Set<String> planIds =
           posted.map((InstallmentPeriod p) => p.planId).toSet();
       final List<InstallmentPlan> planRows =
           await (_db.select(_db.installmentPlans)
-                ..where((InstallmentPlans t) =>
-                    t.id.isIn(planIds) & t.deleted.equals(false)))
+                ..where(
+                  (InstallmentPlans t) =>
+                      t.id.isIn(planIds) & t.deleted.equals(false),
+                ))
               .get();
       final Map<String, InstallmentPlan> plans = <String, InstallmentPlan>{
         for (final InstallmentPlan p in planRows) p.id: p,
@@ -451,8 +455,10 @@ class InstallmentRepository {
 
       // 2. 该账户收到的还款（转账转入腿：toAccountId == acc.id）。
       final List<Transaction> repayments = await (_db.select(_db.transactions)
-            ..where((Transactions t) =>
-                t.toAccountId.equals(acc.id) & t.deleted.equals(false)))
+            ..where(
+              (Transactions t) =>
+                  t.toAccountId.equals(acc.id) & t.deleted.equals(false),
+            ))
           .get();
 
       // 3. 按期次入账日（=订单流水 occurredAt = period.dueAt）归到账单周期。
@@ -478,27 +484,35 @@ class InstallmentRepository {
         final int winStart = statement.toUtc().millisecondsSinceEpoch;
         final int winEnd = cy.next.toUtc().millisecondsSinceEpoch;
         final List<Transaction> reps = repayments
-            .where((Transaction t) =>
-                t.occurredAt >= winStart && t.occurredAt < winEnd)
+            .where(
+              (Transaction t) =>
+                  t.occurredAt >= winStart && t.occurredAt < winEnd,
+            )
             .toList();
         final int totalRepaid =
             reps.fold<int>(0, (int s, Transaction t) => s + t.amountMinor);
         final int billedTotal = group.fold<int>(
-            0, (int s, InstallmentPeriod p) => s + p.amountMinor);
+          0,
+          (int s, InstallmentPeriod p) => s + p.amountMinor,
+        );
 
         final Set<String> matched = <String>{};
         if (billedTotal > 0 &&
             totalRepaid * 100 >=
                 billedTotal * (autoRepayCoverRatio * 100).round()) {
           // 整单 70% 兜底：该周期全部期次标记已还。
-          for (final InstallmentPeriod p in group) matched.add(p.id);
+          for (final InstallmentPeriod p in group) {
+            matched.add(p.id);
+          }
         } else {
           // 逐期贪心：按到期日从早到晚，还款余额 ≥ 当期金额即标记并扣减。
           int remaining = totalRepaid;
           final List<InstallmentPeriod> ordered = List<InstallmentPeriod>.from(
             group,
-          )..sort((InstallmentPeriod a, InstallmentPeriod b) =>
-              a.dueAt.compareTo(b.dueAt));
+          )..sort(
+              (InstallmentPeriod a, InstallmentPeriod b) =>
+                  a.dueAt.compareTo(b.dueAt),
+            );
           for (final InstallmentPeriod p in ordered) {
             if (remaining >= p.amountMinor) {
               matched.add(p.id);

@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../theme/app_colors.dart';
 import '../providers/categories_providers.dart';
-import '../../../shared/widgets/app_toast.dart';
 
 /// 编辑子分类页。
 ///

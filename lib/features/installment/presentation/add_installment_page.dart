@@ -1,34 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
-import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
-import 'package:pocket_ledger/shared/widgets/app_button.dart';
-import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/app_button.dart';
+import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
-import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/category_icons.dart';
-import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/amount_keypad.dart';
-import '../../../shared/widgets/money_text.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/money_text.dart';
 import '../../../shared/widgets/repeat_picker_sheet.dart';
+import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
 import '../domain/installment_dates.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
-import '../../../shared/widgets/app_toast.dart';
 
 /// 添加分期页（小青账模板）。
 ///
@@ -718,7 +715,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                     trailing: option == selected
                         ? const Icon(Icons.check, color: AppPalette.sage600)
                         : null,
-                    onTap: () => Navigator.of(ctx).pop(option),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).pop(option),
                   );
                 },
               ),
@@ -774,13 +772,12 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     // 统一 A 模板网格账户选择弹窗（与记一笔页各账户键同源）。
     // 账户列表由弹窗内部实时 watch 账户流，弹窗内新建账户即时出现。
-    final String? result = await showModalBottomSheet<String>(
-      context: context,
+    final String? result = await showAppModalSheet<String>(
+      context,
       isScrollControlled: true,
-      useSafeArea: true,
+      bodyPadding: EdgeInsets.zero,
       useRootNavigator: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => AccountPickerSheet(
+      body: AccountPickerSheet(
         selectedId: _accountId,
         title: '选择负债账户',
         // 分期只能用负债账户付款（2026-10-09 口径）：只列负债方向账户
@@ -799,7 +796,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         },
         // 点「不选择具体账户」时 onConfirm 收到 null，以空串区分
         // 「明确清空」（''）与「下滑关闭」（null）。
-        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
+        onConfirm: (Account? acc) =>
+            Navigator.of(context, rootNavigator: true).pop(acc?.id ?? ''),
       ),
     );
     FocusManager.instance.primaryFocus?.unfocus();
@@ -822,8 +820,9 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               child: Text(
                 '账',
                 style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontSize: 12),
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  fontSize: 12,
+                ),
               ),
             ),
             const SizedBox(width: AppDimens.spaceSm),
@@ -900,114 +899,104 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         .where((Category c) => c.parentId == parent.id && !c.isSystem)
         .toList(growable: false);
 
-    final String? result = await showModalBottomSheet<String>(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusLg),
-        ),
-      ),
-      builder: (BuildContext ctx) {
-        // 钻取状态：null = 一级列表，否则显示该一级的二级分类。
-        Category? drilled;
-        return SafeArea(
-          child: StatefulBuilder(
-            builder: (BuildContext ctx, StateSetter setSheetState) {
-              final List<Category> items =
-                  drilled == null ? parents : childrenOf(drilled!);
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.all(AppDimens.spaceMd),
-                    child: Row(
-                      children: <Widget>[
-                        if (drilled != null)
-                          InkWell(
-                            onTap: () => setSheetState(() => drilled = null),
-                            borderRadius: BorderRadius.circular(16),
-                            child: const Padding(
-                              padding: EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.arrow_back_ios_new,
-                                size: 18,
-                              ),
-                            ),
-                          ),
-                        if (drilled != null)
-                          const SizedBox(width: AppDimens.spaceSm),
-                        Expanded(
-                          child: Text(
-                            drilled?.name ?? '选择分类',
-                            style: Theme.of(ctx).textTheme.titleSmall,
-                          ),
-                        ),
-                      ],
+    // 钻取状态：null = 一级列表，否则显示该一级的二级分类。
+    // 必须声明在 StatefulBuilder 之外：builder 每次重建都会创建全新局部，
+    // 状态留在闭包外才能跨 setSheetState 重建保留（此前钻取不生效即此坑）。
+    Category? drilled;
+
+    final String? result = await showAppModalSheet<String>(
+      context,
+      isScrollControlled: true,
+      body: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSheetState) {
+          final List<Category> items =
+              drilled == null ? parents : childrenOf(drilled!);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(AppDimens.spaceMd),
+                child: Row(
+                  children: <Widget>[
+                    // 返回键：二级列表回到一级（对齐函数头注释「标题变分类名 + 返回键」）。
+                    if (drilled != null)
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        iconSize: 20,
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => setSheetState(() => drilled = null),
+                      ),
+                    Expanded(
+                      child: Text(
+                        drilled?.name ?? '选择分类',
+                        style: Theme.of(ctx).textTheme.titleSmall,
+                      ),
                     ),
-                  ),
-                  const Divider(height: 1),
-                  Flexible(
-                    child: ListView.builder(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      shrinkWrap: true,
-                      itemCount: items.length,
-                      itemBuilder: (BuildContext ctx, int index) {
-                        final Category category = items[index];
-                        if (drilled == null) {
-                          final bool hasChildren =
-                              childrenOf(category).isNotEmpty;
-                          return ListTile(
-                            leading: category.iconKey != null
-                                ? CategoryGlyph(category.iconKey, size: 24)
-                                : null,
-                            title: Text(category.name),
-                            trailing: hasChildren
-                                ? Icon(
-                                    Icons.chevron_right,
-                                    size: 20,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView.builder(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  itemBuilder: (BuildContext ctx, int index) {
+                    final Category category = items[index];
+                    if (drilled == null) {
+                      final bool hasChildren = childrenOf(category).isNotEmpty;
+                      return ListTile(
+                        leading: category.iconKey != null
+                            ? CategoryGlyph(category.iconKey, size: 24)
+                            : null,
+                        title: Text(category.name),
+                        trailing: hasChildren
+                            ? Icon(
+                                Icons.chevron_right,
+                                size: 20,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              )
+                            : (category.id == _categoryId
+                                ? const Icon(
+                                    Icons.check,
+                                    color: AppPalette.sage600,
                                   )
-                                : (category.id == _categoryId
-                                    ? const Icon(
-                                        Icons.check,
-                                        color: AppPalette.sage600,
-                                      )
-                                    : null),
-                            onTap: () {
-                              if (hasChildren) {
-                                setSheetState(() => drilled = category);
-                              } else {
-                                Navigator.of(ctx).pop(category.id);
-                              }
-                            },
-                          );
-                        }
-                        return ListTile(
-                          leading: category.iconKey != null
-                              ? CategoryGlyph(category.iconKey, size: 24)
-                              : null,
-                          title: Text(category.name),
-                          trailing: category.id == _categoryId
-                              ? const Icon(
-                                  Icons.check,
-                                  color: AppPalette.sage600,
-                                )
-                              : null,
-                          onTap: () => Navigator.of(ctx).pop(category.id),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: AppDimens.spaceMd),
-                ],
-              );
-            },
-          ),
-        );
-      },
+                                : null),
+                        onTap: () {
+                          if (hasChildren) {
+                            setSheetState(() => drilled = category);
+                          } else {
+                            Navigator.of(context, rootNavigator: true)
+                                .pop(category.id);
+                          }
+                        },
+                      );
+                    }
+                    return ListTile(
+                      leading: category.iconKey != null
+                          ? CategoryGlyph(category.iconKey, size: 24)
+                          : null,
+                      title: Text(category.name),
+                      trailing: category.id == _categoryId
+                          ? const Icon(
+                              Icons.check,
+                              color: AppPalette.sage600,
+                            )
+                          : null,
+                      onTap: () => Navigator.of(context, rootNavigator: true)
+                          .pop(category.id),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: AppDimens.spaceMd),
+            ],
+          );
+        },
+      ),
     );
     FocusManager.instance.primaryFocus?.unfocus();
     if (result != null && mounted) {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,13 +7,17 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
+import '../../../shared/models/money.dart';
+import '../../../shared/widgets/account_select_pill.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/info_tip_row.dart';
+import '../../../shared/widgets/label_pill.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
+import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart';
 import '../providers/savings_providers.dart';
-import '../../../shared/models/money.dart';
 
 /// 存钱计划编辑页（参照小青账「存钱计划」编辑页截图）：
 ///
@@ -31,10 +34,10 @@ class SavingsGoalEditPage extends ConsumerStatefulWidget {
   final SavingsGoal goal;
 
   @override
-  _SavingsGoalEditPageState createState() => _SavingsGoalEditPageState();
+  SavingsGoalEditPageState createState() => SavingsGoalEditPageState();
 }
 
-class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
+class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
   static const Color _sageA = AppPalette.sageMist;
   static const Color _sageB = AppPalette.sageRibbon;
   static const Color _greenSoft = AppPalette.softGreen;
@@ -148,7 +151,8 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
                           const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: <TextInputFormatter>[
                         FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d+\.?\d{0,2}')),
+                          RegExp(r'^\d+\.?\d{0,2}'),
+                        ),
                       ],
                     ),
                   ],
@@ -286,7 +290,9 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
                   Text(
                     name,
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -331,8 +337,9 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
         counterText: '',
         hintText: hint,
         hintStyle: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 14),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 14,
+        ),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
@@ -381,14 +388,18 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
               Text(
                 bookName,
                 style: TextStyle(
-                    fontSize: 12.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  fontSize: 12.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
         ),
-        Icon(Icons.chevron_right,
-            size: 22, color: Theme.of(context).colorScheme.onSurfaceVariant),
+        Icon(
+          Icons.chevron_right,
+          size: 22,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ],
     );
   }
@@ -407,33 +418,12 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
               ),
             ),
             const SizedBox(width: 12),
-            _labelPill('扣款账户'),
+            const LabelPill(label: '扣款账户'),
           ],
         ),
         const SizedBox(height: 10),
-        // 「转至」分隔 chip。
-        Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppPalette.surfaceMist,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.currency_yuan,
-                    size: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
-                const SizedBox(width: 4),
-                Text('转至',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
-              ],
-            ),
-          ),
-        ),
+        // 「转至」分隔胶囊。
+        const Center(child: LabelPill(label: '转至', icon: Icons.currency_yuan)),
         const SizedBox(height: 10),
         Row(
           children: <Widget>[
@@ -445,7 +435,7 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
               ),
             ),
             const SizedBox(width: 12),
-            _labelPill('入款账户'),
+            const LabelPill(label: '入款账户'),
           ],
         ),
       ],
@@ -467,62 +457,10 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
         break;
       }
     }
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
+    return AccountSelectPill(
+      label: label,
+      accountName: acc?.name,
       onTap: onTap,
-      child: Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: acc == null ? AppPalette.surfaceMist : _greenSoft,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              acc == null ? Icons.account_balance_wallet_outlined : Icons.check,
-              size: 18,
-              color: acc == null
-                  ? Theme.of(context).colorScheme.onSurfaceVariant
-                  : _greenDeep,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                acc?.name ?? label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: acc == null
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
-                      : _greenDeep,
-                  fontWeight: acc == null ? FontWeight.w400 : FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 右侧静态标签胶囊（扣款账户 / 入款账户）。
-  Widget _labelPill(String label) {
-    return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceMist,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-            fontSize: 14,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
-      ),
     );
   }
 
@@ -555,11 +493,11 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
     required String title,
     String? selectedId,
   }) {
-    return showModalBottomSheet<Account>(
-      context: context,
-      backgroundColor: Colors.transparent,
+    return showAppModalSheet<Account>(
+      context,
       isScrollControlled: true,
-      builder: (BuildContext ctx) => AccountPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: AccountPickerSheet(
         filter: fundAccountsOnly,
         selectedId: selectedId,
         title: title,
@@ -570,7 +508,7 @@ class _SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
         onManage: () {
           if (mounted) context.push(Routes.accountManage);
         },
-        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc),
+        onConfirm: (Account? acc) => Navigator.of(context).pop(acc),
       ),
     );
   }

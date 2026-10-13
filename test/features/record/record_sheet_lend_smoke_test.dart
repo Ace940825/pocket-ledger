@@ -6,8 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pocket_ledger/core/bootstrap.dart';
 import 'package:pocket_ledger/database/app_database.dart';
 import 'package:pocket_ledger/features/record/presentation/record_sheet.dart';
-import 'package:pocket_ledger/features/record/record_tab.dart';
 import 'package:pocket_ledger/features/record/providers/recording_settings_provider.dart';
+import 'package:pocket_ledger/features/record/record_tab.dart';
 import 'package:pocket_ledger/providers/app_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,5 +37,5 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('借入'), findsWidgets);
-  }, timeout: const Timeout(Duration(minutes: 5)));
+  }, timeout: const Timeout(Duration(minutes: 5)),);
 }

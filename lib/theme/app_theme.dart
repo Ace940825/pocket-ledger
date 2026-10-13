@@ -7,9 +7,10 @@
 //   取 Material 语义色：context.colors.primary
 
 import 'package:flutter/material.dart';
+
 import 'app_colors.dart';
-import 'app_text_styles.dart';
 import 'app_dimens.dart';
+import 'app_text_styles.dart';
 
 /// 非 Material 令牌（渐变 / 阴影 / 圆角），随亮度插值
 @immutable
@@ -56,7 +57,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
     radiusKey: AppDimens.radiusKey,
     radiusChip: AppDimens.radiusChip,
     sunken: AppPalette.sunkenCream,
-    sageGradientMid: const LinearGradient(
+    sageGradientMid: LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       stops: <double>[0.0, 0.55, 1.0],
@@ -66,7 +67,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
         Color(0xFFAED494),
       ],
     ),
-    sageGradientLight: const LinearGradient(
+    sageGradientLight: LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       stops: <double>[0.0, 0.6, 1.0],
@@ -94,7 +95,10 @@ class AppTheme extends ThemeExtension<AppTheme> {
     ],
     shadowMd: [
       BoxShadow(
-          color: Color(0x66000000), blurRadius: 30, offset: Offset(0, 10)),
+        color: Color(0x66000000),
+        blurRadius: 30,
+        offset: Offset(0, 10),
+      ),
     ],
     shadowSage: [
       BoxShadow(color: Color(0x667C9E72), blurRadius: 18, offset: Offset(0, 8)),
@@ -104,8 +108,8 @@ class AppTheme extends ThemeExtension<AppTheme> {
     radiusTile: AppDimens.radiusTile,
     radiusKey: AppDimens.radiusKey,
     radiusChip: AppDimens.radiusChip,
-    sunken: const Color(0xFF2E3128),
-    sageGradientMid: const LinearGradient(
+    sunken: Color(0xFF2E3128),
+    sageGradientMid: LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       stops: <double>[0.0, 0.55, 1.0],
@@ -115,7 +119,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
         Color(0xFF2A3823),
       ],
     ),
-    sageGradientLight: const LinearGradient(
+    sageGradientLight: LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       stops: <double>[0.0, 0.6, 1.0],

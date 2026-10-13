@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocket_ledger/database/app_database.dart';
 import 'package:pocket_ledger/domain/enums.dart';
-import 'package:pocket_ledger/providers/asset_stats_settings.dart';
 import 'package:pocket_ledger/features/accounts/presentation/account_ledger_grouping.dart';
+import 'package:pocket_ledger/providers/asset_stats_settings.dart';
 
 /// 本账户 id。转账方向都相对它判定。
 const String _me = 'acc1';

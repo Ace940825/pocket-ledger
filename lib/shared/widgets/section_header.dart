@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/forest_design_tokens.dart';
 import '../../theme/app_colors.dart';
 
 /// 区块标题（全应用统一）：绿渐变竖条 4×16 + 16pt w700 标题，左对齐。

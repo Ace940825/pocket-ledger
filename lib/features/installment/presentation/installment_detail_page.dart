@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
-import 'package:pocket_ledger/shared/widgets/app_button.dart';
-import '../../../shared/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/form_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
-import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
-import '../../../theme/app_colors.dart';
 import '../../../shared/widgets/section_header.dart';
+import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/record_sheet.dart';
 import '../../record/record_tab.dart';
@@ -143,12 +143,20 @@ class InstallmentDetailPage extends ConsumerWidget {
                           : () => _editPlan(context, ref, plan),
                       onSettle: canSettle
                           ? () => _settlePlanEarly(
-                              context, ref, plan, remainingPrincipal)
+                                context,
+                                ref,
+                                plan,
+                                remainingPrincipal,
+                              )
                           : null,
                       onRefund: plan == null || postedTxnIds.isEmpty
                           ? null
                           : () => _refundPostedOrders(
-                              context, ref, plan, postedTxnIds),
+                                context,
+                                ref,
+                                plan,
+                                postedTxnIds,
+                              ),
                     ),
                     _PlanProgressCard(
                       paidCount: paidCount,
@@ -200,7 +208,7 @@ class InstallmentDetailPage extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingState(),
         error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
       ),
     );
@@ -243,9 +251,9 @@ class InstallmentDetailPage extends ConsumerWidget {
     final bool? saved = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setDialogState) => AlertDialog(
-          title: const Text('编辑分期'),
-          content: Column(
+        builder: (BuildContext ctx, StateSetter setDialogState) => FormDialog(
+          title: '编辑分期',
+          body: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               TextField(
@@ -266,17 +274,6 @@ class InstallmentDetailPage extends ConsumerWidget {
               ),
             ],
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('取消'),
-            ),
-            PrimaryButton(
-              label: '保存',
-              onPressed: () => Navigator.of(ctx).pop(true),
-              fullWidth: false,
-            ),
-          ],
         ),
       ),
     );
@@ -466,7 +463,8 @@ class _PlanHeaderCard extends StatelessWidget {
                 if (accountName != null) accountName!,
               ].join(' · '),
               style: t.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
             _amountRow(
@@ -491,7 +489,8 @@ class _PlanHeaderCard extends StatelessWidget {
                   Text(
                     '预计下次入账',
                     style: t.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -562,7 +561,8 @@ class _PlanHeaderCard extends StatelessWidget {
           Text(
             suffix,
             style: t.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
       ],
     );
@@ -684,7 +684,8 @@ class _PlanProgressCard extends StatelessWidget {
                   '本金 ${Money.fromMinor(paidPrincipal).format()}'
                   ' + 利息 ${Money.fromMinor(paidFee).format()}',
                   style: t.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -694,7 +695,8 @@ class _PlanProgressCard extends StatelessWidget {
                 Text(
                   '待入账金额',
                   style: t.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const Spacer(),
                 Text(

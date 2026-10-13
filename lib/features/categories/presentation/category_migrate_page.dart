@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
-import 'package:pocket_ledger/shared/widgets/app_button.dart';
-import '../../../shared/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
-import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/category_widgets.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icons.dart';
+import '../../../theme/app_colors.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../providers/categories_providers.dart';
-import '../../../shared/widgets/app_toast.dart';
 
 /// 账单迁移页：把源分类下的全部流水改挂到目标分类。
 ///
@@ -74,7 +73,7 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
         top: false,
         child: categories.when(
           data: (List<Category> list) => _buildList(list),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const LoadingState(),
           error: (Object e, _) => Center(child: Text('加载失败：$e')),
         ),
       ),
@@ -219,13 +218,12 @@ class _MigrateParentTile extends StatelessWidget {
                               const EdgeInsets.only(right: AppDimens.spaceSm),
                           child: Text(
                             '${children.length}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
                           ),
                         ),
                     ],

@@ -40,11 +40,13 @@ Future<void> reconcileDesignatedLendBalance(
       ? LendDirection.lendOut
       : LendDirection.borrowIn;
   final List<LendRecord> records = await (db.select(db.lendRecords)
-        ..where((LendRecords t) =>
-            t.accountId.equals(acc.id) &
-            t.direction.equals(dir.index) &
-            t.status.equals(LendStatus.ongoing.index) &
-            t.deleted.equals(false)))
+        ..where(
+          (LendRecords t) =>
+              t.accountId.equals(acc.id) &
+              t.direction.equals(dir.index) &
+              t.status.equals(LendStatus.ongoing.index) &
+              t.deleted.equals(false),
+        ))
       .get();
   final int want = records.fold<int>(
     0,
@@ -191,7 +193,8 @@ Future<void> restoreLendOffsetOnFlowRemoved(
     for (final ({String id, int amount}) h in hits) {
       final LendRecord? record = await (db.select(db.lendRecords)
             ..where(
-                (LendRecords t) => t.id.equals(h.id) & t.deleted.equals(false)))
+              (LendRecords t) => t.id.equals(h.id) & t.deleted.equals(false),
+            ))
           .getSingleOrNull();
       if (record == null) continue;
       await revertLendRepaid(db, record, h.amount);
@@ -208,7 +211,8 @@ Future<void> restoreLendOffsetOnFlowRemoved(
     if (!isOffsetFlow) return;
     final LendRecord? record = await (db.select(db.lendRecords)
           ..where(
-              (LendRecords t) => t.id.equals(rid) & t.deleted.equals(false)))
+            (LendRecords t) => t.id.equals(rid) & t.deleted.equals(false),
+          ))
         .getSingleOrNull();
     if (record == null || record.repaidMinor <= 0) return;
     final int amount = txn.amountMinor < record.repaidMinor
@@ -224,8 +228,8 @@ Future<void> restoreLendOffsetOnFlowRemoved(
   //    还债流水无资产账户时挂在指定借还账户上，现金回滚
   //    （_revertBalanceDelta）对其是错向增量，靠对账覆盖修复；
   //    非借还类型账户（现金等）会被 reconcile 自动跳过。
-  if (txn.accountId != null && txn.accountId!.isNotEmpty) {
-    affectedAccounts.add(txn.accountId!);
+  if (txn.accountId.isNotEmpty) {
+    affectedAccounts.add(txn.accountId);
   }
   for (final String acc in affectedAccounts) {
     await reconcileDesignatedLendBalance(db, acc);

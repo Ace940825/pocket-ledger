@@ -3,6 +3,7 @@
 /// 维度：配色 / 尺寸 / 质感 / 纹理。命名与取值与 JSON 完全一致，可直接替换或并入 app_colors.dart。
 /// 本文件为「数据集合」，不含任何业务逻辑；插画资产（IP 角色）不在此列。
 /// 核心变化：新增 sage（鼠尾草绿渐变主卡系），按钮用 primary 深绿实色、卡片用 sage 浅绿渐变。
+library;
 
 import 'package:flutter/material.dart';
 

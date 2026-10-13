@@ -1,23 +1,23 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
 
 import '../../../core/constants/app_dimens.dart';
+import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../theme/app_colors.dart';
-import '../data/bill_io.dart';
-import '../data/transaction_repository.dart';
-import '../providers/ledger_providers.dart';
-import '../../../database/app_database.dart';
 import '../../accounts/data/account_repository.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../categories/data/category_repository.dart';
 import '../../categories/providers/categories_providers.dart';
+import '../data/bill_io.dart';
+import '../data/transaction_repository.dart';
+import '../providers/ledger_providers.dart';
 
 /// 「账单管理 → 账单导入」页。
 ///
@@ -43,8 +43,6 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
   ParseResult? _parsed;
   bool _importing = false;
   String? _resultMsg;
-  int _imported = 0;
-  int _skipped = 0;
 
   @override
   void initState() {
@@ -152,8 +150,6 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
       }
 
       setState(() {
-        _imported = imported;
-        _skipped = skipped;
         _resultMsg = skipped == 0
             ? '成功导入 $imported 笔账单'
             : '导入 $imported 笔，跳过 $skipped 笔';
@@ -201,8 +197,12 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     final String key = '${type.index}:${name.trim().toLowerCase()}';
     final String? cached = cache[key];
     if (cached != null) return cached;
+    // TxnType 与 CategoryType 枚举顺序一致（income/expense/transfer），
+    // 按 index 映射；此前直接拿 CategoryType 与 TxnType 比较，恒为 false，
+    // 导致已有同名分类永远匹配不上、重复建分类。
+    final CategoryType catType = CategoryType.values[type.index];
     for (final Category c in categories) {
-      if (c.type == type &&
+      if (c.type == catType &&
           c.name.trim().toLowerCase() == name.trim().toLowerCase()) {
         cache[key] = c.id;
         return c.id;
@@ -211,7 +211,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     final String id = await repo.ensureNamed(
       bookId: bookId,
       name: name.trim(),
-      type: CategoryType.values[type.index],
+      type: catType,
       iconKey: null,
     );
     cache[key] = id;
@@ -386,12 +386,13 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
               _previewRow(p.rows[i]),
             if (p.rows.length > 20)
               Padding(
-                padding: EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.only(top: 6),
                 child: Text(
                   '… 仅预览前 20 笔',
                   style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             if (p.hasErrors) ...<Widget>[
@@ -441,7 +442,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
-              color: typeColor.withOpacity(0.12),
+              color: typeColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -469,7 +470,9 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
             child: Text(
               accountLine,
               style: TextStyle(
-                  fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),

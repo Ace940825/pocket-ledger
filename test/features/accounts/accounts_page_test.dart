@@ -76,7 +76,7 @@ void main() {
         type: AccountType.creditCard,
         balanceMinor: 50000,
       ),
-    ]));
+    ],),);
     await tester.pumpAndSettle();
 
     expect(find.text('净资产'), findsOneWidget);
@@ -99,7 +99,7 @@ void main() {
     await tester.pumpWidget(wrap(accounts: <Account>[
       // 账户名与类型标签不同，避免 find.text 误匹配到两项
       fakeAccount(id: 'a1', name: '我的现金', type: AccountType.cash),
-    ]));
+    ],),);
     await tester.pumpAndSettle();
 
     expect(find.text('我的现金'), findsOneWidget);
@@ -133,7 +133,7 @@ void main() {
         ),
       ],
       borrowInMinor: 20000,
-    ));
+    ),);
     await tester.pumpAndSettle();
 
     expect(find.text('应收类'), findsOneWidget);

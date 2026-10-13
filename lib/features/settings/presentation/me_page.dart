@@ -5,12 +5,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
-import '../../../providers/app_providers.dart';
-import '../../../routing/app_router.dart';
-import '../../../theme/app_colors.dart';
-import '../../../shared/widgets/section_header.dart';
 import '../../../features/record/presentation/record_sheet.dart';
 import '../../../features/record/record_tab.dart';
+import '../../../providers/app_providers.dart';
+import '../../../routing/app_router.dart';
+import '../../../shared/widgets/section_header.dart';
+import '../../../theme/app_colors.dart';
 
 /// 记账天数：当前账本最早一笔流水的【真实记录时刻】所在自然日至今（含首尾），
 /// 无流水为 0。
@@ -106,8 +106,10 @@ class MePage extends ConsumerWidget {
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   iconSize: 22,
-                  icon: const Icon(Icons.settings_outlined,
-                      color: AppPalette.white),
+                  icon: const Icon(
+                    Icons.settings_outlined,
+                    color: AppPalette.white,
+                  ),
                   onPressed: () => context.push(Routes.settings),
                 ),
               ),
@@ -125,8 +127,10 @@ class MePage extends ConsumerWidget {
                   color: AppPalette.white,
                 ),
                 alignment: Alignment.center,
-                child: const Text('💰',
-                    style: TextStyle(fontSize: 28, height: 1.1)),
+                child: const Text(
+                  '💰',
+                  style: TextStyle(fontSize: 28, height: 1.1),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -174,7 +178,10 @@ class MePage extends ConsumerWidget {
               Column(
                 children: <Widget>[
                   _headerPill(
-                      context, '云同步', () => context.push(Routes.settings)),
+                    context,
+                    '云同步',
+                    () => context.push(Routes.settings),
+                  ),
                   const SizedBox(height: 6),
                   _headerPill(context, '全部功能', () => context.push(Routes.more)),
                   const SizedBox(height: 6),
@@ -196,8 +203,11 @@ class MePage extends ConsumerWidget {
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                 child: Row(
                   children: <Widget>[
-                    const Icon(Icons.stars_rounded,
-                        size: 18, color: AppPalette.sageLeaf),
+                    const Icon(
+                      Icons.stars_rounded,
+                      size: 18,
+                      color: AppPalette.sageLeaf,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -317,9 +327,9 @@ class MePage extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 11,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -421,8 +431,11 @@ class MePage extends ConsumerWidget {
               color: AppPalette.neutralMist,
             ),
             alignment: Alignment.center,
-            child: Icon(item.icon,
-                size: 22, color: Theme.of(context).colorScheme.onSurface),
+            child: Icon(
+              item.icon,
+              size: 22,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           const SizedBox(height: 7),
           Text(
@@ -430,7 +443,9 @@ class MePage extends ConsumerWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-                fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
         ],
       ),

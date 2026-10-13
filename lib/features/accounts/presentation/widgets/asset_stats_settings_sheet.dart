@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pocket_ledger/shared/widgets/round_close_button.dart';
 import 'package:pocket_ledger/shared/widgets/menu_item.dart';
+import 'package:pocket_ledger/shared/widgets/round_close_button.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 
-import '../../../../theme/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../providers/asset_stats_settings.dart';
 import '../../../../shared/widgets/sheet_scaffold.dart';
+import '../../../../theme/app_colors.dart';
 
 /// 「资产月消费统计」设置面板（对齐小青账设置面板）。
 ///

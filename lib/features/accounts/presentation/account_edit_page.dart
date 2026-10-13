@@ -1,22 +1,23 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
+import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/amount_keypad.dart';
-import '../data/account_icon.dart';
-import '../providers/accounts_providers.dart';
+import '../../../shared/widgets/app_toast.dart';
+import '../../../theme/app_colors.dart';
 import '../../investment/data/investment_repository.dart';
 import '../../investment/providers/investment_providers.dart';
+import '../data/account_icon.dart';
+import '../providers/accounts_providers.dart';
 
 /// 编辑账户页（参照小青账编辑逻辑），按账户类型分流多种布局：
 ///
@@ -66,7 +67,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         ref.watch(accountByIdProvider(widget.accountId)).valueOrNull;
 
     if (account == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: LoadingState());
     }
 
     _ensureInitialized(account);
@@ -207,20 +208,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       const SizedBox(height: AppDimens.spaceLg),
       _otherSection(),
     ];
-  }
-
-  /// 投资账户「展示余额」：现金余额 + 名下持仓市值合计（仅用于只读展示）。
-  /// 落库仍只记现金（balanceMinor），绝不可把市值写回覆盖现金。
-  int _investmentBalanceFrom(
-    List<InvestmentHolding>? holdings,
-    Account account,
-  ) {
-    if (holdings == null) return account.balanceMinor;
-    int market = 0;
-    for (final InvestmentHolding h in holdings) {
-      if (h.accountId == account.id) market += h.marketValueMinor;
-    }
-    return account.balanceMinor + market;
   }
 
   // ---- 借记卡（银行账户）布局，参照小青账截图 ----
@@ -685,7 +672,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           ),
           Switch(
             value: _includeInTotal,
-            activeColor: AppPalette.primary,
+            activeThumbColor: AppPalette.primary,
             onChanged: (bool v) => setState(() => _includeInTotal = v),
           ),
         ],

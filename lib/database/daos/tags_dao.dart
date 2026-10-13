@@ -53,7 +53,8 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
         if (tag != null) tagMap[cat.id]!.add(tag);
       }
       cats.sort(
-          (TagCategory a, TagCategory b) => a.sortOrder.compareTo(b.sortOrder));
+        (TagCategory a, TagCategory b) => a.sortOrder.compareTo(b.sortOrder),
+      );
       return cats.map((TagCategory c) {
         final List<Tag> ts = tagMap[c.id]!
           ..sort((Tag a, Tag b) => a.sortOrder.compareTo(b.sortOrder));
@@ -97,7 +98,8 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   Future<int> updateCategory(TagCategoriesCompanion companion) {
     return (update(tagCategories)
           ..where(
-              ($TagCategoriesTable tbl) => tbl.id.equals(companion.id.value)))
+            ($TagCategoriesTable tbl) => tbl.id.equals(companion.id.value),
+          ))
         .write(companion);
   }
 
@@ -157,9 +159,11 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
     final Expression<int> maxExpr = tagCategories.sortOrder.max();
     return (selectOnly(tagCategories)
           ..addColumns(<Expression<Object>>[maxExpr])
-          ..where(tagCategories.scope.equals(scope.index) &
-              tagCategories.bookId.equals(bookId) &
-              tagCategories.deleted.equals(false)))
+          ..where(
+            tagCategories.scope.equals(scope.index) &
+                tagCategories.bookId.equals(bookId) &
+                tagCategories.deleted.equals(false),
+          ))
         .map((TypedResult row) => row.read(maxExpr))
         .getSingle()
         .then((int? v) => v ?? 0);
@@ -202,7 +206,10 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
 
   /// 批量写入某分组下标签排序（拖拽排序后整体回写）。
   Future<void> reorderTags(
-      String categoryId, List<String> orderedIds, int updatedAt) {
+    String categoryId,
+    List<String> orderedIds,
+    int updatedAt,
+  ) {
     return batch((Batch batch) {
       for (int i = 0; i < orderedIds.length; i++) {
         batch.update(
@@ -223,7 +230,8 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
     return (selectOnly(tags)
           ..addColumns(<Expression<Object>>[maxExpr])
           ..where(
-              tags.categoryId.equals(categoryId) & tags.deleted.equals(false)))
+            tags.categoryId.equals(categoryId) & tags.deleted.equals(false),
+          ))
         .map((TypedResult row) => row.read(maxExpr))
         .getSingle()
         .then((int? v) => v ?? 0);
@@ -232,10 +240,12 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   /// 该分组下是否已存在同名标签（去重，忽略大小写差异由调用方在 UI 提示）。
   Future<Tag?> findTagByName(String categoryId, String name) {
     return (select(tags)
-          ..where(($TagsTable tbl) =>
-              tbl.categoryId.equals(categoryId) &
-              tbl.name.equals(name) &
-              tbl.deleted.equals(false)))
+          ..where(
+            ($TagsTable tbl) =>
+                tbl.categoryId.equals(categoryId) &
+                tbl.name.equals(name) &
+                tbl.deleted.equals(false),
+          ))
         .getSingleOrNull();
   }
 }

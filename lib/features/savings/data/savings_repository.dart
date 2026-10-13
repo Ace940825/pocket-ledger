@@ -117,8 +117,10 @@ class SavingsRepository {
               startedAt: Value<int?>(startedAt),
               // 仅「有结束期（endNote!=null）或灵活模式」的有限计划达标才置已完成；
               // 不结束（定额/弹性，endNote==null）为开放式计划，永不自动达成。
-              isAchieved: Value<bool>((endNote != null || mode == 'flexible') &&
-                  currentMinor >= targetMinor),
+              isAchieved: Value<bool>(
+                (endNote != null || mode == 'flexible') &&
+                    currentMinor >= targetMinor,
+              ),
               updatedAt: Value<int>(now),
               dirty: const Value<bool>(true),
               // 弹性递增参数：mode 非 null 走递增；null 落默认(金额模式)。
@@ -231,8 +233,9 @@ class SavingsRepository {
           currentMinor: Value<int>(next),
           depositCount: Value<int>(nextCount),
           isAchieved: Value<bool>(
-              (goal.endNote != null || goal.mode == 'flexible') &&
-                  next >= goal.targetMinor),
+            (goal.endNote != null || goal.mode == 'flexible') &&
+                next >= goal.targetMinor,
+          ),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -245,7 +248,7 @@ class SavingsRepository {
         updatedAt: now,
         payload: <String, Object?>{
           'currentMinor': next,
-          'depositCount': nextCount
+          'depositCount': nextCount,
         },
       );
     });
@@ -277,8 +280,9 @@ class SavingsRepository {
           currentMinor: Value<int>(next),
           depositCount: Value<int>(nextCount),
           isAchieved: Value<bool>(
-              (goal.endNote != null || goal.mode == 'flexible') &&
-                  next >= goal.targetMinor),
+            (goal.endNote != null || goal.mode == 'flexible') &&
+                next >= goal.targetMinor,
+          ),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -330,8 +334,9 @@ class SavingsRepository {
       SavingsGoalsCompanion(
         currentMinor: Value<int>(next),
         isAchieved: Value<bool>(
-            (goal.endNote != null || goal.mode == 'flexible') &&
-                next >= goal.targetMinor),
+          (goal.endNote != null || goal.mode == 'flexible') &&
+              next >= goal.targetMinor,
+        ),
         updatedAt: Value<int>(now),
         dirty: const Value<bool>(true),
       ),
@@ -416,8 +421,10 @@ class SavingsRepository {
       if (goal == null) throw const NotFoundFailure('储蓄目标不存在');
 
       final SavingsDeposit? row = await (_db.select(_db.savingsDeposits)
-            ..where((SavingsDeposits t) =>
-                t.goalId.equals(goalId) & t.dayIndex.equals(dayIndex)))
+            ..where(
+              (SavingsDeposits t) =>
+                  t.goalId.equals(goalId) & t.dayIndex.equals(dayIndex),
+            ))
           .getSingleOrNull();
 
       if (row == null) {

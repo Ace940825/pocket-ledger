@@ -1,11 +1,14 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_theme.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
-import 'package:pocket_ledger/shared/widgets/action_group.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/action_group.dart';
+import 'package:pocket_ledger/shared/widgets/action_row.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/empty_state.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
+import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
+import 'package:pocket_ledger/shared/widgets/tag_chip.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
@@ -13,11 +16,11 @@ import '../../../database/app_database.dart';
 import '../../../database/daos/tags_dao.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
 import '../providers/tag_providers.dart';
-import 'tag_empty_illustration.dart';
 import 'tag_scope_toggle.dart';
 import 'tag_toast.dart';
-import '../../../shared/widgets/sheet_scaffold.dart';
 
 /// 标签管理页（全屏，从右滑入）。
 ///
@@ -238,9 +241,11 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 4),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.search,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.search,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
@@ -257,7 +262,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                         ),
                         border: InputBorder.none,
                         isCollapsed: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                       style: const TextStyle(fontSize: 14),
                     ),
@@ -271,21 +276,9 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
 
   Widget _emptyHint(String text) => SizedBox(
         height: 280,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const TagEmptyIllustration(width: 120),
-            const SizedBox(height: 14),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.7,
-              ),
-            ),
-          ],
+        child: EmptyState(
+          icon: Icons.label_outline,
+          message: text,
         ),
       );
 
@@ -338,13 +331,16 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                 ),
               ],
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: <Widget>[
                 for (final Tag t in g.tags)
-                  _GroupTagChip(tag: t, onRename: _openRenameTag),
+                  GestureDetector(
+                    onLongPress: () => _openRenameTag(t),
+                    child: TagChip(label: t.name),
+                  ),
                 _AddTagChip(category: g.category, onTap: _openAddTag),
               ],
             ),
@@ -366,7 +362,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
               BoxShadow(
                 color: AppPalette.stockDown.withValues(alpha: 0.2),
                 blurRadius: 14,
-                offset: Offset(0, 5),
+                offset: const Offset(0, 5),
               ),
             ],
           ),
@@ -410,47 +406,45 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
 
   void _openAddCategory() {
     final TextEditingController ctl = TextEditingController();
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
+    showAppModalSheet<void>(
+      context,
+      title: '添加类别',
       isScrollControlled: true,
-      builder: (BuildContext ctx) => _NameSheet(
-        title: '添加类别',
+      body: _NameSheet(
         controller: ctl,
         confirmLabel: '保存',
         onConfirm: (String name) async {
           await _insertCategory(name);
-          if (mounted) Navigator.of(ctx).pop();
+          if (mounted) Navigator.of(context).pop();
         },
       ),
     );
   }
 
   void _openAddTag(TagCategory category) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
+    showAppModalSheet<void>(
+      context,
+      title: '添加标签',
       isScrollControlled: true,
-      builder: (BuildContext ctx) => _AddTagSheet(category: category),
+      body: _AddTagSheet(category: category),
     );
   }
 
   void _openRenameCategory(TagCategory category) {
     final TextEditingController ctl =
         TextEditingController(text: category.name);
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
+    showAppModalSheet<void>(
+      context,
+      title: '编辑类别',
       isScrollControlled: true,
-      builder: (BuildContext ctx) => _NameSheet(
-        title: '编辑类别',
+      body: _NameSheet(
         controller: ctl,
         confirmLabel: '保存',
         onConfirm: (String name) async {
           await ref
               .read(tagsDaoProvider)
               .renameCategory(category.id, name, _now());
-          if (mounted) Navigator.of(ctx).pop();
+          if (mounted) Navigator.of(context).pop();
         },
       ),
     );
@@ -458,106 +452,96 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
 
   void _openRenameTag(Tag tag) {
     final TextEditingController ctl = TextEditingController(text: tag.name);
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
+    showAppModalSheet<void>(
+      context,
+      title: '编辑标签',
       isScrollControlled: true,
-      builder: (BuildContext ctx) => _NameSheet(
-        title: '编辑标签',
+      body: _NameSheet(
         controller: ctl,
         confirmLabel: '保存',
         onConfirm: (String name) async {
           await ref.read(tagsDaoProvider).renameTag(tag.id, name, _now());
-          if (mounted) Navigator.of(ctx).pop();
+          if (mounted) Navigator.of(context).pop();
         },
       ),
     );
   }
 
+  /// 类别操作弹层（与账户详情页「账户操作」同款 ActionGroup 风格）。
+  ///
+  /// 标题走 [showAppModalSheet] 的统一标题栏（带发丝线），条目用 [ActionRow]
+  /// （图标 + 标题 + 副标题 + 箭头），暗色随 ColorScheme 自动适配。
   void _openContextMenu(TagCategory category) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => Container(
-        margin: const EdgeInsets.all(8),
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        decoration: BoxDecoration(
-          color: AppPalette.sage900,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            MenuItem(
-              label: '编辑类别',
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _openRenameCategory(category);
-              },
+    showAppModalSheet<void>(
+      context,
+      title: '类别操作',
+      body: ActionGroup(
+        children: <Widget>[
+          ActionRow(
+            icon: const Icon(
+              Icons.edit_outlined,
+              size: 18,
+              color: ForestGreen.deep,
             ),
-            MenuItem(
-              label: '类别排序',
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _openReorderCategories(category);
-              },
-            ),
-            MenuItem(
-              label: '标签排序',
-              onTap: () {
-                Navigator.of(ctx).pop();
-                if (category.scope == TagScope.general) {
-                  // 仅用于提示，无需额外处理
-                }
-                _openReorderTags(category);
-              },
-            ),
-            MenuItem(
-              label: '删除类别',
-              danger: true,
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _confirmDeleteCategory(category);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDeleteCategory(TagCategory category) {
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        backgroundColor: context.colors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('删除类别', style: TextStyle(fontSize: 17)),
-        content: Text(
-          '确定删除「${category.name}」？其下标签也会一并删除。',
-          style: TextStyle(
-              fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('取消',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          ),
-          TextButton(
-            onPressed: () async {
-              await ref
-                  .read(tagsDaoProvider)
-                  .deleteCategory(category.id, _now());
-              if (mounted) Navigator.of(ctx).pop();
+            title: '编辑类别',
+            subtitle: '修改类别名称',
+            onTap: () {
+              Navigator.of(context).pop();
+              _openRenameCategory(category);
             },
-            child: const Text('删除', style: TextStyle(color: AppPalette.salmon)),
+          ),
+          ActionRow(
+            icon:
+                const Icon(Icons.swap_vert, size: 18, color: ForestGreen.deep),
+            title: '类别排序',
+            subtitle: '拖拽调整类别顺序',
+            onTap: () {
+              Navigator.of(context).pop();
+              _openReorderCategories(category);
+            },
+          ),
+          ActionRow(
+            icon: const Icon(
+              Icons.label_outline,
+              size: 18,
+              color: ForestGreen.deep,
+            ),
+            title: '标签排序',
+            subtitle: '拖拽调整标签顺序',
+            onTap: () {
+              Navigator.of(context).pop();
+              _openReorderTags(category);
+            },
+          ),
+          ActionRow(
+            icon: const Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: ForestSemantic.expense,
+            ),
+            title: '删除类别',
+            subtitle: '同时删除其下全部标签',
+            danger: true,
+            onTap: () {
+              Navigator.of(context).pop();
+              _confirmDeleteCategory(category);
+            },
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteCategory(TagCategory category) async {
+    final bool? ok = await showConfirm(
+      context,
+      title: '删除类别',
+      content: '确定删除「${category.name}」？其下标签也会一并删除。',
+      confirmText: '删除',
+      danger: true,
+    );
+    if (ok != true) return;
+    await ref.read(tagsDaoProvider).deleteCategory(category.id, _now());
   }
 
   void _openReorderCategories(TagCategory current) {
@@ -589,48 +573,6 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
         builder: (BuildContext ctx) => TagReorderPage(
           category: category,
           tags: found.tags,
-        ),
-      ),
-    );
-  }
-}
-
-/// 分组卡内的标签 chip（展示态，长按可重命名）。样式对齐设计稿未选态：
-/// 沙底 + 发丝描边 + `#` 深绿前缀。
-class _GroupTagChip extends StatelessWidget {
-  const _GroupTagChip({required this.tag, required this.onRename});
-
-  final Tag tag;
-  final ValueChanged<Tag> onRename;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPress: () => onRename(tag),
-      child: SunkenBox(
-        radius: 999,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const Text(
-              '#',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: AppPalette.deepGreen,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              tag.name,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -685,7 +627,7 @@ class _FeatureSwitch extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
         ),
         child: AnimatedAlign(
-          duration: Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
@@ -701,7 +643,7 @@ class _FeatureSwitch extends StatelessWidget {
                       .shadow
                       .withValues(alpha: 0.2),
                   blurRadius: 4,
-                  offset: Offset(0, 1),
+                  offset: const Offset(0, 1),
                 ),
               ],
             ),
@@ -715,13 +657,11 @@ class _FeatureSwitch extends StatelessWidget {
 /// 通用名称输入底部弹窗（添加/编辑类别、编辑标签复用）。
 class _NameSheet extends StatelessWidget {
   const _NameSheet({
-    required this.title,
     required this.controller,
     required this.confirmLabel,
     required this.onConfirm,
   });
 
-  final String title;
   final TextEditingController controller;
   final String confirmLabel;
   final Future<void> Function(String name) onConfirm;
@@ -736,15 +676,6 @@ class _NameSheet extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16.5,
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 14),
         SunkenBox(
           radius: 12,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -860,15 +791,6 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          '添加标签',
-          style: TextStyle(
-            fontSize: 16.5,
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 14),
         // 类别只读显示框
         SunkenBox(
           width: double.infinity,
@@ -879,8 +801,9 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
               Text(
                 '类别',
                 style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -994,11 +917,13 @@ class TagCategoryReorderPage extends ConsumerStatefulWidget {
 
 class _TagCategoryReorderPageState
     extends ConsumerState<TagCategoryReorderPage> {
-  late List<TagCategory> _items = List<TagCategory>.of(widget.categories);
+  late final List<TagCategory> _items = List<TagCategory>.of(widget.categories);
 
   Future<void> _persist() async {
     await ref.read(tagsDaoProvider).reorderCategories(
-        _items.map((TagCategory c) => c.id).toList(), _now());
+          _items.map((TagCategory c) => c.id).toList(),
+          _now(),
+        );
   }
 
   @override
@@ -1010,17 +935,19 @@ class _TagCategoryReorderPageState
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: Icon(Icons.chevron_left,
-              color: Theme.of(context).colorScheme.onSurface),
+          icon: Icon(
+            Icons.chevron_left,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
         title: const Text('类别排序'),
         centerTitle: true,
       ),
       body: ReorderableListView(
         padding: const EdgeInsets.all(16),
-        onReorder: (int oldIndex, int newIndex) {
+        onReorderItem: (int oldIndex, int newIndex) {
           setState(() {
-            if (newIndex > oldIndex) newIndex -= 1;
+            // onReorderItem 的 newIndex 已内置移除项修正，无需再 -1。
             final TagCategory item = _items.removeAt(oldIndex);
             _items.insert(newIndex, item);
           });
@@ -1037,8 +964,10 @@ class _TagCategoryReorderPageState
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.drag_handle,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.drag_handle,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1075,7 +1004,7 @@ class TagReorderPage extends ConsumerStatefulWidget {
 }
 
 class _TagReorderPageState extends ConsumerState<TagReorderPage> {
-  late List<Tag> _items = List<Tag>.of(widget.tags);
+  late final List<Tag> _items = List<Tag>.of(widget.tags);
 
   Future<void> _persist() async {
     await ref.read(tagsDaoProvider).reorderTags(
@@ -1099,8 +1028,10 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: Icon(Icons.chevron_left,
-              color: Theme.of(context).colorScheme.onSurface),
+          icon: Icon(
+            Icons.chevron_left,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
         title: Text('${widget.category.name} · 标签排序'),
         centerTitle: true,
@@ -1110,15 +1041,16 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
               child: Text(
                 '该分组暂无标签',
                 style: TextStyle(
-                    fontSize: 13.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  fontSize: 13.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             )
           : ReorderableListView(
               padding: const EdgeInsets.all(16),
-              onReorder: (int oldIndex, int newIndex) {
+              onReorderItem: (int oldIndex, int newIndex) {
                 setState(() {
-                  if (newIndex > oldIndex) newIndex -= 1;
+                  // onReorderItem 的 newIndex 已内置移除项修正，无需再 -1。
                   final Tag item = _items.removeAt(oldIndex);
                   _items.insert(newIndex, item);
                 });
@@ -1133,12 +1065,15 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
                     borderColor: Theme.of(context).colorScheme.outline,
                     radius: 14,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: <Widget>[
-                        Icon(Icons.drag_handle,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant),
+                        Icon(
+                          Icons.drag_handle,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -1152,8 +1087,10 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
                         ),
                         IconButton(
                           onPressed: () => _delete(t),
-                          icon: const Icon(Icons.delete_outline,
-                              color: AppPalette.salmon),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: AppPalette.salmon,
+                          ),
                         ),
                       ],
                     ),

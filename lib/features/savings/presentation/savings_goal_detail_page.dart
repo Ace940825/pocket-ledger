@@ -1,37 +1,40 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
+import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
-import '../../../shared/models/money.dart';
-import 'package:go_router/go_router.dart';
-import '../../../shared/widgets/app_toast.dart' show showAppToast;
 import '../../../routing/app_router.dart';
+import '../../../shared/models/money.dart';
+import '../../../shared/widgets/account_select_pill.dart';
+import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/app_toast.dart' show showAppToast;
+import '../../../shared/widgets/calendar_month_view.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/label_pill.dart';
+import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/loading_state.dart';
+import '../../../shared/widgets/module_list_scaffold.dart' show confirmDelete;
+import '../../../shared/widgets/sheet_scaffold.dart';
+import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../categories/data/category_repository.dart';
+import '../../ledger/data/transaction_repository.dart';
+import '../../ledger/providers/ledger_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart' show appPrefs;
-import '../../../shared/widgets/calendar_sheet.dart';
-import '../../../shared/widgets/calendar_month_view.dart';
-import '../../../shared/widgets/form_fields.dart';
-import '../../../shared/widgets/module_list_scaffold.dart' show confirmDelete;
 import '../data/savings_repository.dart';
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
 import '../providers/savings_providers.dart';
-import '../../../shared/widgets/amount_keypad.dart';
-import 'savings_page.dart';
 import 'savings_modes.dart';
+import 'savings_page.dart';
 import 'savings_rolling_detail_widgets.dart';
-import '../../../domain/enums.dart';
-import '../../ledger/data/transaction_repository.dart';
-import '../../categories/data/category_repository.dart';
-import '../../ledger/providers/ledger_providers.dart';
 import 'savings_schedule.dart';
-import '../../../shared/widgets/line_icons.dart';
-import '../../../shared/widgets/sheet_scaffold.dart';
 
 /// 储蓄计划详情页（参照小青账计划详情）：
 ///
@@ -122,8 +125,10 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     int actualCum = 0;
     final List<SavingsScheduleEntry> orderedEntries =
         List<SavingsScheduleEntry>.of(entries)
-          ..sort((SavingsScheduleEntry a, SavingsScheduleEntry b) =>
-              a.index - b.index);
+          ..sort(
+            (SavingsScheduleEntry a, SavingsScheduleEntry b) =>
+                a.index - b.index,
+          );
     for (final SavingsScheduleEntry e in orderedEntries) {
       actualCum += depositedByIndex[e.index]?.amountMinor ?? 0;
       actualCumByIndex[e.index] = actualCum;
@@ -429,7 +434,9 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                 child: Text(
                   '已存: ${Money.fromMinor(goal.currentMinor).format(showSymbol: false)}',
                   style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w600),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               Text(
@@ -563,7 +570,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
               _onEntryTap(goal, entry, deposit),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const LoadingState(),
       error: (Object e, StackTrace _) => Center(child: Text('加载滚存计划失败：$e')),
     );
   }
@@ -572,11 +579,11 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
   /// 保存后落库并 invalidate 强制重查（watchByGoalId 未声明 readsFrom）。
   Future<void> _openRollingAdjust(SavingsRollingPlan plan) async {
     final SavingsRollingPlan? updated =
-        await showModalBottomSheet<SavingsRollingPlan>(
-      context: context,
+        await showAppModalSheet<SavingsRollingPlan>(
+      context,
+      title: '计划调整',
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext _) => RollingAdjustSheet(initial: plan),
+      body: RollingAdjustSheet(initial: plan),
     );
     if (updated == null || !mounted) return;
     try {
@@ -585,9 +592,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     } catch (e) {
       // 失败必须可见：吞掉异常用户看到的就是「点了没反应」。
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('保存失败：$e')),
-      );
+      showAppToast(context, '保存失败：$e');
     }
   }
 
@@ -728,26 +733,30 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         nav.pop();
         if (mounted) {
           showAppToast(
-            this.context,
+            context,
             deposit != null ? '已更新 ${amt.format()}' : '已存入 ${amt.format()}',
           );
         }
       } on AppFailure catch (e) {
-        showAppToast(context, e.message);
+        if (mounted) showAppToast(context, e.message);
       }
     }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
+    if (!mounted) return;
+    await showAppModalSheet<void>(
+      context,
       isScrollControlled: true,
-      builder: (BuildContext sheetCtx) => StatefulBuilder(
-        builder: (BuildContext sheetCtx,
-            void Function(void Function()) setSheetState) {
+      bodyPadding: EdgeInsets.zero,
+      body: StatefulBuilder(
+        builder: (
+          BuildContext sheetCtx,
+          void Function(void Function()) setSheetState,
+        ) {
           final ThemeData theme = Theme.of(sheetCtx);
           return Padding(
             padding: EdgeInsets.only(
-                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
+            ),
             child: Container(
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(sheetCtx).size.height * 0.85,
@@ -793,7 +802,9 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                             child: Text(
                               '存钱',
                               style: TextStyle(
-                                  fontSize: 17, fontWeight: FontWeight.w700),
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
@@ -815,7 +826,9 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                         // ⓘ 加油提示。
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: AppPalette.surfaceMist,
                             borderRadius: BorderRadius.circular(14),
@@ -859,64 +872,66 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                         _sheetSection(
                           title: '账本',
                           children: <Widget>[
-                            Builder(builder: (BuildContext ctx) {
-                              final Book? book =
-                                  ref.read(currentBookProvider).valueOrNull;
-                              final String bookName = book?.name ?? '默认账本';
-                              return Row(
-                                children: <Widget>[
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    alignment: Alignment.center,
-                                    decoration: const BoxDecoration(
-                                      color: AppPalette.softGreen,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Text(
-                                      bookName.isEmpty
-                                          ? '账'
-                                          : bookName.characters.first,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppPalette.deepGreen,
+                            Builder(
+                              builder: (BuildContext ctx) {
+                                final Book? book =
+                                    ref.read(currentBookProvider).valueOrNull;
+                                final String bookName = book?.name ?? '默认账本';
+                                return Row(
+                                  children: <Widget>[
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      alignment: Alignment.center,
+                                      decoration: const BoxDecoration(
+                                        color: AppPalette.softGreen,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Text(
+                                        bookName.isEmpty
+                                            ? '账'
+                                            : bookName.characters.first,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppPalette.deepGreen,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        const Text(
-                                          '账本',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          const Text(
+                                            '账本',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          bookName,
-                                          style: TextStyle(
-                                            fontSize: 12.5,
-                                            color: theme
-                                                .colorScheme.onSurfaceVariant,
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            bookName,
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              color: theme
+                                                  .colorScheme.onSurfaceVariant,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    size: 22,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ],
-                              );
-                            }),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      size: 22,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                           ],
                         ),
                         const SizedBox(height: 14),
@@ -935,17 +950,21 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                                         accountId: sourceAccountId,
                                         onChanged: (String? id) =>
                                             setSheetState(
-                                                () => sourceAccountId = id),
+                                          () => sourceAccountId = id,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    _sheetLabelPill(sheetCtx, '扣款账户'),
+                                    const LabelPill(label: '扣款账户', dense: true),
                                   ],
                                 ),
                                 const SizedBox(height: 10),
-                                Center(
-                                  child: _sheetLabelPill(sheetCtx, '转至',
-                                      icon: Icons.currency_yuan),
+                                const Center(
+                                  child: LabelPill(
+                                    label: '转至',
+                                    icon: Icons.currency_yuan,
+                                    dense: true,
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
                                 Row(
@@ -957,11 +976,12 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                                         accountId: targetAccountId,
                                         onChanged: (String? id) =>
                                             setSheetState(
-                                                () => targetAccountId = id),
+                                          () => targetAccountId = id,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    _sheetLabelPill(sheetCtx, '入款账户'),
+                                    const LabelPill(label: '入款账户', dense: true),
                                   ],
                                 ),
                               ],
@@ -1000,10 +1020,12 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                                         );
                                     nav.pop();
                                     if (mounted) {
-                                      showAppToast(this.context, '已撤销存入');
+                                      showAppToast(context, '已撤销存入');
                                     }
                                   } on AppFailure catch (e) {
-                                    showAppToast(sheetCtx, e.message);
+                                    if (sheetCtx.mounted) {
+                                      showAppToast(sheetCtx, e.message);
+                                    }
                                   }
                                 },
                                 icon:
@@ -1094,8 +1116,10 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
   }
 
   /// 弹窗小节：绿竖条 + 标题 + 内容。
-  Widget _sheetSection(
-      {required String title, required List<Widget> children}) {
+  Widget _sheetSection({
+    required String title,
+    required List<Widget> children,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -1231,7 +1255,6 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     required String? accountId,
     required ValueChanged<String?> onChanged,
   }) {
-    final ThemeData theme = Theme.of(sheetCtx);
     final List<Account> all =
         ref.read(accountsProvider).valueOrNull ?? const <Account>[];
     Account? acc;
@@ -1241,14 +1264,15 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         break;
       }
     }
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
+    return AccountSelectPill(
+      label: title,
+      accountName: acc?.name,
       onTap: () async {
-        final Account? picked = await showModalBottomSheet<Account>(
-          context: sheetCtx,
-          backgroundColor: Colors.transparent,
+        final Account? picked = await showAppModalSheet<Account>(
+          sheetCtx,
           isScrollControlled: true,
-          builder: (BuildContext ctx) => AccountPickerSheet(
+          bodyPadding: EdgeInsets.zero,
+          body: AccountPickerSheet(
             filter: fundAccountsOnly,
             selectedId: accountId,
             title: title,
@@ -1259,78 +1283,15 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
             onManage: () {
               if (mounted) context.push(Routes.accountManage);
             },
-            onConfirm: (Account? a) => Navigator.of(ctx).pop(a),
+            onConfirm: (Account? a) => Navigator.of(sheetCtx).pop(a),
           ),
         );
         onChanged(picked?.id);
       },
-      child: Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: acc == null ? AppPalette.surfaceMist : AppPalette.softGreen,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              acc == null ? Icons.account_balance_wallet_outlined : Icons.check,
-              size: 18,
-              color: acc == null
-                  ? theme.colorScheme.onSurfaceVariant
-                  : AppPalette.deepGreen,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                acc?.name ?? title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: acc == null
-                      ? theme.colorScheme.onSurfaceVariant
-                      : AppPalette.deepGreen,
-                  fontWeight: acc == null ? FontWeight.w400 : FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  /// 弹窗右侧静态标签胶囊（扣款账户 / 入款账户 / ¥ 转至）。
-  Widget _sheetLabelPill(BuildContext sheetCtx, String label,
-      {IconData? icon}) {
-    final ThemeData theme = Theme.of(sheetCtx);
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceMist,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (icon != null) ...<Widget>[
-            Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  /// 弹窗右侧静态标签胶囊已抽为共享 [LabelPill]（dense 变体）。
 
   /// 当前 [_sort] 下的期卡比较器：
   /// 按时间 = 期数（日期同序）；按已存入金额 = 台账实际存入额（未存入 0）；
@@ -1431,7 +1392,9 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                       child: Text(
                         '排序方式',
                         style: TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w700),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
@@ -1517,9 +1480,9 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                 leading: LineIcon(
                   categoryLineKind('deposit_out')!,
                   size: 24,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              title: const Text('取出'),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                title: const Text('取出'),
                 onTap: () {
                   Navigator.of(context).pop();
                   _showWithdrawSheet(goal);
@@ -1534,12 +1497,14 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                   await ref
                       .read(savingsRepositoryProvider)
                       .setArchived(goal.id, archived: true);
-                  if (mounted) {
+                  if (mounted && context.mounted) {
                     showAppToast(context, '已归档「${goal.name}」');
                     Navigator.of(context).pop(); // 详情页随归档退出
                   }
                 } on AppFailure catch (e) {
-                  if (mounted) showAppToast(context, e.message);
+                  if (mounted && context.mounted) {
+                    showAppToast(context, e.message);
+                  }
                 }
               },
             ),
@@ -1561,9 +1526,11 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                 if (!ok) return;
                 try {
                   await ref.read(savingsRepositoryProvider).remove(goal.id);
-                  if (mounted) Navigator.of(context).pop();
+                  if (mounted && context.mounted) Navigator.of(context).pop();
                 } on AppFailure catch (e) {
-                  if (mounted) showAppToast(context, e.message);
+                  if (mounted && context.mounted) {
+                    showAppToast(context, e.message);
+                  }
                 }
               },
             ),
@@ -1596,64 +1563,66 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         builder: (BuildContext ctx, StateSetter setSt) => SafeArea(
           top: false,
           child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Center(
-                  child: Text(
-                    sign > 0 ? '存入一笔' : '取出',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Text(
+                  sign > 0 ? '存入一笔' : '取出',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 16),
-                AmountField(controller: controller),
-                const SizedBox(height: 16),
-                _sheetAccountPill(
-                  sheetCtx: ctx,
-                  title: sign > 0 ? '扣款账户' : '转入账户',
-                  accountId: sourceAccountId,
-                  onChanged: (String? v) => setSt(() => sourceAccountId = v),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        child: const Text('取消'),
+              ),
+              const SizedBox(height: 16),
+              AmountField(controller: controller),
+              const SizedBox(height: 16),
+              _sheetAccountPill(
+                sheetCtx: ctx,
+                title: sign > 0 ? '扣款账户' : '转入账户',
+                accountId: sourceAccountId,
+                onChanged: (String? v) => setSt(() => sourceAccountId = v),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('取消'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: <Color>[
+                            AppPalette.sageMist,
+                            AppPalette.sageRibbon,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.all(Radius.circular(28)),
+                      ),
+                      child: SizedBox(
+                        height: 44,
+                        child: TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          style: TextButton.styleFrom(
+                            foregroundColor:
+                                Theme.of(ctx).colorScheme.onPrimary,
+                          ),
+                          child: const Text('保存'),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DecoratedBox(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: <Color>[
-                              AppPalette.sageMist,
-                              AppPalette.sageRibbon
-                            ],
-                          ),
-                          borderRadius: BorderRadius.all(Radius.circular(28)),
-                        ),
-                        child: SizedBox(
-                          height: 44,
-                          child: TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(true),
-                            style: TextButton.styleFrom(
-                              foregroundColor:
-                                  Theme.of(ctx).colorScheme.onPrimary,
-                            ),
-                            child: const Text('保存'),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
+        ),
       ),
     );
     if (ok != true || !mounted) return;
@@ -1824,219 +1793,234 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     String? fromAccountId = goal.accountId; // 转出 / 储蓄账户（默认计划入款账户）
     String? toAccountId; // 取回账户（必选）
 
-    final bool? ok = await showModalBottomSheet<bool>(
-      context: context,
+    final bool? ok = await showAppModalSheet<bool>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext sheetCtx) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setSt) {
-          final ThemeData theme = Theme.of(ctx);
+      bodyPadding: EdgeInsets.zero,
+      body: Builder(
+        builder: (BuildContext sheetCtx) => StatefulBuilder(
+          builder: (BuildContext ctx, StateSetter setSt) {
+            final ThemeData theme = Theme.of(ctx);
 
-          // 保存前校验：金额 / 取回账户。
-          Future<void> doWithdraw() async {
-            final Money amt = Money.tryParse(amountText);
-            if (amt.minor <= 0) {
-              showAppToast(ctx, '金额必须大于 0');
-              return;
+            // 保存前校验：金额 / 取回账户。
+            Future<void> doWithdraw() async {
+              final Money amt = Money.tryParse(amountText);
+              if (amt.minor <= 0) {
+                showAppToast(ctx, '金额必须大于 0');
+                return;
+              }
+              if (amt.minor > goal.currentMinor) {
+                showAppToast(ctx, '取出金额不能超过已存');
+                return;
+              }
+              if (toAccountId == null) {
+                showAppToast(ctx, '请选择取回账户');
+                return;
+              }
+              Navigator.of(ctx).pop(true);
             }
-            if (amt.minor > goal.currentMinor) {
-              showAppToast(ctx, '取出金额不能超过已存');
-              return;
-            }
-            if (toAccountId == null) {
-              showAppToast(ctx, '请选择取回账户');
-              return;
-            }
-            Navigator.of(ctx).pop(true);
-          }
 
-          return Padding(
-            padding:
-                EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.9,
-              ),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  // 标题行：左 ✕ 圆键 + 居中「取出」。
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 16, 0),
-                    child: SizedBox(
-                      height: 44,
-                      child: Stack(
-                        children: <Widget>[
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: InkResponse(
-                              onTap: () => Navigator.of(ctx).pop(false),
-                              radius: 20,
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color:
-                                      theme.colorScheme.surfaceContainerHighest,
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: Icon(
-                                  Icons.close,
-                                  size: 17,
-                                  color: theme.colorScheme.onSurfaceVariant,
+            return Padding(
+              padding:
+                  EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // 标题行：左 ✕ 圆键 + 居中「取出」。
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 16, 0),
+                      child: SizedBox(
+                        height: 44,
+                        child: Stack(
+                          children: <Widget>[
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: InkResponse(
+                                onTap: () => Navigator.of(ctx).pop(false),
+                                radius: 20,
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: theme
+                                        .colorScheme.surfaceContainerHighest,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Icon(
+                                    Icons.close,
+                                    size: 17,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const Center(
-                            child: Text(
-                              '取出',
-                              style: TextStyle(
-                                  fontSize: 17, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Container(
-                    height: 1,
-                    color: theme.dividerColor.withValues(alpha: 0.4),
-                  ),
-                  Flexible(
-                    child: ListView(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                      shrinkWrap: true,
-                      physics: const ClampingScrollPhysics(),
-                      children: <Widget>[
-                        // 金额展示行（预填已存全额，工程内键盘可改）。
-                        _sheetAmountDisplay(amountText),
-                        const SizedBox(height: 14),
-                        // 「账户」小节：转出·储蓄账户 → ¥转至 → 转入·取回账户。
-                        _sheetSection(
-                          title: '账户',
-                          children: <Widget>[
-                            Column(
-                              children: <Widget>[
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: _sheetAccountPill(
-                                        sheetCtx: sheetCtx,
-                                        title: '选择转出账户',
-                                        accountId: fromAccountId,
-                                        onChanged: (String? id) =>
-                                            setSt(() => fromAccountId = id),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _sheetLabelPill(sheetCtx, '转出账户'),
-                                  ],
+                            const Center(
+                              child: Text(
+                                '取出',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                                const SizedBox(height: 10),
-                                Center(
-                                  child: _sheetLabelPill(sheetCtx, '转至',
-                                      icon: Icons.currency_yuan),
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: _sheetAccountPill(
-                                        sheetCtx: sheetCtx,
-                                        title: '选择取回账户',
-                                        accountId: toAccountId,
-                                        onChanged: (String? id) =>
-                                            setSt(() => toAccountId = id),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _sheetLabelPill(sheetCtx, '取回账户'),
-                                  ],
-                                ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                  // 底部：取消 / 取出（渐变绿）。
-                  SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
-                      child: Row(
+                    Container(
+                      height: 1,
+                      color: theme.dividerColor.withValues(alpha: 0.4),
+                    ),
+                    Flexible(
+                      child: ListView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        shrinkWrap: true,
+                        physics: const ClampingScrollPhysics(),
                         children: <Widget>[
-                          Expanded(
-                            child: TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(false),
-                              child: const Text('取消'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DecoratedBox(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: <Color>[
-                                    AppPalette.sageMist,
-                                    AppPalette.sageRibbon,
-                                  ],
-                                ),
-                                borderRadius:
-                                    BorderRadius.all(Radius.circular(28)),
-                              ),
-                              child: SizedBox(
-                                height: 44,
-                                child: TextButton(
-                                  onPressed: doWithdraw,
-                                  style: TextButton.styleFrom(
-                                    foregroundColor:
-                                        theme.colorScheme.onPrimary,
+                          // 金额展示行（预填已存全额，工程内键盘可改）。
+                          _sheetAmountDisplay(amountText),
+                          const SizedBox(height: 14),
+                          // 「账户」小节：转出·储蓄账户 → ¥转至 → 转入·取回账户。
+                          _sheetSection(
+                            title: '账户',
+                            children: <Widget>[
+                              Column(
+                                children: <Widget>[
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: _sheetAccountPill(
+                                          sheetCtx: sheetCtx,
+                                          title: '选择转出账户',
+                                          accountId: fromAccountId,
+                                          onChanged: (String? id) =>
+                                              setSt(() => fromAccountId = id),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const LabelPill(
+                                        label: '转出账户',
+                                        dense: true,
+                                      ),
+                                    ],
                                   ),
-                                  child: const Text('取出'),
-                                ),
+                                  const SizedBox(height: 10),
+                                  const Center(
+                                    child: LabelPill(
+                                      label: '转至',
+                                      icon: Icons.currency_yuan,
+                                      dense: true,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: _sheetAccountPill(
+                                          sheetCtx: sheetCtx,
+                                          title: '选择取回账户',
+                                          accountId: toAccountId,
+                                          onChanged: (String? id) =>
+                                              setSt(() => toAccountId = id),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const LabelPill(
+                                        label: '取回账户',
+                                        dense: true,
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  // 工程内数字键盘（金额输入，不弹系统键盘）。
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-                    child: SafeArea(
+                    // 底部：取消 / 取出（渐变绿）。
+                    SafeArea(
                       top: false,
-                      child: AmountKeypad(
-                        value: amountText,
-                        replaceOnFirstInput: true,
-                        onChanged: (String v) => setSt(() => amountText = v),
-                        onBackspace: () => setSt(() {
-                          if (amountText.isNotEmpty) {
-                            amountText =
-                                amountText.substring(0, amountText.length - 1);
-                          }
-                        }),
-                        onSave: doWithdraw,
-                        showSave: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: const Text('取消'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DecoratedBox(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: <Color>[
+                                      AppPalette.sageMist,
+                                      AppPalette.sageRibbon,
+                                    ],
+                                  ),
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(28)),
+                                ),
+                                child: SizedBox(
+                                  height: 44,
+                                  child: TextButton(
+                                    onPressed: doWithdraw,
+                                    style: TextButton.styleFrom(
+                                      foregroundColor:
+                                          theme.colorScheme.onPrimary,
+                                    ),
+                                    child: const Text('取出'),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    // 工程内数字键盘（金额输入，不弹系统键盘）。
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      child: SafeArea(
+                        top: false,
+                        child: AmountKeypad(
+                          value: amountText,
+                          replaceOnFirstInput: true,
+                          onChanged: (String v) => setSt(() => amountText = v),
+                          onBackspace: () => setSt(() {
+                            if (amountText.isNotEmpty) {
+                              amountText = amountText.substring(
+                                0,
+                                amountText.length - 1,
+                              );
+                            }
+                          }),
+                          onSave: doWithdraw,
+                          showSave: false,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
     if (ok != true || !mounted) return;
@@ -2347,7 +2331,9 @@ class _EntryCard extends StatelessWidget {
                   child: Text(
                     DateFormat('MM月dd日').format(entry.date),
                     style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

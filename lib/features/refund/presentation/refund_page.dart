@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../routing/app_router.dart';
@@ -10,8 +11,6 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/summary_bar.dart';
-import '../../../core/theme/forest_design_tokens.dart';
-import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
@@ -51,7 +50,8 @@ class _RefundPageState extends ConsumerState<RefundPage> {
       final int startMs = _period!.start.millisecondsSinceEpoch;
       final int endMs = _period!.end.millisecondsSinceEpoch;
       refunds = refunds.where(
-          (Transaction t) => t.occurredAt >= startMs && t.occurredAt < endMs);
+        (Transaction t) => t.occurredAt >= startMs && t.occurredAt < endMs,
+      );
     }
     final List<Transaction> list = refunds.toList()
       ..sort((Transaction a, Transaction b) {
@@ -65,7 +65,9 @@ class _RefundPageState extends ConsumerState<RefundPage> {
       });
 
     final int total = list.fold<int>(
-        0, (int m, Transaction t) => m + t.amountMinor - t.discountMinor);
+      0,
+      (int m, Transaction t) => m + t.amountMinor - t.discountMinor,
+    );
 
     // 按天分组（已倒序，LinkedHashMap 保持首遇顺序=最新一天在前）。
     final Map<String, List<Transaction>> groups = <String, List<Transaction>>{};
@@ -132,8 +134,11 @@ class _RefundPageState extends ConsumerState<RefundPage> {
                     ),
                   ],
                 ),
-                child: Icon(Icons.arrow_back_ios_new,
-                    size: 18, color: Theme.of(context).colorScheme.onSurface),
+                child: Icon(
+                  Icons.arrow_back_ios_new,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
           ),
@@ -223,8 +228,11 @@ class _RefundPageState extends ConsumerState<RefundPage> {
                     ),
                   ),
                   const SizedBox(width: 3),
-                  const Icon(Icons.swap_vert_rounded,
-                      size: 14, color: ForestGreen.deep),
+                  const Icon(
+                    Icons.swap_vert_rounded,
+                    size: 14,
+                    color: ForestGreen.deep,
+                  ),
                 ],
               ),
             ),
@@ -305,7 +313,9 @@ class _RefundPageState extends ConsumerState<RefundPage> {
 
   // ── 按天分组列表 ──────────────────────────────────────
   Widget _buildDayGroups(
-      BuildContext context, Map<String, List<Transaction>> groups) {
+    BuildContext context,
+    Map<String, List<Transaction>> groups,
+  ) {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(14, 2, 14, 24),
       itemCount: groups.length,
@@ -352,7 +362,9 @@ class _DayGroup extends StatelessWidget {
 
   String get _totalLabel {
     final int sum = items.fold<int>(
-        0, (int m, Transaction t) => m + t.amountMinor - t.discountMinor);
+      0,
+      (int m, Transaction t) => m + t.amountMinor - t.discountMinor,
+    );
     return '退:${Money.fromMinor(sum).format()}';
   }
 
@@ -376,8 +388,11 @@ class _DayGroup extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 5),
-                const Icon(Icons.assignment_return_outlined,
-                    size: 14, color: ForestGreen.deep),
+                const Icon(
+                  Icons.assignment_return_outlined,
+                  size: 14,
+                  color: ForestGreen.deep,
+                ),
                 const Spacer(),
                 Text(
                   _totalLabel,

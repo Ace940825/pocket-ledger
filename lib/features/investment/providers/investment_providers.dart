@@ -95,11 +95,6 @@ final AutoDisposeFutureProviderFamily<List<SecurityCandidate>, MetaQuery>
   return ref.watch(securityMetaRepositoryProvider).search(q.q, type: q.type);
 });
 
-/// 每日行情刷新（遍历全部持仓抓现价落库，内部按本地日节流）。
-final FutureProvider<int> refreshPricesProvider = FutureProvider<int>(
-  (Ref ref) => ref.watch(investmentRepositoryProvider).refreshAllPrices(),
-);
-
 /// 投资类账户现金余额合计（分）：总资产「现金」侧。
 ///
 /// 投资账户存储层 [Account.balanceMinor] 只记现金（市值在展示层叠加），

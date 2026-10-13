@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:pocket_ledger/theme/app_colors.dart';
 import 'package:pocket_ledger/shared/models/money.dart';
 import 'package:pocket_ledger/shared/widgets/animated_money_text.dart';
+import 'package:pocket_ledger/theme/app_colors.dart';
 
 void main() {
   testWidgets('显示正确的格式化金额（动画结束后）', (WidgetTester tester) async {

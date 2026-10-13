@@ -266,10 +266,12 @@ class LendRepository {
         ? AccountType.borrow
         : AccountType.lend;
     final Account? acc = await (_db.select(_db.accounts)
-          ..where((Accounts t) =>
-              t.name.equals(name) &
-              t.type.equals(type.index) &
-              t.deleted.equals(false))
+          ..where(
+            (Accounts t) =>
+                t.name.equals(name) &
+                t.type.equals(type.index) &
+                t.deleted.equals(false),
+          )
           ..limit(1))
         .getSingleOrNull();
     return acc?.id;
@@ -344,10 +346,14 @@ class LendRepository {
     bool includeDeleted = false,
   }) {
     return (_db.select(_db.transactions)
-          ..where((Transactions t) =>
-              t.relatedId.equals(lendId) &
-              t.sourceModule.equals(SourceModule.lend.index) &
-              (includeDeleted ? const Constant(true) : t.deleted.equals(false)))
+          ..where(
+            (Transactions t) =>
+                t.relatedId.equals(lendId) &
+                t.sourceModule.equals(SourceModule.lend.index) &
+                (includeDeleted
+                    ? const Constant(true)
+                    : t.deleted.equals(false)),
+          )
           ..limit(1))
         .getSingleOrNull();
   }
@@ -454,10 +460,12 @@ class LendRepository {
         ? AccountType.borrow
         : AccountType.lend;
     final Account? designatedAcc = await (_db.select(_db.accounts)
-          ..where((Accounts t) =>
-              t.name.equals(trimmed) &
-              t.type.equals(designatedType.index) &
-              t.deleted.equals(false))
+          ..where(
+            (Accounts t) =>
+                t.name.equals(trimmed) &
+                t.type.equals(designatedType.index) &
+                t.deleted.equals(false),
+          )
           ..limit(1))
         .getSingleOrNull();
     final String? designatedId = designatedAcc?.id;
@@ -564,7 +572,7 @@ class LendRepository {
     final String dirLabel = direction == LendDirection.borrowIn ? '借入' : '借出';
     // 债务消减 / 坏账计提均无真实资金流动，仅作记账备忘展示；按用户口径
     // 统一为支出类型（影响列表箭头 / 配色），不计入收支统计与预算。
-    final TxnType txnType = TxnType.expense;
+    const TxnType txnType = TxnType.expense;
     return _db.transaction<void>(() async {
       final List<_OffsetHit> affected = await _offsetDebts(
         bookId: bookId,
@@ -731,12 +739,14 @@ class LendRepository {
   Future<int> purgeByDesignatedAccount(String accountId) async {
     if (accountId.isEmpty) return 0;
     final List<LendRecord> records = await (_db.select(_db.lendRecords)
-          ..where((LendRecords t) =>
-              t.accountId.equals(accountId) & t.deleted.equals(false)))
+          ..where(
+            (LendRecords t) =>
+                t.accountId.equals(accountId) & t.deleted.equals(false),
+          ))
         .get();
     if (records.isEmpty) return 0;
     final Set<String> recordIds = <String>{
-      for (final LendRecord r in records) r.id
+      for (final LendRecord r in records) r.id,
     };
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final Set<String> keptAccounts = <String>{};
@@ -785,9 +795,11 @@ class LendRepository {
       //    随后在第 3 步软删）、清除台账并回滚现金——此处无需重复处理，
       //    也避免先删台账导致反向恢复拿不到明细的双重恢复/漏恢复问题。
       final List<Transaction> flows = await (_db.select(_db.transactions)
-            ..where((Transactions t) =>
-                t.sourceModule.equals(SourceModule.lend.index) &
-                t.deleted.equals(false)))
+            ..where(
+              (Transactions t) =>
+                  t.sourceModule.equals(SourceModule.lend.index) &
+                  t.deleted.equals(false),
+            ))
           .get();
       for (final Transaction flow in flows) {
         final bool touches = recordIds.contains(flow.relatedId) ||
@@ -836,10 +848,6 @@ class LendRepository {
           for (final _OffsetHit h in hits) (id: h.id, amount: h.amount),
         ],
       );
-
-  /// 删除某笔流水的全部冲销台账——实现见 [deleteLendOffsets]。
-  Future<void> _deleteLendOffsets(String txnId) =>
-      deleteLendOffsets(_db, txnId);
 
   /// 删除指向某借还记录的冲销台账——实现见 [deleteLendOffsetsForRecord]。
   Future<void> _deleteLendOffsetsForRecord(String recordId) =>

@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-
-import '../../../theme/app_colors.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
+
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/category_icons.dart';
-import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/loading_state.dart';
+import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../data/reimbursement_repository.dart';
@@ -267,8 +266,11 @@ class _ReimbursementBillPickerPageState
         cat?.colorValue != null ? Color(cat!.colorValue!) : ForestGreen.deep;
     final String? rbCatKey = cat?.iconKey;
     final Widget leadIcon = rbCatKey != null && rbCatKey.isNotEmpty
-        ? LineIcon(categoryLineKind(rbCatKey) ?? LineIconKind.star,
-            size: 22, color: tint)
+        ? LineIcon(
+            categoryLineKind(rbCatKey) ?? LineIconKind.star,
+            size: 22,
+            color: tint,
+          )
         : Icon(Icons.north_east, color: tint, size: 22);
     final String title =
         cat?.name ?? (t.note?.isNotEmpty == true ? t.note! : '支出');
@@ -288,7 +290,8 @@ class _ReimbursementBillPickerPageState
         decoration: BoxDecoration(
           color: context.colors.surface,
           border: Border(
-              bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
+            bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
+          ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -347,15 +350,17 @@ class _ReimbursementBillPickerPageState
                   Text(
                     DateFormat('y年M月d日').format(occurred),
                     style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 1),
                   Text(
                     DateFormat('HH:mm').format(occurred),
                     style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -418,8 +423,11 @@ class _ReimbursementBillPickerPageState
               : null,
         ),
         child: sel
-            ? Icon(Icons.check,
-                size: 13, color: Theme.of(context).colorScheme.onPrimary)
+            ? Icon(
+                Icons.check,
+                size: 13,
+                color: Theme.of(context).colorScheme.onPrimary,
+              )
             : null,
       );
 

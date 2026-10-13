@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/day_pick_sheet.dart';
+import '../../../theme/app_colors.dart';
 import '../data/account_icon.dart';
 import '../data/bank_data.dart';
 import '../providers/accounts_providers.dart';
 import 'bank_select_page.dart';
-import '../../../shared/widgets/app_toast.dart';
-import '../../../shared/widgets/amount_keypad.dart';
-import '../../../shared/widgets/calculator_sheet.dart';
-import '../../../shared/widgets/day_pick_sheet.dart';
 
 /// 账户表单页。
 ///
@@ -237,7 +236,6 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             label: amountLabel,
             prefixText: '¥ ',
             useKeypad: true,
-            enableCalculator: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
         );
@@ -264,7 +262,6 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             label: _isDebt ? '当前欠款' : '账户余额',
             prefixText: '¥ ',
             useKeypad: true,
-            enableCalculator: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
         );
@@ -296,7 +293,6 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           label: '当前欠款',
           prefixText: '¥ ',
           useKeypad: true,
-          enableCalculator: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
         ),
@@ -307,7 +303,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           placeholder: '输入信用额度与当前欠款后自动计算',
         ),
         Padding(
-          padding: EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             AppDimens.spaceMd,
             AppDimens.spaceSm,
             AppDimens.spaceMd,
@@ -320,7 +316,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 size: 14,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-              SizedBox(width: AppDimens.spaceSm),
+              const SizedBox(width: AppDimens.spaceSm),
               Expanded(
                 child: Text(
                   '当前欠款 和 信用额度 输入一个即可自动识别计算',
@@ -343,7 +339,6 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           label: '账户余额',
           prefixText: '¥ ',
           useKeypad: true,
-          enableCalculator: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
       ];
@@ -388,7 +383,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
         padding: const EdgeInsets.all(AppDimens.spaceLg),
         children: <Widget>[
           // 资产类型（只读）
-          _SectionTitle('资产类型'),
+          const _SectionTitle('资产类型'),
           const SizedBox(height: AppDimens.spaceSm),
           _TypeHeader(type: widget.accountType),
           const SizedBox(height: AppDimens.spaceSm),
@@ -411,7 +406,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           if (_hasBankHeader) const SizedBox(height: AppDimens.spaceXl),
 
           // 基本信息
-          _SectionTitle('基本信息'),
+          const _SectionTitle('基本信息'),
           const SizedBox(height: AppDimens.spaceSm),
           HairlineCard(
             radius: AppDimens.radiusMd,
@@ -438,7 +433,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
 
           // 账单 / 还款日期（信用卡与负债非信用卡）
           if (_isDebtTemplate) ...<Widget>[
-            _SectionTitle('账单/还款日期'),
+            const _SectionTitle('账单/还款日期'),
             const SizedBox(height: AppDimens.spaceSm),
             HairlineCard(
               radius: AppDimens.radiusMd,
@@ -452,12 +447,17 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
 
           // 余额同步（仅借出 / 借入默认开启）
           if (_isSyncBillVisible) ...<Widget>[
-            _SectionTitle('余额同步'),
+            const _SectionTitle('余额同步'),
             const SizedBox(height: AppDimens.spaceSm),
             HairlineCard(
               radius: AppDimens.radiusMd,
               padding: EdgeInsets.zero,
-              child: SettingsSwitchRow(activeThumbColor: AppPalette.primary, padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd, vertical: AppDimens.spaceSm), 
+              child: SettingsSwitchRow(
+                activeThumbColor: AppPalette.primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.spaceMd,
+                  vertical: AppDimens.spaceSm,
+                ),
                 title: '同时记一笔账单',
                 subtitle: '将金额记一笔对应类型账单',
                 value: _syncBill,
@@ -465,7 +465,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               ),
             ),
             Padding(
-              padding: EdgeInsets.only(
+              padding: const EdgeInsets.only(
                 left: AppDimens.spaceMd,
                 top: AppDimens.spaceSm,
                 right: AppDimens.spaceMd,
@@ -483,7 +483,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           ],
 
           // 其他
-          _SectionTitle('其他'),
+          const _SectionTitle('其他'),
           const SizedBox(height: AppDimens.spaceSm),
           HairlineCard(
             radius: AppDimens.radiusMd,
@@ -492,7 +492,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Padding(
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     AppDimens.spaceMd,
                     AppDimens.spaceMd,
                     AppDimens.spaceMd,
@@ -527,7 +527,12 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                   ),
                 ),
                 const Divider(height: 1, indent: AppDimens.spaceMd),
-                SettingsSwitchRow(activeThumbColor: AppPalette.primary, padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd, vertical: AppDimens.spaceSm), 
+                SettingsSwitchRow(
+                  activeThumbColor: AppPalette.primary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimens.spaceMd,
+                    vertical: AppDimens.spaceSm,
+                  ),
                   title: '计入总资产',
                   subtitle: '是否加入总资产计算',
                   value: _includeInTotal,
@@ -694,18 +699,10 @@ class _TextField extends StatelessWidget {
   final String? hint;
   final String? prefixText;
   final TextInputType? keyboardType;
-  final Widget? suffix;
   final ValueChanged<String>? onChanged;
 
   /// 是否改用工程内数字键盘录入（金额 / 额度 / 天数等），不唤起系统键盘。
   final bool useKeypad;
-
-  /// 工程内键盘是否允许小数点。
-  final bool allowDecimal;
-
-  /// 是否在金额键盘之外额外提供「计算器」入口（点计算器图标弹表达式计算器，
-  /// 四则运算/AA 分摊结果回填本字段）。用于建户余额、借还本金等需要加减计算的输入。
-  final bool enableCalculator;
 
   const _TextField({
     required this.controller,
@@ -713,37 +710,12 @@ class _TextField extends StatelessWidget {
     this.hint,
     this.prefixText,
     this.keyboardType,
-    this.suffix,
     this.onChanged,
     this.useKeypad = false,
-    this.allowDecimal = true,
-    this.enableCalculator = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 计算器图标：点击打开表达式计算器，结果（元）回填。
-    Widget? suffixIcon = suffix;
-    if (enableCalculator) {
-      suffixIcon = IconButton(
-        icon: const Icon(Icons.calculate_outlined,
-            size: 20, color: AppPalette.primary),
-        tooltip: '计算器',
-        onPressed: () async {
-          final double? r = await showModalBottomSheet<double>(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => CalculatorSheet(initial: controller.text),
-          );
-          if (r != null) {
-            final String s = _formatCalcResult(r);
-            controller.text = s;
-            onChanged?.call(s);
-          }
-        },
-      );
-    }
     return TextField(
       controller: controller,
       keyboardType: useKeypad ? null : keyboardType,
@@ -756,7 +728,7 @@ class _TextField extends StatelessWidget {
               final String? r = await showAmountKeypad(
                 context: context,
                 initial: controller.text,
-                allowDecimal: allowDecimal,
+                allowDecimal: true,
                 title: label,
               );
               if (r != null) {
@@ -769,21 +741,11 @@ class _TextField extends StatelessWidget {
         labelText: label,
         hintText: hint,
         prefixText: prefixText,
-        suffixIcon: suffixIcon,
         border: InputBorder.none,
         contentPadding: const EdgeInsets.all(AppDimens.spaceMd),
       ),
     );
   }
-}
-
-/// 把计算器返回的 double 规整为金额字符串（去掉多余的 0 与悬挂小数点），
-/// 与工程内 [Money.tryParse] 兼容（如 1150.00 -> '1150'、1150.50 -> '1150.5'）。
-String _formatCalcResult(double v) {
-  final String s = v.toStringAsFixed(2);
-  return s.contains('.')
-      ? s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')
-      : s;
 }
 
 class _ReadOnlyField extends StatelessWidget {
@@ -872,7 +834,6 @@ class _DayPickerField extends StatelessWidget {
     );
   }
 }
-
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({

@@ -1,28 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
-
-import '../../../core/theme/forest_design_tokens.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
+
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../features/accounts/providers/accounts_providers.dart';
-import '../../../features/ledger/providers/ledger_providers.dart';
 import '../../../providers/app_providers.dart';
-import '../../../features/tags/presentation/tag_empty_illustration.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/category_icons.dart';
+import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/money_text.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
 import '../providers/record_template_providers.dart';
 import '../record_tab.dart';
 import 'record_sheet.dart';
 import 'record_template_sheet.dart' show RecordTemplateDraft;
-import '../../../shared/widgets/app_toast.dart';
 
 /// 「账单模板」独立管理页（方案 C1 · 晕染延续）：
 /// 晕染带（✕ 钮 + 头卡/帮助 + 虚线说明卡）→ 搜索 + 类型筛选 → 条目列表
@@ -172,40 +171,13 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
   }
 
   void _showHelp() {
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        backgroundColor: context.colors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text(
-          '关于模板',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        content: Text(
+    showConfirm(
+      context,
+      title: '关于模板',
+      content:
           '模板用于经常购买或常记的账单，如每天买水 2 元，可将固定支出保存为模板，套用时自动填充账户、分类、备注、标签与开关，快速完成记账（金额需手动输入）。',
-          style: TextStyle(
-            fontSize: 13.5,
-            height: 1.7,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              '知道了',
-              style: TextStyle(
-                color: ForestGreen.deep,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
+      confirmText: '知道了',
+      cancelText: null,
     );
   }
 
@@ -234,7 +206,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                   BoxShadow(
                     color: AppPalette.stockDown.withValues(alpha: 0.278),
                     blurRadius: 8,
-                    offset: Offset(0, 3),
+                    offset: const Offset(0, 3),
                   ),
                 ]
               : null,
@@ -292,8 +264,10 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
     }
 
     final List<RecordTemplate> filtered = list
-        .where((RecordTemplate t) =>
-            _matchType(RecordTab.values[t.tabIndex]) && matchQuery(t))
+        .where(
+          (RecordTemplate t) =>
+              _matchType(RecordTab.values[t.tabIndex]) && matchQuery(t),
+        )
         .toList();
 
     return Scaffold(
@@ -316,7 +290,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                     end: Alignment.bottomCenter,
                     colors: <Color>[
                       AppPalette.mintWhisper,
-                      context.colors.surface
+                      context.colors.surface,
                     ],
                   ),
                 ),
@@ -339,7 +313,8 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                 .withValues(alpha: 0.8),
                             shape: BoxShape.circle,
                             border: Border.all(
-                                color: Theme.of(context).colorScheme.outline),
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
                           ),
                           child: Icon(
                             Icons.close,
@@ -350,7 +325,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 6),
+                    const SizedBox(height: 6),
                     // 头卡：徽章 + 标题/副标题 + 帮助钮
                     HairlineCard(
                       backgroundColor: context.colors.surface,
@@ -364,16 +339,16 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                         BoxShadow(
                           color: AppPalette.sage900.withValues(alpha: 0.051),
                           blurRadius: 14,
-                          offset: Offset(0, 4),
+                          offset: const Offset(0, 4),
                         ),
                       ],
                       child: Row(
                         children: <Widget>[
-                          SunkenBox(
+                          const SunkenBox(
                             width: 44,
                             height: 44,
                             radius: 14,
-                            child: const Icon(
+                            child: Icon(
                               Icons.bookmark_outline,
                               size: 22,
                               color: ForestGreen.deep,
@@ -393,7 +368,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                         Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
-                                SizedBox(height: 3),
+                                const SizedBox(height: 3),
                                 Text(
                                   '常用账单保存为一键模板',
                                   style: TextStyle(
@@ -410,9 +385,9 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                           InkWell(
                             onTap: _showHelp,
                             borderRadius: BorderRadius.circular(999),
-                            child: SunkenBox(
+                            child: const SunkenBox(
                               radius: 999,
-                              padding: const EdgeInsets.symmetric(
+                              padding: EdgeInsets.symmetric(
                                 horizontal: 14,
                                 vertical: 6,
                               ),
@@ -429,7 +404,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                         ],
                       ),
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     // 虚线说明卡（可折叠，1px 沙色虚线 · 设计稿 --sand #EDE4D2）
                     CustomPaint(
                       painter: const _NoteDashedBorderPainter(),
@@ -503,10 +478,11 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                   ),
                   child: Row(
                     children: <Widget>[
-                      Icon(Icons.search,
-                          size: 16,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                      Icon(
+                        Icons.search,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 9),
                       Expanded(
                         child: TextField(
@@ -625,23 +601,11 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                         child: SingleChildScrollView(
                           keyboardDismissBehavior:
                               ScrollViewKeyboardDismissBehavior.onDrag,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              TagEmptyIllustration(width: 120),
-                              const SizedBox(height: 12),
-                              Text(
-                                list.isEmpty
-                                    ? '没有发现模板哦，试着去添加一个~'
-                                    : '未找到符合条件的模板',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                          child: EmptyState(
+                            icon: Icons.receipt_long_outlined,
+                            message: list.isEmpty
+                                ? '没有发现模板哦，试着去添加一个~'
+                                : '未找到符合条件的模板',
                           ),
                         ),
                       )
@@ -724,7 +688,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                 color: AppPalette.stockDown
                                     .withValues(alpha: 0.322),
                                 blurRadius: 16,
-                                offset: Offset(0, 6),
+                                offset: const Offset(0, 6),
                               ),
                             ],
                           ),
@@ -843,8 +807,11 @@ class RecordTemplateCard extends ConsumerWidget {
     }
     final Money money = Money.fromMinor(template.amountMinor);
     return switch (tab) {
-      RecordTab.expense => MoneyText(Money.fromMinor(-template.amountMinor),
-          signed: true, style: const TextStyle(fontSize: 15)),
+      RecordTab.expense => MoneyText(
+          Money.fromMinor(-template.amountMinor),
+          signed: true,
+          style: const TextStyle(fontSize: 15),
+        ),
       RecordTab.income =>
         MoneyText(money, signed: true, style: const TextStyle(fontSize: 15)),
       _ => Text(
@@ -865,20 +832,27 @@ class RecordTemplateCard extends ConsumerWidget {
         template.categoryId == null ? null : categories[template.categoryId];
     final (Widget, Color) fallback = switch (tab) {
       RecordTab.income => (
-          Icon(Icons.south_west, size: 22, color: ForestSemantic.income),
+          const Icon(Icons.south_west, size: 22, color: ForestSemantic.income),
           ForestSemantic.income
         ),
       RecordTab.transfer => (
-          Icon(Icons.swap_horiz, size: 22, color: ForestGreen.deep),
+          const Icon(Icons.swap_horiz, size: 22, color: ForestGreen.deep),
           ForestGreen.deep
         ),
       RecordTab.lend => (
-          Icon(Icons.handshake_outlined, size: 22, color: ForestGreen.deep),
+          const Icon(
+            Icons.handshake_outlined,
+            size: 22,
+            color: ForestGreen.deep,
+          ),
           ForestGreen.deep
         ),
       _ => (
-          Icon(Icons.shopping_bag_outlined,
-              size: 22, color: ForestSemantic.expense),
+          const Icon(
+            Icons.shopping_bag_outlined,
+            size: 22,
+            color: ForestSemantic.expense,
+          ),
           ForestSemantic.expense
         ),
     };
@@ -886,8 +860,11 @@ class RecordTemplateCard extends ConsumerWidget {
     final Color tint =
         c.colorValue != null ? Color(c.colorValue!) : fallback.$2;
     final Widget icon = c.iconKey != null && c.iconKey!.isNotEmpty
-        ? LineIcon(categoryLineKind(c.iconKey) ?? LineIconKind.star,
-            size: 22, color: tint)
+        ? LineIcon(
+            categoryLineKind(c.iconKey) ?? LineIconKind.star,
+            size: 22,
+            color: tint,
+          )
         : fallback.$1;
     return (icon, tint);
   }
@@ -1020,7 +997,7 @@ class RecordTemplateCard extends ConsumerWidget {
                   BoxShadow(
                     color: AppPalette.stockDown.withValues(alpha: 0.302),
                     blurRadius: 16,
-                    offset: Offset(0, 6),
+                    offset: const Offset(0, 6),
                   ),
                 ]
               : null,

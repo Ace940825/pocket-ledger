@@ -8,9 +8,9 @@ import '../database/sync_enqueue.dart';
 import '../domain/enums.dart';
 import '../features/categories/data/category_repository.dart';
 import '../features/installment/data/installment_repository.dart';
-import '../features/lend/data/lend_repository.dart';
-import '../features/ledger/data/transaction_repository.dart';
 import '../features/investment/data/investment_repository.dart';
+import '../features/ledger/data/transaction_repository.dart';
+import '../features/lend/data/lend_repository.dart';
 import '../features/savings/presentation/savings_modes.dart';
 
 /// 默认分类的图标与配色预设。
@@ -18,8 +18,12 @@ import '../features/savings/presentation/savings_modes.dart';
 /// 支持两级：一级分类（顶层项）可携带若干二级子类（[children]）。
 /// 子类的 [colorValue] 传 0 表示继承所属一级分类的配色。
 class _DefaultCategory {
-  const _DefaultCategory(this.name, this.iconKey, this.colorValue,
-      [this.children = const <_DefaultCategory>[]]);
+  const _DefaultCategory(
+    this.name,
+    this.iconKey,
+    this.colorValue, [
+    this.children = const <_DefaultCategory>[],
+  ]);
   final String name;
   final String iconKey;
   final int colorValue;
@@ -274,9 +278,8 @@ Future<void> bootstrapData(AppDatabase db) async {
   unawaited(
     InvestmentRepository(db, TransactionRepository(db))
         .refreshAllPrices()
-        .catchError((Object _) {
-      // 离线 / 限流等：保持旧价，不抛、不阻塞启动。
-    }),
+        // 离线 / 限流等：返回 0（无更新），保持旧价、不阻塞启动。
+        .catchError((Object _) => 0),
   );
 }
 
@@ -296,10 +299,12 @@ Future<void> _retireLegacyDefaultCategories(AppDatabase db) async {
     '债务消减',
   ];
   final List<Category> rows = await (db.select(db.categories)
-        ..where((Categories t) =>
-            t.name.isIn(retired) &
-            t.type.equals(CategoryType.expense.index) &
-            t.deleted.equals(false)))
+        ..where(
+          (Categories t) =>
+              t.name.isIn(retired) &
+              t.type.equals(CategoryType.expense.index) &
+              t.deleted.equals(false),
+        ))
       .get();
   if (rows.isNotEmpty) {
     final CategoryRepository repo = CategoryRepository(db);
@@ -314,14 +319,17 @@ Future<void> _retireLegacyDefaultCategories(AppDatabase db) async {
   // 已有流水改显「未分类」。注意不碰「副业兼职」（经营收入的内置二级）。
   final List<Category> parttimeRows = await (db.select(db.categories)
         ..where(
-            (Categories t) => t.name.equals('兼职') & t.deleted.equals(false)))
+          (Categories t) => t.name.equals('兼职') & t.deleted.equals(false),
+        ))
       .get();
   if (parttimeRows.isNotEmpty) {
     final CategoryRepository repo = CategoryRepository(db);
     for (final Category c in parttimeRows) {
       final List<Category> children = await (db.select(db.categories)
-            ..where((Categories t) =>
-                t.parentId.equals(c.id) & t.deleted.equals(false)))
+            ..where(
+              (Categories t) =>
+                  t.parentId.equals(c.id) & t.deleted.equals(false),
+            ))
           .get();
       for (final Category sub in children) {
         await repo.remove(sub.id);
@@ -333,10 +341,12 @@ Future<void> _retireLegacyDefaultCategories(AppDatabase db) async {
   // 「其他」图标迁移（幂等，仅命中时写库，dirty 置真走同步）。
   final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
   await (db.update(db.categories)
-        ..where((Categories t) =>
-            t.name.equals('其他') &
-            t.iconKey.equals('settings') &
-            t.deleted.equals(false)))
+        ..where(
+          (Categories t) =>
+              t.name.equals('其他') &
+              t.iconKey.equals('settings') &
+              t.deleted.equals(false),
+        ))
       .write(
     CategoriesCompanion(
       iconKey: const Value<String?>('other'),
@@ -397,10 +407,12 @@ Future<void> _markSystemCategories(AppDatabase db) async {
   for (final (String name, CategoryType type) in systemNames) {
     final String? iconKey = systemIconKeys[name];
     final List<Category> rows = await (db.select(db.categories)
-          ..where((Categories t) =>
-              t.name.equals(name) &
-              t.type.equals(type.index) &
-              t.deleted.equals(false)))
+          ..where(
+            (Categories t) =>
+                t.name.equals(name) &
+                t.type.equals(type.index) &
+                t.deleted.equals(false),
+          ))
         .get();
     for (final Category row in rows) {
       final bool needMark = !row.isSystem;
@@ -451,10 +463,12 @@ Future<void> _relinkLendFlowCategories(AppDatabase db) async {
       .map((Category c) => c.id)
       .toSet();
   final List<Transaction> rows = await (db.select(db.transactions)
-        ..where((Transactions t) =>
-            t.sourceModule.equals(SourceModule.lend.index) &
-            t.deleted.equals(false) &
-            t.note.isNotNull()))
+        ..where(
+          (Transactions t) =>
+              t.sourceModule.equals(SourceModule.lend.index) &
+              t.deleted.equals(false) &
+              t.note.isNotNull(),
+        ))
       .get();
   final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
   for (final Transaction txn in rows) {
@@ -545,17 +559,21 @@ Future<void> _seedSystemCategories(AppDatabase db) async {
 /// 不一致——启动时按记录重算一次性修复，仅在有偏差时写库（避免脏同步）。
 Future<void> _reconcileReimbursementBalances(AppDatabase db) async {
   final List<Account> reimbAccounts = await (db.select(db.accounts)
-        ..where((Accounts t) =>
-            t.type.equals(AccountType.reimbursement.index) &
-            t.deleted.equals(false)))
+        ..where(
+          (Accounts t) =>
+              t.type.equals(AccountType.reimbursement.index) &
+              t.deleted.equals(false),
+        ))
       .get();
   if (reimbAccounts.isEmpty) return;
 
   final List<Reimbursement> pendings = await (db.select(db.reimbursements)
-        ..where((Reimbursements t) =>
-            t.status.equals(ReimbursementStatus.pending.index) &
-            t.deleted.equals(false) &
-            t.accountId.isNotNull()))
+        ..where(
+          (Reimbursements t) =>
+              t.status.equals(ReimbursementStatus.pending.index) &
+              t.deleted.equals(false) &
+              t.accountId.isNotNull(),
+        ))
       .get();
   final Map<String, int> expected = <String, int>{};
   for (final Reimbursement r in pendings) {
@@ -584,18 +602,22 @@ Future<void> _reconcileReimbursementBalances(AppDatabase db) async {
 /// 余额一律以记录合计为准；历史漂移启动时一次性修复，仅在有偏差时写库。
 Future<void> _reconcileLendAccountBalances(AppDatabase db) async {
   final List<Account> lendAccounts = await (db.select(db.accounts)
-        ..where((Accounts t) =>
-            (t.type.equals(AccountType.lend.index) |
-                t.type.equals(AccountType.borrow.index)) &
-            t.deleted.equals(false)))
+        ..where(
+          (Accounts t) =>
+              (t.type.equals(AccountType.lend.index) |
+                  t.type.equals(AccountType.borrow.index)) &
+              t.deleted.equals(false),
+        ))
       .get();
   if (lendAccounts.isEmpty) return;
 
   final List<LendRecord> records = await (db.select(db.lendRecords)
-        ..where((LendRecords t) =>
-            t.status.equals(LendStatus.ongoing.index) &
-            t.deleted.equals(false) &
-            t.accountId.isNotNull()))
+        ..where(
+          (LendRecords t) =>
+              t.status.equals(LendStatus.ongoing.index) &
+              t.deleted.equals(false) &
+              t.accountId.isNotNull(),
+        ))
       .get();
 
   final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -634,15 +656,18 @@ Future<void> _reconcileLendAccountBalances(AppDatabase db) async {
 Future<void> _backfillLendDesignatedAccounts(AppDatabase db) async {
   final List<LendRecord> undesignated = await (db.select(db.lendRecords)
         ..where(
-            (LendRecords t) => t.accountId.isNull() & t.deleted.equals(false)))
+          (LendRecords t) => t.accountId.isNull() & t.deleted.equals(false),
+        ))
       .get();
   if (undesignated.isEmpty) return;
 
   final List<Account> lendAccounts = await (db.select(db.accounts)
-        ..where((Accounts t) =>
-            (t.type.equals(AccountType.lend.index) |
-                t.type.equals(AccountType.borrow.index)) &
-            t.deleted.equals(false)))
+        ..where(
+          (Accounts t) =>
+              (t.type.equals(AccountType.lend.index) |
+                  t.type.equals(AccountType.borrow.index)) &
+              t.deleted.equals(false),
+        ))
       .get();
   if (lendAccounts.isEmpty) return;
 
@@ -679,10 +704,12 @@ Future<void> _backfillLendDesignatedAccounts(AppDatabase db) async {
 /// 启动时按账单重算一次性修复；无关联账单的手建记录不动。
 Future<void> _reconcileReimbursedAmounts(AppDatabase db) async {
   final List<Reimbursement> reimbursed = await (db.select(db.reimbursements)
-        ..where((Reimbursements t) =>
-            t.status.equals(ReimbursementStatus.reimbursed.index) &
-            t.deleted.equals(false) &
-            t.transactionId.isNotNull()))
+        ..where(
+          (Reimbursements t) =>
+              t.status.equals(ReimbursementStatus.reimbursed.index) &
+              t.deleted.equals(false) &
+              t.transactionId.isNotNull(),
+        ))
       .get();
   if (reimbursed.isEmpty) return;
 
@@ -718,11 +745,13 @@ Future<void> _reconcileReimbursedAmounts(AppDatabase db) async {
 /// 幂等：每次启动运行，仅在有匹配且尚未关联时写库（dirty 置真走同步）。
 Future<void> _backfillRepayRelatedIds(AppDatabase db) async {
   final List<Transaction> txns = await (db.select(db.transactions)
-        ..where((Transactions t) =>
-            t.sourceModule.equals(SourceModule.lend.index) &
-            t.relatedId.isNull() &
-            t.excludeFromStats.equals(true) &
-            t.deleted.equals(false)))
+        ..where(
+          (Transactions t) =>
+              t.sourceModule.equals(SourceModule.lend.index) &
+              t.relatedId.isNull() &
+              t.excludeFromStats.equals(true) &
+              t.deleted.equals(false),
+        ))
       .get();
   if (txns.isEmpty) return;
 
@@ -780,9 +809,11 @@ Future<void> _backfillRepayRelatedIds(AppDatabase db) async {
 /// 「债务消减」流水重新翻成 expense 版类目。
 Future<void> _backfillLendFlowCategories(AppDatabase db) async {
   final List<Transaction> txns = await (db.select(db.transactions)
-        ..where((Transactions t) =>
-            t.sourceModule.equals(SourceModule.lend.index) &
-            t.deleted.equals(false)))
+        ..where(
+          (Transactions t) =>
+              t.sourceModule.equals(SourceModule.lend.index) &
+              t.deleted.equals(false),
+        ))
       .get();
   if (txns.isEmpty) return;
 
@@ -850,8 +881,10 @@ Future<void> _backfillLendFlowCategories(AppDatabase db) async {
         continue;
       }
       final int refCount = (await (db.select(db.transactions)
-                ..where((Transactions t) =>
-                    t.categoryId.equals(c.id) & t.deleted.equals(false)))
+                ..where(
+                  (Transactions t) =>
+                      t.categoryId.equals(c.id) & t.deleted.equals(false),
+                ))
               .get())
           .length;
       if (refCount == 0) await catRepo.remove(c.id);
@@ -864,8 +897,9 @@ Future<void> _backfillLendFlowCategories(AppDatabase db) async {
 /// 流水撤销会回滚真实资金账户余额）。幂等：无孤儿记录时空操作。
 Future<void> _purgeLendRecordsOfDeletedAccounts(AppDatabase db) async {
   final List<LendRecord> records = await (db.select(db.lendRecords)
-        ..where((LendRecords t) =>
-            t.deleted.equals(false) & t.accountId.isNotNull()))
+        ..where(
+          (LendRecords t) => t.deleted.equals(false) & t.accountId.isNotNull(),
+        ))
       .get();
   if (records.isEmpty) return;
   final Set<String> aliveAccounts = (await (db.select(db.accounts)
@@ -895,11 +929,13 @@ Future<void> _backfillLendFlowTransactions(AppDatabase db) async {
 /// 流水计入统计，这里统一翻标记；只动统计开关，不影响余额，幂等。
 Future<void> _excludeLendFromStatsAndBudget(AppDatabase db) async {
   await (db.update(db.transactions)
-        ..where((Transactions t) =>
-            t.sourceModule.equals(SourceModule.lend.index) &
-            t.deleted.equals(false) &
-            (t.excludeFromStats.equals(false) |
-                t.excludeFromBudget.equals(false))))
+        ..where(
+          (Transactions t) =>
+              t.sourceModule.equals(SourceModule.lend.index) &
+              t.deleted.equals(false) &
+              (t.excludeFromStats.equals(false) |
+                  t.excludeFromBudget.equals(false)),
+        ))
       .write(
     const TransactionsCompanion(
       excludeFromStats: Value<bool>(true),
@@ -997,7 +1033,8 @@ Future<void> _clearPresetSavingsNotes(AppDatabase db) async {
 
   final List<SavingsGoal> rows = await (db.select(db.savingsGoals)
         ..where(
-            (SavingsGoals t) => t.note.isNotNull() & t.deleted.equals(false)))
+          (SavingsGoals t) => t.note.isNotNull() & t.deleted.equals(false),
+        ))
       .get();
 
   final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -1025,11 +1062,13 @@ Future<void> _clearPresetSavingsNotes(AppDatabase db) async {
 Future<void> _repairSavingsNoPresetCurrent(AppDatabase db) async {
   const Set<String> noPresetModes = <String>{'fixed', 'monthly12', 'elastic'};
   final List<SavingsGoal> rows = await (db.select(db.savingsGoals)
-        ..where((SavingsGoals t) =>
-            t.mode.isIn(noPresetModes) &
-            t.depositCount.equals(0) &
-            t.currentMinor.isBiggerThanValue(0) &
-            t.deleted.equals(false)))
+        ..where(
+          (SavingsGoals t) =>
+              t.mode.isIn(noPresetModes) &
+              t.depositCount.equals(0) &
+              t.currentMinor.isBiggerThanValue(0) &
+              t.deleted.equals(false),
+        ))
       .get();
   if (rows.isEmpty) return;
 
@@ -1072,8 +1111,10 @@ Future<void> _reconcileSavingsCurrentMinor(AppDatabase db) async {
         .write(
       SavingsGoalsCompanion(
         currentMinor: Value<int>(actual),
-        isAchieved: Value<bool>((g.endNote != null || g.mode == 'flexible') &&
-            actual >= g.targetMinor),
+        isAchieved: Value<bool>(
+          (g.endNote != null || g.mode == 'flexible') &&
+              actual >= g.targetMinor,
+        ),
         updatedAt: Value<int>(now),
         dirty: const Value<bool>(true),
       ),
@@ -1134,7 +1175,8 @@ Future<void> _seedDefaults(AppDatabase db) async {
             iconKey: Value<String?>(child.iconKey),
             // 子类色值 0 表示继承一级分类配色。
             colorValue: Value<int?>(
-                child.colorValue == 0 ? parent.colorValue : child.colorValue),
+              child.colorValue == 0 ? parent.colorValue : child.colorValue,
+            ),
             sortOrder: Value<int>(childOrder++),
             updatedAt: Value<int>(now),
           ),
@@ -1168,7 +1210,8 @@ Future<void> _seedDefaults(AppDatabase db) async {
             parentId: Value<String?>(parentId),
             iconKey: Value<String?>(child.iconKey),
             colorValue: Value<int?>(
-                child.colorValue == 0 ? parent.colorValue : child.colorValue),
+              child.colorValue == 0 ? parent.colorValue : child.colorValue,
+            ),
             sortOrder: Value<int>(childOrder++),
             updatedAt: Value<int>(now),
           ),
@@ -1220,15 +1263,19 @@ Future<void> _rebuildExpenseCategoryTree(AppDatabase db) async {
     '医疗': '医疗健康',
     '人情': '人情往来',
   };
-  final Uuid uuid = const Uuid();
+  const Uuid uuid = Uuid();
   final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
 
   final List<Book> books = await db.booksDao.watchAll().first;
   for (final Book book in books) {
     final List<Category> all = await db.categoriesDao.watchAll(book.id).first;
     final List<Category> parents = all
-        .where((Category c) =>
-            c.type == CategoryType.expense && c.parentId == null && !c.deleted)
+        .where(
+          (Category c) =>
+              c.type == CategoryType.expense &&
+              c.parentId == null &&
+              !c.deleted,
+        )
         .toList();
 
     // 快照内最大一级 sortOrder，用于给新增一级分配顺序（避免碰撞）。
@@ -1317,7 +1364,8 @@ Future<void> _rebuildExpenseCategoryTree(AppDatabase db) async {
             parentId: Value<String?>(parentId),
             iconKey: Value<String?>(child.iconKey),
             colorValue: Value<int?>(
-                child.colorValue == 0 ? def.colorValue : child.colorValue),
+              child.colorValue == 0 ? def.colorValue : child.colorValue,
+            ),
             sortOrder: Value<int>(childOrder++),
             updatedAt: Value<int>(now),
           ),
@@ -1358,15 +1406,17 @@ Future<void> _rebuildIncomeCategoryTree(AppDatabase db) async {
     '人情往来',
     '退款返现',
   };
-  final Uuid uuid = const Uuid();
+  const Uuid uuid = Uuid();
   final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
 
   final List<Book> books = await db.booksDao.watchAll().first;
   for (final Book book in books) {
     final List<Category> all = await db.categoriesDao.watchAll(book.id).first;
     final List<Category> parents = all
-        .where((Category c) =>
-            c.type == CategoryType.income && c.parentId == null && !c.deleted)
+        .where(
+          (Category c) =>
+              c.type == CategoryType.income && c.parentId == null && !c.deleted,
+        )
         .toList();
 
     int maxSo = -1;
@@ -1488,7 +1538,8 @@ Future<void> _rebuildIncomeCategoryTree(AppDatabase db) async {
             parentId: Value<String?>(parentId),
             iconKey: Value<String?>(child.iconKey),
             colorValue: Value<int?>(
-                child.colorValue == 0 ? def.colorValue : child.colorValue),
+              child.colorValue == 0 ? def.colorValue : child.colorValue,
+            ),
             sortOrder: Value<int>(childOrder++),
             updatedAt: Value<int>(now),
           ),
@@ -1504,8 +1555,10 @@ Future<void> _rebuildIncomeCategoryTree(AppDatabase db) async {
       final String parentName = e.value['parent']!;
       final Category? parent = findParent(parentName);
       if (parent == null) continue;
-      final bool childExists = all.any((Category x) =>
-          x.parentId == parent.id && x.name == newName && !x.deleted);
+      final bool childExists = all.any(
+        (Category x) =>
+            x.parentId == parent.id && x.name == newName && !x.deleted,
+      );
       if (childExists) continue;
       Category? oldTop;
       for (final Category c in all) {
@@ -1533,9 +1586,11 @@ Future<void> _rebuildIncomeCategoryTree(AppDatabase db) async {
                 ? Value<String?>(childDef.iconKey)
                 : const Value.absent(),
             colorValue: childDef != null
-                ? Value<int?>(childDef.colorValue == 0
-                    ? parent.colorValue
-                    : childDef.colorValue)
+                ? Value<int?>(
+                    childDef.colorValue == 0
+                        ? parent.colorValue
+                        : childDef.colorValue,
+                  )
                 : const Value.absent(),
             updatedAt: Value<int>(now),
             dirty: const Value<bool>(true),
@@ -1553,9 +1608,11 @@ Future<void> _rebuildIncomeCategoryTree(AppDatabase db) async {
                 ? Value<String?>(childDef.iconKey)
                 : const Value.absent(),
             colorValue: childDef != null
-                ? Value<int?>(childDef.colorValue == 0
-                    ? parent.colorValue
-                    : childDef.colorValue)
+                ? Value<int?>(
+                    childDef.colorValue == 0
+                        ? parent.colorValue
+                        : childDef.colorValue,
+                  )
                 : const Value.absent(),
             sortOrder: Value<int>(childSo),
             updatedAt: Value<int>(now),

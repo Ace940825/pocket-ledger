@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/theme/forest_design_tokens.dart';
@@ -9,6 +10,7 @@ import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/tag_pill.dart';
@@ -75,8 +77,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                 ),
                 Expanded(
                   child: txnsAsync.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
+                    loading: () => const LoadingState(),
                     error: (Object e, StackTrace? s) =>
                         Center(child: Text('加载失败：$e')),
                     data: (List<Transaction> all) {
@@ -397,35 +398,13 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
 
   Future<void> _confirmDelete() async {
     final int count = _selected.length;
-    final bool? ok = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-        ),
-        title: const Text('确认清理', style: TextStyle(fontSize: 17)),
-        content: Text(
-          '将清理 $count 笔账单，账户余额会同步回退，'
+    final bool? ok = await showConfirm(
+      context,
+      title: '确认清理',
+      content: '将清理 $count 笔账单，账户余额会同步回退，'
           '关联的报销 / 借还记录一并处理，清理后不可恢复。',
-          style: const TextStyle(fontSize: 14, height: 1.5),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text('取消',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('清理',
-                style: TextStyle(
-                  color: AppPalette.expense,
-                  fontWeight: FontWeight.w700,
-                )),
-          ),
-        ],
-      ),
+      confirmText: '清理',
+      danger: true,
     );
     if (ok != true) return;
     await _delete();
@@ -452,10 +431,11 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
           _selected.clear();
         });
         showAppToast(
-            context,
-            done == ids.length
-                ? '已清理 $done 笔账单'
-                : '已清理 $done 笔，${ids.length - done} 笔失败');
+          context,
+          done == ids.length
+              ? '已清理 $done 笔账单'
+              : '已清理 $done 笔，${ids.length - done} 笔失败',
+        );
       }
     }
   }
@@ -516,7 +496,7 @@ class _TipCard extends StatelessWidget {
                   size: 14,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     '可以根据时间或筛选条件筛选账单，再多选清理；'

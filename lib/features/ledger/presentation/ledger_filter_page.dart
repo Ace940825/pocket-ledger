@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
@@ -8,11 +6,10 @@ import '../../../database/app_database.dart';
 import '../../../database/daos/tags_dao.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
-import '../../../core/constants/app_dimens.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/account_filter_row.dart';
 import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../theme/app_colors.dart';
@@ -147,7 +144,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
   int? _parseMinor(String text) {
     final String t = text.trim();
     if (t.isEmpty) return null;
-    return Money.tryParse(t)?.minor;
+    return Money.tryParse(t).minor;
   }
 
   LedgerAdvancedFilter _buildResult() => LedgerAdvancedFilter(
@@ -253,7 +250,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        count == 0 ? '查询' : '查询(条件${count}个)',
+                        count == 0 ? '查询' : '查询(条件$count个)',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -294,7 +291,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                       onTap: () => setState(() => _tab = i),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: _tab == i
                               ? AppPalette.sage900
@@ -321,7 +320,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             borderRadius: BorderRadius.circular(8),
             onTap: _reset,
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Text(
                 '重置',
                 style: TextStyle(
@@ -438,65 +437,68 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
   /// 分类卡：支出/收入胶囊 + 全选 + 子分类选择键；下方按开关切换布局。
   Widget _categoryCard(List<Category> cats) {
     final List<Category> tops = _topCategories(cats);
-    return _card(children: <Widget>[
-      Row(
-        children: <Widget>[
-          _expenseIncomeCapsule(),
-          const Spacer(),
-          _selectAllChip(
-            allSelected: tops.isNotEmpty &&
-                tops.every((Category c) => _catIds.contains(c.id)),
-            onTap: () => setState(() {
-              final bool all = tops.isNotEmpty &&
-                  tops.every((Category c) => _catIds.contains(c.id));
-              // 全选/取消连同子分类一起，保证 (n/m) 计数同步。
-              for (final Category c in tops) {
-                final List<Category> subs = _subCategories(cats, c.id);
-                if (all) {
-                  _catIds.remove(c.id);
-                  _catIds.removeAll(subs.map((Category s) => s.id));
-                } else {
-                  _catIds.add(c.id);
-                  _catIds.addAll(subs.map((Category s) => s.id));
-                }
-              }
-            }),
-          ),
-          const SizedBox(width: 12),
-          _subChip(),
-        ],
-      ),
-      const SizedBox(height: 12),
-      if (!_subOn)
-        _chipGrid(<Widget>[
-          for (final Category c in tops)
-            _wrapChip(
-              c.name,
-              active: _catIds.contains(c.id),
+    return _card(
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            _expenseIncomeCapsule(),
+            const Spacer(),
+            _selectAllChip(
+              allSelected: tops.isNotEmpty &&
+                  tops.every((Category c) => _catIds.contains(c.id)),
               onTap: () => setState(() {
-                if (!_catIds.remove(c.id)) _catIds.add(c.id);
+                final bool all = tops.isNotEmpty &&
+                    tops.every((Category c) => _catIds.contains(c.id));
+                // 全选/取消连同子分类一起，保证 (n/m) 计数同步。
+                for (final Category c in tops) {
+                  final List<Category> subs = _subCategories(cats, c.id);
+                  if (all) {
+                    _catIds.remove(c.id);
+                    _catIds.removeAll(subs.map((Category s) => s.id));
+                  } else {
+                    _catIds.add(c.id);
+                    _catIds.addAll(subs.map((Category s) => s.id));
+                  }
+                }
               }),
             ),
-        ])
-      else if (tops.isEmpty)
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: 18),
-          child: Center(
-            child: Text(
-              '当前类型暂无分类',
-              style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-          ),
-        )
-      else
-        Column(
-          children: <Widget>[
-            for (final Category top in tops) _categoryExpandRow(cats, top),
+            const SizedBox(width: 12),
+            _subChip(),
           ],
         ),
-    ]);
+        const SizedBox(height: 12),
+        if (!_subOn)
+          _chipGrid(<Widget>[
+            for (final Category c in tops)
+              _wrapChip(
+                c.name,
+                active: _catIds.contains(c.id),
+                onTap: () => setState(() {
+                  if (!_catIds.remove(c.id)) _catIds.add(c.id);
+                }),
+              ),
+          ])
+        else if (tops.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Center(
+              child: Text(
+                '当前类型暂无分类',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          )
+        else
+          Column(
+            children: <Widget>[
+              for (final Category top in tops) _categoryExpandRow(cats, top),
+            ],
+          ),
+      ],
+    );
   }
 
   /// 支出/收入二段胶囊。
@@ -648,17 +650,19 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     ),
                   ),
                 const SizedBox(width: 10),
-                _checkBox(checked,
-                    onTap: () => setState(() {
-                          if (checked) {
-                            _catIds.remove(top.id);
-                            _catIds.removeAll(subs.map((Category c) => c.id));
-                          } else {
-                            // 勾选一级连同子分类一起，保证 (n/m) 计数同步。
-                            _catIds.add(top.id);
-                            _catIds.addAll(subs.map((Category c) => c.id));
-                          }
-                        })),
+                _checkBox(
+                  checked,
+                  onTap: () => setState(() {
+                    if (checked) {
+                      _catIds.remove(top.id);
+                      _catIds.removeAll(subs.map((Category c) => c.id));
+                    } else {
+                      // 勾选一级连同子分类一起，保证 (n/m) 计数同步。
+                      _catIds.add(top.id);
+                      _catIds.addAll(subs.map((Category c) => c.id));
+                    }
+                  }),
+                ),
               ],
             ),
           ),
@@ -723,32 +727,34 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
 
   /// 其他卡：标题 + 全选 + 十二枚等尺寸换行选择键。
   Widget _otherCard() {
-    return _card(children: <Widget>[
-      _cardTitle(
-        '其他',
-        trailing: _selectAllChip(
-          allSelected: _otherSel.length == _otherLabels.length,
-          onTap: () => setState(() {
-            if (_otherSel.length == _otherLabels.length) {
-              _otherSel.clear();
-            } else {
-              _otherSel.addAll(_otherLabels);
-            }
-          }),
-        ),
-      ),
-      const SizedBox(height: 12),
-      _chipGrid(<Widget>[
-        for (final String label in _otherLabels)
-          _wrapChip(
-            label,
-            active: _otherSel.contains(label),
+    return _card(
+      children: <Widget>[
+        _cardTitle(
+          '其他',
+          trailing: _selectAllChip(
+            allSelected: _otherSel.length == _otherLabels.length,
             onTap: () => setState(() {
-              if (!_otherSel.remove(label)) _otherSel.add(label);
+              if (_otherSel.length == _otherLabels.length) {
+                _otherSel.clear();
+              } else {
+                _otherSel.addAll(_otherLabels);
+              }
             }),
           ),
-      ]),
-    ]);
+        ),
+        const SizedBox(height: 12),
+        _chipGrid(<Widget>[
+          for (final String label in _otherLabels)
+            _wrapChip(
+              label,
+              active: _otherSel.contains(label),
+              onTap: () => setState(() {
+                if (!_otherSel.remove(label)) _otherSel.add(label);
+              }),
+            ),
+        ]),
+      ],
+    );
   }
 
   /// 4 列网格选择键布局（分类一级/其他卡共用）：
@@ -814,12 +820,14 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     final List<TagGroupRow> groups = q.isEmpty
         ? allGroups
         : allGroups
-            .map((TagGroupRow g) => TagGroupRow(
-                  g.category,
-                  g.tags
-                      .where((Tag t) => t.name.toLowerCase().contains(q))
-                      .toList(),
-                ))
+            .map(
+              (TagGroupRow g) => TagGroupRow(
+                g.category,
+                g.tags
+                    .where((Tag t) => t.name.toLowerCase().contains(q))
+                    .toList(),
+              ),
+            )
             .where((TagGroupRow g) => g.tags.isNotEmpty)
             .toList();
 
@@ -850,14 +858,20 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       controller: _tagSearchCtrl,
       onChanged: (_) => setState(() {}),
       style: TextStyle(
-          fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
+        fontSize: 15,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
       decoration: InputDecoration(
         hintText: '搜索标签',
         hintStyle: TextStyle(
-            fontSize: 15,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
-        prefixIcon: Icon(Icons.search,
-            size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          fontSize: 15,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        prefixIcon: Icon(
+          Icons.search,
+          size: 20,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         isDense: true,
@@ -980,20 +994,22 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
 
   /// 单个标签分组卡片：标题 + 标签网格。
   Widget _tagGroupCard(TagGroupRow g) {
-    return _card(children: <Widget>[
-      _cardTitle(g.category.name),
-      const SizedBox(height: 12),
-      _chipGrid(<Widget>[
-        for (final Tag t in g.tags)
-          _wrapChip(
-            t.name,
-            active: _tagNames.contains(t.name),
-            onTap: () => setState(() {
-              if (!_tagNames.remove(t.name)) _tagNames.add(t.name);
-            }),
-          ),
-      ]),
-    ]);
+    return _card(
+      children: <Widget>[
+        _cardTitle(g.category.name),
+        const SizedBox(height: 12),
+        _chipGrid(<Widget>[
+          for (final Tag t in g.tags)
+            _wrapChip(
+              t.name,
+              active: _tagNames.contains(t.name),
+              onTap: () => setState(() {
+                if (!_tagNames.remove(t.name)) _tagNames.add(t.name);
+              }),
+            ),
+        ]),
+      ],
+    );
   }
 
   // ────────────────────────── 账户 Tab ──────────────────────────
@@ -1033,11 +1049,17 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           ),
         ),
         const Spacer(),
-        _modeChip('包含', _accInclude,
-            onTap: () => setState(() => _accInclude = true)),
+        _modeChip(
+          '包含',
+          _accInclude,
+          onTap: () => setState(() => _accInclude = true),
+        ),
         const SizedBox(width: 8),
-        _modeChip('不包含', !_accInclude,
-            onTap: () => setState(() => _accInclude = false)),
+        _modeChip(
+          '不包含',
+          !_accInclude,
+          onTap: () => setState(() => _accInclude = false),
+        ),
       ],
     );
   }
@@ -1069,58 +1091,24 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
 
   /// 「未选择资产」行：筛选出没有选择资产的账单（游离账单）。
   Widget _accNoneRow() {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () => setState(() => _accIncludeNone = !_accIncludeNone),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return AccountFilterRow(
+      leading: Container(
+        width: 42,
+        height: 42,
         decoration: BoxDecoration(
-          color: AppPalette.white,
-          borderRadius: BorderRadius.circular(16),
+          color: AppPalette.paper2,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppPalette.paper2,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.account_balance_wallet_outlined,
-                size: 22,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    '未选择资产',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    '筛选出没有选择资产的账单(游离账单)',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _accCircle(_accIncludeNone),
-          ],
+        child: Icon(
+          Icons.account_balance_wallet_outlined,
+          size: 22,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
+      title: '未选择资产',
+      subtitle: '筛选出没有选择资产的账单(游离账单)',
+      checked: _accIncludeNone,
+      onTap: () => setState(() => _accIncludeNone = !_accIncludeNone),
     );
   }
 
@@ -1128,52 +1116,14 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
   Widget _accRow(Account a) {
     final String subtitle =
         (a.note != null && a.note!.trim().isNotEmpty) ? a.note! : a.type.label;
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
+    return AccountFilterRow(
+      leading: _accAvatar(a),
+      title: a.name,
+      subtitle: subtitle,
+      checked: _accIds.contains(a.id),
       onTap: () => setState(() {
         if (!_accIds.remove(a.id)) _accIds.add(a.id);
       }),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppPalette.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: <Widget>[
-            _accAvatar(a),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    a.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _accCircle(_accIds.contains(a.id)),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1199,27 +1149,6 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     );
   }
 
-  /// 右侧圆形勾选圈：选中=绿底白勾，未选中=灰描边空心圈。
-  Widget _accCircle(bool checked) {
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: checked ? AppPalette.ctaGreen : Colors.transparent,
-        border: Border.all(
-          color: checked
-              ? AppPalette.ctaGreen
-              : Theme.of(context).colorScheme.onSurfaceVariant,
-          width: 1.4,
-        ),
-      ),
-      child: checked
-          ? const Icon(Icons.check, size: 14, color: AppPalette.white)
-          : null,
-    );
-  }
-
   // ────────────────────────── 基本 Tab ──────────────────────────
 
   Widget _buildBasicTab() {
@@ -1227,144 +1156,174 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       children: <Widget>[
-        _card(children: <Widget>[
-          _cardTitle('基本信息', trailing: _helpChip('按时间、金额区间、备注筛选账单')),
-          const SizedBox(height: 12),
-          _labelRow('时间', trailing: _timeSelector()),
-          const SizedBox(height: 12),
-          _labelRow(
-            '金额区间',
-            trailing: Expanded(
-              child: Row(
-                children: <Widget>[
-                  Expanded(child: _amountField(_minCtrl, '最小')),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      '至',
-                      style: TextStyle(
-                          fontSize: 14,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                  Expanded(child: _amountField(_maxCtrl, '最大')),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _noteField(),
-        ]),
-        const SizedBox(height: 14),
-        _card(children: <Widget>[
-          _cardTitle('类型筛选',
-              trailing: _clearChip(
-                  '取消',
-                  () => setState(() {
-                        _flowTypes.clear();
-                        _billTypes.clear();
-                        _sources.clear();
-                      }))),
-          const SizedBox(height: 12),
-          _labelRow(
-            '收支类型',
-            trailing: Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Wrap(
-                  spacing: 8,
+        _card(
+          children: <Widget>[
+            _cardTitle('基本信息', trailing: _helpChip('按时间、金额区间、备注筛选账单')),
+            const SizedBox(height: 12),
+            _labelRow('时间', trailing: _timeSelector()),
+            const SizedBox(height: 12),
+            _labelRow(
+              '金额区间',
+              trailing: Expanded(
+                child: Row(
                   children: <Widget>[
-                    for (final String v in const <String>['支出', '收入'])
-                      _chip(v, _flowTypes,
-                          single: false, onChanged: (_) => setState(() {})),
+                    Expanded(child: _amountField(_minCtrl, '最小')),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        '至',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: _amountField(_maxCtrl, '最大')),
                   ],
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          _labelRow(
-            '账单类型',
-            trailing: Expanded(
-              child: _scrollChips(
-                const <String>[
-                  '普通收支',
-                  '转账',
-                  '退款',
-                  '借款',
-                  '报销',
-                  '报销收入',
-                ],
-                _billTypes,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          _labelRow(
-            '账单来源',
-            trailing: Expanded(
-              child: _scrollChips(
-                const <String>[
-                  '导入',
-                  '手动记账',
-                  '自动同步',
-                  '存钱计划',
-                  '分期记账',
-                ],
-                _sources,
-              ),
-            ),
-          ),
-        ]),
+            const SizedBox(height: 12),
+            _noteField(),
+          ],
+        ),
         const SizedBox(height: 14),
-        _card(children: <Widget>[
-          _cardTitle(
-            '收支与预算',
-            trailing: _clearChip(
+        _card(
+          children: <Widget>[
+            _cardTitle(
+              '类型筛选',
+              trailing: _clearChip(
                 '取消',
                 () => setState(() {
-                      _statsExclude = null;
-                      _budgetExclude = null;
-                    })),
-          ),
-          const SizedBox(height: 12),
-          _labelRow(
-            '收支',
-            trailing: Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Wrap(
-                  spacing: 8,
-                  children: <Widget>[
-                    _boolChip('不计入收支', true, _statsExclude,
-                        (v) => setState(() => _statsExclude = v)),
-                    _boolChip('计入收支', false, _statsExclude,
-                        (v) => setState(() => _statsExclude = v)),
-                  ],
+                  _flowTypes.clear();
+                  _billTypes.clear();
+                  _sources.clear();
+                }),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _labelRow(
+              '收支类型',
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 8,
+                    children: <Widget>[
+                      for (final String v in const <String>['支出', '收入'])
+                        _chip(
+                          v,
+                          _flowTypes,
+                          single: false,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          _labelRow(
-            '预算',
-            trailing: Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Wrap(
-                  spacing: 8,
-                  children: <Widget>[
-                    _boolChip('不计入预算', true, _budgetExclude,
-                        (v) => setState(() => _budgetExclude = v)),
-                    _boolChip('计入预算', false, _budgetExclude,
-                        (v) => setState(() => _budgetExclude = v)),
+            const SizedBox(height: 10),
+            _labelRow(
+              '账单类型',
+              trailing: Expanded(
+                child: _scrollChips(
+                  const <String>[
+                    '普通收支',
+                    '转账',
+                    '退款',
+                    '借款',
+                    '报销',
+                    '报销收入',
                   ],
+                  _billTypes,
                 ),
               ),
             ),
-          ),
-        ]),
+            const SizedBox(height: 10),
+            _labelRow(
+              '账单来源',
+              trailing: Expanded(
+                child: _scrollChips(
+                  const <String>[
+                    '导入',
+                    '手动记账',
+                    '自动同步',
+                    '存钱计划',
+                    '分期记账',
+                  ],
+                  _sources,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _card(
+          children: <Widget>[
+            _cardTitle(
+              '收支与预算',
+              trailing: _clearChip(
+                '取消',
+                () => setState(() {
+                  _statsExclude = null;
+                  _budgetExclude = null;
+                }),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _labelRow(
+              '收支',
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 8,
+                    children: <Widget>[
+                      _boolChip(
+                        '不计入收支',
+                        true,
+                        _statsExclude,
+                        (v) => setState(() => _statsExclude = v),
+                      ),
+                      _boolChip(
+                        '计入收支',
+                        false,
+                        _statsExclude,
+                        (v) => setState(() => _statsExclude = v),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _labelRow(
+              '预算',
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 8,
+                    children: <Widget>[
+                      _boolChip(
+                        '不计入预算',
+                        true,
+                        _budgetExclude,
+                        (v) => setState(() => _budgetExclude = v),
+                      ),
+                      _boolChip(
+                        '计入预算',
+                        false,
+                        _budgetExclude,
+                        (v) => setState(() => _budgetExclude = v),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -1486,13 +1445,19 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     final String label = _timeLabel();
     final CalendarPeriod? initialPeriod = _rangeStart == null
         ? null
-        : CalendarPeriod(_rangeMode ?? CalendarPeriodMode.custom, _rangeStart!,
-            _rangeEnd ?? _rangeStart!);
+        : CalendarPeriod(
+            _rangeMode ?? CalendarPeriodMode.custom,
+            _rangeStart!,
+            _rangeEnd ?? _rangeStart!,
+          );
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () async {
         final DateTime today = DateTime(
-            DateTime.now().year, DateTime.now().month, DateTime.now().day);
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+        );
         final CalendarSelection? picked = await CalendarSheet.show(
           context,
           mode: CalendarSheetMode.day,
@@ -1579,8 +1544,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
-            fontSize: 14,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
+          fontSize: 14,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         isDense: true,
@@ -1609,12 +1575,15 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       maxLines: 3,
       minLines: 3,
       style: TextStyle(
-          fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
+        fontSize: 15,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
       decoration: InputDecoration(
         hintText: '备注',
         hintStyle: TextStyle(
-            fontSize: 15,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
+          fontSize: 15,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         contentPadding:
@@ -1647,8 +1616,12 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             for (final String v in values)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
-                child: _chip(v, selected,
-                    single: false, onChanged: (_) => setState(() {})),
+                child: _chip(
+                  v,
+                  selected,
+                  single: false,
+                  onChanged: (_) => setState(() {}),
+                ),
               ),
           ],
         ),

@@ -41,12 +41,12 @@ void main() {
   Future<String> addWallet() async {
     const String id = 'acc-wallet';
     await db.accountsDao.insertAccount(
-      AccountsCompanion(
-        id: const Value<String>(id),
-        bookId: const Value<String>('default'),
-        name: const Value<String>('钱包'),
-        type: const Value<AccountType>(AccountType.eWallet),
-        updatedAt: const Value<int>(0),
+      const AccountsCompanion(
+        id: Value<String>(id),
+        bookId: Value<String>('default'),
+        name: Value<String>('钱包'),
+        type: Value<AccountType>(AccountType.eWallet),
+        updatedAt: Value<int>(0),
       ),
     );
     return id;

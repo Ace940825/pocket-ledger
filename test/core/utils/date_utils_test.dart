@@ -152,7 +152,7 @@ void main() {
     test('今天带「今天」与星期', () {
       final DateTime now = DateTime.now();
       final String label = accountLedgerDateLabel(
-          utcMs(DateTime(now.year, now.month, now.day, 9)));
+          utcMs(DateTime(now.year, now.month, now.day, 9)),);
       expect(label, contains('今天'));
       expect(label, contains('月'));
     });
@@ -162,7 +162,7 @@ void main() {
       final DateTime yesterday = DateTime(now.year, now.month, now.day)
           .subtract(const Duration(days: 1));
       final String label = accountLedgerDateLabel(
-          utcMs(DateTime(yesterday.year, yesterday.month, yesterday.day, 9)));
+          utcMs(DateTime(yesterday.year, yesterday.month, yesterday.day, 9)),);
       expect(label, contains('昨天'));
     });
 
@@ -171,7 +171,7 @@ void main() {
       final DateTime old = DateTime(now.year, now.month, now.day)
           .subtract(const Duration(days: 10));
       final String label = accountLedgerDateLabel(
-          utcMs(DateTime(old.year, old.month, old.day, 9)));
+          utcMs(DateTime(old.year, old.month, old.day, 9)),);
       expect(label, isNot(contains('今天')));
       expect(label, isNot(contains('昨天')));
       expect(label, isNot(contains('前天')));

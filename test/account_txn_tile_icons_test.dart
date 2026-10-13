@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocket_ledger/database/app_database.dart';
 import 'package:pocket_ledger/domain/enums.dart';
-import 'package:pocket_ledger/features/accounts/providers/accounts_providers.dart';
 import 'package:pocket_ledger/features/accounts/presentation/widgets/account_transaction_tile.dart';
+import 'package:pocket_ledger/features/accounts/providers/accounts_providers.dart';
 
 /// 渲染校验：账户详情页流水行（[AccountTransactionTile]）接入双轨线稿后，
 /// 分类图标应与流水列表行一致 —— 普通支出走手绘线稿、储蓄存取走储蓄罐线稿、

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../domain/enums.dart';
 import '../data/account_icon.dart';
@@ -187,9 +186,11 @@ class _TypeOption extends StatelessWidget {
         ),
         child: Row(
           children: <Widget>[
-            Icon(accountIcon(type),
-                size: 22,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              accountIcon(type),
+              size: 22,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Text(

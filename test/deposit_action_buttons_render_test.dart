@@ -23,7 +23,7 @@ void main() {
                     padding: EdgeInsets.symmetric(vertical: 14),
                     child: Text('测试存钱计划',
                         style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700)),
+                            fontSize: 15, fontWeight: FontWeight.w700,),),
                   ),
                   ListTile(
                     leading: LineIcon(

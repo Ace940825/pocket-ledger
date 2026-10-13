@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../theme/app_colors.dart';
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../core/theme/forest_design_tokens.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
-import '../../providers/ledger_providers.dart';
 import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/attachment_viewer.dart';
 import '../../../../shared/widgets/badges.dart';
 import '../../../../shared/widgets/line_icons.dart';
 import '../../../../shared/widgets/money_text.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../accounts/providers/accounts_providers.dart';
 import '../../../lend/providers/lend_providers.dart';
 import '../../../reimbursement/data/reimbursement_repository.dart';
 import '../../../reimbursement/providers/reimbursement_providers.dart';
+import '../../providers/ledger_providers.dart';
 import 'txn_icon.dart';
 
 /// 流水列表项（小青账版本，对齐参考稿卡片逻辑）。
@@ -105,7 +105,9 @@ class TransactionTile extends ConsumerWidget {
         final List<ReimbAllocEntry> allocs = parseReimbAllocs(r.incomeAllocs);
         if (allocs.isNotEmpty) {
           receivedMinor += allocs.fold<int>(
-              0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
+            0,
+            (int s, ReimbAllocEntry e) => s + e.allocMinor,
+          );
         } else if (r.incomeTransactionId != null) {
           receivedMinor += ref
                   .watch(transactionDetailProvider(r.incomeTransactionId!))
@@ -168,7 +170,9 @@ class TransactionTile extends ConsumerWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                  color: Theme.of(context).colorScheme.outline, width: 0.5),
+                color: Theme.of(context).colorScheme.outline,
+                width: 0.5,
+              ),
             ),
           ),
           child: Row(
@@ -243,7 +247,7 @@ class TransactionTile extends ConsumerWidget {
               ),
               if (attachments != null && attachments.isNotEmpty)
                 Padding(
-                  padding: EdgeInsets.only(right: AppDimens.spaceXs),
+                  padding: const EdgeInsets.only(right: AppDimens.spaceXs),
                   child: Icon(
                     Icons.attach_file,
                     size: 16,

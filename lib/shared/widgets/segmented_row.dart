@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
-import '../../theme/app_dimens.dart';
 
 /// 分段/开关行（全应用统一）：等宽胶囊分组，选中态填充、未选透明。
 ///

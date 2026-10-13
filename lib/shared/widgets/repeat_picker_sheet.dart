@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
-import 'amount_keypad.dart';
 import '../../features/installment/domain/repeat_rule.dart';
+import '../../theme/app_colors.dart';
+import 'amount_keypad.dart';
+import 'sheet_scaffold.dart';
 
 /// 小青账风格的分期「执行方式 / 重复周期」底部选择面板。
 ///
@@ -21,11 +21,11 @@ class RepeatPickerSheet extends StatefulWidget {
     BuildContext context, {
     InstallmentRepeatRule? initialRule,
   }) async {
-    return showModalBottomSheet<InstallmentRepeatRule?>(
-      context: context,
+    return showAppModalSheet<InstallmentRepeatRule?>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => RepeatPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: RepeatPickerSheet(
         initialRule: initialRule,
       ),
     );
@@ -142,70 +142,57 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
       ),
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
-      child: SafeArea(
-        bottom: false,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(AppDimens.radiusLg),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              _buildHeader(theme),
-              const Divider(height: 1),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      left: AppDimens.spaceLg,
-                      right: AppDimens.spaceLg,
-                      top: AppDimens.spaceMd,
-                      bottom: AppDimens.spaceMd,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        _buildUnitTabs(theme),
-                        const SizedBox(height: AppDimens.spaceLg),
-                        _buildCenteredContent(theme),
-                      ],
-                    ),
-                  ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _buildHeader(theme),
+          const Divider(height: 1),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  left: AppDimens.spaceLg,
+                  right: AppDimens.spaceLg,
+                  top: AppDimens.spaceMd,
+                  bottom: AppDimens.spaceMd,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    _buildUnitTabs(theme),
+                    const SizedBox(height: AppDimens.spaceLg),
+                    _buildCenteredContent(theme),
+                  ],
                 ),
               ),
-              // 键盘弹出时隐藏保存按钮，让面板更紧凑；点击外部收起键盘后自动重现。
-              if (!keyboardVisible)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppDimens.spaceLg,
-                    AppDimens.spaceMd,
-                    AppDimens.spaceLg,
-                    0,
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () => Navigator.of(context).pop(_result),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppPalette.primary,
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppDimens.radiusMd),
-                        ),
-                      ),
-                      child: const Text('保存'),
+            ),
+          ),
+          // 键盘弹出时隐藏保存按钮，让面板更紧凑；点击外部收起键盘后自动重现。
+          if (!keyboardVisible)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppDimens.spaceLg,
+                AppDimens.spaceMd,
+                AppDimens.spaceLg,
+                0,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).pop(_result),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppPalette.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     ),
                   ),
+                  child: const Text('保存'),
                 ),
-            ],
-          ),
-        ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -421,7 +408,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
     final double cellWidth = (maxWidth - (columns - 1) * spacing) / columns;
     final double cellHeight = cellWidth / aspectRatio;
     const int itemCount = 32; // 1-31 日 + 月末
-    final int rows = (itemCount + columns - 1) ~/ columns;
+    const int rows = (itemCount + columns - 1) ~/ columns;
     return rows * cellHeight + (rows - 1) * spacing;
   }
 
@@ -461,35 +448,39 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
 
     final List<Widget> children = <Widget>[];
     for (int day = 1; day <= 31; day++) {
-      children.add(_optionChip(
-        label: '$day',
-        selected: _monthDays.contains(day),
+      children.add(
+        _optionChip(
+          label: '$day',
+          selected: _monthDays.contains(day),
+          onTap: () => setState(() {
+            if (_monthDays.contains(day)) {
+              _monthDays.remove(day);
+            } else {
+              _monthDays.add(day);
+            }
+          }),
+          width: cellWidth,
+          height: cellHeight,
+          fontSize: fontSize,
+        ),
+      );
+    }
+    children.add(
+      _optionChip(
+        label: '月末',
+        selected: _monthDays.contains(-1),
         onTap: () => setState(() {
-          if (_monthDays.contains(day)) {
-            _monthDays.remove(day);
+          if (_monthDays.contains(-1)) {
+            _monthDays.remove(-1);
           } else {
-            _monthDays.add(day);
+            _monthDays.add(-1);
           }
         }),
         width: cellWidth,
         height: cellHeight,
         fontSize: fontSize,
-      ));
-    }
-    children.add(_optionChip(
-      label: '月末',
-      selected: _monthDays.contains(-1),
-      onTap: () => setState(() {
-        if (_monthDays.contains(-1)) {
-          _monthDays.remove(-1);
-        } else {
-          _monthDays.add(-1);
-        }
-      }),
-      width: cellWidth,
-      height: cellHeight,
-      fontSize: fontSize,
-    ));
+      ),
+    );
     return Wrap(
       spacing: spacing,
       runSpacing: spacing,

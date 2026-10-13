@@ -1,20 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
-import 'package:pocket_ledger/shared/widgets/segmented_row.dart';
-import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
-import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
-import 'package:pocket_ledger/shared/widgets/sheet_drag_handle.dart';
-import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
-import 'package:pocket_ledger/shared/widgets/app_button.dart';
-import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
@@ -24,18 +13,25 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:pocket_ledger/shared/widgets/app_button.dart';
+import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
+import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
+import 'package:pocket_ledger/shared/widgets/loading_state.dart';
+import 'package:pocket_ledger/shared/widgets/segmented_row.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
+import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/config/env.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_theme.dart';
 import '../../../core/constants/app_dimens.dart';
 import '../../../core/errors/failures.dart';
+import '../../../core/theme/forest_design_tokens.dart';
+import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
-import '../../investment/providers/investment_providers.dart';
 import '../../../features/accounts/data/account_icon.dart';
-import '../../../features/accounts/data/bank_data.dart';
 import '../../../features/accounts/providers/accounts_providers.dart';
 import '../../../features/categories/providers/categories_providers.dart';
 import '../../../features/installment/presentation/add_installment_page.dart';
@@ -50,30 +46,30 @@ import '../../../features/savings/presentation/savings_page.dart'
 import '../../../features/savings/providers/savings_providers.dart';
 import '../../../features/settings/providers/sync_settings_providers.dart';
 import '../../../providers/app_providers.dart';
-import '../../../core/utils/date_utils.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/attachment_viewer.dart';
 import '../../../shared/widgets/calculator_sheet.dart';
-import '../../../shared/widgets/category_icons.dart';
-import '../../../shared/widgets/line_icons.dart';
-import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
-import '../../../shared/widgets/money_text.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../sync/sync_adapter.dart';
-import '../providers/recording_settings_provider.dart';
-import '../record_tab.dart';
-import '../../../shared/widgets/amount_keypad.dart';
-import 'account_picker_sheet.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
 import '../../investment/data/investment_repository.dart';
 import '../../investment/data/market/security_meta_repository.dart';
-import 'bill_selection_page.dart';
-import '../../../core/theme/forest_design_tokens.dart';
+import '../../investment/presentation/widgets/security_candidate_tile.dart';
+import '../../investment/providers/investment_providers.dart';
 import '../../tags/presentation/tag_sheet.dart';
-import 'recording_settings_sheet.dart';
+import '../providers/recording_settings_provider.dart';
+import '../record_tab.dart';
+import 'account_picker_sheet.dart';
+import 'bill_selection_page.dart';
 import 'record_template_sheet.dart';
-import '../../../shared/widgets/app_toast.dart';
+import 'recording_settings_sheet.dart';
 
 /// 投资成交回执：保存成功后弹窗展示的只读数据快照。
 typedef _InvReceipt = ({
@@ -175,9 +171,10 @@ class _Sage {
   // --shadow-pick: 0 4px 16px rgba(95,154,110,.18),0 0 0 1px rgba(95,154,110,.25)
   static List<BoxShadow> pickShadow = <BoxShadow>[
     BoxShadow(
-        color: AppPalette.sage600.withValues(alpha: 0.18),
-        blurRadius: 16,
-        offset: Offset(0, 4)),
+      color: AppPalette.sage600.withValues(alpha: 0.18),
+      blurRadius: 16,
+      offset: const Offset(0, 4),
+    ),
     BoxShadow(
       color: AppPalette.sage600.withValues(alpha: 0.251),
       blurRadius: 0,
@@ -451,7 +448,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   int? _aaCollectOverrideMinor;
 
   // 存钱
-  bool _saveDeposit = true;
+  final bool _saveDeposit = true;
   String? _goalId;
 
   // 支出 / 收入新布局状态
@@ -708,9 +705,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       if (tab == RecordTab.refund) {
         _refundOriginals
           ..clear()
-          ..addAll(refundOrig == null
-              ? const <Transaction>[]
-              : <Transaction>[refundOrig]);
+          ..addAll(
+            refundOrig == null
+                ? const <Transaction>[]
+                : <Transaction>[refundOrig],
+          );
         _refundAmountAuto = false;
         _refundAmountController.text = _amount;
       } else if (tab == RecordTab.reimbursement) {
@@ -794,9 +793,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       if (rules.quantityDriven) {
         // 备注份额为基本单位（股/张/克/枚），输入框按输入单位（手等）反折算。
         _invQtyController.text = oldQtyMicros > 0
-            ? _trimQtyText(oldQtyMicros /
-                InvestmentRepository.quantityScale /
-                rules.unitsPerInput)
+            ? _trimQtyText(
+                oldQtyMicros /
+                    InvestmentRepository.quantityScale /
+                    rules.unitsPerInput,
+              )
             : '';
       } else {
         _invAmountController.text = oldAmountMinor > 0
@@ -1364,12 +1365,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             final int lendYr =
                 DateTime.fromMillisecondsSinceEpoch(occurredAt).year;
             if (_accountId != null && _accountId!.isNotEmpty) {
-              ref.invalidate(accountTransactionsByYearProvider(
-                  (accountId: _accountId!, year: lendYr)));
+              ref.invalidate(
+                accountTransactionsByYearProvider(
+                  (accountId: _accountId!, year: lendYr),
+                ),
+              );
             }
             if (_toAccountId != null && _toAccountId!.isNotEmpty) {
-              ref.invalidate(accountTransactionsByYearProvider(
-                  (accountId: _toAccountId!, year: lendYr)));
+              ref.invalidate(
+                accountTransactionsByYearProvider(
+                  (accountId: _toAccountId!, year: lendYr),
+                ),
+              );
             }
             savedId = _editingLend!.id;
             break;
@@ -1568,6 +1575,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         });
         return;
       }
+      if (!mounted) return;
       context.pop();
     } on AppFailure catch (e) {
       if (mounted) _toast(e.message);
@@ -1675,13 +1683,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         left -= alloc;
       }
       if (alloc <= 0) continue;
-      plan.add((
-        bill: t,
-        linked: linked,
-        finish: finish,
-        alloc: alloc,
-        remaining: remaining,
-      ));
+      plan.add(
+        (
+          bill: t,
+          linked: linked,
+          finish: finish,
+          alloc: alloc,
+          remaining: remaining,
+        ),
+      );
     }
     // 报销收入超出所选账单待收总额时，超出部分并入最后一个非「完成报销」
     // 账单的台账（超额报销）：台账记收入实际金额，「已报」随之同步为
@@ -1944,7 +1954,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     } else if (picked is CalendarPeriod) {
       final DateTime s = picked.start;
       resolved = DateTime(
-          s.year, s.month, s.day, _occurredAt.hour, _occurredAt.minute);
+        s.year,
+        s.month,
+        s.day,
+        _occurredAt.hour,
+        _occurredAt.minute,
+      );
     } else {
       return;
     }
@@ -1999,19 +2014,22 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     '去「储蓄」页选择模式创建',
                     style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right,
-                size: 20,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       );
@@ -2052,9 +2070,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right,
-                  size: 20,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ],
           ),
         ),
@@ -2130,7 +2150,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           _noteField(),
         ];
       case RecordTab.reimbursement:
-      case RecordTab.refund:
       case RecordTab.savings:
       case RecordTab.installment:
       case RecordTab.investment:
@@ -2235,139 +2254,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     });
   }
 
-  /// 转账页卡片式账户选择器（匹配小青账模板）。
-  ///
-  /// 左侧是圆角长条账户栏卡片（已选账户名或占位符），右侧是圆角长条标签卡片。
-  Widget _buildTransferAccountCard({
-    required String label,
-    required String? value,
-    required ValueChanged<String?> onChanged,
-    String? excludeId,
-    String placeholder = '请选择',
-
-    /// 限定可选项大类；非空时仅展示这些大类（如借还借入/借出账户限定为
-    /// 应付 / 应收），为空则展示资金类账户（排除应收 / 应付对方虚拟账户）。
-    List<AccountCategory>? allowedCategories,
-
-    /// 限定可选项具体类型；非空时只展示这些类型（优先级高于 [allowedCategories]），
-    /// 用于「报销账户」这类只需应收类中的某一个分支（如仅报销、不含借出）。
-    List<AccountType>? allowedTypes,
-  }) {
-    final AsyncValue<List<Account>> accounts = ref.watch(accountsProvider);
-    return accounts.when(
-      data: (List<Account> list) {
-        // 过滤口径（展示与选择器共用）：资金类（默认）排除应收 / 应付；
-        // allowedTypes 按具体类型过滤，allowedCategories 按大类过滤，
-        // 二选一（allowedTypes 优先）。
-        List<Account> match(List<Account> src) {
-          List<Account> s;
-          if (allowedTypes != null) {
-            s = src
-                .where((Account a) => allowedTypes!.contains(a.type))
-                .toList(growable: false);
-          } else if (allowedCategories == null) {
-            s = fundAccountsOnly(src);
-          } else {
-            s = src
-                .where(
-                  (Account a) => allowedCategories!.contains(a.type.category),
-                )
-                .toList(growable: false);
-          }
-          if (excludeId != null && s.length > 1) {
-            s = s.where((Account a) => a.id != excludeId).toList();
-          }
-          return s;
-        }
-
-        final List<Account> shown = match(list);
-        final String? safe =
-            shown.any((Account a) => a.id == value) ? value : null;
-        final Account? selected =
-            safe == null ? null : shown.firstWhere((Account a) => a.id == safe);
-        return Row(
-          children: <Widget>[
-            // 左侧：账户栏卡片。
-            Expanded(
-              child: InkWell(
-                // 空列表也打开选择器（弹窗内「＋添加」兜底），不禁用点击。
-                onTap: () => _showTransferAccountPicker(
-                  label: label,
-                  // 选择器实时 watch 账户流并套用同一过滤口径
-                  filter: match,
-                  selectedId: safe,
-                  onChanged: onChanged,
-                ),
-                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                child: Container(
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimens.spaceMd,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppPalette.surfaceLight,
-                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                    border: Border.all(
-                        color: Theme.of(context).colorScheme.outline),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: <Widget>[
-                      Flexible(
-                        child: Text(
-                          selected?.name ?? placeholder,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color: selected != null
-                                    ? Theme.of(context).colorScheme.onSurface
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                              ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.left,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppDimens.spaceSm),
-            // 右侧：标签卡片。固定宽度与费用行右侧计算器列一致，使主卡片右边缘对齐。
-            Container(
-              width: 96,
-              height: 48,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.spaceMd,
-              ),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppPalette.surfaceLight,
-                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                border:
-                    Border.all(color: Theme.of(context).colorScheme.outline),
-              ),
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        );
-      },
-      loading: () => const LinearProgressIndicator(),
-      error: (Object e, _) => Text('账户加载失败：$e'),
-    );
-  }
-
   /// 弹出 A 模板账户选择弹窗（转账 / 借还 / 报销 / 退款各 tab 通用）。
   ///
   /// 与支出/收入功能键的账户选择同源：网格卡片 + 列表切换 + 添加 / 资产管理
@@ -2387,11 +2273,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     String? noneSubtitle,
   }) async {
     FocusManager.instance.primaryFocus?.unfocus();
-    final String? result = await showModalBottomSheet<String>(
-      context: context,
+    final String? result = await showAppModalSheet<String>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => AccountPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: AccountPickerSheet(
         filter: filter,
         selectedId: selectedId,
         title: '选择$label',
@@ -2408,7 +2294,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         onManage: () {
           if (mounted) context.push(Routes.accountManage);
         },
-        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
+        onConfirm: (Account? acc) => Navigator.of(context).pop(acc?.id ?? ''),
       ),
     );
     if (result == null || !mounted) return;
@@ -2435,11 +2321,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Row(
+            const Row(
               children: <Widget>[
-                const Icon(Icons.sync_alt, size: 14, color: ForestGreen.deep),
-                const SizedBox(width: 6),
-                const Text(
+                Icon(Icons.sync_alt, size: 14, color: ForestGreen.deep),
+                SizedBox(width: 6),
+                Text(
                   '账户互转',
                   style: TextStyle(
                     fontSize: 13,
@@ -2609,8 +2495,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   }
 
   /// 黏土账户头像：未选 = 米白黏土 + 线稿图标；已选 = sage 渐变 + 白图标。
-  Widget _buildFlowAvatar(BuildContext context,
-      {required IconData icon, required bool picked}) {
+  Widget _buildFlowAvatar(
+    BuildContext context, {
+    required IconData icon,
+    required bool picked,
+  }) {
     return Container(
       width: 48,
       height: 48,
@@ -2622,7 +2511,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 end: Alignment.bottomRight,
                 colors: <Color>[
                   context.colors.surfaceBright,
-                  AppPalette.sandPale
+                  AppPalette.sandPale,
                 ],
               ),
         borderRadius: BorderRadius.circular(14),
@@ -2652,7 +2541,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 gradient: RadialGradient(
-                  center: Alignment(-0.24, -0.4),
+                  center: const Alignment(-0.24, -0.4),
                   radius: 1.4,
                   colors: <Color>[
                     Theme.of(context)
@@ -2699,12 +2588,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               BoxShadow(
                 color: AppPalette.sage600.withValues(alpha: 0.451),
                 blurRadius: 16,
-                offset: Offset(0, 6),
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: Icon(Icons.sync_alt,
-              size: 20, color: Theme.of(context).colorScheme.onPrimary),
+          child: Icon(
+            Icons.sync_alt,
+            size: 20,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
         ),
       ),
     );
@@ -2765,7 +2657,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       ),
       child: Row(
         children: <Widget>[
-          Icon(Icons.sync_alt, size: 13, color: ForestGreen.deep),
+          const Icon(Icons.sync_alt, size: 13, color: ForestGreen.deep),
           const SizedBox(width: 5),
           Expanded(
             child: Row(
@@ -2781,7 +2673,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     letterSpacing: 0.3,
                   ),
                 ),
-                SizedBox(width: 5),
+                const SizedBox(width: 5),
                 Text(
                   '¥',
                   style: TextStyle(
@@ -2802,7 +2694,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         fontWeight: FontWeight.w700,
                         color: ForestGreen.deep,
                         fontFeatures: <FontFeature>[
-                          FontFeature.tabularFigures()
+                          FontFeature.tabularFigures(),
                         ],
                       ),
                     ),
@@ -2905,7 +2797,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       color: fg,
                     ),
                   ),
-                  SizedBox(width: 5),
+                  const SizedBox(width: 5),
                   Text(
                     '¥',
                     style: TextStyle(
@@ -2954,8 +2846,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: fg,
-                          fontFeatures: <FontFeature>[
-                            FontFeature.tabularFigures()
+                          fontFeatures: const <FontFeature>[
+                            FontFeature.tabularFigures(),
                           ],
                         ),
                         maxLines: 1,
@@ -2985,7 +2877,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             size: 16,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.spaceSm),
           Expanded(
             child: Text(
               '转账、信用卡还款、取现可以用这个功能哦。\n'
@@ -3018,7 +2910,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       textStyle: const TextStyle(fontSize: 15, letterSpacing: 3),
       options: const <SegmentOption<LendDirection>>[
         SegmentOption<LendDirection>(
-            value: LendDirection.borrowIn, label: '借入'),
+          value: LendDirection.borrowIn,
+          label: '借入',
+        ),
         SegmentOption<LendDirection>(value: LendDirection.lendOut, label: '借出'),
       ],
     );
@@ -3054,7 +2948,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             AnimatedContainer(
-              duration: Duration(milliseconds: 220),
+              duration: const Duration(milliseconds: 220),
               width: 50,
               height: 50,
               transform: selected
@@ -3072,7 +2966,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         BoxShadow(
                           color: AppPalette.sage600.withValues(alpha: 0.4),
                           blurRadius: 16,
-                          offset: Offset(0, 6),
+                          offset: const Offset(0, 6),
                         ),
                       ]
                     : _Sage.shadow,
@@ -3140,9 +3034,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     .where(
                       (Account a) =>
                           (allowedCategories == null ||
-                              allowedCategories!.contains(a.type.category)) &&
+                              allowedCategories.contains(a.type.category)) &&
                           (allowedTypes == null ||
-                              allowedTypes!.contains(a.type)),
+                              allowedTypes.contains(a.type)),
                     )
                     .toList(growable: false);
         final List<Account> shown = match(list);
@@ -3332,7 +3226,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final String current = _counterpartyController.text.trim();
     final bool hasValue = current.isNotEmpty;
     final bool picked = hasValue;
-    final String placeholder = '未选择 · ${_lendCounterpartyHint}';
+    final String placeholder = '未选择 · $_lendCounterpartyHint';
     return InkWell(
       onTap: _showLendCounterpartyPicker,
       borderRadius: BorderRadius.circular(16),
@@ -3399,7 +3293,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             ),
                           ],
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
                           hasValue ? current : placeholder,
                           style: TextStyle(
@@ -3439,11 +3333,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 使用 A 模板账户选择弹窗（网格卡片 + 列表切换 + 确认）。
   Future<void> _showLendCounterpartyPicker() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    final String? result = await showModalBottomSheet<String?>(
-      context: context,
+    final String? result = await showAppModalSheet<String?>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => AccountPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: AccountPickerSheet(
         // 实时 watch 账户流：仅当前方向的应收 / 应付真实账户
         // （弹窗内过滤已删除账户，与 lendAccountsProvider 口径一致）
         filter: (List<Account> all) => all
@@ -3469,7 +3363,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         },
         // 点「不选择具体账户」时 onConfirm 收到 null，用空字符串区分
         // 「明确选择不选择」（''）与「下滑关闭」（null）。
-        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.name ?? ''),
+        onConfirm: (Account? acc) => Navigator.of(context).pop(acc?.name ?? ''),
       ),
     );
 
@@ -3515,7 +3409,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         BoxShadow(
                           color: AppPalette.sage600.withValues(alpha: 0.302),
                           blurRadius: 8,
-                          offset: Offset(0, 3),
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
@@ -3694,8 +3588,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 借还计算器按钮（ForestSage V1 · 纸感细线）。
   /// 优惠模式下整体降透明度并禁用（优惠不支持计算）。
-  Widget _buildLendCalculatorButton(BuildContext context,
-      {required bool enabled}) {
+  Widget _buildLendCalculatorButton(
+    BuildContext context, {
+    required bool enabled,
+  }) {
     return InkWell(
       onTap: enabled ? _openLendFeeCalculator : null,
       borderRadius: BorderRadius.circular(18),
@@ -3745,18 +3641,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   Future<void> _openLendFeeCalculator() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final FeeCalculatorResult? result =
-        await showModalBottomSheet<FeeCalculatorResult>(
-      context: context,
+        await showAppModalSheet<FeeCalculatorResult>(
+      context,
       isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(AppDimens.radiusLg),
-          topRight: Radius.circular(AppDimens.radiusLg),
-        ),
-      ),
-      builder: (_) => FeeCalculatorSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: FeeCalculatorSheet(
         fee: _lendFeeAmount,
         discount: _lendDiscountAmount,
       ),
@@ -3799,7 +3688,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final String oppKey = isIn ? '还债' : '收债';
     final String firstAcct = isIn ? '借入账户' : '借出账户';
     final String oppAcct = isIn ? '借入账户' : '借出账户';
-    final String assetAcct = '资产账户';
+    const String assetAcct = '资产账户';
     // 优惠（借入）/ 减免（借出）：借入/借出时把债务净额直接减少，
     // 后续还债 / 收债按净额结算即可，两腿公式都体现优惠。
     final String cutKey = isIn ? '优惠' : '减免';
@@ -3809,24 +3698,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 <String>[
                   '$firstKey：',
                   '$firstAcct = 借入金额 + 利息',
-                  '$assetAcct = 借入金额'
+                  '$assetAcct = 借入金额',
                 ],
                 <String>[
                   '$oppKey：',
                   '$oppAcct = 借入金额',
-                  '$assetAcct = 借入金额 + 利息'
+                  '$assetAcct = 借入金额 + 利息',
                 ],
               ]
             : <List<String>>[
                 <String>[
                   '$firstKey：',
                   '$firstAcct = 借入金额 − 优惠',
-                  '$assetAcct = 借入金额'
+                  '$assetAcct = 借入金额',
                 ],
                 <String>[
                   '$oppKey：',
                   '$oppAcct = 借入金额 − 优惠',
-                  '$assetAcct = 借入金额 − 优惠'
+                  '$assetAcct = 借入金额 − 优惠',
                 ],
               ])
         : (isFee
@@ -3834,24 +3723,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 <String>[
                   '$firstKey：',
                   '$firstAcct = 借出金额 + 利息',
-                  '$assetAcct = 借出金额'
+                  '$assetAcct = 借出金额',
                 ],
                 <String>[
                   '$oppKey：',
                   '$oppAcct = 借出金额',
-                  '$assetAcct = 借出金额 + 利息'
+                  '$assetAcct = 借出金额 + 利息',
                 ],
               ]
             : <List<String>>[
                 <String>[
                   '$firstKey：',
                   '$firstAcct = 借出金额 − 减免',
-                  '$assetAcct = 借出金额'
+                  '$assetAcct = 借出金额',
                 ],
                 <String>[
                   '$oppKey：',
                   '$oppAcct = 借出金额 − 减免',
-                  '$assetAcct = 借出金额 − 减免'
+                  '$assetAcct = 借出金额 − 减免',
                 ],
               ]);
     return Container(
@@ -3892,7 +3781,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Expanded(child: _buildSageFormulaCell(context, cells[0])),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(child: _buildSageFormulaCell(context, cells[1])),
             ],
           ),
@@ -3920,8 +3809,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             child: Text(
               '免息期',
               style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           SizedBox(
@@ -3931,22 +3821,27 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               keyboardType: TextInputType.number,
               textAlign: TextAlign.right,
               style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
                 hintText: '0',
                 hintStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),
           const SizedBox(width: 6),
-          Text('天',
-              style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          Text(
+            '天',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -3965,7 +3860,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       allowClear: true,
       showCustomRange: false, // 记一笔：隐藏「自定义」区间 chip
       onChanged: (DateTime? d) => setState(() {
-        _dueAt = d == null ? null : d.toUtc().millisecondsSinceEpoch;
+        _dueAt = d?.toUtc().millisecondsSinceEpoch;
       }),
     );
   }
@@ -4017,9 +3912,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       return Text(
         line,
         style: TextStyle(
-            fontSize: 11.5,
-            height: 1.6,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
+          fontSize: 11.5,
+          height: 1.6,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       );
     }
     final String left = line.substring(0, idx);
@@ -4069,7 +3965,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               _buildAttachmentSection(),
             ],
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const LoadingState(expand: false), // 无界滚动区内禁 expand
           error: (Object e, StackTrace? s) => Center(child: Text('分类加载失败：$e')),
         );
       case RecordTab.transfer:
@@ -4263,8 +4159,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   int _invMinorOf(String text) {
     final String t = text.trim();
     if (t.isEmpty) return 0;
-    final Money? m = Money.tryParse(t);
-    return m?.minor ?? 0;
+    final Money m = Money.tryParse(t);
+    return m.minor;
   }
 
   int get _invAmountMinor => _invMinorOf(_invAmountController.text);
@@ -4358,7 +4254,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 投资表单奶油卡：对齐报销/退款 [_rbCard] 视觉规格
   /// （radius 16 + 常驻投影 + hairline 描边），标签 13pt ink2
   /// （对齐借还「免息期」行标签规格），其余卡片文字沿用 _Sage 令牌。
-  Widget _SageField({String? label, required Widget child}) {
+  Widget _sageField({String? label, required Widget child}) {
     return HairlineCard(
       radius: 16,
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 11),
@@ -4367,10 +4263,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           if (label != null) ...<Widget>[
-            Text(label,
-                style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 4),
           ],
           child,
@@ -4393,20 +4292,27 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         disabledBorder: InputBorder.none,
         hintText: hint,
         hintStyle: TextStyle(
-            fontSize: 15,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
+          fontSize: 15,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       );
 
   /// 卡内汇总行（label 左 / 数值右，无底色——避免「卡中卡」）。
-  Widget _sageSummaryRow(String label, String value,
-      {bool emphasized = false}) {
+  Widget _sageSummaryRow(
+    String label,
+    String value, {
+    bool emphasized = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        Text(label,
-            style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
         Text(
           value,
           style: TextStyle(
@@ -4423,10 +4329,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   Widget _sageSubLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 10, bottom: 2),
-      child: Text(text,
-          style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 
@@ -4576,9 +4485,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ],
               ),
             ),
-            Icon(Icons.chevron_right,
-                size: 20,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -4587,11 +4498,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   Future<void> _showInvestHoldingPicker() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    await showModalBottomSheet<void>(
-      context: context,
+    await showAppModalSheet<void>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => _InvestHoldingPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: _InvestHoldingPickerSheet(
         selectedId: _invHoldingId,
         selectedSymbol: _invSymbol,
         selectedName: _invName,
@@ -4648,7 +4559,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       ];
     }
     return <Widget>[
-      _SageField(
+      _sageField(
         label: '交易信息',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4761,8 +4672,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           Text(
             sub,
             style: TextStyle(
-                fontSize: 11,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ],
@@ -4783,7 +4695,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final String summaryValue = qtyDriven
         ? Money.fromMinor(amt).format()
         : '${(price > 0 ? amt / price : 0.0).toStringAsFixed(4)} 份';
-    return _SageField(
+    return _sageField(
       label: '费用与净额',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4873,13 +4785,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   }
 
   Widget _buildInvestNoteCard() {
-    return _SageField(
+    return _sageField(
       label: '备注',
       // 备注是文本字段，保留系统键盘；仅统一透明填充与字号。
       child: TextField(
         controller: _invNoteController,
         style: TextStyle(
-            fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
+          fontSize: 13,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
         decoration: _invDeco(hint: '选填'),
       ),
     );
@@ -4902,9 +4816,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             child: Text(
               '$rule 投资买卖不计入收支统计 / 预算。',
               style: TextStyle(
-                  fontSize: 12,
-                  height: 1.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                fontSize: 12,
+                height: 1.5,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -5079,12 +4994,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     }
   }
 
-  /// 份额整数放大 1e6，转可读字符串：固定 4 位小数（与表单「可得份额」一致）。
-  String _fmtInvQty(int micros) {
-    final double q = micros / InvestmentRepository.quantityScale;
-    return q.toStringAsFixed(4);
-  }
-
   /// 投资成交回执弹窗：展示方向 / 份额 / 单价 / 手续费 / 实际扣款(到账)，
   /// 以及证券账户当前「现金 + 持仓市值」双层余额。现金与持仓均走**同步直查**
   /// （DAO getById / 仓储 listByAccount）：StreamProvider 的 `.future` 在写库后
@@ -5102,11 +5011,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     }
     if (!mounted) return;
     final int cash = account?.balanceMinor ?? 0;
-    await showModalBottomSheet<void>(
-      context: context,
+    await showAppModalSheet<void>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => _InvestmentReceiptCard(
+      bodyPadding: EdgeInsets.zero,
+      body: _InvestmentReceiptCard(
         isBuy: r.isBuy,
         quantityMicros: r.quantityMicros,
         priceMinor: r.priceMinor,
@@ -5399,7 +5308,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 const SizedBox(width: 10),
                 Text(
                   Money.fromMinor(
-                    selected!.balanceMinor,
+                    selected.balanceMinor,
                     currency: selected.currency,
                   ).format(),
                   style: const TextStyle(
@@ -5443,15 +5352,18 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         child: Container(
           width: 22,
           height: 22,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
               colors: <Color>[_Sage.sageA, _Sage.sageB],
             ),
             shape: BoxShape.circle,
           ),
           child: Center(
-            child: Icon(Icons.check,
-                size: 14, color: Theme.of(context).colorScheme.onPrimary),
+            child: Icon(
+              Icons.check,
+              size: 14,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
           ),
         ),
       );
@@ -5467,14 +5379,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             width: 1.5,
           ),
           gradient: sel
-              ? LinearGradient(
+              ? const LinearGradient(
                   colors: <Color>[_Sage.sageA, _Sage.sageB],
                 )
               : null,
         ),
         child: sel
-            ? Icon(Icons.check,
-                size: 13, color: Theme.of(context).colorScheme.onPrimary)
+            ? Icon(
+                Icons.check,
+                size: 13,
+                color: Theme.of(context).colorScheme.onPrimary,
+              )
             : null,
       );
 
@@ -5504,7 +5419,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       BoxShadow(
                         color: AppPalette.sage600.withValues(alpha: 0.078),
                         blurRadius: 10,
-                        offset: Offset(0, 2),
+                        offset: const Offset(0, 2),
                       ),
                       ..._Sage.shadow,
                     ]
@@ -5603,7 +5518,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       filter: (List<Account> all) {
         if (allowedTypes != null) {
           return all
-              .where((Account a) => allowedTypes!.contains(a.type))
+              .where((Account a) => allowedTypes.contains(a.type))
               .toList(growable: false);
         }
         return fundAccountsOnly(all);
@@ -5633,13 +5548,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         children: <Widget>[
           if (sel.isEmpty)
             Padding(
-              padding: EdgeInsets.symmetric(vertical: 18),
+              padding: const EdgeInsets.symmetric(vertical: 18),
               child: Center(
                 child: Text(
                   '请选择需要报销的账单',
                   style: TextStyle(
-                      fontSize: 13.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    fontSize: 13.5,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             )
@@ -5706,7 +5622,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 账单组间点线分隔。
   Widget _dottedDivider() {
-    final int count = 46;
+    const int count = 46;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -5737,8 +5653,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final Color tint =
         cat?.colorValue != null ? Color(cat!.colorValue!) : _Sage.greenDeep;
     final Widget leadIcon = cat?.iconKey != null && cat!.iconKey!.isNotEmpty
-        ? LineIcon(categoryLineKind(cat.iconKey) ?? LineIconKind.star,
-            size: 20, color: tint)
+        ? LineIcon(
+            categoryLineKind(cat.iconKey) ?? LineIconKind.star,
+            size: 20,
+            color: tint,
+          )
         : Icon(Icons.receipt_long, size: 20, color: tint);
     final String title =
         cat?.name ?? (t.note?.isNotEmpty == true ? t.note! : '支出');
@@ -5930,13 +5849,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       '拍照或从相册补充票据',
                       style: TextStyle(
-                          fontSize: 12,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -6168,18 +6087,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           Text(
             '账本',
             style: TextStyle(
-                fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           const Spacer(),
           Text(
             book.valueOrNull?.name ?? '账本',
             style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(width: 6),
-          LineIcon(LineIconKind.chevronRight,
-              size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          LineIcon(
+            LineIconKind.chevronRight,
+            size: 14,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ],
       ),
     );
@@ -6209,8 +6134,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   Text(
                     _rbDateLabel(),
                     style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -6218,8 +6144,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             Text(
               _isSameDay(_occurredAt, DateTime.now()) ? '今天' : '',
               style: TextStyle(
-                  fontSize: 11.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                fontSize: 11.5,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -6253,8 +6180,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   Text(
                     '确需计入日常收支时可手动关闭',
                     style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -6270,7 +6198,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 鼠尾草风格开关（关=沙底 / 开=渐变）。
   Widget _sageSwitch(
-          bool v, ValueChanged<bool> onChanged, BuildContext context) =>
+    bool v,
+    ValueChanged<bool> onChanged,
+    BuildContext context,
+  ) =>
       GestureDetector(
         onTap: () => onChanged(!v),
         child: Container(
@@ -6285,7 +6216,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               AnimatedPositioned(
                 left: v ? 23 : 3,
                 top: 3,
-                duration: Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 200),
                 child: Container(
                   width: 24,
                   height: 24,
@@ -6299,7 +6230,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             .shadow
                             .withValues(alpha: 0.2),
                         blurRadius: 5,
-                        offset: Offset(0, 2),
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
@@ -6322,8 +6253,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 decoration: InputDecoration(
                   hintText: '补充报销说明…',
                   hintStyle: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -6335,8 +6267,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   isCollapsed: true,
                 ),
                 style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurface),
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 maxLines: 1,
               ),
             ),
@@ -6490,8 +6423,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           Text(
             note,
             style: TextStyle(
-                fontSize: 11,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ],
@@ -6523,7 +6457,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     BoxShadow(
                       color: AppPalette.sage600.withValues(alpha: 0.278),
                       blurRadius: 8,
-                      offset: Offset(0, 3),
+                      offset: const Offset(0, 3),
                     ),
                   ]
                 : null,
@@ -6818,12 +6752,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     }
     final int totalMinor = _refundOriginalTotalMinor;
     FocusManager.instance.primaryFocus?.unfocus();
-    final _AaPaymentResult? result =
-        await showModalBottomSheet<_AaPaymentResult>(
-      context: context,
-      backgroundColor: Colors.transparent,
+    final _AaPaymentResult? result = await showAppModalSheet<_AaPaymentResult>(
+      context,
       isScrollControlled: true,
-      builder: (BuildContext ctx) => _AaPaymentSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: _AaPaymentSheet(
         totalMinor: totalMinor,
         initial: _AaPaymentResult(
           headcount: _aaHeadcount,
@@ -6867,7 +6800,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           alignment: Alignment.center,
           decoration: BoxDecoration(
             gradient: selected
-                ? LinearGradient(
+                ? const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: <Color>[_Sage.sageA, _Sage.sageB],
@@ -6964,7 +6897,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                           .onSurfaceVariant
                           .withValues(alpha: 0.18),
                       blurRadius: 5,
-                      offset: Offset(0, 1.5),
+                      offset: const Offset(0, 1.5),
                     ),
                   ]
                 : null,
@@ -7080,7 +7013,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     onTap: _showAaPaymentSheet,
                     child: Text(
                       '每人均 ${Money.fromMinor(_aaPerHeadMinor(originalTotal)).format(showSymbol: false)}'
-                      '（${_aaHeadcount}人AA）›',
+                      '（$_aaHeadcount人AA）›',
                       style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
@@ -7141,13 +7074,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         disabledBorder: InputBorder.none,
                         hintText: '备注（选填）',
                         hintStyle: TextStyle(
-                            fontSize: 14,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant),
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurface),
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                       maxLines: 2,
                       minLines: 1,
                       onTapOutside: (_) => FocusScope.of(context).unfocus(),
@@ -7203,8 +7137,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 Text(
                   DateFormat('yyyy-MM-dd HH:mm').format(_occurredAt),
                   style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -7258,8 +7193,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           Text(
             book.valueOrNull?.name ?? '账本',
             style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(width: 4),
           LineIcon(
@@ -7354,10 +7290,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     List<Category> children,
   ) async {
     FocusManager.instance.primaryFocus?.unfocus();
-    final String? selected = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: false,
-      builder: (BuildContext ctx) => _SubcategorySheet(
+    final String? selected = await showAppModalSheet<String>(
+      context,
+      bodyPadding: EdgeInsets.zero,
+      body: _SubcategorySheet(
         parent: parent,
         children: children,
         selectedId: _categoryId,
@@ -7544,17 +7480,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     }
     FocusManager.instance.primaryFocus?.unfocus();
     final (String?, String)? result =
-        await showModalBottomSheet<(String?, String)>(
-      context: context,
+        await showAppModalSheet<(String?, String)>(
+      context,
       isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: context.colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppDimens.radiusLg)),
-      ),
+      bodyPadding: EdgeInsets.zero,
       // 优惠前金额 = 上一页（记一笔）当前金额，弹窗内只录入优惠 / 实付。
-      builder: (BuildContext ctx) => DiscountSheet(
+      body: DiscountSheet(
         initial: _discountAmount,
         base: _displayAmount,
       ),
@@ -7583,11 +7514,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   Future<void> _onSelectAccount() async {
     final bool isExpense = _tab == RecordTab.expense;
     FocusManager.instance.primaryFocus?.unfocus();
-    final String? selected = await showModalBottomSheet<String>(
-      context: context,
+    final String? selected = await showAppModalSheet<String>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => AccountPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: AccountPickerSheet(
         // 实时 watch 账户流：资金类账户（排除应收 / 应付对方虚拟账户）
         filter: fundAccountsOnly,
         selectedId: _accountId,
@@ -7602,7 +7533,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         onManage: () {
           if (mounted) context.push(Routes.accountManage);
         },
-        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
+        onConfirm: (Account? acc) => Navigator.of(context).pop(acc?.id ?? ''),
       ),
     );
     if (selected == null || !mounted) return;
@@ -7618,11 +7549,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 的 allowedTypes 同口径），支持「不选择具体账户」清除已选。
   Future<void> _onSelectReimbAccount() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    final String? selected = await showModalBottomSheet<String>(
-      context: context,
+    final String? selected = await showAppModalSheet<String>(
+      context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => AccountPickerSheet(
+      bodyPadding: EdgeInsets.zero,
+      body: AccountPickerSheet(
         // 实时 watch 账户流：仅「报销」类型账户（与报销页表单同口径）
         filter: (List<Account> all) => all
             .where((Account a) => a.type == AccountType.reimbursement)
@@ -7638,7 +7569,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         },
         // 点「不选择具体账户」时 onConfirm 收到 null，以空串区分
         // 「明确清空」（''）与「下滑关闭」（null）。
-        onConfirm: (Account? acc) => Navigator.of(ctx).pop(acc?.id ?? ''),
+        onConfirm: (Account? acc) => Navigator.of(context).pop(acc?.id ?? ''),
       ),
     );
     if (selected == null || !mounted) return;
@@ -7659,13 +7590,15 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 选完图片后**循环回到本弹窗**（已选图片显示在虚线卡内，可继续追加或删除），
   /// 仅点 ✕（或下滑关闭）才回到记账页。
   Future<void> _onAddImage() async {
-    while (mounted) {
+    while (true) {
+      // mounted 守卫：跨 async gap 后（弹层/系统相册返回）安全退出。
+      if (!mounted) return;
       FocusManager.instance.primaryFocus?.unfocus();
-      final ImageSource? source = await showModalBottomSheet<ImageSource>(
-        context: context,
-        backgroundColor: Colors.transparent,
+      final ImageSource? source = await showAppModalSheet<ImageSource>(
+        context,
         isScrollControlled: true,
-        builder: (BuildContext ctx) => ImageSourceSheet(
+        bodyPadding: EdgeInsets.zero,
+        body: ImageSourceSheet(
           attachments: List<String>.of(_attachmentPaths),
           onRemove: (String path) =>
               setState(() => _attachmentPaths.remove(path)),
@@ -7738,8 +7671,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       if (await src.exists()) {
         await src.copy(dst.path);
       } else {
-        final Uint8List? bytes = await file.readAsBytes();
-        if (bytes == null) return null;
+        final Uint8List bytes = await file.readAsBytes();
         await dst.writeAsBytes(bytes);
       }
       return dst.path;
@@ -7831,7 +7763,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 for (int i = 0; i < _attachmentPaths.length; i++) ...<Widget>[
-                  if (i > 0) SizedBox(width: AppDimens.spaceSm),
+                  if (i > 0) const SizedBox(width: AppDimens.spaceSm),
                   _stripCell(i),
                 ],
               ],
@@ -7864,7 +7796,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               BoxShadow(
                 color: AppPalette.sage800.withValues(alpha: 0.333),
                 blurRadius: 14,
-                offset: Offset(0, 6),
+                offset: const Offset(0, 6),
               ),
             ],
           ),
@@ -7880,15 +7812,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         ),
       ),
       // 原位变空槽，直观表达「已被拿起」
-      childWhenDragging: SunkenBox(
+      childWhenDragging: const SunkenBox(
         width: 72,
         height: 72,
         radius: AppDimens.radiusSm,
         borderWidth: 1.5,
       ),
       child: DragTarget<String>(
-        onWillAccept: (String? data) => data != null && data != path,
-        onAccept: (String dragged) {
+        onWillAcceptWithDetails: (DragTargetDetails<String> details) =>
+            details.data != path,
+        onAcceptWithDetails: (DragTargetDetails<String> details) {
+          final String dragged = details.data;
           final int from = _attachmentPaths.indexOf(dragged);
           if (from < 0 || from == index) return;
           setState(() {
@@ -7982,9 +7916,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       initialSelected: _tags,
     );
     if (selected != null && mounted) {
-      setState(() => _tags
-        ..clear()
-        ..addAll(selected));
+      setState(
+        () => _tags
+          ..clear()
+          ..addAll(selected),
+      );
     }
     // 从标签弹窗返回：自动弹出金额键盘继续记账（弹窗内曾临时收起）。
     if (mounted) {
@@ -8362,7 +8298,6 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     return Scaffold(
       // A3 设计稿：整页暖纸底（此前漏设，落成主题默认白底）。
       backgroundColor: context.colors.surface,
@@ -8422,7 +8357,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         _pageController
                             .animateToPage(
                           index,
-                          duration: Duration(milliseconds: 250),
+                          duration: const Duration(milliseconds: 250),
                           curve: Curves.easeInOut,
                         )
                             .then((_) {
@@ -8447,7 +8382,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                           // 设计稿 0 3px 8px rgba(95,154,110,.35)
                           BoxShadow(
                             color: AppPalette.sage600.withValues(alpha: 0.349),
-                            offset: Offset(0, 3),
+                            offset: const Offset(0, 3),
                             blurRadius: 8,
                           ),
                         ],
@@ -8514,7 +8449,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             // 已填的名称/本金等表单状态全部丢失。
             return _KeepAlivePage(
               key: ValueKey<RecordTab>(tab),
-              builder: (_) => AddInstallmentPage(showAppBar: false),
+              builder: (_) => const AddInstallmentPage(showAppBar: false),
             );
           } else if (tab == RecordTab.reimbursement) {
             return _KeepAlivePage(
@@ -8619,7 +8554,7 @@ class _CategoryItem extends StatelessWidget {
                   // 设计稿 rgba(95,154,110,.35)
                   BoxShadow(
                     color: AppPalette.sage600.withValues(alpha: 0.349),
-                    offset: Offset(0, 6),
+                    offset: const Offset(0, 6),
                     blurRadius: 14,
                   ),
                 ]
@@ -8630,7 +8565,7 @@ class _CategoryItem extends StatelessWidget {
                         .colorScheme
                         .onSurface
                         .withValues(alpha: 0.039),
-                    offset: Offset(0, 1),
+                    offset: const Offset(0, 1),
                     blurRadius: 2,
                   ),
                 ],
@@ -8640,8 +8575,11 @@ class _CategoryItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             _ClayIconTile(
-                color: color, selected: selected, child: _buildIcon(context)),
-            SizedBox(height: 6),
+              color: color,
+              selected: selected,
+              child: _buildIcon(context),
+            ),
+            const SizedBox(height: 6),
             Text(
               label,
               maxLines: 1,
@@ -8734,7 +8672,7 @@ class _ClayIconTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(13),
                   gradient: RadialGradient(
-                    center: Alignment(-0.2, -0.3),
+                    center: const Alignment(-0.2, -0.3),
                     radius: 0.9,
                     colors: <Color>[
                       Theme.of(context)
@@ -8818,7 +8756,7 @@ class _ViewToggle extends StatelessWidget {
           icon: Icons.grid_view_outlined,
           label: '宫格',
         ),
-        SizedBox(width: AppDimens.spaceSm),
+        const SizedBox(width: AppDimens.spaceSm),
         buildOption(
           value: true,
           icon: Icons.list_alt_outlined,
@@ -8859,8 +8797,11 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
     if (kind != null) {
       return LineIcon(kind, size: 22, color: color);
     }
-    return LineIcon(categoryLineKind(iconKey) ?? LineIconKind.star,
-        size: 22, color: color);
+    return LineIcon(
+      categoryLineKind(iconKey) ?? LineIconKind.star,
+      size: 22,
+      color: color,
+    );
   }
 
   @override
@@ -8882,14 +8823,6 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Center(
-                child: SheetDragHandle(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: AppDimens.spaceMd),
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
               Row(
                 children: <Widget>[
                   InkWell(
@@ -8932,7 +8865,9 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(0, 40),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     onPressed: () => Navigator.of(context).pop('__add__'),
@@ -8951,7 +8886,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                   ),
                 ],
               ),
-              SizedBox(height: AppDimens.spaceMd),
+              const SizedBox(height: AppDimens.spaceMd),
               if (widget.children.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
@@ -9033,7 +8968,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
 /// 键盘复用工程标准 [AmountKeypad]（4 列：数字 + 删除/−/+ + 再记/0/•/保存）。
 /// 确认后回传的仍是「优惠金额」字符串（与旧 [_PromptSheet] 行为一致，最小化数据改动）。
 class DiscountSheet extends StatefulWidget {
-  const DiscountSheet({this.initial, this.base});
+  const DiscountSheet({super.key, this.initial, this.base});
 
   /// 已填写的优惠金额（元字符串），用于回显。
   final String? initial;
@@ -9213,7 +9148,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
               title: const Text('优惠前算法'),
               subtitle: const Text('键盘输入为优惠金额，优惠后 = 优惠前 − 优惠'),
               trailing: _algo == 'discount'
-                  ? Icon(Icons.check, color: ForestGreen.deep)
+                  ? const Icon(Icons.check, color: ForestGreen.deep)
                   : null,
               onTap: () => Navigator.of(context).pop('discount'),
             ),
@@ -9221,7 +9156,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
               title: const Text('优惠后算法'),
               subtitle: const Text('键盘输入为优惠后金额，优惠 = 优惠前 − 优惠后'),
               trailing: _algo == 'paid'
-                  ? Icon(Icons.check, color: ForestGreen.deep)
+                  ? const Icon(Icons.check, color: ForestGreen.deep)
                   : null,
               onTap: () => Navigator.of(context).pop('paid'),
             ),
@@ -9250,15 +9185,18 @@ class _DiscountSheetState extends State<DiscountSheet> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Icon(Icons.info_outline,
-                size: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-            SizedBox(width: 6),
+            Icon(
+              Icons.info_outline,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
                 '支出可以使用这个功能哦。如使用招商信用卡，消费20元笔笔返现0.5元，实际扣款19.5 = 消费金额(20) − 优惠金额(0.5)',
                 style: theme.textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -9337,7 +9275,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                     color: AppPalette.stockDown
                         .withValues(alpha: 0.2), // rgba(60,138,96,.20)
                     blurRadius: 14,
-                    offset: Offset(0, 4),
+                    offset: const Offset(0, 4),
                   ),
                 ]
               : null,
@@ -9355,9 +9293,11 @@ class _DiscountSheetState extends State<DiscountSheet> {
               ),
               child: Center(
                 child: selected
-                    ? Icon(Icons.check,
+                    ? Icon(
+                        Icons.check,
                         size: 12,
-                        color: Theme.of(context).colorScheme.onPrimary)
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      )
                     : Text(
                         '¥',
                         style: TextStyle(
@@ -9389,7 +9329,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                       const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                   child: Text(
                     algoLabel,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: ForestSage.label,
@@ -9422,15 +9362,6 @@ class _DiscountSheetState extends State<DiscountSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          // 拖动条（模板 .grab）
-          Center(
-            child: SheetDragHandle(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(top: 8, bottom: 6),
-              color: AppPalette.sage800.withValues(alpha: 0.2),
-            ),
-          ),
           // 头部：✕（左 · 圆形沙底）+ 分段控件，无标题行（模板 .hd）
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
@@ -9463,7 +9394,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
                       Flexible(child: _segPill(theme, 'discount', '输入优惠金额')),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Flexible(child: _segPill(theme, 'original', '输入原价和实付')),
                     ],
                   ),
@@ -9489,7 +9420,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                   color: AppPalette.sage900
                       .withValues(alpha: 0.078), // rgba(44,51,41,.08)
                   blurRadius: 12,
-                  offset: Offset(0, 4),
+                  offset: const Offset(0, 4),
                 ),
               ],
               child: Row(
@@ -9513,7 +9444,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                         Text(
                           // 优惠前金额 = 上一页金额，固定两位小数（¥100.00）
                           '¥${_fmt2(_toDouble(_base))}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 28,
                             height: 1.1,
                             fontWeight: FontWeight.w800,
@@ -9533,7 +9464,8 @@ class _DiscountSheetState extends State<DiscountSheet> {
                           ? <BoxShadow>[
                               BoxShadow(
                                 color: AppPalette.stockDown.withValues(
-                                    alpha: 0.349), // rgba(46,138,96,.35)
+                                  alpha: 0.349,
+                                ), // rgba(46,138,96,.35)
                                 blurRadius: 0,
                                 spreadRadius: 2,
                               ),
@@ -9636,23 +9568,16 @@ class _DiscountSheetState extends State<DiscountSheet> {
 class _PromptSheet extends StatefulWidget {
   const _PromptSheet({
     required this.title,
-    this.hint,
-    this.initial,
-    this.keyboardType,
   });
 
   final String title;
-  final String? hint;
-  final String? initial;
-  final TextInputType? keyboardType;
 
   @override
   State<_PromptSheet> createState() => _PromptSheetState();
 }
 
 class _PromptSheetState extends State<_PromptSheet> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initial);
+  late final TextEditingController _controller = TextEditingController();
 
   @override
   void dispose() {
@@ -9693,8 +9618,7 @@ class _PromptSheetState extends State<_PromptSheet> {
             padding: const EdgeInsets.all(AppDimens.spaceLg),
             child: TextField(
               controller: _controller,
-              decoration: InputDecoration(hintText: widget.hint),
-              keyboardType: widget.keyboardType,
+              decoration: const InputDecoration(),
               autofocus: true,
               textInputAction: TextInputAction.done,
               onSubmitted: (String v) => Navigator.of(context).pop(v.trim()),
@@ -9775,10 +9699,6 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.5,
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-      ),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
       child: Column(
         children: <Widget>[
@@ -9865,8 +9785,9 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
           Text(
             _paths.isEmpty ? '最多选择9张图片' : '已选 ${_paths.length}/9 张图片',
             style: TextStyle(
-                fontSize: 11.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 11.5,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           // 照片（默认选中）
@@ -9878,7 +9799,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
               Navigator.of(context).pop(ImageSource.gallery);
             },
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           // 拍照
           _imageModeButton(
             label: '拍照',
@@ -9915,7 +9836,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
               BoxShadow(
                 color: AppPalette.sage800.withValues(alpha: 0.333),
                 blurRadius: 16,
-                offset: Offset(0, 7),
+                offset: const Offset(0, 7),
               ),
             ],
           ),
@@ -9926,13 +9847,15 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
         ),
       ),
       // 原位变空槽（沙底描边），直观表达「已被拿起」
-      childWhenDragging: SunkenBox(
+      childWhenDragging: const SunkenBox(
         radius: 10,
         borderWidth: 1.5,
       ),
       child: DragTarget<String>(
-        onWillAccept: (String? data) => data != null && data != path,
-        onAccept: (String dragged) {
+        onWillAcceptWithDetails: (DragTargetDetails<String> details) =>
+            details.data != path,
+        onAcceptWithDetails: (DragTargetDetails<String> details) {
+          final String dragged = details.data;
           final int from = _paths.indexOf(dragged);
           final int to = _paths.indexOf(path);
           if (from < 0 || to < 0 || from == to) return;
@@ -9949,7 +9872,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
           final bool hovered = candidate.isNotEmpty;
           return AnimatedScale(
             scale: hovered ? 1.04 : 1.0,
-            duration: Duration(milliseconds: 120),
+            duration: const Duration(milliseconds: 120),
             child: DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
@@ -10007,8 +9930,11 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                 shape: BoxShape.circle,
                 border: Border.all(color: context.colors.surface, width: 1.5),
               ),
-              child: Icon(Icons.close,
-                  size: 12, color: Theme.of(context).colorScheme.onPrimary),
+              child: Icon(
+                Icons.close,
+                size: 12,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
             ),
           ),
         ),
@@ -10040,7 +9966,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                     BoxShadow(
                       color: AppPalette.stockDown.withValues(alpha: 0.2),
                       blurRadius: 12,
-                      offset: Offset(0, 4),
+                      offset: const Offset(0, 4),
                     ),
                   ]
                 : null,
@@ -10068,26 +9994,20 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
 class _DashedRoundedCard extends StatelessWidget {
   const _DashedRoundedCard({
     required this.child,
-    this.radius = 14,
-    this.color = AppPalette.sandMuted,
-    this.strokeWidth = 1.6,
   });
 
   final Widget child;
-  final double radius;
-  final Color color;
-  final double strokeWidth;
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _DashedRoundedRectPainter(
-        radius: radius,
-        color: color,
-        strokeWidth: strokeWidth,
+      painter: const _DashedRoundedRectPainter(
+        radius: 14,
+        color: AppPalette.sandMuted,
+        strokeWidth: 1.6,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: child,
@@ -10404,10 +10324,6 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewPadding.bottom + 16,
       ),
@@ -10517,8 +10433,9 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                   Text(
                     '总金额',
                     style: TextStyle(
-                        fontSize: 12.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      fontSize: 12.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -10544,9 +10461,9 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                     Text(
                       '每人均',
                       style: TextStyle(
-                          fontSize: 11.5,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                        fontSize: 11.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -10566,8 +10483,9 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
           Text(
             '本次收款(约)',
             style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 6),
           Row(
@@ -10589,9 +10507,9 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                     contentPadding: EdgeInsets.zero,
                   ),
                   onChanged: (String v) {
-                    final int? minor = Money.tryParse(v).minor;
+                    final int minor = Money.tryParse(v).minor;
                     setState(() {
-                      _manualMinor = minor == null || minor <= 0 ? null : minor;
+                      _manualMinor = minor <= 0 ? null : minor;
                     });
                   },
                 ),
@@ -10913,7 +10831,12 @@ class _InvestHoldingPickerSheetState
   /// 触发基金/币候选库后台加载（首拉/每周），完成后刷新补全 provider。
   void _triggerMetaLoad(InvestmentType? type) {
     if (type == null) return;
-    if (type != InvestmentType.fund && type != InvestmentType.crypto) return;
+    if (type != InvestmentType.fund &&
+        type != InvestmentType.crypto &&
+        type != InvestmentType.stock &&
+        type != InvestmentType.bond) {
+      return;
+    }
     if (_metaLoading.contains(type)) return;
     _metaLoading.add(type);
     unawaited(
@@ -11011,47 +10934,10 @@ class _InvestHoldingPickerSheetState
 
   Widget _buildHoldingRow(InvestmentHolding h) => _buildSuggestRow(h);
 
-  Widget _buildCandidateRow(SecurityCandidate c) {
-    return InkWell(
-      onTap: () => _applyCandidate(c),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: <Widget>[
-            Text(
-              c.symbol,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                c.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
-              ),
-            ),
-            Text(
-              investmentTypeLabel(c.type, c.symbol, name: c.name),
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(width: 6),
-            Icon(Icons.north_west,
-                size: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildCandidateRow(SecurityCandidate c) => SecurityCandidateTile(
+        candidate: c,
+        onTap: () => _applyCandidate(c),
+      );
 
   Widget _buildSuggestRow(InvestmentHolding h) {
     return InkWell(
@@ -11075,20 +10961,24 @@ class _InvestHoldingPickerSheetState
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
             Text(
               investmentTypeLabel(h.type, h.symbol, name: h.name, all: _items),
               style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(width: 6),
-            Icon(Icons.north_west,
-                size: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.north_west,
+              size: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -11171,32 +11061,14 @@ class _InvestHoldingPickerSheetState
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(24),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              // 拖拽条
-              SheetDragHandle(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(top: 10),
-                color: _Sage.greenSoftBd,
-              ),
-              _buildHeader(),
-              _showForm ? _buildForm() : _buildBody(),
-              if (!_showForm) _buildOps(),
-              const SizedBox(height: 14),
-            ],
-          ),
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _buildHeader(),
+          _showForm ? _buildForm() : _buildBody(),
+          if (!_showForm) _buildOps(),
+          const SizedBox(height: 14),
+        ],
       ),
     );
   }
@@ -11388,8 +11260,9 @@ class _InvestHoldingPickerSheetState
               Text(
                 '请先选择品种',
                 style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
             const SizedBox(height: 16),
@@ -11491,8 +11364,11 @@ class _PickerIconBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(17),
             border: Border.all(color: context.colors.outline, width: 1),
           ),
-          child: Icon(icon,
-              size: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          child: Icon(
+            icon,
+            size: 15,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
 }
@@ -11900,8 +11776,10 @@ class _InvestmentReceiptCard extends StatelessWidget {
           children: <Widget>[
             Row(
               children: <Widget>[
-                Icon(Icons.receipt_long_outlined,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.receipt_long_outlined,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: AppDimens.spaceSm),
                 Text(
                   '成交回执',
@@ -11913,7 +11791,7 @@ class _InvestmentReceiptCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(0.12),
+                    color: accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppDimens.radiusSm),
                   ),
                   child: Text(
@@ -11951,7 +11829,8 @@ class _InvestmentReceiptCard extends StatelessWidget {
             Text(
               '$accountName · 现金 + 市值',
               style: theme.textTheme.labelMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppDimens.spaceSm),
             Row(
@@ -11990,12 +11869,6 @@ class _InvestmentReceiptCard extends StatelessWidget {
     );
   }
 
-  String _fmtQty(int micros) {
-    final double q = micros / InvestmentRepository.quantityScale;
-    // 固定 4 位小数，与表单「可得份额」口径一致。
-    return q.toStringAsFixed(4);
-  }
-
   /// 数量智能格式化：最多 6 位小数、去尾随 0（100 股→100，0.5 克→0.5）。
   String _fmtQtySmart(int micros) {
     final double q = micros / InvestmentRepository.quantityScale;
@@ -12019,7 +11892,8 @@ class _ReceiptStat extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
           const SizedBox(height: 2),
           Text(

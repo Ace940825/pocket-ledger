@@ -14,10 +14,10 @@
 //       fonts:
 //         - asset: assets/fonts/PocketIcons.ttf
 
-import 'package:flutter/material.dart';
 // CupertinoIcons 由 Flutter 框架提供（cupertino_icons 只是字体资源包）。
 // 用 show 限定导入，避免与 material 命名冲突。
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:flutter/material.dart';
 
 /// 语义图标映射（唯一事实来源）
 @immutable

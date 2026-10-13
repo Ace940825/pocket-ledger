@@ -226,8 +226,10 @@ class ReimbursementRepository {
   /// 按关联流水量取一条未删除的报销记录（报销收款抵扣用，一次性读取）。
   Future<Reimbursement?> byTransaction(String transactionId) {
     return (_db.select(_db.reimbursements)
-          ..where((Reimbursements t) =>
-              t.transactionId.equals(transactionId) & t.deleted.equals(false))
+          ..where(
+            (Reimbursements t) =>
+                t.transactionId.equals(transactionId) & t.deleted.equals(false),
+          )
           ..orderBy(<OrderClauseGenerator<Reimbursements>>[
             (Reimbursements t) => OrderingTerm.desc(t.occurredAt),
           ])
@@ -239,8 +241,11 @@ class ReimbursementRepository {
   /// （编辑报销收入时反填关联账单与报销账户用）。
   Future<List<Reimbursement>> listByIncomeTransactionId(String incomeId) {
     return (_db.select(_db.reimbursements)
-          ..where((Reimbursements t) =>
-              t.incomeTransactionId.equals(incomeId) & t.deleted.equals(false))
+          ..where(
+            (Reimbursements t) =>
+                t.incomeTransactionId.equals(incomeId) &
+                t.deleted.equals(false),
+          )
           ..orderBy(<OrderClauseGenerator<Reimbursements>>[
             (Reimbursements t) => OrderingTerm.desc(t.occurredAt),
           ]))
@@ -251,8 +256,11 @@ class ReimbursementRepository {
   /// （流水详情弹窗「关联账单」反向展示用）。
   Stream<List<Reimbursement>> watchByIncomeTransactionId(String incomeId) {
     return (_db.select(_db.reimbursements)
-          ..where((Reimbursements t) =>
-              t.incomeTransactionId.equals(incomeId) & t.deleted.equals(false))
+          ..where(
+            (Reimbursements t) =>
+                t.incomeTransactionId.equals(incomeId) &
+                t.deleted.equals(false),
+          )
           ..orderBy(<OrderClauseGenerator<Reimbursements>>[
             (Reimbursements t) => OrderingTerm.desc(t.occurredAt),
           ]))
@@ -273,7 +281,8 @@ class ReimbursementRepository {
     if (allocMinor <= 0) return;
     final Reimbursement? row = await (_db.select(_db.reimbursements)
           ..where(
-              (Reimbursements t) => t.id.equals(id) & t.deleted.equals(false)))
+            (Reimbursements t) => t.id.equals(id) & t.deleted.equals(false),
+          ))
         .getSingleOrNull();
     if (row == null) {
       throw const NotFoundFailure('报销记录不存在');
@@ -288,10 +297,12 @@ class ReimbursementRepository {
     final int prevAllocSum =
         allocs.fold<int>(0, (int s, ReimbAllocEntry e) => s + e.allocMinor);
     if (incomeTransactionId != null) {
-      allocs.add(ReimbAllocEntry(
-        incomeId: incomeTransactionId,
-        allocMinor: allocMinor,
-      ));
+      allocs.add(
+        ReimbAllocEntry(
+          incomeId: incomeTransactionId,
+          allocMinor: allocMinor,
+        ),
+      );
     }
     final String? allocsJson = encodeReimbAllocs(allocs);
     // 翻「已报销」时金额还原为累计抵扣总额（历史台账 + 本次）。此前误用
@@ -316,7 +327,8 @@ class ReimbursementRepository {
         full
             ? ReimbursementsCompanion(
                 status: const Value<ReimbursementStatus>(
-                    ReimbursementStatus.reimbursed),
+                  ReimbursementStatus.reimbursed,
+                ),
                 receivedAt: Value<int?>(now),
                 // 翻「已报销」时金额还原为累计抵扣总额（= 原始账单额），
                 // 保证已报销列表展示与实际账单一致。

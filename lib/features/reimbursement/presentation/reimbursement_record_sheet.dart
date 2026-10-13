@@ -1,11 +1,9 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/badges.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-import 'package:pocket_ledger/shared/widgets/sheet_drag_handle.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
@@ -17,8 +15,6 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../data/reimbursement_repository.dart';
-import '../../../shared/widgets/modal_sheet_registry.dart';
-import '../../../theme/app_colors.dart';
 
 /// 报销账单详情底部弹窗（对齐参考稿两节卡片逻辑）。
 ///
@@ -30,16 +26,14 @@ Future<void> showReimbursementRecordSheet(
   BuildContext context,
   Reimbursement record,
 ) {
-  // 与流水明细同策略：挂 Tab 分支导航器并登记，切 Tab 时统一收起。
-  final ModalBottomSheetRoute<void> route = ModalBottomSheetRoute<void>(
-    builder: (_) => _ReimbursementRecordSheet(record: record),
+  // 与流水明细同策略：挂 Tab 分支导航器并登记，切 Tab 时由 AppShell.closeAll() 统一收起。
+  return showAppModalSheet<void>(
+    context,
     isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
+    registerWithSheetRegistry: true,
+    bodyPadding: EdgeInsets.zero,
+    body: _ReimbursementRecordSheet(record: record),
   );
-  ModalSheetRegistry.register(route);
-  route.popped.whenComplete(() => ModalSheetRegistry.unregister(route));
-  return Navigator.of(context, rootNavigator: false).push(route);
 }
 
 class _ReimbursementRecordSheet extends ConsumerWidget {
@@ -71,29 +65,11 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
       if (record.target?.isNotEmpty == true) '报销方 ${record.target!}',
     ];
 
-    return Container(
+    return SizedBox(
       height: MediaQuery.of(context).size.height * 0.62,
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(ForestRadius.xl),
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // 下拉把手（与流水详情弹窗一致）。
-          Center(
-            child: SheetDragHandle(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(top: 10, bottom: 6),
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurfaceVariant
-                  .withValues(alpha: 0.4),
-            ),
-          ),
           // 头部：事由 + 状态徽章（+ 垫付元信息一行）。
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
@@ -287,13 +263,15 @@ class _OriginBillCard extends ConsumerWidget {
                 ref.watch(categoryMapProvider).valueOrNull ??
                     <String, Category>{};
             final Category? category = categories[t.categoryId];
-            return _card(_OriginBillRow(
-              transaction: t,
-              category: category,
-              allocSum: allocSum,
-              allocsFromLedger: allocsFromLedger,
-              onTap: () => TransactionDetailSheet.show(context, t),
-            ));
+            return _card(
+              _OriginBillRow(
+                transaction: t,
+                category: category,
+                allocSum: allocSum,
+                allocsFromLedger: allocsFromLedger,
+                onTap: () => TransactionDetailSheet.show(context, t),
+              ),
+            );
           },
         );
   }
@@ -373,7 +351,7 @@ class _OriginBillRow extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      RebBadge(),
+                      const RebBadge(),
                       if (overReimbursed) ...<Widget>[
                         const SizedBox(width: 6),
                         const OverTag(),
@@ -444,7 +422,7 @@ class _IncomeRow extends ConsumerWidget {
     return ref.watch(transactionDetailProvider(transactionId)).when(
           skipLoadingOnReload: true,
           loading: () => Padding(
-            padding: EdgeInsets.symmetric(vertical: 14),
+            padding: const EdgeInsets.symmetric(vertical: 14),
             child: Text(
               '加载中…',
               style: TextStyle(

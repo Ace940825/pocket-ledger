@@ -218,17 +218,18 @@ class InvestmentRepository {
   /// 每日行情刷新：遍历全部持仓，按类型调免费源抓现价并落库。
   ///
   /// 节流：现价 [priceUpdatedAt] 已是「今天」（本地日）的跳过，天然每天至多一次；
+  /// [force] = true 时绕过节流（手动「刷新行情」用，如修正错价后立即重取）；
   /// 加密货币价折算成 CNY（[MarketService.fetchUsdCnyRate]）以与基金同币种汇总；
   /// 单源间隔 ~150ms 限流；任意源/单笔失败均跳过，**不抛异常、不回滚其它**。
   /// 返回成功更新的持仓数。
-  Future<int> refreshAllPrices() async {
+  Future<int> refreshAllPrices({bool force = false}) async {
     final List<InvestmentHolding> holdings = await listAllActive();
     if (holdings.isEmpty) return 0;
     final MarketService svc = MarketService(SecurityMetaRepository(_db));
     final double cnyRate = await svc.fetchUsdCnyRate();
     int updated = 0;
     for (final InvestmentHolding h in holdings) {
-      if (_isSameLocalDay(h.priceUpdatedAt)) continue;
+      if (!force && _isSameLocalDay(h.priceUpdatedAt)) continue;
       final Quote? q = await svc.fetchQuote(h.type, h.symbol, cnyRate: cnyRate);
       if (q == null) continue;
       try {
@@ -288,9 +289,11 @@ class InvestmentRepository {
   /// 快照会按 LWW 把重算结果盖回（同步拉取按 updatedAt 判本地行去留）。
   Future<void> _recomputeRealized(String hid) async {
     final List<Transaction> flows = await (_db.select(_db.transactions)
-          ..where((Transactions t) =>
-              t.relatedId.equals(hid) &
-              t.sourceModule.equals(SourceModule.investment.index)))
+          ..where(
+            (Transactions t) =>
+                t.relatedId.equals(hid) &
+                t.sourceModule.equals(SourceModule.investment.index),
+          ))
         .get();
     final int realized = realizedProfitMinorFor(hid, flows);
     final InvestmentHolding? row = await (_db.select(_db.investmentHoldings)
@@ -942,10 +945,12 @@ String investmentTypeLabel(
     final String key = (name ?? '').trim();
     final String counterpart = market == 'A股' ? '港股' : 'A股';
     if (key.isNotEmpty &&
-        all.any((InvestmentHolding o) =>
-            o.type == InvestmentType.stock &&
-            o.name.trim() == key &&
-            stockMarketLabel(o.symbol) == counterpart)) {
+        all.any(
+          (InvestmentHolding o) =>
+              o.type == InvestmentType.stock &&
+              o.name.trim() == key &&
+              stockMarketLabel(o.symbol) == counterpart,
+        )) {
       return 'AH股';
     }
   }
@@ -965,7 +970,8 @@ String investmentTypeLabel(
 int realizedProfitMinorFor(String hid, List<Transaction> flows) {
   final List<Transaction> sorted = flows.toList()
     ..sort(
-        (Transaction a, Transaction b) => a.occurredAt.compareTo(b.occurredAt));
+      (Transaction a, Transaction b) => a.occurredAt.compareTo(b.occurredAt),
+    );
   int qtyMicros = 0;
   int costMicros = 0; // 单位：分·micros
   int realized = 0; // 分
@@ -1098,7 +1104,8 @@ class HoldingCycleInfo {
 ) {
   final List<Transaction> sorted = flows.toList()
     ..sort(
-        (Transaction a, Transaction b) => a.occurredAt.compareTo(b.occurredAt));
+      (Transaction a, Transaction b) => a.occurredAt.compareTo(b.occurredAt),
+    );
   final List<HoldCycle> completed = <HoldCycle>[];
   int qty = 0;
   int cost = 0; // 分
@@ -1130,15 +1137,17 @@ class HoldingCycleInfo {
       qty -= delta;
       cost -= costRemoved;
       if (qty == 0) {
-        completed.add(HoldCycle(
-          qtyMicros: 0,
-          costValueMinor: 0,
-          realizedMinor: realized,
-          investedMinor: invested,
-          startedAt: startedAt ?? d,
-          endedAt: d,
-          boughtQtyMicros: bought,
-        ));
+        completed.add(
+          HoldCycle(
+            qtyMicros: 0,
+            costValueMinor: 0,
+            realizedMinor: realized,
+            investedMinor: invested,
+            startedAt: startedAt ?? d,
+            endedAt: d,
+            boughtQtyMicros: bought,
+          ),
+        );
         qty = 0;
         cost = 0;
         realized = 0;

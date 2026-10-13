@@ -10,30 +10,28 @@ import 'package:pocket_ledger/core/utils/note_utils.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
-import 'package:pocket_ledger/shared/widgets/sheet_drag_handle.dart';
+import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../theme/app_colors.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
-import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/line_icons.dart';
-import '../../../shared/widgets/modal_sheet_registry.dart';
+import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../lend/providers/lend_providers.dart';
+import '../../record/presentation/record_sheet.dart';
+import '../../record/record_tab.dart';
 import '../../reimbursement/data/reimbursement_repository.dart';
 import '../../reimbursement/presentation/reimbursement_record_sheet.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
-import '../../record/presentation/record_sheet.dart';
-import '../../record/record_tab.dart';
 import '../providers/ledger_providers.dart';
 import 'widgets/txn_icon.dart';
-import '../../../shared/widgets/app_toast.dart';
 
 /// 流水详情底部弹窗 · B1「Hero 聚焦查看」落地版（ForestSage 暖纸皮肤）。
 ///
@@ -48,19 +46,14 @@ class TransactionDetailSheet extends ConsumerWidget {
 
   static Future<void> show(BuildContext context, Transaction transaction) {
     // 挂在 Tab 分支导航器上（不用根导航器）：底部 Tab 栏不被遮罩盖住、
-    // 保持可点；切 Tab 时由 AppShell 通过 ModalSheetRegistry 统一收起，
-    // 落到目标页后按流数据自动刷新。
-    final ModalBottomSheetRoute<void> route = ModalBottomSheetRoute<void>(
-      builder: (_) => TransactionDetailSheet(transaction: transaction),
+    // 保持可点；registerWithSheetRegistry 让 AppShell 切 Tab 时 closeAll() 统一收起。
+    return showAppModalSheet<void>(
+      context,
       isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      // 下拉把手 / 点空白关闭：保留默认 enableDrag + isDismissible。
-      showDragHandle: false,
+      registerWithSheetRegistry: true,
+      bodyPadding: EdgeInsets.zero,
+      body: TransactionDetailSheet(transaction: transaction),
     );
-    ModalSheetRegistry.register(route);
-    route.popped.whenComplete(() => ModalSheetRegistry.unregister(route));
-    return Navigator.of(context, rootNavigator: false).push(route);
   }
 
   // —— 设计稿固定尺寸（CSS → Flutter，单位 px→dp，保持与设计稿一致）——
@@ -92,18 +85,11 @@ class TransactionDetailSheet extends ConsumerWidget {
 
     final bool reimbursable = transaction.isReimbursable;
 
-    return Container(
+    return SizedBox(
       height: MediaQuery.of(context).size.height * 0.5,
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(ForestRadius.xl),
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          _buildGrab(),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 22),
@@ -227,8 +213,9 @@ class TransactionDetailSheet extends ConsumerWidget {
             child: Text(
               '❦',
               style: TextStyle(
-                  fontSize: 110,
-                  color: AppPalette.ctaGreen.withValues(alpha: 0.078)),
+                fontSize: 110,
+                color: AppPalette.ctaGreen.withValues(alpha: 0.078),
+              ),
             ),
           ),
           Column(
@@ -357,8 +344,11 @@ class TransactionDetailSheet extends ConsumerWidget {
           '位置',
           place.isNotEmpty ? '$place ($coords)' : coords,
           onTap: () {
-            Clipboard.setData(ClipboardData(
-                text: place.isNotEmpty ? '$place ($coords)' : coords));
+            Clipboard.setData(
+              ClipboardData(
+                text: place.isNotEmpty ? '$place ($coords)' : coords,
+              ),
+            );
             showAppToast(context, '已复制位置');
           },
         ),
@@ -645,7 +635,7 @@ class TransactionDetailSheet extends ConsumerWidget {
       data: (List<Transaction> refunds) {
         if (refunds.isEmpty) {
           return Padding(
-            padding: EdgeInsets.symmetric(vertical: 15),
+            padding: const EdgeInsets.symmetric(vertical: 15),
             child: Center(
               child: Text(
                 '无退款账单',
@@ -662,11 +652,12 @@ class TransactionDetailSheet extends ConsumerWidget {
         final String label = refund.note != null && refund.note!.isNotEmpty
             ? refund.note!
             : (refundCategory?.name ?? '退款');
-        final String time = DateFormat('MM-dd HH:mm')
-            .format(DateTime.fromMillisecondsSinceEpoch(
-          refund.occurredAt,
-          isUtc: true,
-        ).toLocal());
+        final String time = DateFormat('MM-dd HH:mm').format(
+          DateTime.fromMillisecondsSinceEpoch(
+            refund.occurredAt,
+            isUtc: true,
+          ).toLocal(),
+        );
         return GestureDetector(
           onTap: () => context.push('/ledger/edit/${refund.id}'),
           child: Container(
@@ -862,7 +853,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                   r.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: TransactionDetailSheet._kSection,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
@@ -880,7 +871,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                   border: Border.all(color: ForestGreen.softBorder),
                   borderRadius: BorderRadius.circular(ForestRadius.pill),
                 ),
-                child: Text(
+                child: const Text(
                   '关联',
                   style: TextStyle(
                     fontSize: 10,
@@ -1021,7 +1012,7 @@ class TransactionDetailSheet extends ConsumerWidget {
           // 头部：左标题 · 右「关联」徽章
           Row(
             children: <Widget>[
-              Expanded(
+              const Expanded(
                 child: Text(
                   '源账单',
                   style: TextStyle(
@@ -1042,7 +1033,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                   border: Border.all(color: ForestGreen.softBorder),
                   borderRadius: BorderRadius.circular(ForestRadius.pill),
                 ),
-                child: Text(
+                child: const Text(
                   '关联',
                   style: TextStyle(
                     fontSize: 10,
@@ -1155,13 +1146,6 @@ class TransactionDetailSheet extends ConsumerWidget {
 
   // ── 通用小组件 ─────────────────────────────────────
 
-  Widget _buildGrab() => SheetDragHandle(
-        width: 40,
-        height: 4,
-        margin: const EdgeInsets.fromLTRB(0, 12, 0, 4),
-        color: ForestNeutral.hairlineStrong,
-      );
-
   Widget _kv(String label, String value, {Color? valueColor}) => InfoKVRow(
         label: label,
         value: Text(
@@ -1174,8 +1158,13 @@ class TransactionDetailSheet extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 14),
       );
 
-  Widget _kvTap(BuildContext context, String label, String value,
-          {Color? valueColor, VoidCallback? onTap}) =>
+  Widget _kvTap(
+    BuildContext context,
+    String label,
+    String value, {
+    Color? valueColor,
+    VoidCallback? onTap,
+  }) =>
       InfoKVRow(
         label: label,
         onTap: onTap,
@@ -1236,11 +1225,13 @@ class TransactionDetailSheet extends ConsumerWidget {
     for (int i = 0; i < rows.length; i++) {
       result.add(rows[i]);
       if (i < rows.length - 1) {
-        result.add(Divider(
-          height: 1,
-          thickness: 1,
-          color: Theme.of(context).colorScheme.outline,
-        ));
+        result.add(
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+        );
       }
     }
     return result;
@@ -1312,7 +1303,7 @@ class TransactionDetailSheet extends ConsumerWidget {
   // ── 操作 ───────────────────────────────────────────
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
-    final bool? confirm = await     showConfirm(
+    final bool? confirm = await showConfirm(
       context,
       title: '删除流水',
       content: '删除后账户余额会相应回滚，此操作不可撤销。',
@@ -1374,7 +1365,7 @@ class _Card extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: TransactionDetailSheet._kSection,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
@@ -1432,8 +1423,11 @@ class _CircleBtn extends StatelessWidget {
           radius: ForestRadius.pill,
           padding: EdgeInsets.zero,
           child: Center(
-            child: LineIcon(icon,
-                size: 15, color: Theme.of(context).colorScheme.onSurface),
+            child: LineIcon(
+              icon,
+              size: 15,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
         ),
       ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
+import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
 
 /// 安全的中缀算术求值：仅支持非负数字与 `+ - * /` 运算符。
@@ -30,11 +30,13 @@ double? evaluateExpression(String input) {
         tokens.add(buf.toString());
         buf.clear();
       }
-      tokens.add(ch == '×'
-          ? '*'
-          : ch == '÷'
-              ? '/'
-              : ch);
+      tokens.add(
+        ch == '×'
+            ? '*'
+            : ch == '÷'
+                ? '/'
+                : ch,
+      );
     } else if (ch.codeUnitAt(0) >= 48 && ch.codeUnitAt(0) <= 57 || ch == '.') {
       buf.write(ch);
     } else {
@@ -192,7 +194,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
                 onPressed: () => setState(() => _aaMode = !_aaMode),
                 child: Text(
                   _aaMode ? '四则运算' : 'AA 分摊',
-                  style: TextStyle(color: AppPalette.primary),
+                  style: const TextStyle(color: AppPalette.primary),
                 ),
               ),
             ],
@@ -492,10 +494,12 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
     if (!_isValid) return;
     final String fee = _feeController.text.trim();
     final String discount = _discountController.text.trim();
-    Navigator.of(context).pop(FeeCalculatorResult(
-      fee: fee.isEmpty ? null : fee,
-      discount: discount.isEmpty ? null : discount,
-    ));
+    Navigator.of(context).pop(
+      FeeCalculatorResult(
+        fee: fee.isEmpty ? null : fee,
+        discount: discount.isEmpty ? null : discount,
+      ),
+    );
   }
 
   InputDecoration _fieldDecoration(BuildContext context, String hint) {
@@ -543,8 +547,10 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
               children: <Widget>[
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(Icons.close,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  icon: Icon(
+                    Icons.close,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 32, minHeight: 32),

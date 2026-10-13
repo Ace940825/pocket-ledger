@@ -125,7 +125,9 @@ class ScreenshotOcrService {
       return ParseResult(rows, errors);
     } on DioException catch (e) {
       return ParseResult(
-          <BillRow>[], <String>['识别请求失败：${e.message ?? e.type}']);
+        <BillRow>[],
+        <String>['识别请求失败：${e.message ?? e.type}'],
+      );
     } catch (e) {
       return ParseResult(<BillRow>[], <String>['识别失败：$e']);
     }
@@ -137,8 +139,9 @@ class ScreenshotOcrService {
     if (choices is List && choices.isNotEmpty) {
       final dynamic msg =
           choices.first is Map ? (choices.first as Map)['message'] : null;
-      if (msg is Map && msg['content'] is String)
+      if (msg is Map && msg['content'] is String) {
         return msg['content'] as String;
+      }
     }
     // 兜底：部分实现直接把文本放顶层。
     if (json['content'] is String) return json['content'] as String;

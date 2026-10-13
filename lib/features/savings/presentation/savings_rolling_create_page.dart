@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-
-import '../../../theme/app_colors.dart';
+import 'package:pocket_ledger/shared/widgets/app_toast.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
+
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/hairline_card.dart';
-import '../data/savings_repository.dart';
+import '../../../theme/app_colors.dart';
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
 import '../providers/savings_providers.dart';
@@ -131,16 +131,13 @@ class _SavingsRollingCreatePageState
     } catch (e) {
       // 失败必须可见：仓储事务异常若被吞掉，用户看到的就是「点了没反应」。
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败：$e')),
-        );
+        showAppToast(context, '保存失败：$e');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('36期滚存法'),
@@ -159,10 +156,22 @@ class _SavingsRollingCreatePageState
             children: <Widget>[
               _sectionLabel('基础设置'),
               _textField(_nameCtrl, '计划名称', '36期滚存存钱计划'),
-              _textField(_baseCtrl, '每月存入本金（元）', '1000',
-                  keypad: true, allowDecimal: true, prefix: '¥'),
-              _textField(_rateCtrl, '年利率（%，如 2.50）', '2.50',
-                  keypad: true, allowDecimal: true, prefix: '%'),
+              _textField(
+                _baseCtrl,
+                '每月存入本金（元）',
+                '1000',
+                keypad: true,
+                allowDecimal: true,
+                prefix: '¥',
+              ),
+              _textField(
+                _rateCtrl,
+                '年利率（%，如 2.50）',
+                '2.50',
+                keypad: true,
+                allowDecimal: true,
+                prefix: '%',
+              ),
               Row(
                 children: <Widget>[
                   Expanded(
@@ -199,7 +208,7 @@ class _SavingsRollingCreatePageState
                       title: const Text('自动滚存'),
                       subtitle: const Text('存单到期后本息自动续存为新定期'),
                       value: _autoRoll,
-                      activeColor: AppPalette.primary,
+                      activeThumbColor: AppPalette.primary,
                       onChanged: (bool v) {
                         setState(() => _autoRoll = v);
                         _recompute();
@@ -216,7 +225,7 @@ class _SavingsRollingCreatePageState
                       title: const Text('滚存阶段继续每月追投'),
                       subtitle: const Text('到期后仍每月存一笔固定本金，本金增长更快'),
                       value: _rollAddNew && _autoRoll,
-                      activeColor: AppPalette.primary,
+                      activeThumbColor: AppPalette.primary,
                       onChanged: _autoRoll
                           ? (bool v) {
                               setState(() => _rollAddNew = v);
@@ -244,8 +253,14 @@ class _SavingsRollingCreatePageState
               if (_rollMode == _RollMode.rounds)
                 _textField(_roundsCtrl, '滚存轮数（每轮 = 建仓期数个月）', '5', keypad: true),
               if (_rollMode == _RollMode.target)
-                _textField(_targetCtrl, '滚存到累计到期额达到（元）', '100000',
-                    keypad: true, allowDecimal: true, prefix: '¥'),
+                _textField(
+                  _targetCtrl,
+                  '滚存到累计到期额达到（元）',
+                  '100000',
+                  keypad: true,
+                  allowDecimal: true,
+                  prefix: '¥',
+                ),
               const SizedBox(height: 20),
               if (_result != null) _PreviewCard(result: _result!),
             ],
@@ -404,8 +419,11 @@ class _SavingsRollingCreatePageState
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     if (items[i].$1 == selected) ...<Widget>[
-                      const Icon(Icons.check,
-                          size: 15, color: AppPalette.deepGreen),
+                      const Icon(
+                        Icons.check,
+                        size: 15,
+                        color: AppPalette.deepGreen,
+                      ),
                       const SizedBox(width: 4),
                     ],
                     Text(
@@ -460,12 +478,24 @@ class _PreviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _row(context, '实际累计现金', '${fmt.format(result.cashPrincipalYuan)} 元'),
-          _row(context, '预计总利息', '${fmt.format(result.totalInterestYuan)} 元',
-              color: AppPalette.income),
-          _row(context, '预计到期总额', '${fmt.format(result.finalMaturityYuan)} 元',
-              color: AppPalette.primary, bold: true),
-          _row(context, '等效年化',
-              '${result.effectiveAnnualRatePct.toStringAsFixed(2)}%'),
+          _row(
+            context,
+            '预计总利息',
+            '${fmt.format(result.totalInterestYuan)} 元',
+            color: AppPalette.income,
+          ),
+          _row(
+            context,
+            '预计到期总额',
+            '${fmt.format(result.finalMaturityYuan)} 元',
+            color: AppPalette.primary,
+            bold: true,
+          ),
+          _row(
+            context,
+            '等效年化',
+            '${result.effectiveAnnualRatePct.toStringAsFixed(2)}%',
+          ),
           const SizedBox(height: 8),
           Text(
             '首笔存 ${result.deposits.isNotEmpty ? (result.deposits.first.principalMinor / 100).toStringAsFixed(0) : '0'} 元'
@@ -474,25 +504,34 @@ class _PreviewCard extends StatelessWidget {
             '，到期 ${result.deposits.isNotEmpty ? result.deposits.first.maturityYuan.toStringAsFixed(2) : '0'} 元'
             '（共模拟 ${result.simulatedMonths} 个月）',
             style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _row(BuildContext context, String label, String value,
-          {Color? color, bool bold = false}) =>
+  Widget _row(
+    BuildContext context,
+    String label,
+    String value, {
+    Color? color,
+    bool bold = false,
+  }) =>
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            Text(label,
-                style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
             Text(
               value,
               style: TextStyle(

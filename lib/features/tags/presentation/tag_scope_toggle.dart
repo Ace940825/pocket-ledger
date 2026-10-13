@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../domain/enums.dart';
+import '../../../theme/app_colors.dart';
 
 /// 通用 / 账本独立 分段控件（标签模块共用）。
 ///

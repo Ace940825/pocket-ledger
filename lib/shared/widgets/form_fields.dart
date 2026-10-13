@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
 import '../../core/constants/app_dimens.dart';
+import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
 
 /// 金额输入框。
