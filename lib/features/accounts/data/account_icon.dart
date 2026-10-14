@@ -1,52 +1,46 @@
-import 'package:flutter/material.dart';
-
 import '../../../domain/enums.dart';
+import '../../../shared/widgets/line_icons.dart';
 
-/// 各账户类型对应的图标。
+/// 各账户类型对应的线稿图标（[LineIconKind]）。
 ///
-/// 账户页、资产详情页等需要渲染账户 icon 的地方统一调用本函数，
-/// 避免在多个页面里各自维护一套映射。
+/// 账户页、资产详情页、记一笔账户选择等需要渲染账户图标的地方统一调用
+/// 本函数，返回线稿种类——与分类图标同套 [LineIcon] 钢笔线稿，整页观感统一。
+/// 无匹配时返回 null，由调用方兜底为 [LineIconKind.star]。
 ///
-/// 选图原则：中文语境一眼可辨——储蓄卡=银行、信用卡=标准卡、
-/// 支付宝=扫码、医保=保障盾、储值卡=卡面、借出/借入=握手往来
-/// （与账户页借出/借入汇总行的 handshake 图标同源）。
-/// 三类「其他账户」（资产/负债/投资兜底）统一用 category 图形，
-/// 语义同为「兜底分类」，描边风格与全表一致。
-IconData accountIcon(AccountType type) => switch (type) {
+/// 选图原则：中文语境一眼可辨——储蓄卡=银行立柱、信用卡=信用卡、支付宝/微信
+/// =手机应用、医保=医疗十字、公积金=住房、借出/借入=往来箭头（与记一笔资金
+/// 往来同源）；三类「其他账户」兜底用 star，语义同「其他」。
+LineIconKind? accountLineKind(AccountType type) => switch (type) {
       // 资金类
-      AccountType.cash => Icons.payments_outlined,
-      AccountType.bankCard => Icons.account_balance_outlined,
-      AccountType.eWallet => Icons.account_balance_wallet_outlined,
-      AccountType.other => Icons.category_outlined,
-      AccountType.wechat => Icons.chat_bubble_outline,
-      AccountType.alipay => Icons.qr_code_scanner,
-      AccountType.providentFund => Icons.home_outlined,
-      AccountType.medicalInsurance => Icons.health_and_safety_outlined,
-      AccountType.transitCard => Icons.directions_bus_outlined,
-      AccountType.giftCard => Icons.card_membership_outlined,
-
+      AccountType.cash => LineIconKind.moneyBag,
+      AccountType.bankCard => LineIconKind.account,
+      AccountType.eWallet => LineIconKind.funds,
+      AccountType.other => LineIconKind.star,
+      AccountType.wechat => LineIconKind.smartphone,
+      AccountType.alipay => LineIconKind.smartphone,
+      AccountType.providentFund => LineIconKind.house,
+      AccountType.medicalInsurance => LineIconKind.medicalCross,
+      AccountType.transitCard => LineIconKind.transit,
+      AccountType.giftCard => LineIconKind.giftRibbon,
       // 投资类
-      AccountType.investment => Icons.trending_up,
-      AccountType.fund => Icons.pie_chart_outline,
-      AccountType.stock => Icons.show_chart,
-      AccountType.futures => Icons.swap_horiz,
-      AccountType.spot => Icons.inventory_2_outlined,
-      AccountType.timeDeposit => Icons.lock_clock_outlined,
-      AccountType.investmentOther => Icons.category_outlined,
-
+      AccountType.investment => LineIconKind.trendUp,
+      AccountType.fund => LineIconKind.trendUp,
+      AccountType.stock => LineIconKind.securities,
+      AccountType.futures => LineIconKind.trendUp,
+      AccountType.spot => LineIconKind.trendUp,
+      AccountType.timeDeposit => LineIconKind.depositIn,
+      AccountType.investmentOther => LineIconKind.star,
       // 应收类
-      AccountType.reimbursement => Icons.receipt_long_outlined,
-      AccountType.lend => Icons.handshake_outlined,
-
+      AccountType.reimbursement => LineIconKind.reimbursement,
+      AccountType.lend => LineIconKind.lendOut,
       // 负债类
-      AccountType.creditCard => Icons.credit_card,
-      AccountType.huabei => Icons.shopping_bag_outlined,
-      AccountType.jiebei => Icons.money_outlined,
-      AccountType.baitiao => Icons.receipt_outlined,
-      AccountType.meituanMonthly => Icons.restaurant_outlined,
-      AccountType.douyinMonthly => Icons.music_note_outlined,
-      AccountType.otherDebt => Icons.category_outlined,
-
+      AccountType.creditCard => LineIconKind.withdrawal,
+      AccountType.huabei => LineIconKind.shoppingBag,
+      AccountType.jiebei => LineIconKind.lend,
+      AccountType.baitiao => LineIconKind.shoppingBag,
+      AccountType.meituanMonthly => LineIconKind.food,
+      AccountType.douyinMonthly => LineIconKind.musicNote,
+      AccountType.otherDebt => LineIconKind.star,
       // 应付类
-      AccountType.borrow => Icons.handshake_outlined,
+      AccountType.borrow => LineIconKind.borrowIn,
     };

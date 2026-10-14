@@ -13,6 +13,7 @@ import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
@@ -44,10 +45,11 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
   Future<void> _refreshPrices() async {
     if (_refreshing) return;
     setState(() => _refreshing = true);
+    int updated = -1;
     try {
       // 手动刷新绕过「每天一次」节流（force）：既尊重用户主动意图，
       // 也在行情解析出错修正后能立即重取正确价。
-      await ref
+      updated = await ref
           .read(investmentRepositoryProvider)
           .refreshAllPrices(force: true);
     } catch (_) {
@@ -56,6 +58,15 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
       if (mounted) {
         ref.invalidate(investmentListProvider);
         setState(() => _refreshing = false);
+        // 结果反馈：源失败静默跳过时用户只会觉得「点了没反应」，
+        // 必须明示更新了几只 / 是否整体失败（2026-10-14 真机反馈）。
+        if (updated < 0) {
+          showAppToast(context, '刷新失败，请检查网络后重试');
+        } else if (updated == 0) {
+          showAppToast(context, '行情源暂不可用，已保留现价');
+        } else {
+          showAppToast(context, '已更新 $updated 只现价');
+        }
       }
     }
   }

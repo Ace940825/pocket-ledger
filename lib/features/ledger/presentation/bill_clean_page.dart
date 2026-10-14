@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../core/constants/app_dimens.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -11,6 +10,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/tag_pill.dart';
@@ -573,7 +573,7 @@ class _CleanTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              _icon(),
+              _icon(context),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -644,7 +644,7 @@ class _CleanTile extends StatelessWidget {
     );
   }
 
-  Widget _icon() {
+  Widget _icon(BuildContext context) {
     final Color tint = category?.colorValue != null
         ? Color(category!.colorValue!)
         : switch (txn.type) {
@@ -654,15 +654,19 @@ class _CleanTile extends StatelessWidget {
           };
     final LineIconKind lineKind = resolveTxnLineIcon(txn, category);
 
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
+    return ClayIconTile(
+      size: 44,
+      color: tint,
       child: Center(
-        child: LineIcon(lineKind, size: 22, color: tint),
+        child: LineIcon(
+          lineKind,
+          size: 22,
+          color: Color.lerp(
+            tint,
+            Theme.of(context).colorScheme.onSurface,
+            0.22,
+          )!,
+        ),
       ),
     );
   }

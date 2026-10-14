@@ -10,7 +10,6 @@ import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/avatar_tile.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
 import '../../../theme/app_colors.dart';
@@ -494,10 +493,16 @@ class _SlideAction extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          AvatarTile(
-            size: 48,
-            backgroundColor: color.withValues(alpha: 0.14),
-            border: Border.all(color: color.withValues(alpha: 0.20)),
+          // 与 TxnSlideAction 圆形徽章同款（全应用滑动列表统一视觉）
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+              border: Border.all(color: color.withValues(alpha: 0.20)),
+            ),
+            alignment: Alignment.center,
             child: Icon(icon, size: 24, color: color, semanticLabel: label),
           ),
           const SizedBox(height: 4),

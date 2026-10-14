@@ -227,7 +227,6 @@ class AppPalette {
   static const Color sand = Color(0xFFD8CDB4); // 沙色
   static const Color mintWhisper = Color(0xFFE9F1E2); // 薄荷微光
   static const Color sandWarm = Color(0xFFEDE4D2); // 暖沙
-  static const Color salmon = Color(0xFFD9736B); // 三文鱼红
 
   // ---- §7 一次性刻意语义色（各 1 处，精确同值别名，零视觉漂移）----
   // 账户 / 选择器

@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
@@ -438,17 +440,17 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             padding: const EdgeInsets.all(AppDimens.spaceMd),
             child: Row(
               children: <Widget>[
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppPalette.primary.withValues(alpha: 0.10),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    accountIcon(account.type),
+                ClayIconTile(
+                  size: 40,
+                  color: AppPalette.primary,
+                  child: LineIcon(
+                    accountLineKind(account.type) ?? LineIconKind.star,
                     size: 20,
-                    color: AppPalette.primary,
+                    color: Color.lerp(
+                      AppPalette.primary,
+                      Theme.of(context).colorScheme.onSurface,
+                      0.22,
+                    )!,
                   ),
                 ),
                 const SizedBox(width: AppDimens.spaceMd),

@@ -26,7 +26,8 @@ Future<void> showReimbursementRecordSheet(
   BuildContext context,
   Reimbursement record,
 ) {
-  // 与流水明细同策略：挂 Tab 分支导航器并登记，切 Tab 时由 AppShell.closeAll() 统一收起。
+  // 与流水明细同策略：挂 Tab 分支导航器并登记，切 Tab 时由 AppShell.closeAll()
+  // 统一收起；弹层打开期间 AppShell 隐藏底部导航栏。
   return showAppModalSheet<void>(
     context,
     isScrollControlled: true,

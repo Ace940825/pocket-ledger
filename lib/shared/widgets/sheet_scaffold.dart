@@ -3,15 +3,17 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import 'bottom_action_bar.dart';
 import 'modal_sheet_registry.dart';
-import 'sheet_drag_handle.dart';
 
-/// 底部弹层外壳（全应用统一）：圆角顶 + 拖拽条 + 可选标题 + body + 可选操作栏 + 底部安全区。
+/// 底部弹层外壳（全应用统一）：悬浮卡（四周留边 + 四角全圆）+ 可选标题 + body
+/// + 可选操作栏。
 ///
-/// 取代各页 `showModalBottomSheet` 里手写的「Container 圆角 + 36×4 把手 + 标题行
-/// + padding + SafeArea」样板。调用方只提供标题与内容。
+/// 取代各页 `showModalBottomSheet` 里手写的「Container 圆角 + 标题行 + padding
+/// + SafeArea」样板。调用方只提供标题与内容。
 ///
-/// 视觉与既有弹层一致（顶部 [AppDimens.radiusSheet] 圆角、发丝线标题底、[SheetDragHandle]），
-/// 暗色随 [ColorScheme] 自动适配。
+/// 拖拽柄已全局移除（2026-10-14 第 19 批反馈：上/下柄都不保留；M3 路由自带的
+/// handle 由主题 `showDragHandle: false` 关闭），下滑关闭手势仍然有效。
+/// 视觉口径：四角 [AppDimens.radiusSheet] 圆角 + 发丝线标题底，暗色随
+/// [ColorScheme] 自动适配。
 class AppModalSheet extends StatelessWidget {
   const AppModalSheet({
     super.key,
@@ -46,6 +48,8 @@ class AppModalSheet extends StatelessWidget {
   final List<Widget>? actions;
 
   final EdgeInsetsGeometry bodyPadding;
+
+  /// 已废弃（第 19 批起全局移除拖拽柄）：保留参数兼容既有调用点，不再生效。
   final bool showHandle;
 
   /// true 时 body 用 [Expanded] 填满剩余空间（全高弹层，如「列表贴底 + 操作栏
@@ -61,9 +65,13 @@ class AppModalSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    // 键盘高度避让：弹层内容整体抬到键盘上方（背景延伸到键盘后面，圆角顶仍可见）。
+    // 无键盘时为 0，视觉零变化。此前带输入框的弹层（编辑标签/类别等）会被
+    // 键盘完全盖住（2026-10-14 真机反馈）。
+    final double viewInset = MediaQuery.viewInsetsOf(context).bottom;
 
     final List<Widget> children = <Widget>[
-      if (showHandle) const SheetDragHandle(),
+      // 拖拽柄已全局移除（第 19 批），[showHandle] 参数保留兼容但不再渲染。
       if (titleWidget != null || title != null)
         Container(
           padding: const EdgeInsets.symmetric(
@@ -101,6 +109,10 @@ class AppModalSheet extends StatelessWidget {
     if (actions != null) {
       children.add(
         BottomActionBar(
+          // 悬浮卡底部自带 12px 离屏边距，卡内不再做 SafeArea 避让——
+          // 否则 home indicator 高度叠加悬浮边距，操作栏下方留白过大
+          // （2026-10-14 第 19 批反馈，全弹层统一）。
+          useSafeArea: false,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: actions!,
@@ -108,24 +120,36 @@ class AppModalSheet extends StatelessWidget {
         ),
       );
     }
-    children.add(
-      const SafeArea(
-        top: false,
-        bottom: true,
-        child: SizedBox.shrink(),
-      ),
-    );
+    // 尾部 SafeArea 已删除（第 19 批）：悬浮卡自带离屏边距，卡内无需避让
+    // home indicator；键盘高度仍由外层 viewInset padding 负责。
 
+    // 悬浮卡样式（2026-10-14 第 16 批反馈，对标小青账）：四周留边、四角全圆，
+    // 弹层像一张卡片浮在遮罩上，而非贴底整宽面板。底层 Material 已透明，
+    // 卡片完全由本 Container 自绘 → 全应用所有弹层一处生效。
     return Container(
+      // 关键：decoration 不裁剪子级——通宽色块子级（如日历 _sageBar 顶栏、
+      // BottomActionBar 底栏）的方形角会伸出卡片圆弧外，在两角形成 3px
+      // 方形台阶（2026-10-14 第 17 批反馈「两边还有角」真凶）。
+      // antiAlias 把全部子级裁进圆角内。
+      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.fromLTRB(
+        AppDimens.md,
+        0,
+        AppDimens.md,
+        AppDimens.md,
+      ),
       decoration: BoxDecoration(
         color: surfaceColor ?? scheme.surface,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusSheet),
-        ),
+        borderRadius: BorderRadius.circular(AppDimens.radiusSheet),
+        // 悬浮投影：压住留边区透出的背景内容（幽灵角）+ 悬浮层次感。
+        boxShadow: AppShadows.floating,
       ),
-      child: Column(
-        mainAxisSize: constrainHeight ? MainAxisSize.max : MainAxisSize.min,
-        children: children,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: viewInset),
+        child: Column(
+          mainAxisSize: constrainHeight ? MainAxisSize.max : MainAxisSize.min,
+          children: children,
+        ),
       ),
     );
   }
@@ -195,10 +219,8 @@ Future<T?> showAppModalSheet<T>(
     isScrollControlled: isScrollControlled,
     useSafeArea: useSafeArea,
     useRootNavigator: useRootNavigator,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppDimens.radiusSheet),
-      ),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppDimens.radiusSheet),
     ),
     builder: (_) => sheet,
   );

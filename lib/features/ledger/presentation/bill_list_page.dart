@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/app_dimens.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/loading_state.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
@@ -502,15 +502,19 @@ class _BillTile extends StatelessWidget {
           };
     final LineIconKind lineKind = resolveTxnLineIcon(txn, category);
 
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      ),
+    return ClayIconTile(
+      size: 44,
+      color: tint,
       child: Center(
-        child: LineIcon(lineKind, size: 22, color: tint),
+        child: LineIcon(
+          lineKind,
+          size: 22,
+          color: Color.lerp(
+            tint,
+            Theme.of(context).colorScheme.onSurface,
+            0.22,
+          )!,
+        ),
       ),
     );
   }

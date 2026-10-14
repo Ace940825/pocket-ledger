@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pocket_ledger/shared/widgets/tinted_icon_box.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 
 import '../../../../core/constants/app_dimens.dart';
 import '../../../../database/app_database.dart';
@@ -60,9 +60,18 @@ class AccountTransactionTile extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            TintedIconBox(
-              tint: tint,
-              child: LineIcon(lineKind, size: 20, color: tint),
+            ClayIconTile(
+              size: 44,
+              color: tint,
+              child: LineIcon(
+                lineKind,
+                size: 20,
+                color: Color.lerp(
+                  tint,
+                  Theme.of(context).colorScheme.onSurface,
+                  0.22,
+                )!,
+              ),
             ),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(

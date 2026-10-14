@@ -145,6 +145,11 @@ class MarketService {
       final Response<dynamic> resp = await _dio.get(
         'https://fundgz.1234567.com.cn/js/$code.js'
         '?rt=${DateTime.now().millisecondsSinceEpoch}',
+        options: Options(
+          headers: <String, String>{
+            'Referer': 'https://fund.eastmoney.com/',
+          },
+        ),
       );
       final String body =
           resp.data is String ? resp.data as String : resp.data.toString();
@@ -284,6 +289,9 @@ class MarketService {
         '?reportName=RPT_BOND_CB_LIST'
         '&columns=SECURITY_CODE,SECURITY_NAME_ABBR'
         '&pageSize=2000&sortColumns=SECURITY_CODE&sortTypes=1',
+        options: Options(
+          headers: <String, String>{'Referer': 'https://data.eastmoney.com/'},
+        ),
       );
       final Map<String, dynamic> j = resp.data is String
           ? jsonDecode(resp.data as String) as Map<String, dynamic>
@@ -585,7 +593,15 @@ class MarketService {
     try {
       final Response<dynamic> resp = await _dio.get(
         'https://push2.eastmoney.com/api/qt/stock/get'
-        '?secid=$secid&fields=f43,f59',
+        '?secid=$secid&fields=f43,f59'
+        // 时间戳参数穿透 CDN 缓存：东财宽松节点会返回过期缓存价
+        //（盘中有价不动 = 「现价刷新后没反应」的候选根因之一）。
+        '&_=${DateTime.now().millisecondsSinceEpoch}',
+        // 东方财富对无 Referer 的请求不稳定（2026-10-14 实测 curl 连接被重置，
+        // 命中宽松节点时会返回过期缓存价 → 真机「现价与实际不符」），必须带。
+        options: Options(
+          headers: <String, String>{'Referer': 'https://quote.eastmoney.com/'},
+        ),
       );
       final Map<String, dynamic> j = resp.data is String
           ? jsonDecode(resp.data as String) as Map<String, dynamic>

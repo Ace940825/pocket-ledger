@@ -14,8 +14,8 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pocket_ledger/shared/widgets/app_button.dart';
-import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
 import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
@@ -2410,7 +2410,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         : Money.fromMinor(account.balanceMinor, currency: account.currency);
     final Widget avatar = _buildFlowAvatar(
       context,
-      icon: accountIcon(account?.type ?? AccountType.cash),
+      icon: accountLineKind(account?.type ?? AccountType.cash),
       picked: account != null,
     );
     final Widget textCol = Expanded(
@@ -2497,7 +2497,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   /// 黏土账户头像：未选 = 米白黏土 + 线稿图标；已选 = sage 渐变 + 白图标。
   Widget _buildFlowAvatar(
     BuildContext context, {
-    required IconData icon,
+    required LineIconKind? icon,
     required bool picked,
   }) {
     return Container(
@@ -2555,8 +2555,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             ),
           ),
           Center(
-            child: Icon(
-              icon,
+            child: LineIcon(
+              icon ?? LineIconKind.star,
               size: 22,
               color: picked
                   ? Theme.of(context).colorScheme.onPrimary
@@ -5267,8 +5267,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     color: picked ? _Sage.greenSoftBd : context.colors.outline,
                   ),
                 ),
-                child: Icon(
-                  accountIcon(selected?.type ?? AccountType.reimbursement),
+                child: LineIcon(
+                  accountLineKind(
+                          selected?.type ?? AccountType.reimbursement) ??
+                      LineIconKind.star,
                   size: 16,
                   color: picked
                       ? _Sage.greenDeep
@@ -8574,7 +8576,7 @@ class _CategoryItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            _ClayIconTile(
+            ClayIconTile(
               color: color,
               selected: selected,
               child: _buildIcon(context),
@@ -8607,91 +8609,6 @@ class _CategoryItem extends StatelessWidget {
         ? Theme.of(context).colorScheme.onPrimary
         : Color.lerp(color, Theme.of(context).colorScheme.onSurface, 0.22)!;
     return LineIcon(lineKind ?? LineIconKind.star, size: 22, color: iconColor);
-  }
-}
-
-/// A3 黏土图标容器：白→分类彩双色渐变软糖底 + 左上高光斑 + 长投影。
-/// 选中态转实体分类色、去高光（对齐设计稿 `.va.i3 .cat .ic`）。
-class _ClayIconTile extends StatelessWidget {
-  const _ClayIconTile({
-    required this.color,
-    required this.selected,
-    required this.child,
-  });
-
-  final Color color;
-  final bool selected;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    // 加深黏土底：分类色混入比例 0.32 → 0.5（用户反馈图标整体偏淡）
-    final Color tint =
-        Color.lerp(Colors.white, color, 0.5)!; // ignore: no_raw_colors
-    return Container(
-      width: 42,
-      height: 42,
-      clipBehavior: Clip.antiAlias,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: selected ? color : null,
-        gradient: selected
-            ? null
-            : LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: <Color>[Colors.white, tint], // ignore: no_raw_colors
-                stops: const <double>[0, 0.78],
-              ),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(
-          color: selected
-              ? Colors.transparent
-              : Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
-        ),
-        boxShadow: <BoxShadow>[
-          // 未选中：设计稿 5px 7px 14px rgba(74,66,46,.20)（微收敛防格间溢出）
-          // 选中：0 6px 14px rgba(74,66,46,.22)
-          BoxShadow(
-            color:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
-            offset: selected ? const Offset(0, 6) : const Offset(3, 4),
-            blurRadius: selected ? 14 : 10,
-          ),
-        ],
-      ),
-      child: Stack(
-        children: <Widget>[
-          if (!selected)
-            // 左上高光斑：铺满整块的 radial-gradient
-            // （circle at 40% 35%, rgba(255,255,255,.92), transparent 70%）。
-            // 注意结束色必须用「透明白」而非 Colors.transparent——后者是
-            // 透明黑，RGBA 直插值中途会变成半透明灰，在浅底上显示为灰斑。
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(13),
-                  gradient: RadialGradient(
-                    center: const Alignment(-0.2, -0.3),
-                    radius: 0.9,
-                    colors: <Color>[
-                      Theme.of(context)
-                          .colorScheme
-                          .surface
-                          .withValues(alpha: 0.92),
-                      Theme.of(context)
-                          .colorScheme
-                          .surface
-                          .withValues(alpha: 0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          Center(child: child),
-        ],
-      ),
-    );
   }
 }
 
@@ -8790,17 +8707,22 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
       ? Color(widget.parent.colorValue!)
       : AppPalette.primary;
 
-  /// 分类头像：优先手绘 LineIcon，无映射时兜底 Material 图标，
-  /// 与记一笔主网格（[_CategoryItem]）视觉一致。
+  /// 分类黏土图标：与记一笔主网格（[_CategoryItem] / [ClayIconTile]）同款
+  /// 方糖渐变底 + 收深线稿，替代旧圆形平涂头像（用户反馈两处风格不一致）。
   Widget _categoryLeadIcon(String? iconKey, Color color) {
-    final LineIconKind? kind = categoryLineKind(iconKey);
-    if (kind != null) {
-      return LineIcon(kind, size: 22, color: color);
-    }
-    return LineIcon(
-      categoryLineKind(iconKey) ?? LineIconKind.star,
-      size: 22,
+    return ClayIconTile(
       color: color,
+      selected: false,
+      child: LineIcon(
+        categoryLineKind(iconKey) ?? LineIconKind.star,
+        size: 22,
+        // 与主网格未选中态同口径：向暖墨色收敛 22%，避免线稿在渐变高光上被冲淡。
+        color: Color.lerp(
+          color,
+          Theme.of(context).colorScheme.onSurface,
+          0.22,
+        )!,
+      ),
     );
   }
 
@@ -8828,11 +8750,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                   InkWell(
                     borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     onTap: () => Navigator.of(context).pop(widget.parent.id),
-                    child: AvatarTile(
-                      size: 40,
-                      backgroundColor: color.withValues(alpha: 0.15),
-                      child: _categoryLeadIcon(widget.parent.iconKey, color),
-                    ),
+                    child: _categoryLeadIcon(widget.parent.iconKey, color),
                   ),
                   const SizedBox(width: AppDimens.spaceSm),
                   Expanded(
@@ -8941,11 +8859,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
       itemBuilder: (BuildContext context, int index) {
         final Category child = widget.children[index];
         return ListTile(
-          leading: AvatarTile(
-            size: 40,
-            backgroundColor: color.withValues(alpha: 0.15),
-            child: _categoryLeadIcon(child.iconKey, color),
-          ),
+          leading: _categoryLeadIcon(child.iconKey, color),
           title: Text(child.name),
           trailing: child.id == widget.selectedId
               ? Icon(Icons.check, color: theme.colorScheme.primary)

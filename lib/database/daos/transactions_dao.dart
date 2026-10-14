@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../domain/enums.dart';
@@ -8,12 +10,19 @@ part 'transactions_dao.g.dart';
 
 /// 分类金额聚合结果（用于报表饼图与分类排行）
 class CategoryTotal {
-  const CategoryTotal({required this.categoryId, required this.totalMinor});
+  const CategoryTotal({
+    required this.categoryId,
+    required this.totalMinor,
+    this.count = 0,
+  });
 
   final String categoryId;
 
   /// 该分类的合计金额（分），恒为正数
   final int totalMinor;
+
+  /// 该分类区间内的流水笔数（预算分类行「N笔」用；旧调用点缺省 0）。
+  final int count;
 }
 
 /// 单月收支聚合结果（用于趋势图）
@@ -380,8 +389,13 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     // 实付口径：支出扣优惠（收入 discount 恒 0，不受影响）
     final Expression<int> total =
         (transactions.amountMinor - transactions.discountMinor).sum();
+    final Expression<int> cnt = countAll();
     return (selectOnly(transactions)
-          ..addColumns(<Expression<Object>>[transactions.categoryId, total])
+          ..addColumns(<Expression<Object>>[
+            transactions.categoryId,
+            total,
+            cnt,
+          ])
           ..where(
             transactions.bookId.equals(bookId) &
                 transactions.deleted.equals(false) &
@@ -396,6 +410,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           (TypedResult row) => CategoryTotal(
             categoryId: row.read(transactions.categoryId) ?? '',
             totalMinor: row.read(total) ?? 0,
+            count: row.read(cnt) ?? 0,
           ),
         )
         .watch();
@@ -543,6 +558,62 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value<int>(updatedAt),
       ),
     );
+  }
+
+  /// 把流水中旧标签名统一改挂为目标标签名（标签迁移用）。
+  ///
+  /// 流水只存标签名 JSON 数组（见 [Transactions.tags]），故迁移即改写数组：
+  /// 目标名已存在时仅移除旧名（去重），否则在首个命中处原位替换。
+  /// 命中的行置 dirty/updatedAt 以入队云端同步。返回受影响流水条数。
+  Future<int> migrateTagName(
+    String fromName,
+    String toName,
+    int updatedAt,
+  ) async {
+    final List<Transaction> rows = await (select(transactions)
+          ..where(
+            ($TransactionsTable tbl) =>
+                tbl.tags.isNotNull() & tbl.deleted.equals(false),
+          ))
+        .get();
+    int changed = 0;
+    for (final Transaction t in rows) {
+      final List<String>? names = _decodeTagNames(t.tags);
+      if (names == null || !names.contains(fromName)) continue;
+      final bool hasTarget = names.contains(toName);
+      final List<String> next = <String>[];
+      for (final String n in names) {
+        if (n != fromName) {
+          next.add(n);
+        } else if (!hasTarget && !next.contains(toName)) {
+          next.add(toName); // 首个命中处原位替换
+        }
+        // 其余旧名（重复项 / 目标名已存在时）直接丢弃
+      }
+      await (update(transactions)
+            ..where(($TransactionsTable tbl) => tbl.id.equals(t.id)))
+          .write(
+        TransactionsCompanion(
+          tags: Value<String?>(next.isEmpty ? null : jsonEncode(next)),
+          dirty: const Value<bool>(true),
+          updatedAt: Value<int>(updatedAt),
+        ),
+      );
+      changed++;
+    }
+    return changed;
+  }
+
+  /// 流水 tags 列的 JSON 数组解码；空/坏数据返回 null。
+  List<String>? _decodeTagNames(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final Object? v = jsonDecode(raw);
+      if (v is List) return v.cast<String>();
+    } catch (_) {
+      // 容忍脏数据：解码失败按无数据处理。
+    }
+    return null;
   }
 
   /// 软删除：物理删除无法同步到云端，必须标记后随同步推送。

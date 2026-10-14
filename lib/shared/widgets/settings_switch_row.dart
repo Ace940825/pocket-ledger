@@ -3,6 +3,8 @@ import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/theme/app_colors.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 
+import '../../../shared/widgets/line_icons.dart';
+
 /// 设置页「标题 + 副标题 + 开关」行（全应用统一）。
 ///
 /// 取代各页手搭的同构组件：`_SwitchRow` / `_SwitchTile` / `_SettingsSwitchTile`
@@ -68,8 +70,8 @@ class SettingsSwitchRow extends StatelessWidget {
             ),
           ),
           if (showCrown) ...<Widget>[
-            const Icon(
-              Icons.workspace_premium,
+            const LineIcon(
+              LineIconKind.star,
               size: 18,
               color: AppPalette.warn,
             ),

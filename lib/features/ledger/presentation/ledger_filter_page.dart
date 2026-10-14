@@ -11,6 +11,7 @@ import '../../../shared/widgets/account_filter_row.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -1127,14 +1128,13 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     );
   }
 
-  /// 账户圆形头像：账户色底 + 按账户类别取图标。
+  /// 账户头像：黏土方糖底 + 按账户类别取线稿图标（全应用统一风格）。
   Widget _accAvatar(Account a) {
     final Color color =
         a.colorValue != null ? Color(a.colorValue!) : AppPalette.ctaGreen;
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    return ClayIconTile(
+      size: 42,
+      color: color,
       child: Icon(
         switch (a.type.category) {
           AccountCategory.capital => Icons.account_balance_wallet_outlined,
@@ -1144,7 +1144,11 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           AccountCategory.payable => Icons.arrow_circle_down_outlined,
         },
         size: 21,
-        color: AppPalette.white,
+        color: Color.lerp(
+          color,
+          Theme.of(context).colorScheme.onSurface,
+          0.22,
+        )!,
       ),
     );
   }

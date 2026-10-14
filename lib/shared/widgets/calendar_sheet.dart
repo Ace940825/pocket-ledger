@@ -233,6 +233,14 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   /// 用于快速定位很早/很晚的日期，不必逐月横滑。
   String? _rangeNavMode;
 
+  // ---- 月/年单选宫格（CalendarSheetMode.month / year，预算页等）----
+  // 交互（2026-10-14 第 10 批反馈）：单击仅选中（高亮），再点同一格确认返回；
+  // 顶栏左侧有返回键可直接关闭。复用 _gridCellTap 的 320ms 双击判定。
+  late int _mpBrowseYear; // 月宫格页头浏览年（‹ › 步进）
+  late DateTime _mpSel; // 月宫格选中月
+  late int _ypBrowseYear; // 年宫格页头浏览年
+  late int _ypSel; // 年宫格选中年
+
   // ---- 月/年宫格「单击选中、双击跳转」 ----
   // 单击仅选中年/月（有的场景只需要选年份或月份，不跳月/日期）；
   // 双击才跳转下一层。用「同一格 320ms 内再点」判定双击，相比
@@ -359,6 +367,13 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       initialPage: _dayPageOf(_rangeViewMonth),
       keepPage: false,
     );
+    // 月/年单选宫格初始游标（CalendarSheetMode.month / year 专用）。
+    final DateTime mpInit =
+        widget.initialMonth ?? DateTime(_selected.year, _selected.month);
+    _mpBrowseYear = mpInit.year;
+    _mpSel = mpInit;
+    _ypSel = widget.initialYear ?? _selected.year;
+    _ypBrowseYear = _ypSel;
   }
 
   @override
@@ -1716,43 +1731,58 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   // ───────── 月 / 年 单选（点选即返回，无确认） ─────────
 
   Widget _buildMonthPicker() {
-    int year = widget.initialMonth?.year ?? _selected.year;
-    final int selM = widget.initialMonth?.month ?? _selected.month;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        _sageBar(
-          title: '$year 年',
-          canDown: year < _localNow().year,
-          onPrev: () => setState(() => year--),
-          onNext: () => setState(() => year++),
-        ),
+        _sageBar(title: '$_mpBrowseYear 年'),
         Padding(
           padding: const EdgeInsets.all(AppDimens.spaceLg),
-          child: GridView.count(
-            crossAxisCount: 4,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 1.7,
-            children: <Widget>[
-              for (int m = 1; m <= 12; m++) _monthCell(year, m, selM),
-            ],
+          child: GestureDetector(
+            // 左右滑动切年（2026-10-14 第 17 批反馈，取代 ‹ › 箭头）。
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: _monthPickerSwipe,
+            child: GridView.count(
+              crossAxisCount: 4,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.7,
+              children: <Widget>[
+                for (int m = 1; m <= 12; m++) _monthCell(_mpBrowseYear, m),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _monthCell(int year, int m, int selM) {
+  /// 月宫格左右滑动切年：左滑（负速度）下一年、右滑上一年，边界处静默忽略。
+  void _monthPickerSwipe(DragEndDetails d) {
+    final double v = d.primaryVelocity ?? 0;
+    if (v < -120 && _mpBrowseYear < widget.lastDate.year) {
+      setState(() => _mpBrowseYear++);
+    } else if (v > 120 && _mpBrowseYear > widget.firstDate.year) {
+      setState(() => _mpBrowseYear--);
+    }
+  }
+
+  /// 单击选中该月（高亮）、再点同一格确认返回（2026-10-14 第 10 批反馈）。
+  Widget _monthCell(int year, int m) {
     final bool disabled = !_isMonthAllowed(DateTime(year, m));
-    final bool selected = year == widget.initialMonth?.year && m == selM;
+    final bool selected = year == _mpSel.year && m == _mpSel.month;
     return InkWell(
       borderRadius: BorderRadius.circular(AppDimens.radiusSm),
       onTap: disabled
           ? null
-          : () => Navigator.of(context).pop(CalendarMonth(year, m)),
+          : () => _gridCellTap(
+                5 * 1000000 + year * 100 + m,
+                // 单击：仅选中该月（高亮）
+                () => setState(() => _mpSel = DateTime(year, m)),
+                // 再点同格：确认返回
+                () => Navigator.of(context).pop(CalendarMonth(year, m)),
+              ),
       child: Container(
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -1779,44 +1809,60 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   }
 
   Widget _buildYearPicker() {
-    int year = widget.initialYear ?? _selected.year;
-    final int selY = widget.initialYear ?? _selected.year;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        _sageBar(
-          title: '$year 年',
-          canUp: year > widget.firstDate.year,
-          canDown: year < widget.lastDate.year,
-          onPrev: () => setState(() => year--),
-          onNext: () => setState(() => year++),
-        ),
+        _sageBar(title: '$_ypBrowseYear 年'),
         Padding(
           padding: const EdgeInsets.all(AppDimens.spaceLg),
-          child: GridView.count(
-            crossAxisCount: 4,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 1.7,
-            children: <Widget>[
-              for (int y = year - 5; y <= year + 6; y++) _yearPickCell(y, selY),
-            ],
+          child: GestureDetector(
+            // 左右滑动平移年份窗口（2026-10-14 第 17 批反馈，取代 ‹ › 箭头）。
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: _yearPickerSwipe,
+            child: GridView.count(
+              crossAxisCount: 4,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.7,
+              children: <Widget>[
+                for (int y = _ypBrowseYear - 5; y <= _ypBrowseYear + 6; y++)
+                  _yearPickCell(y),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _yearPickCell(int y, int selY) {
+  /// 年宫格左右滑动：左滑窗口后移一年、右滑前移一年，边界处静默忽略。
+  void _yearPickerSwipe(DragEndDetails d) {
+    final double v = d.primaryVelocity ?? 0;
+    if (v < -120 && _ypBrowseYear < widget.lastDate.year) {
+      setState(() => _ypBrowseYear++);
+    } else if (v > 120 && _ypBrowseYear > widget.firstDate.year) {
+      setState(() => _ypBrowseYear--);
+    }
+  }
+
+  /// 单击选中年份（高亮）、再点同一格确认返回（2026-10-14 第 10 批反馈）。
+  Widget _yearPickCell(int y) {
     final bool outOfRange =
         y < widget.firstDate.year || y > widget.lastDate.year;
-    final bool selected = y == selY;
+    final bool selected = y == _ypSel;
     return InkWell(
       borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-      onTap:
-          outOfRange ? null : () => Navigator.of(context).pop(CalendarYear(y)),
+      onTap: outOfRange
+          ? null
+          : () => _gridCellTap(
+                6 * 1000000 + y,
+                // 单击：仅选中年份（高亮）
+                () => setState(() => _ypSel = y),
+                // 再点同格：确认返回
+                () => Navigator.of(context).pop(CalendarYear(y)),
+              ),
       child: Container(
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -2125,7 +2171,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               height: _kW,
               margin: const EdgeInsets.symmetric(horizontal: 24),
               decoration: BoxDecoration(
-                color: AppPalette.neutralSoft,
+                // 2026-10-14 第 14 批：neutralSoft 冷灰 → paper2 暖凹陷调，
+                // 与弹层 cream 底统一（全站凹陷底标准色）。
+                color: AppPalette.paper2,
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
@@ -2783,36 +2831,34 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     return ((shifted.difference(yearStart).inDays + 1) / 7).ceil();
   }
 
-  Widget _sageBar({
-    required String title,
-    required bool canDown,
-    required VoidCallback onPrev,
-    required VoidCallback onNext,
-    bool canUp = true,
-  }) =>
-      Container(
-        decoration: const BoxDecoration(
-          color: AppPalette.sage200,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  /// 月/年选择器顶栏（2026-10-14 第 17 批简化）：仅居中标题。
+  /// 关闭键与 ‹ › 箭头已移除——下滑/点遮罩关闭，左右滑动切换年份。
+  Widget _sageBar({required String title}) => Container(
+        // 2026-10-14 第 14 批：原 sage200 绿底与弹层 cream/surface 底色调
+        // 不统一（月/年选择器顶栏），改与弹层同底色 + 底部发丝线分隔，
+        // 与 AppModalSheet 标题栏口径一致；顶部圆角由弹层外壳统一负责。
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
+          ),
         ),
         padding: const EdgeInsets.symmetric(
           horizontal: AppDimens.spaceSm,
-          vertical: 4,
+          vertical: 12,
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            IconButton(
-              icon: const Icon(Icons.chevron_left),
-              onPressed: canUp ? onPrev : null,
-            ),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: canDown ? onNext : null,
+            Expanded(
+              child: Center(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ),
           ],
         ),

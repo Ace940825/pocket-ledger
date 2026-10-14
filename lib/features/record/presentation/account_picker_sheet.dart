@@ -18,6 +18,7 @@ import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -784,28 +785,28 @@ class _AccountAvatar extends StatelessWidget {
     final Color color = account.colorValue != null
         ? Color(account.colorValue!)
         : ForestGreen.cta;
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-      ),
-      child: Icon(
-        _accountIcon(account.type),
-        color: Theme.of(context).colorScheme.onPrimary,
+    return ClayIconTile(
+      size: 40,
+      color: color,
+      child: LineIcon(
+        _accountIcon(account.type) ?? LineIconKind.star,
+        color: Color.lerp(
+          color,
+          Theme.of(context).colorScheme.onSurface,
+          0.22,
+        )!,
         size: 22,
       ),
     );
   }
 
-  IconData _accountIcon(AccountType type) {
+  LineIconKind? _accountIcon(AccountType type) {
     return switch (type.category) {
-      AccountCategory.capital => Icons.account_balance_wallet_outlined,
-      AccountCategory.investment => Icons.trending_up,
-      AccountCategory.debt => Icons.credit_card,
-      AccountCategory.receivable => Icons.arrow_circle_up_outlined,
-      AccountCategory.payable => Icons.arrow_circle_down_outlined,
+      AccountCategory.capital => LineIconKind.account,
+      AccountCategory.investment => LineIconKind.trendUp,
+      AccountCategory.debt => LineIconKind.withdrawal,
+      AccountCategory.receivable => LineIconKind.borrowIn,
+      AccountCategory.payable => LineIconKind.repayDebt,
     };
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
@@ -13,7 +14,7 @@ import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
-import '../../../shared/widgets/avatar_tile.dart';
+import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/money_text.dart';
@@ -665,15 +666,17 @@ class _AccountBody extends StatelessWidget {
                       horizontal: AppDimens.spaceMd,
                     ),
                     onTap: () => onOpenDetail(accounts[i]),
-                    leading: AvatarTile(
+                    leading: ClayIconTile(
                       size: 40,
-                      backgroundColor:
-                          (isDebt ? AppPalette.expense : AppPalette.primary)
-                              .withValues(alpha: 0.12),
-                      child: Icon(
-                        accountIcon(accounts[i].type),
+                      color: isDebt ? AppPalette.expense : AppPalette.primary,
+                      child: LineIcon(
+                        accountLineKind(accounts[i].type) ?? LineIconKind.star,
                         size: 20,
-                        color: isDebt ? AppPalette.expense : AppPalette.primary,
+                        color: Color.lerp(
+                          isDebt ? AppPalette.expense : AppPalette.primary,
+                          Theme.of(context).colorScheme.onSurface,
+                          0.22,
+                        )!,
                       ),
                     ),
                     title: Text(
@@ -1001,10 +1004,18 @@ class _SummaryRow extends StatelessWidget {
       onTap: onTap,
       // 右缘对齐分组头部（12），头像 x=12 与账户行一致
       contentPadding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
-      leading: AvatarTile(
+      leading: ClayIconTile(
         size: 40,
-        backgroundColor: amountColor.withValues(alpha: 0.12),
-        child: Icon(icon, size: 20, color: amountColor),
+        color: amountColor,
+        child: Icon(
+          icon,
+          size: 20,
+          color: Color.lerp(
+            amountColor,
+            Theme.of(context).colorScheme.onSurface,
+            0.22,
+          )!,
+        ),
       ),
       title: Text(title),
       trailing: Row(

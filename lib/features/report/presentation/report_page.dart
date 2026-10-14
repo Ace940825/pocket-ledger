@@ -2681,8 +2681,8 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                   ),
                 ),
-                const Icon(
-                  Icons.workspace_premium,
+                const LineIcon(
+                  LineIconKind.star,
                   size: 24,
                   color: AppPalette.goldStar,
                 ),

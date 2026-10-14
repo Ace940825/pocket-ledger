@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 
 import '../../../core/constants/app_dimens.dart';
@@ -637,20 +639,17 @@ class _AccountCardHeader extends ConsumerWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppPalette.primary.withValues(
-                        alpha: isDark ? 0.18 : 0.12,
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(
-                      accountIcon(account.type),
+                  ClayIconTile(
+                    size: 40,
+                    color: AppPalette.primary,
+                    child: LineIcon(
+                      accountLineKind(account.type) ?? LineIconKind.star,
                       size: 20,
-                      color: AppPalette.primary,
+                      color: Color.lerp(
+                        AppPalette.primary,
+                        Theme.of(context).colorScheme.onSurface,
+                        0.22,
+                      )!,
                     ),
                   ),
                   const SizedBox(width: AppDimens.spaceMd),

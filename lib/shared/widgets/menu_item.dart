@@ -10,7 +10,7 @@ import 'hairline_card.dart';
 /// 颜色全部走 ColorScheme 暗色自动适配，触控区 ≥ 44（AA）。
 ///
 /// - [icon] 渲染为 tint 圆底图标；也可用 [leading] 传入任意自定义前置组件
-///   （如 AvatarTile / CategoryGlyph 方块）。
+///   （如 ClayIconTile / CategoryGlyph 方块）。
 /// - 不传 [trailing] 且可点击时自动补右侧 chevron；底部菜单内不想显示
 ///   chevron 时传 [trailing] 为 `SizedBox.shrink()`。
 class MenuItem extends StatelessWidget {

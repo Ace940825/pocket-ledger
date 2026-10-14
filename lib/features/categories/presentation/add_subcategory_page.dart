@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
 import '../../../core/constants/app_dimens.dart';
@@ -149,13 +149,17 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
             ),
           ),
           const Spacer(),
-          AvatarTile(
+          ClayIconTile(
             size: 40,
-            backgroundColor: color.withValues(alpha: 0.15),
+            color: color,
             child: LineIcon(
               categoryLineKind(_selectedParent.iconKey) ?? LineIconKind.star,
               size: 20,
-              color: color,
+              color: Color.lerp(
+                color,
+                Theme.of(context).colorScheme.onSurface,
+                0.22,
+              )!,
             ),
           ),
           const SizedBox(width: AppDimens.spaceSm),

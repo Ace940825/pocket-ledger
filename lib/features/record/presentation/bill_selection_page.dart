@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
-import 'package:pocket_ledger/shared/widgets/tinted_icon_box.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 
 import '../../../core/constants/app_dimens.dart';
 import '../../../database/app_database.dart';
@@ -345,13 +345,18 @@ class _BillTile extends ConsumerWidget {
     final Color tint = category?.colorValue != null
         ? Color(category!.colorValue!)
         : AppPalette.expense;
+    final Color leadColor = Color.lerp(
+      tint,
+      Theme.of(context).colorScheme.onSurface,
+      0.22,
+    )!;
     final Widget leadIcon = billCatKey != null && billCatKey.isNotEmpty
         ? LineIcon(
             categoryLineKind(billCatKey) ?? LineIconKind.star,
             size: 20,
-            color: tint,
+            color: leadColor,
           )
-        : Icon(Icons.category_outlined, size: 20, color: tint);
+        : Icon(Icons.category_outlined, size: 20, color: leadColor);
 
     // 退款标注：被退款过的原账单显示「退款 ¥X=¥Y」
     // （X=累计已退合计，Y=剩余=实付−已退，与流水列表同口径）。
@@ -371,7 +376,7 @@ class _BillTile extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            TintedIconBox(tint: tint, size: 40, circle: true, child: leadIcon),
+            ClayIconTile(size: 40, color: tint, child: leadIcon),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Column(

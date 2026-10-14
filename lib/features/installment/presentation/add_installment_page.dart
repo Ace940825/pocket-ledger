@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/app_button.dart';
-import 'package:pocket_ledger/shared/widgets/avatar_tile.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
@@ -814,13 +814,17 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
         onTap: () {},
         child: Row(
           children: <Widget>[
-            AvatarTile(
+            ClayIconTile(
               size: 28,
-              backgroundColor: AppPalette.sage500,
+              color: AppPalette.sage500,
               child: Text(
                 '账',
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  color: Color.lerp(
+                    AppPalette.sage500,
+                    Theme.of(context).colorScheme.onSurface,
+                    0.22,
+                  )!,
                   fontSize: 12,
                 ),
               ),
@@ -946,10 +950,23 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                     final Category category = items[index];
                     if (drilled == null) {
                       final bool hasChildren = childrenOf(category).isNotEmpty;
+                      final Color catColor = category.colorValue != null
+                          ? Color(category.colorValue!)
+                          : AppPalette.primary;
                       return ListTile(
-                        leading: category.iconKey != null
-                            ? CategoryGlyph(category.iconKey, size: 24)
-                            : null,
+                        leading: ClayIconTile(
+                          size: 40,
+                          color: catColor,
+                          child: CategoryGlyph(
+                            category.iconKey,
+                            color: Color.lerp(
+                              catColor,
+                              Theme.of(context).colorScheme.onSurface,
+                              0.22,
+                            )!,
+                            size: 22,
+                          ),
+                        ),
                         title: Text(category.name),
                         trailing: hasChildren
                             ? Icon(
@@ -975,10 +992,23 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                         },
                       );
                     }
+                    final Color catColor = category.colorValue != null
+                        ? Color(category.colorValue!)
+                        : AppPalette.primary;
                     return ListTile(
-                      leading: category.iconKey != null
-                          ? CategoryGlyph(category.iconKey, size: 24)
-                          : null,
+                      leading: ClayIconTile(
+                        size: 40,
+                        color: catColor,
+                        child: CategoryGlyph(
+                          category.iconKey,
+                          color: Color.lerp(
+                            catColor,
+                            Theme.of(context).colorScheme.onSurface,
+                            0.22,
+                          )!,
+                          size: 22,
+                        ),
+                      ),
                       title: Text(category.name),
                       trailing: category.id == _categoryId
                           ? const Icon(

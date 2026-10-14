@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
 import '../../../core/constants/app_dimens.dart';
@@ -344,16 +345,16 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
       context,
       titleWidget: Row(
         children: <Widget>[
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppPalette.surfaceLight,
-              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-            ),
+          ClayIconTile(
+            size: 40,
+            color: color,
             child: CategoryGlyph(
               category.iconKey,
-              color: color,
+              color: Color.lerp(
+                color,
+                Theme.of(context).colorScheme.onSurface,
+                0.22,
+              )!,
               size: 22,
             ),
           ),
@@ -513,16 +514,16 @@ class _CategoryRow extends StatelessWidget {
         child: Row(
           children: <Widget>[
             leading,
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppPalette.surfaceLight,
-                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              ),
+            ClayIconTile(
+              size: 40,
+              color: color,
               child: CategoryGlyph(
                 category.iconKey,
-                color: color,
+                color: Color.lerp(
+                  color,
+                  Theme.of(context).colorScheme.onSurface,
+                  0.22,
+                )!,
                 size: 22,
               ),
             ),
@@ -596,25 +597,33 @@ class _SubcategoryChip extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppPalette.surfaceLight,
-                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              ),
-              child: isAdd
-                  ? const Icon(
+            isAdd
+                ? Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppPalette.surfaceLight,
+                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                    ),
+                    child: const Icon(
                       Icons.add_circle_outline,
                       color: AppPalette.primary,
                       size: 24,
-                    )
-                  : CategoryGlyph(
+                    ),
+                  )
+                : ClayIconTile(
+                    size: 48,
+                    color: color,
+                    child: CategoryGlyph(
                       category!.iconKey,
-                      color: color,
+                      color: Color.lerp(
+                        color,
+                        Theme.of(context).colorScheme.onSurface,
+                        0.22,
+                      )!,
                       size: 24,
                     ),
-            ),
+                  ),
             const SizedBox(height: 6),
             Text(
               isAdd ? '添加子分类' : category!.name,
@@ -770,14 +779,18 @@ class _SortTile extends StatelessWidget {
         ? Color(category.colorValue!)
         : AppPalette.primary;
     return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppPalette.surfaceLight,
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      leading: ClayIconTile(
+        size: 40,
+        color: color,
+        child: CategoryGlyph(
+          category.iconKey,
+          color: Color.lerp(
+            color,
+            Theme.of(context).colorScheme.onSurface,
+            0.22,
+          )!,
+          size: 22,
         ),
-        child: CategoryGlyph(category.iconKey, color: color, size: 22),
       ),
       title: Text(category.name),
       trailing: Icon(
@@ -828,14 +841,18 @@ Future<void> _showChangeParentSheet(
         final Color color =
             t.colorValue != null ? Color(t.colorValue!) : AppPalette.primary;
         return ListTile(
-          leading: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppPalette.surfaceLight,
-              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          leading: ClayIconTile(
+            size: 40,
+            color: color,
+            child: CategoryGlyph(
+              t.iconKey,
+              color: Color.lerp(
+                color,
+                Theme.of(context).colorScheme.onSurface,
+                0.22,
+              )!,
+              size: 22,
             ),
-            child: CategoryGlyph(t.iconKey, color: color, size: 22),
           ),
           title: Text(t.name),
           onTap: () => Navigator.of(ctx).pop(t),

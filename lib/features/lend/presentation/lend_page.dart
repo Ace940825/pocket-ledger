@@ -11,7 +11,7 @@ import '../../../domain/enums.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
-import '../../../shared/widgets/avatar_tile.dart';
+import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../theme/theme.dart';
@@ -198,16 +198,17 @@ class _LendAccountCard extends StatelessWidget {
               // 行1：头像 ｜ 绿竖条 + 账户名 + 编辑胶囊（图标与名称并排）。
               Row(
                 children: <Widget>[
-                  AvatarTile(
+                  ClayIconTile(
                     size: 38,
-                    radius: 12,
-                    backgroundColor: isDark
-                        ? ForestGreen.deep.withValues(alpha: 0.22)
-                        : ForestGreen.soft,
+                    color: isDark ? ForestGreen.brand : ForestGreen.deep,
                     child: LineIcon(
                       LineIconKind.lend,
                       size: 20,
-                      color: isDark ? ForestGreen.brand : ForestGreen.deep,
+                      color: Color.lerp(
+                        isDark ? ForestGreen.brand : ForestGreen.deep,
+                        Theme.of(context).colorScheme.onSurface,
+                        0.22,
+                      )!,
                     ),
                   ),
                   const SizedBox(width: 10),

@@ -125,6 +125,28 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
     });
   }
 
+  /// 把某分组下全部未删除标签改挂到目标分组（类别迁移用）。
+  /// 流水只存标签名，无需改流水；返回迁移的标签条数。
+  Future<int> migrateCategoryTags(
+    String fromCategoryId,
+    String toCategoryId,
+    int updatedAt,
+  ) {
+    return (update(tags)
+          ..where(
+            ($TagsTable tbl) =>
+                tbl.categoryId.equals(fromCategoryId) &
+                tbl.deleted.equals(false),
+          ))
+        .write(
+      TagsCompanion(
+        categoryId: Value<String>(toCategoryId),
+        dirty: const Value<bool>(true),
+        updatedAt: Value<int>(updatedAt),
+      ),
+    );
+  }
+
   /// 重命名分组（仅改 name / updatedAt / dirty）。
   Future<int> renameCategory(String id, String name, int updatedAt) {
     return (update(tagCategories)

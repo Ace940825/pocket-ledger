@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
@@ -605,7 +606,8 @@ class _TypeHeader extends StatelessWidget {
         padding: const EdgeInsets.all(AppDimens.spaceMd),
         child: Row(
           children: <Widget>[
-            Icon(accountIcon(type), color: AppPalette.primary, size: 24),
+            LineIcon(accountLineKind(type) ?? LineIconKind.star,
+                color: AppPalette.primary, size: 24),
             const SizedBox(width: AppDimens.spaceMd),
             Expanded(
               child: Text(

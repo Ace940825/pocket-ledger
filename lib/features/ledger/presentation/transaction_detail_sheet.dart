@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/core/utils/note_utils.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
@@ -45,8 +46,8 @@ class TransactionDetailSheet extends ConsumerWidget {
   final Transaction transaction;
 
   static Future<void> show(BuildContext context, Transaction transaction) {
-    // 挂在 Tab 分支导航器上（不用根导航器）：底部 Tab 栏不被遮罩盖住、
-    // 保持可点；registerWithSheetRegistry 让 AppShell 切 Tab 时 closeAll() 统一收起。
+    // 挂在 Tab 分支导航器上（不用根导航器）；registerWithSheetRegistry 让
+    // AppShell 切 Tab 时 closeAll() 统一收起，并在弹层打开期间隐藏底部导航栏。
     return showAppModalSheet<void>(
       context,
       isScrollControlled: true,
@@ -224,21 +225,30 @@ class TransactionDetailSheet extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: ForestGreen.soft,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Center(
+                  // 黏土方糖 + 分类色线稿（与流水列表行同款）。
+                  Builder(builder: (BuildContext ctx) {
+                    final Color heroTint = category?.colorValue != null
+                        ? Color(category!.colorValue!)
+                        : switch (transaction.type) {
+                            TxnType.income => AppPalette.income,
+                            TxnType.expense => AppPalette.expense,
+                            TxnType.transfer => AppPalette.transfer,
+                          };
+                    return ClayIconTile(
+                      size: 44,
+                      radius: 14,
+                      color: heroTint,
                       child: LineIcon(
                         tileKind,
                         size: 22,
-                        color: ForestGreen.deep,
+                        color: Color.lerp(
+                          heroTint,
+                          Theme.of(ctx).colorScheme.onSurface,
+                          0.22,
+                        )!,
                       ),
-                    ),
-                  ),
+                    );
+                  }),
                   const SizedBox(width: 12),
                   Expanded(
                     child: GestureDetector(

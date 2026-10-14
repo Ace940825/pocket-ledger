@@ -258,6 +258,18 @@ class AppThemeData {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
+        // M3 默认 elevation=1 会让透明 Material 沿全宽形状投影；悬浮卡化
+        // （四周留边）后投影会在留边区露出，顶部两角成深色残角（2026-10-14
+        // 反馈「还有角」）。归零后弹层立体感由卡片自绘负责。
+        elevation: 0,
+        // 关掉 M3 路由层自带的拖拽柄（画在透明 Material 顶部、悬浮在遮罩上，
+        // 即深色背景上的那条灰柄）：2026-10-14 第 19 批反馈全局移除上下柄。
+        showDragHandle: false,
+        // 显式清空 M3 默认的 maxWidth: 640 约束（_BottomSheetDefaultsM3）：
+        // 宽屏（平板模拟器/折叠屏/桌面）下弹层会被缩到 640dp 居中、
+        // 两侧露出深色遮罩（2026-10-14 真机/模拟器反馈「两边有角」）。
+        // 本应用为手机优先，弹层一律全宽贴边。
+        constraints: const BoxConstraints(),
         shape: RoundedRectangleBorder(
           borderRadius:
               BorderRadius.vertical(top: Radius.circular(ext.radiusSheet)),

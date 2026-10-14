@@ -201,7 +201,7 @@ class _InfoCard extends ConsumerWidget {
         firstBuyAt = rounds.first.startedAt;
         lastSellAt = rounds.last.endedAt;
         if (lastSellAt != null) {
-          holdingDays = lastSellAt.difference(firstBuyAt).inDays.abs();
+          holdingDays = _calendarDays(firstBuyAt, lastSellAt).abs();
         }
       }
       histInvested =
@@ -244,7 +244,11 @@ class _InfoCard extends ConsumerWidget {
         }
       }
       if (firstBuyAt != null) {
-        holdingDays = DateTime.now().difference(firstBuyAt).inDays.abs();
+        // 持仓天数 = 日历日差（首次买入日 → 今天，按零点截断）。
+        // 不能用 difference().inDays：那是「满 24 小时周期数」，10-12 买入、
+        // 10-14 上午看只算 1 天 19 小时 → 显「1 天」，要等买入钟点才跳——
+        // 看起来就是「不跟现实时间走」（2026-10-14 真机反馈）。
+        holdingDays = _calendarDays(firstBuyAt, DateTime.now());
       }
       if (open != null) {
         profitMinor = open.dilutedProfitMinor(holding.marketValueMinor);
@@ -503,6 +507,14 @@ class _InfoCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// 日历日差（按本地年月日零点相减，不含时分秒）：
+  /// 10-12 买入、10-14 查看 = 2 天。
+  static int _calendarDays(DateTime from, DateTime to) {
+    final DateTime a = DateTime(from.year, from.month, from.day);
+    final DateTime b = DateTime(to.year, to.month, to.day);
+    return b.difference(a).inDays;
   }
 
   static String _fmtDay(DateTime? d) =>

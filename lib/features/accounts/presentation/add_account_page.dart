@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icons.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
 import '../../../core/constants/app_dimens.dart';
@@ -186,8 +187,8 @@ class _TypeOption extends StatelessWidget {
         ),
         child: Row(
           children: <Widget>[
-            Icon(
-              accountIcon(type),
+            LineIcon(
+              accountLineKind(type) ?? LineIconKind.star,
               size: 22,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),

@@ -65,4 +65,13 @@ class AppShadows {
   static const List<BoxShadow> sage = [
     BoxShadow(color: Color(0x667C9E72), blurRadius: 18, offset: Offset(0, 8)),
   ];
+
+  /// 悬浮弹层卡（AppModalSheet 专用，2026-10-14 第 17 批）：双层柔和投影。
+  /// 悬浮卡四周留边后，背景内容会从留边区透出（遮罩下页面/后层弹层的
+  /// 圆角在卡片两角旁形成「幽灵角」）；投影在卡片边缘压暗背景，既消除
+  /// 视觉干扰，又给卡片真正的悬浮层次感（对标参考稿小青账弹层投影）。
+  static const List<BoxShadow> floating = [
+    BoxShadow(color: Color(0x3D605034), blurRadius: 28, offset: Offset(0, 10)),
+    BoxShadow(color: Color(0x26605034), blurRadius: 8, offset: Offset(0, 2)),
+  ];
 }

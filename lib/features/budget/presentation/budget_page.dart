@@ -1,291 +1,214 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_dimens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pocket_ledger/shared/widgets/form_dialog.dart';
 
-import '../../../core/errors/failures.dart';
-import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/form_fields.dart';
-import '../../../shared/widgets/module_list_scaffold.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/clay_icon_tile.dart';
+import '../../../shared/widgets/hairline_card.dart';
+import '../../../shared/widgets/section_header.dart';
+import '../../../shared/widgets/segmented_row.dart';
 import '../../../theme/app_colors.dart';
 import '../../categories/providers/categories_providers.dart';
-import '../data/budget_repository.dart';
 import '../providers/budget_providers.dart';
+import 'budget_category_page.dart';
+import 'budget_setup_page.dart';
 
-/// 预算页：总预算与分类预算的额度设置、实时用量与超支提醒。
-class BudgetPage extends ConsumerWidget {
+/// 全部账本（支出/收入预算分组卡的账本网格）。
+final AutoDisposeStreamProvider<List<Book>> _booksProvider =
+    StreamProvider.autoDispose<List<Book>>(
+  (Ref ref) => ref.watch(booksDaoProvider).watchAll(),
+);
+
+/// 预算主页（2026-10-14 第 10 批迭代）：
+///
+/// - 顶部月份头卡：黏土方糖币种图标 + 「N月预算」标题（原「帮助」胶囊已移除）。
+/// - AppBar 右上两枚黏土方糖按钮（与内容图标统一风格）：¥ 进「设置月预算」
+///   （金额字符，与分类页方向切换按钮同款，2026-10-14 第 11 批统一）、
+///   📅 选周期——月预算模式选月份（CalendarSheet month）、年预算模式选年份
+///   （year，单击选中、再点同格确认）。
+/// - 「支出预算」「收入预算」两张分组卡：预算金额总和 + 双列**账本**
+///   项卡网格（黏土方糖钱包 + 账本名 + 预算金额/未设置）；
+///   点账本卡进该账本该方向的「预算分类」页（[BudgetCategoryPage]）。
+/// - 底部悬浮「月预算 / 年预算」胶囊。
+///
+/// 口径：总预算（scope=overall）按支出口径计入；收入方向 = 收入分类
+/// 预算合计（预算表无方向字段）。
+class BudgetPage extends ConsumerStatefulWidget {
   const BudgetPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<List<Budget>> budgets = ref.watch(budgetListProvider);
-
-    return ModuleListScaffold<Budget>(
-      title: '预算',
-      items: budgets,
-      emptyHint: '还没有设置预算',
-      itemBuilder: (BuildContext context, Budget b) => _BudgetTile(budget: b),
-    );
-  }
+  ConsumerState<BudgetPage> createState() => _BudgetPageState();
 }
 
-/// 预算新增 / 编辑对话框。
-///
-/// 抽成顶层函数而非页面私有方法：列表行需要独立触发编辑，
-/// 让子 Widget 反过来去调用父页面的私有方法会形成不必要的耦合。
-Future<void> showBudgetEditor(
-  BuildContext context,
-  WidgetRef ref, [
-  Budget? budget,
-]) async {
-  final List<Category> categories =
-      ref.read(allCategoriesProvider).valueOrNull ?? const <Category>[];
-  final List<Category> expenseCategories = categories
-      .where((Category c) => c.type == CategoryType.expense && !c.isSystem)
-      .toList(growable: false);
+class _BudgetPageState extends ConsumerState<BudgetPage> {
+  int _year = DateTime.now().year;
+  int _month = DateTime.now().month;
+  bool _yearly = false;
 
-  final TextEditingController amountController = TextEditingController(
-    text: budget != null
-        ? Money.fromMinor(budget.amountMinor).decimal.toStringAsFixed(2)
-        : '',
-  );
-  final TextEditingController thresholdController = TextEditingController(
-    text: '${budget?.alertThreshold ?? 80}',
-  );
+  /// 行是否落在当前视图周期（月视图：monthly+年+月；年视图：yearly+年）。
+  bool _inPeriod(Budget b) => _yearly
+      ? (b.period == BudgetPeriod.yearly && b.year == _year)
+      : (b.period == BudgetPeriod.monthly &&
+          b.year == _year &&
+          b.periodIndex == _month);
 
-  BudgetScope scope = budget?.scope ?? BudgetScope.overall;
-  BudgetPeriod period = budget?.period ?? BudgetPeriod.monthly;
-  String? categoryId = budget?.categoryId ??
-      (expenseCategories.isEmpty ? null : expenseCategories.first.id);
-  bool alertEnabled = budget?.alertEnabled ?? true;
-  int year = budget?.year ?? DateTime.now().year;
-
-  final bool? saved = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext _) => StatefulBuilder(
-      builder: (BuildContext ctx, StateSetter setState) => FormDialog(
-        title: budget == null ? '新增预算' : '编辑预算',
-        body: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              EnumDropdown<BudgetScope>(
-                label: '范围',
-                value: scope,
-                values: BudgetScope.values,
-                labelOf: (BudgetScope s) => s.label,
-                onChanged: (BudgetScope s) => setState(() => scope = s),
-              ),
-              if (scope == BudgetScope.category) ...<Widget>[
-                const FormGap(),
-                DropdownButtonFormField<String>(
-                  initialValue: categoryId,
-                  decoration: const InputDecoration(labelText: '分类'),
-                  items: <DropdownMenuItem<String>>[
-                    for (final Category c in expenseCategories)
-                      DropdownMenuItem<String>(
-                        value: c.id,
-                        child: Text(c.name),
-                      ),
-                  ],
-                  onChanged: (String? v) => setState(() => categoryId = v),
-                ),
-              ],
-              const FormGap(),
-              EnumDropdown<BudgetPeriod>(
-                label: '周期',
-                value: period,
-                values: BudgetPeriod.values,
-                labelOf: (BudgetPeriod p) => p.label,
-                onChanged: (BudgetPeriod p) => setState(() => period = p),
-              ),
-              const FormGap(),
-              AmountField(controller: amountController, label: '预算额度'),
-              const FormGap(),
-              IntField(
-                controller: thresholdController,
-                label: '提醒阈值',
-                suffixText: '%',
-                helperText: '用掉该比例时高亮提示',
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('启用超支提醒'),
-                value: alertEnabled,
-                onChanged: (bool v) => setState(() => alertEnabled = v),
-              ),
-              Row(
-                children: <Widget>[
-                  const Text('年份'),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: () => setState(() => year -= 1),
-                  ),
-                  Text('$year'),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right),
-                    onPressed: () => setState(() => year += 1),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-
-  if (saved != true || !context.mounted) return;
-
-  final double? amount = double.tryParse(amountController.text.trim());
-  if (amount == null || amount <= 0) {
-    showToast(context, '预算额度必须大于 0');
-    return;
-  }
-  final int threshold = int.tryParse(thresholdController.text.trim()) ?? 80;
-
-  // 新建时默认落在当前周期，省掉用户手填「第几个月 / 第几季度」。
-  final int periodIndex = budget?.periodIndex ??
-      currentPeriodIndex(
-        monthly: period == BudgetPeriod.monthly,
-        quarterly: period == BudgetPeriod.quarterly,
-      );
-
-  final BudgetRepository repo = ref.read(budgetRepositoryProvider);
-  try {
-    if (budget == null) {
-      await repo.add(
-        bookId: ref.read(currentBookIdProvider),
-        scope: scope,
-        period: period,
-        amountMinor: Money.fromDecimal(amount).minor,
-        year: year,
-        periodIndex: periodIndex,
-        categoryId: categoryId,
-        alertEnabled: alertEnabled,
-        alertThreshold: threshold,
-      );
-    } else {
-      await repo.update(
-        id: budget.id,
-        scope: scope,
-        period: period,
-        amountMinor: Money.fromDecimal(amount).minor,
-        year: year,
-        periodIndex: periodIndex,
-        categoryId: categoryId,
-        alertEnabled: alertEnabled,
-        alertThreshold: threshold,
-      );
+  /// 某账本某方向的周期预算合计：支出=总预算行+支出分类预算；
+  /// 收入=收入分类预算合计（表无方向字段，按分类类型归组）。
+  int _dirBudgetMinor(
+    List<Budget> bookBudgets,
+    CategoryType direction,
+    Map<String, Category> catById,
+  ) {
+    final List<Budget> period =
+        bookBudgets.where(_inPeriod).toList(growable: false);
+    if (direction == CategoryType.expense) {
+      final int overall = period
+          .where((Budget b) => b.scope == BudgetScope.overall)
+          .fold<int>(0, (int s, Budget b) => s + b.amountMinor);
+      final int byCat = period
+          .where(
+            (Budget b) =>
+                b.scope == BudgetScope.category &&
+                catById[b.categoryId]?.type == CategoryType.expense,
+          )
+          .fold<int>(0, (int s, Budget b) => s + b.amountMinor);
+      return overall + byCat;
     }
-  } on AppFailure catch (e) {
-    if (context.mounted) showToast(context, e.message);
+    return period
+        .where(
+          (Budget b) =>
+              b.scope == BudgetScope.category &&
+              catById[b.categoryId]?.type == CategoryType.income,
+        )
+        .fold<int>(0, (int s, Budget b) => s + b.amountMinor);
   }
-}
 
-/// 单条预算：额度 / 已用 / 剩余 + 超支高亮。
-class _BudgetTile extends ConsumerWidget {
-  const _BudgetTile({required this.budget});
-
-  final Budget budget;
+  /// 周期选择：月预算选月份、年预算选年份（全局日历组件）。
+  Future<void> _pickPeriod() async {
+    if (_yearly) {
+      final CalendarSelection? sel = await CalendarSheet.show(
+        context,
+        mode: CalendarSheetMode.year,
+        initialYear: _year,
+      );
+      if (sel is! CalendarYear || !mounted) return;
+      setState(() => _year = sel.year);
+    } else {
+      final CalendarSelection? sel = await CalendarSheet.show(
+        context,
+        mode: CalendarSheetMode.month,
+        initialMonth: DateTime(_year, _month),
+      );
+      if (sel is! CalendarMonth || !mounted) return;
+      setState(() {
+        _year = sel.year;
+        _month = sel.month;
+      });
+    }
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final BudgetRepository repo = ref.watch(budgetRepositoryProvider);
-    final ({int end, int start}) range = repo.rangeOf(budget);
-    final AsyncValue<int> spent = ref.watch(
-      budgetSpentProvider(
-        (
-          start: range.start,
-          end: range.end,
-          categoryId: budget.categoryId,
-        ),
+  Widget build(BuildContext context) {
+    final List<Book> books =
+        ref.watch(_booksProvider).valueOrNull ?? const <Book>[];
+    final List<Category> categories =
+        ref.watch(allCategoriesProvider).valueOrNull ?? const <Category>[];
+    final Map<String, Category> catById = <String, Category>{
+      for (final Category c in categories) c.id: c,
+    };
+    // 账本列表兜底：无账本时至少展示当前账本一格。
+    final String currentId = ref.watch(currentBookIdProvider);
+    final List<Book> tiles = books.isEmpty
+        ? <Book>[
+            Book(
+              id: currentId,
+              name: ref.watch(currentBookProvider).valueOrNull?.name ?? '默认账本',
+              currency: 'CNY',
+              createdAt: 0,
+              updatedAt: 0,
+              deleted: false,
+              dirty: false,
+              sortOrder: 0,
+            ),
+          ]
+        : books;
+
+    final String periodLabel = _yearly ? '$_year年预算' : '$_month月预算';
+
+    return Scaffold(
+      appBar: AppBar(
+        actions: <Widget>[
+          _ClayIconButton(
+            tooltip: '设置预算',
+            icon: Icons.currency_yuan_outlined,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => BudgetSetupPage(
+                  initialTargetMonth: DateTime(_year, _month),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          _ClayIconButton(
+            tooltip: _yearly ? '选择年份' : '选择月份',
+            icon: Icons.calendar_month_outlined,
+            onPressed: _pickPeriod,
+          ),
+          const SizedBox(width: 12),
+        ],
       ),
-    );
-
-    final ThemeData theme = Theme.of(context);
-    final int spentMinor = spent.valueOrNull ?? 0;
-    final double ratio =
-        budget.amountMinor == 0 ? 0 : spentMinor / budget.amountMinor;
-    final bool overspent = spentMinor > budget.amountMinor;
-    final bool nearLimit = budget.alertEnabled &&
-        !overspent &&
-        ratio * 100 >= budget.alertThreshold;
-
-    final Color barColor = overspent
-        ? theme.colorScheme.error
-        : nearLimit
-            ? AppPalette.amber
-            : theme.colorScheme.primary;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
         children: <Widget>[
-          Row(
+          ListView(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 110),
             children: <Widget>[
-              Expanded(
-                child: Text(
-                  _title(ref),
-                  style: theme.textTheme.titleMedium,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              _HeaderCard(periodLabel: periodLabel),
+              const SizedBox(height: 12),
+              _BookGroupCard(
+                title: '支出预算',
+                direction: CategoryType.expense,
+                books: tiles,
+                catById: catById,
+                dirBudgetMinor: _dirBudgetMinor,
+                onOpen: _openCategoryPage,
               ),
-              if (overspent)
-                Icon(
-                  Icons.warning_amber_rounded,
-                  size: 18,
-                  color: theme.colorScheme.error,
-                )
-              else if (nearLimit)
-                const Icon(
-                  Icons.info_outline,
-                  size: 18,
-                  color: AppPalette.amber,
-                ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                onPressed: () => showBudgetEditor(context, ref, budget),
-              ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.delete_outline, size: 18),
-                onPressed: () async {
-                  final bool ok = await confirmDelete(
-                    context,
-                    title: '删除这条预算？',
-                  );
-                  if (!ok) return;
-                  try {
-                    await ref.read(budgetRepositoryProvider).remove(budget.id);
-                  } on AppFailure catch (e) {
-                    if (context.mounted) showToast(context, e.message);
-                  }
-                },
+              const SizedBox(height: 12),
+              _BookGroupCard(
+                title: '收入预算',
+                direction: CategoryType.income,
+                books: tiles,
+                catById: catById,
+                dirBudgetMinor: _dirBudgetMinor,
+                onOpen: _openCategoryPage,
               ),
             ],
           ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: ratio.clamp(0.0, 1.0),
-              minHeight: 8,
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '已用 ${Money.fromMinor(spentMinor).format()}'
-            ' / ${Money.fromMinor(budget.amountMinor).format()}'
-            '  ·  ${_remainLabel(spentMinor, overspent)}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: overspent ? theme.colorScheme.error : null,
+          // 底部悬浮「月预算 / 年预算」胶囊（居中紧凑宽度）。
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 24,
+            child: Center(
+              child: SizedBox(
+                width: 232,
+                child: SegmentedRow<bool>(
+                  options: const <SegmentOption<bool>>[
+                    SegmentOption<bool>(value: false, label: '月预算'),
+                    SegmentOption<bool>(value: true, label: '年预算'),
+                  ],
+                  value: _yearly,
+                  variant: SegmentVariant.sageGradient,
+                  radius: 999,
+                  itemRadius: 999,
+                  trackHasShadow: true,
+                  onChanged: (bool v) => setState(() => _yearly = v),
+                ),
+              ),
             ),
           ),
         ],
@@ -293,24 +216,254 @@ class _BudgetTile extends ConsumerWidget {
     );
   }
 
-  String _remainLabel(int spentMinor, bool overspent) {
-    final int diff = (budget.amountMinor - spentMinor).abs();
-    final String amount = Money.fromMinor(diff).format();
-    return overspent ? '超支 $amount' : '剩余 $amount';
+  void _openCategoryPage(Book book, CategoryType direction) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BudgetCategoryPage(
+          initialYear: _year,
+          initialMonth: _month,
+          initialYearly: _yearly,
+          initialDirection: direction,
+          bookId: book.id,
+        ),
+      ),
+    );
   }
+}
 
-  String _title(WidgetRef ref) {
-    final String periodLabel = switch (budget.period) {
-      BudgetPeriod.monthly => '${budget.year} 年 ${budget.periodIndex} 月',
-      BudgetPeriod.quarterly => '${budget.year} 年 Q${budget.periodIndex}',
-      BudgetPeriod.yearly => '${budget.year} 年',
-    };
-    if (budget.scope == BudgetScope.overall) return '总预算 · $periodLabel';
+/// 黏土方糖操作按钮（AppBar 右上角，与内容黏土图标统一风格，2026-10-14 第 10 批）。
+class _ClayIconButton extends StatelessWidget {
+  const _ClayIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
 
-    final List<Category> categories =
-        ref.watch(allCategoriesProvider).valueOrNull ?? const <Category>[];
-    final Iterable<Category> matched =
-        categories.where((Category c) => c.id == budget.categoryId);
-    return '${matched.isEmpty ? '未知分类' : matched.first.name} · $periodLabel';
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onPressed,
+        child: ClayIconTile(
+          size: 40,
+          color: AppPalette.primary,
+          child: Icon(icon, size: 20, color: AppPalette.primary),
+        ),
+      ),
+    );
+  }
+}
+
+/// 月份头卡：黏土方糖 + 周期标题。
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard({required this.periodLabel});
+
+  final String periodLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return HairlineCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: <Widget>[
+          const ClayIconTile(
+            color: AppPalette.primary,
+            child: Icon(
+              Icons.currency_yuan_outlined,
+              size: 22,
+              color: AppPalette.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              periodLabel,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 分组卡：「支出预算 / 收入预算」+ 预算金额总和 + 双列账本项卡网格。
+class _BookGroupCard extends ConsumerWidget {
+  const _BookGroupCard({
+    required this.title,
+    required this.direction,
+    required this.books,
+    required this.catById,
+    required this.dirBudgetMinor,
+    required this.onOpen,
+  });
+
+  final String title;
+  final CategoryType direction;
+  final List<Book> books;
+  final Map<String, Category> catById;
+  final int Function(List<Budget>, CategoryType, Map<String, Category>)
+      dirBudgetMinor;
+  final void Function(Book, CategoryType) onOpen;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ThemeData theme = Theme.of(context);
+    final int totalMinor = books.fold<int>(
+      0,
+      (int s, Book b) =>
+          s +
+          dirBudgetMinor(
+            ref.watch(bookBudgetsProvider(b.id)).valueOrNull ??
+                const <Budget>[],
+            direction,
+            catById,
+          ),
+    );
+
+    return HairlineCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SectionHeader(title: title, padding: EdgeInsets.zero),
+          const SizedBox(height: 10),
+          Text(
+            '预算金额总和',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            Money.fromMinor(totalMinor).format(),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 12),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.5,
+            children: <Widget>[
+              for (final Book b in books)
+                _BookTile(
+                  book: b,
+                  amountMinor: dirBudgetMinor(
+                    ref.watch(bookBudgetsProvider(b.id)).valueOrNull ??
+                        const <Budget>[],
+                    direction,
+                    catById,
+                  ),
+                  onTap: () => onOpen(b, direction),
+                  key: ValueKey<String>('$title/${b.id}'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 账本项卡：黏土方糖钱包 + 账本名 / 「预算金额」label + 额度或「未设置」。
+/// 点击进该账本该方向的预算分类页。
+class _BookTile extends StatelessWidget {
+  const _BookTile({
+    required this.book,
+    required this.amountMinor,
+    required this.onTap,
+    super.key,
+  });
+
+  final Book book;
+  final int amountMinor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+          border: Border.all(color: theme.colorScheme.outline),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            // 标题行：黏土方糖图标靠左，账本名靠右。
+            Row(
+              children: <Widget>[
+                const ClayIconTile(
+                  size: 32,
+                  color: AppPalette.primary,
+                  child: Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 17,
+                    color: AppPalette.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    book.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // 「预算金额」label + 金额左对齐上下堆叠。
+            Text(
+              '预算金额',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              amountMinor > 0 ? Money.fromMinor(amountMinor).format() : '未设置',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: amountMinor > 0
+                    ? theme.colorScheme.onSurface
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -9,6 +9,7 @@ import '../../../../domain/enums.dart';
 import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/attachment_viewer.dart';
 import '../../../../shared/widgets/badges.dart';
+import '../../../../shared/widgets/clay_icon_tile.dart';
 import '../../../../shared/widgets/line_icons.dart';
 import '../../../../shared/widgets/money_text.dart';
 import '../../../../theme/app_colors.dart';
@@ -178,16 +179,19 @@ class TransactionTile extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // 左侧图标：恒为钢笔线稿（报销收入也统一走票据 ¥ 线稿）。
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: tint.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                ),
-                child: Center(
-                  child: LineIcon(lineKind, size: 22, color: tint),
+              // 左侧图标：黏土方糖 + 钢笔线稿（报销收入也统一走票据 ¥ 线稿），
+              // 线稿配色走黏土约定（分类色向墨色收敛 22%）。
+              ClayIconTile(
+                size: 44,
+                color: tint,
+                child: LineIcon(
+                  lineKind,
+                  size: 22,
+                  color: Color.lerp(
+                    tint,
+                    Theme.of(context).colorScheme.onSurface,
+                    0.22,
+                  )!,
                 ),
               ),
               const SizedBox(width: AppDimens.spaceMd),

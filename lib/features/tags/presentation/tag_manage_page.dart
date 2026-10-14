@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:pocket_ledger/features/ledger/presentation/widgets/txn_slidable.dart';
 import 'package:pocket_ledger/shared/widgets/action_group.dart';
 import 'package:pocket_ledger/shared/widgets/action_row.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
@@ -926,6 +928,82 @@ class _TagCategoryReorderPageState
         );
   }
 
+  // ───────────────── 左滑动作：迁移 / 编辑 / 删除 ─────────────────
+
+  void _renameCategory(TagCategory c) {
+    final TextEditingController ctl = TextEditingController(text: c.name);
+    showAppModalSheet<void>(
+      context,
+      title: '编辑类别',
+      isScrollControlled: true,
+      body: _NameSheet(
+        controller: ctl,
+        confirmLabel: '保存',
+        onConfirm: (String name) async {
+          await ref.read(tagsDaoProvider).renameCategory(c.id, name, _now());
+          if (mounted) Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteCategory(TagCategory c) async {
+    final bool? ok = await showConfirm(
+      context,
+      title: '删除类别',
+      content: '确定删除「${c.name}」？其下标签也会一并删除。',
+      confirmText: '删除',
+      danger: true,
+    );
+    if (ok != true) return;
+    setState(() => _items.removeWhere((TagCategory e) => e.id == c.id));
+    await ref.read(tagsDaoProvider).deleteCategory(c.id, _now());
+  }
+
+  void _migrateCategory(TagCategory source) {
+    final List<TagCategory> targets =
+        _items.where((TagCategory c) => c.id != source.id).toList();
+    if (targets.isEmpty) {
+      showTagToast(context, '没有其他类别可迁移');
+      return;
+    }
+    showAppModalSheet<void>(
+      context,
+      title: '迁移标签到…',
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (final TagCategory t in targets)
+            ListTile(
+                title: Text(t.name),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _confirmMigrateCategory(source, t);
+                }),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmMigrateCategory(
+    TagCategory source,
+    TagCategory target,
+  ) async {
+    final bool? ok = await showConfirm(
+      context,
+      title: '迁移标签',
+      content: '「${source.name}」下的全部标签将迁移到「${target.name}」。',
+      confirmText: '迁移',
+    );
+    if (ok != true) return;
+    final int n = await ref
+        .read(tagsDaoProvider)
+        .migrateCategoryTags(source.id, target.id, _now());
+    if (mounted) {
+      showTagToast(context, n > 0 ? '已迁移 $n 个标签' : '该类别下没有标签');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -943,46 +1021,78 @@ class _TagCategoryReorderPageState
         title: const Text('类别排序'),
         centerTitle: true,
       ),
-      body: ReorderableListView(
-        padding: const EdgeInsets.all(16),
-        onReorderItem: (int oldIndex, int newIndex) {
-          setState(() {
-            // onReorderItem 的 newIndex 已内置移除项修正，无需再 -1。
-            final TagCategory item = _items.removeAt(oldIndex);
-            _items.insert(newIndex, item);
-          });
-          _persist();
-        },
-        children: <Widget>[
-          for (final TagCategory c in _items)
-            HairlineCard(
-              key: ValueKey<String>(c.id),
-              margin: const EdgeInsets.only(bottom: 10),
-              backgroundColor: context.colors.surface,
-              borderColor: Theme.of(context).colorScheme.outline,
-              radius: 14,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              child: Row(
-                children: <Widget>[
-                  Icon(
-                    Icons.drag_handle,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      c.name,
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
+      body: TxnSlidableGroup(
+        child: ReorderableListView(
+          padding: const EdgeInsets.all(16),
+          // 关默认拖拽柄：长按整行拖拽（与左滑手势互不冲突）。
+          buildDefaultDragHandles: false,
+          onReorderItem: (int oldIndex, int newIndex) {
+            setState(() {
+              // onReorderItem 的 newIndex 已内置移除项修正，无需再 -1。
+              final TagCategory item = _items.removeAt(oldIndex);
+              _items.insert(newIndex, item);
+            });
+            _persist();
+          },
+          children: <Widget>[
+            for (int i = 0; i < _items.length; i++)
+              ReorderableDelayedDragStartListener(
+                key: ValueKey<String>(_items[i].id),
+                index: i,
+                child: Slidable(
+                  groupTag: TxnSlidable.groupTag,
+                  endActionPane: ActionPane(
+                    motion: const DrawerMotion(),
+                    extentRatio: 0.48,
+                    children: <Widget>[
+                      TxnSlideAction(
+                        icon: Icons.drive_file_move_outlined,
+                        semanticLabel: '迁移',
+                        color: AppPalette.clayBrown,
+                        onPressed: () => _migrateCategory(_items[i]),
                       ),
+                      TxnSlideAction(
+                        icon: Icons.edit_outlined,
+                        semanticLabel: '编辑',
+                        color: AppPalette.info,
+                        onPressed: () => _renameCategory(_items[i]),
+                      ),
+                      TxnSlideAction(
+                        icon: Icons.delete_outline,
+                        semanticLabel: '删除',
+                        color: AppPalette.danger,
+                        onPressed: () => _deleteCategory(_items[i]),
+                      ),
+                    ],
+                  ),
+                  child: HairlineCard(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    backgroundColor: context.colors.surface,
+                    borderColor: Theme.of(context).colorScheme.outline,
+                    radius: 14,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            _items[i].name,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1014,9 +1124,79 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
         );
   }
 
+  // ───────────────── 左滑动作：迁移 / 编辑 / 删除 ─────────────────
+
+  void _renameTag(Tag t) {
+    final TextEditingController ctl = TextEditingController(text: t.name);
+    showAppModalSheet<void>(
+      context,
+      title: '编辑标签',
+      isScrollControlled: true,
+      body: _NameSheet(
+        controller: ctl,
+        confirmLabel: '保存',
+        onConfirm: (String name) async {
+          await ref.read(tagsDaoProvider).renameTag(t.id, name, _now());
+          if (mounted) Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
   Future<void> _delete(Tag tag) async {
+    // 与全应用删除交互对齐：先确认再删（此前点击直接软删，易误触）。
+    final bool? confirmed = await showConfirm(
+      context,
+      title: '删除标签',
+      content: '确定删除标签「${tag.name}」吗？',
+      confirmText: '删除',
+      danger: true,
+    );
+    if (confirmed != true) return;
     setState(() => _items.removeWhere((Tag t) => t.id == tag.id));
     await ref.read(tagsDaoProvider).softDeleteTag(tag.id, _now());
+  }
+
+  /// 迁移：把流水中旧标签名的账单全部改挂到目标标签（流水只存标签名）。
+  void _migrateTag(Tag source) {
+    final List<Tag> targets =
+        _items.where((Tag t) => t.id != source.id).toList();
+    if (targets.isEmpty) {
+      showTagToast(context, '没有其他标签可迁移');
+      return;
+    }
+    showAppModalSheet<void>(
+      context,
+      title: '迁移账单到标签…',
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (final Tag t in targets)
+            ListTile(
+                title: Text(t.name),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _confirmMigrateTag(source, t);
+                }),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmMigrateTag(Tag source, Tag target) async {
+    final bool? ok = await showConfirm(
+      context,
+      title: '迁移标签',
+      content: '「${source.name}」名下的全部账单将迁移到「${target.name}」。',
+      confirmText: '迁移',
+    );
+    if (ok != true) return;
+    final int n = await ref
+        .read(transactionsDaoProvider)
+        .migrateTagName(source.name, target.name, _now());
+    if (mounted) {
+      showTagToast(context, n > 0 ? '已迁移 $n 笔账单' : '没有使用该标签的账单');
+    }
   }
 
   @override
@@ -1046,56 +1226,79 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
                 ),
               ),
             )
-          : ReorderableListView(
-              padding: const EdgeInsets.all(16),
-              onReorderItem: (int oldIndex, int newIndex) {
-                setState(() {
-                  // onReorderItem 的 newIndex 已内置移除项修正，无需再 -1。
-                  final Tag item = _items.removeAt(oldIndex);
-                  _items.insert(newIndex, item);
-                });
-                _persist();
-              },
-              children: <Widget>[
-                for (final Tag t in _items)
-                  HairlineCard(
-                    key: ValueKey<String>(t.id),
-                    margin: const EdgeInsets.only(bottom: 10),
-                    backgroundColor: context.colors.surface,
-                    borderColor: Theme.of(context).colorScheme.outline,
-                    radius: 14,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        Icon(
-                          Icons.drag_handle,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            t.name,
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
+          : TxnSlidableGroup(
+              child: ReorderableListView(
+                padding: const EdgeInsets.all(16),
+                // 关默认拖拽柄：长按整行拖拽（与左滑手势互不冲突）。
+                buildDefaultDragHandles: false,
+                onReorderItem: (int oldIndex, int newIndex) {
+                  setState(() {
+                    // onReorderItem 的 newIndex 已内置移除项修正，无需再 -1。
+                    final Tag item = _items.removeAt(oldIndex);
+                    _items.insert(newIndex, item);
+                  });
+                  _persist();
+                },
+                children: <Widget>[
+                  for (int i = 0; i < _items.length; i++)
+                    ReorderableDelayedDragStartListener(
+                      key: ValueKey<String>(_items[i].id),
+                      index: i,
+                      child: Slidable(
+                        groupTag: TxnSlidable.groupTag,
+                        endActionPane: ActionPane(
+                          motion: const DrawerMotion(),
+                          extentRatio: 0.48,
+                          children: <Widget>[
+                            TxnSlideAction(
+                              icon: Icons.drive_file_move_outlined,
+                              semanticLabel: '迁移',
+                              color: AppPalette.clayBrown,
+                              onPressed: () => _migrateTag(_items[i]),
                             ),
+                            TxnSlideAction(
+                              icon: Icons.edit_outlined,
+                              semanticLabel: '编辑',
+                              color: AppPalette.info,
+                              onPressed: () => _renameTag(_items[i]),
+                            ),
+                            TxnSlideAction(
+                              icon: Icons.delete_outline,
+                              semanticLabel: '删除',
+                              color: AppPalette.danger,
+                              onPressed: () => _delete(_items[i]),
+                            ),
+                          ],
+                        ),
+                        child: HairlineCard(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          backgroundColor: context.colors.surface,
+                          borderColor: Theme.of(context).colorScheme.outline,
+                          radius: 14,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Text(
+                                  _items[i].name,
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        IconButton(
-                          onPressed: () => _delete(t),
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: AppPalette.salmon,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
     );
   }

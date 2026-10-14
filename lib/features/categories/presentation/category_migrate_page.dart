@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
@@ -188,17 +189,16 @@ class _MigrateParentTile extends StatelessWidget {
                   onTap: () => onSelect(parent),
                   child: Row(
                     children: <Widget>[
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppPalette.surfaceLight,
-                          borderRadius:
-                              BorderRadius.circular(AppDimens.radiusMd),
-                        ),
+                      ClayIconTile(
+                        size: 40,
+                        color: color,
                         child: CategoryGlyph(
                           parent.iconKey,
-                          color: color,
+                          color: Color.lerp(
+                            color,
+                            Theme.of(context).colorScheme.onSurface,
+                            0.22,
+                          )!,
                           size: 22,
                         ),
                       ),
@@ -273,16 +273,16 @@ class _MigrateChildTile extends StatelessWidget {
         height: AppDimens.listTileHeight,
         child: Row(
           children: <Widget>[
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppPalette.surfaceLight,
-                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              ),
+            ClayIconTile(
+              size: 40,
+              color: color,
               child: CategoryGlyph(
                 category.iconKey,
-                color: color,
+                color: Color.lerp(
+                  color,
+                  Theme.of(context).colorScheme.onSurface,
+                  0.22,
+                )!,
                 size: 22,
               ),
             ),
