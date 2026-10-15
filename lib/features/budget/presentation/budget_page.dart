@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -19,7 +18,6 @@ import '../data/shopping_list_store.dart';
 import '../providers/budget_providers.dart';
 import 'budget_category_page.dart';
 import 'budget_setup_page.dart';
-import 'widgets/budget_hero_card.dart';
 import 'widgets/recent_bills_card.dart';
 import 'widgets/shopping_list_card.dart';
 
@@ -29,14 +27,11 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
   (Ref ref) => ref.watch(booksDaoProvider).watchAll(),
 );
 
-/// 预算主页（2026-10-15 第 12 批迭代，对标小青账截图 1-3）：
+/// 预算主页（2026-10-15 第 12 批迭代 + 第 25 批反馈修正）：
 ///
 /// - 顶部月份头卡：黏土方糖币种图标 + 「N月预算」标题。
 /// - AppBar 右上两枚黏土方糖按钮：¥ 进「设置月预算」、📅 选周期
 ///   （月预算模式选月份、年预算模式选年份）。
-/// - **指标切换卡**（[BudgetHeroCard]，小青账会员位推演）：预算剩余(元) /
-///   总预算(元) / 剩余日均(元) 三指标 ⇄ 循环 + sage 渐变进度环；
-///   口径 = 当前账本、当前查看周期的支出方向预算（与「支出预算」分组卡同源）。
 /// - 操作胶囊行：「购物清单 · N」（展开本地清单，点项可预填金额/备注快速记账）
 ///   与「预算设置」（进设置页）。
 /// - 「近3日账单」区：近 3 日流水小列（按时间/按金额切换，点项进详情）。
@@ -47,6 +42,9 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
 ///
 /// 口径：总预算（scope=overall）按支出口径计入；收入方向 = 收入分类
 /// 预算合计（预算表无方向字段）。
+///
+/// 第 25 批反馈（2026-10-15）：指标切换卡 + 进度环移除（对标小青账
+/// 该位不放概览环，预算设置入口收敛到 AppBar ¥ / 胶囊行）。
 class BudgetPage extends ConsumerStatefulWidget {
   const BudgetPage({super.key});
 
@@ -68,17 +66,6 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
       : (b.period == BudgetPeriod.monthly &&
           b.year == _year &&
           b.periodIndex == _month);
-
-  /// 查看周期剩余天数（含今天）；周期已结束为 0。
-  int _daysLeft() {
-    final DateTime now = localNow();
-    final DateTime today = DateTime(now.year, now.month, now.day);
-    final DateTime periodEnd = _yearly
-        ? DateTime(_year, 12, 31)
-        : DateTime(_year, _month, daysInMonth(_year, _month));
-    if (periodEnd.isBefore(today)) return 0;
-    return periodEnd.difference(today).inDays + 1;
-  }
 
   /// 某账本某方向的周期预算合计：支出=总预算行+支出分类预算；
   /// 收入=收入分类预算合计（表无方向字段，按分类类型归组）。
@@ -163,13 +150,6 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
 
     final String periodLabel = _yearly ? '$_year年预算' : '$_month月预算';
 
-    // 指标卡数据：当前账本在查看周期内的预算行（页面侧已按周期过滤）。
-    final List<Budget> currentPeriodBudgets =
-        (ref.watch(bookBudgetsProvider(currentId)).valueOrNull ??
-                const <Budget>[])
-            .where(_inPeriod)
-            .toList(growable: false);
-
     // 购物清单待购条数（胶囊徽标）。
     final int shoppingPending = ref
         .watch(shoppingListProvider)
@@ -205,12 +185,6 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 110),
             children: <Widget>[
               _HeaderCard(periodLabel: periodLabel),
-              const SizedBox(height: 12),
-              BudgetHeroCard(
-                budgets: currentPeriodBudgets,
-                catById: catById,
-                daysLeft: _daysLeft(),
-              ),
               const SizedBox(height: 12),
               // 操作胶囊行：购物清单（展开/收起 + 待购数）/ 预算设置。
               Row(

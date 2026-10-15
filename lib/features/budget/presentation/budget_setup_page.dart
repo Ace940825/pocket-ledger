@@ -58,14 +58,15 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
   (Ref ref) => ref.watch(booksDaoProvider).watchAll(),
 );
 
-/// 设置月预算页（2026-10-15 依小青账截图对标）：
+/// 设置月预算页（2026-10-15 依小青账截图对标，第 25 批反馈修正）：
 ///
-/// - 顶部：✕ 关闭 + 居中「设置月预算」+ 支出/收入切换（对标小青账顶栏）；
+/// - 顶部：✕ 关闭 + 居中「设置月预算」（支出/收入切换不在顶栏）；
 /// - 头卡：黏土方糖 ¥ + 「设置月预算」 + 「是否每月提示」开关（已接线：
 ///   保存时写入总预算与带入分类的 alertEnabled，未手动改时跟随目标月
 ///   已有预算的开关值）；
 /// - 复制范围卡：账本行（可点，弹账本列表切换）+ 来源月份 → 目标月份；
-/// - 「{目标月}预算」标题行（方向切换在顶栏）；「{来源月}预算概览」卡：
+/// - 「{目标月}预算」标题行（行右 = 支出/收入切换，对标小青账）；
+///   「{来源月}预算概览」卡：
 ///   预算/消费/结余三格 + 不复制/仅结余/超支结余分段（结余为 0 时置灰）；
 /// - 「{目标月}总预算」卡：输入框，草稿口径 = 目标月已有预算 >
 ///   复制模式起草（不复制=来源总预算 / 仅结余=结余>0 时的结余 /
@@ -492,29 +493,6 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                       ),
                     ),
                   ),
-                  // 支出/收入切换（对标小青账：顶栏右侧，非章节内）。
-                  SizedBox(
-                    width: 116,
-                    child: SegmentedRow<CategoryType>(
-                      options: const <SegmentOption<CategoryType>>[
-                        SegmentOption<CategoryType>(
-                          value: CategoryType.expense,
-                          label: '支出',
-                        ),
-                        SegmentOption<CategoryType>(
-                          value: CategoryType.income,
-                          label: '收入',
-                        ),
-                      ],
-                      value: _direction,
-                      onChanged: (CategoryType v) {
-                        setState(() => _direction = v);
-                        _syncDraft(
-                          ref.read(bookBudgetsProvider(_bookId)).valueOrNull,
-                        );
-                      },
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -621,7 +599,9 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // 「{目标月}预算」标题行（支出/收入切换已移顶栏）。
+                // 「{目标月}预算」标题行：支出/收入切换在行右
+                // （第 25 批反馈「支出收入位置错误」——对标小青账
+                // 「2026-10预算 [支出 收入]」，不在顶栏）。
                 Row(
                   children: <Widget>[
                     Expanded(
@@ -631,6 +611,29 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                           fontWeight: FontWeight.w700,
                           color: scheme.onSurface,
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 116,
+                      child: SegmentedRow<CategoryType>(
+                        options: const <SegmentOption<CategoryType>>[
+                          SegmentOption<CategoryType>(
+                            value: CategoryType.expense,
+                            label: '支出',
+                          ),
+                          SegmentOption<CategoryType>(
+                            value: CategoryType.income,
+                            label: '收入',
+                          ),
+                        ],
+                        value: _direction,
+                        onChanged: (CategoryType v) {
+                          setState(() => _direction = v);
+                          _syncDraft(
+                            ref.read(bookBudgetsProvider(_bookId)).valueOrNull,
+                          );
+                        },
                       ),
                     ),
                   ],
