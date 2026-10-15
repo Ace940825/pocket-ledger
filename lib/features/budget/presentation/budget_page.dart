@@ -29,7 +29,7 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
   (Ref ref) => ref.watch(booksDaoProvider).watchAll(),
 );
 
-/// 预算主页（2026-10-16 第 12 批迭代，对标小青账截图 1-3）：
+/// 预算主页（2026-10-15 第 12 批迭代，对标小青账截图 1-3）：
 ///
 /// - 顶部月份头卡：黏土方糖币种图标 + 「N月预算」标题。
 /// - AppBar 右上两枚黏土方糖按钮：¥ 进「设置月预算」、📅 选周期
