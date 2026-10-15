@@ -18,7 +18,6 @@ import '../data/shopping_list_store.dart';
 import '../providers/budget_providers.dart';
 import 'budget_category_page.dart';
 import 'budget_setup_page.dart';
-import 'widgets/budget_hero_card.dart';
 import 'widgets/shopping_list_card.dart';
 
 /// 全部账本（支出/收入预算分组卡的账本网格）。
@@ -27,17 +26,13 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
   (Ref ref) => ref.watch(booksDaoProvider).watchAll(),
 );
 
-/// 预算主页（2026-10-15 第 12 批迭代 + 第 25/26 批反馈修正）：
+/// 预算主页（2026-10-15 第 12 批迭代 + 第 25/27 批反馈修正）：
 ///
 /// - 顶部月份头卡：黏土方糖币种图标 + 「N月预算」标题。
 /// - AppBar 右上两枚黏土方糖按钮：¥ 进「设置月预算」、📅 选周期
 ///   （月预算模式选月份、年预算模式选年份）。
 /// - 操作胶囊行：「购物清单 · N」（展开本地清单，点项可预填金额/备注快速记账）
 ///   与「预算设置」（进设置页）。
-/// - **三态指标卡**（[BudgetHeroCard]，第 26 批按小青账参考图重做）：剩余预算 /
-///   总预算 / 已用 左右滑动循环切换（可回绕，圆点可点按直达），默认显
-///   「剩余预算」（结余）；sage 中档渐变卡面；口径 = 当前账本、查看周期内
-///   支出方向预算（与「支出预算」分组卡同源）。
 /// - 「支出预算」「收入预算」两张分组卡：预算金额总和 + 双列**账本**
 ///   项卡网格（黏土方糖钱包 + 账本名 + 预算金额/未设置）；
 ///   点账本卡进该账本该方向的「预算分类」页（[BudgetCategoryPage]）。
@@ -47,8 +42,8 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
 /// 预算合计（预算表无方向字段）。
 ///
 /// 第 25 批反馈（2026-10-15）：旧版指标切换卡 + 进度环、现金流预估卡移除；
-/// 第 26 批：指标卡按小青账「剩余预算」参考图重做（滑动循环、默认结余），
-/// 「近3日账单」小列移除。
+/// 第 27 批反馈：第 26 批误建的「剩余/总预算/已用」三态渐变卡移除（用户
+/// 从未要求新建该卡），「近3日账单」小列移除。
 class BudgetPage extends ConsumerStatefulWidget {
   const BudgetPage({super.key});
 
@@ -218,16 +213,6 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
                 const SizedBox(height: 12),
                 const ShoppingListCard(),
               ],
-              const SizedBox(height: 12),
-              // 三态指标卡：剩余预算（默认）/ 总预算 / 已用，滑动循环。
-              BudgetHeroCard(
-                budgets:
-                    (ref.watch(bookBudgetsProvider(currentId)).valueOrNull ??
-                            const <Budget>[])
-                        .where(_inPeriod)
-                        .toList(growable: false),
-                catById: catById,
-              ),
               const SizedBox(height: 12),
               _BookGroupCard(
                 title: '支出预算',

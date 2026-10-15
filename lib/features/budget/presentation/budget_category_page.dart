@@ -75,7 +75,7 @@ final AutoDisposeStreamProviderFamily<Map<String, CategoryTotal>,
 ///
 /// - 顶部：✕ 关闭 + 居中「N月预算 / YYYY年预算」+ ¥ 设置月预算 + 📅 选周期；
 ///   方向由入口参数固定（设置月预算入口从「⋯」弹层移出为顶栏直达）。
-/// - 账本卡：账本名 + 周期日期范围 + ⟳ 切换账本 + 「⋯」菜单
+/// - 账本卡：账本名 + 周期日期范围 + 「⋯」菜单
 ///   （结转下期预算 / 删除当前预算），「剩余X预算（元）」
 ///   大数字（未设置显 ----）+ 铅笔编辑 + 进度环 + 四格统计 + 日均三行；
 /// - 分类预算卡：「添加」pill + 一级分类聚合行（默认折叠，点击展开/
@@ -115,9 +115,6 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
 
   /// 已展开「二级预算折叠栏」的一级分类 id 集合（默认空 = 进入页面全折叠）。
   final Set<String> _expandedCats = <String>{};
-
-  /// 页内切换的目标账本（null = 用入口参数/当前账本）。
-  String? _bookIdOverride;
 
   bool get _isExpense => _direction == CategoryType.expense;
 
@@ -239,64 +236,6 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
         ),
       ),
     );
-  }
-
-  /// 切换账本（对标小青账账本行 ⟳）：弹出账本列表，
-  /// 选中后页内 state 切换，各 provider 按 bookId 自动重订阅。
-  Future<void> _pickBook(String currentBookId) async {
-    final List<Book> books =
-        ref.read(_booksProvider).valueOrNull ?? const <Book>[];
-    if (books.length <= 1) {
-      showToast(context, '暂无其他账本可切换');
-      return;
-    }
-    final String? picked = await showAppModalSheet<String>(
-      context,
-      title: '切换账本',
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          for (final Book b in books)
-            InkWell(
-              onTap: () => Navigator.of(context).pop(b.id),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        b.name,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: b.id == currentBookId
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                          color: b.id == currentBookId
-                              ? AppPalette.primary
-                              : Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    if (b.id == currentBookId)
-                      const LineGlyph(
-                        Icons.check,
-                        size: 18,
-                        color: AppPalette.primary,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-    if (picked == null || picked == currentBookId || !mounted) {
-      return;
-    }
-    setState(() => _bookIdOverride = picked);
   }
 
   /// 结转：把当前周期预算（总 + 分类）复制到下一周期，已存在的跳过。
@@ -611,8 +550,7 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     final ColorScheme scheme = theme.colorScheme;
     final String dirLabel = _isExpense ? '支出' : '收入';
 
-    final String bookId =
-        _bookIdOverride ?? widget.bookId ?? ref.watch(currentBookIdProvider);
+    final String bookId = widget.bookId ?? ref.watch(currentBookIdProvider);
     // 账本名：按 bookId 从账本列表查；查不到退回当前账本名/默认。
     final List<Book> books =
         ref.watch(_booksProvider).valueOrNull ?? const <Book>[];
@@ -709,7 +647,7 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                         ),
                       ),
                       // 顶栏 ¥ = 设置月预算（第 25 批反馈：设置预算入口
-                      // 从「⋯」弹层移出为顶栏直达；切账本走账本行 ⟳）。
+                      // 从「⋯」弹层移出为顶栏直达）。
                       _ClayIconButton(
                         tooltip: '设置预算',
                         icon: Icons.currency_yuan_outlined,
@@ -751,7 +689,6 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                         remainUnits > 0 ? remainUnits : 1,
                       ),
                       yearly: _yearly,
-                      onSwitchBook: () => _pickBook(bookId),
                       onMore: () => _showBookMoreSheet(bookId, periodBudgets),
                       onEditTotal: () {
                         if (!_isExpense) {
@@ -911,7 +848,6 @@ class _OverviewCard extends StatelessWidget {
     required this.avgBudget,
     required this.avgRemain,
     required this.yearly,
-    required this.onSwitchBook,
     required this.onMore,
     required this.onEditTotal,
   });
@@ -936,9 +872,6 @@ class _OverviewCard extends StatelessWidget {
 
   /// 月视图（false）/ 年视图（true）——剩余天数/月份列的文案开关。
   final bool yearly;
-
-  /// 账本行 ⟳：切换账本。
-  final VoidCallback onSwitchBook;
 
   /// 账本行「⋯」菜单（结转/删除当期预算）。
   final VoidCallback onMore;
@@ -990,21 +923,8 @@ class _OverviewCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // 账本行右侧：「⟳ 切换账本」+「⋯」菜单（对标小青账账本行）。
-              InkWell(
-                borderRadius: BorderRadius.circular(AppDimens.radiusChip),
-                onTap: onSwitchBook,
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: LineGlyph(
-                    Icons.autorenew,
-                    size: 20,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 2),
-              // 「⋯」菜单（2026-10-14 第 13 批：chevron 改三点键，弹设置弹层）。
+              // 账本行右侧：「⋯」菜单（2026-10-14 第 13 批：chevron 改
+              // 三点键，弹设置弹层；第 27 批反馈：⟳ 切换账本移除）。
               InkWell(
                 borderRadius: BorderRadius.circular(AppDimens.radiusChip),
                 onTap: onMore,
