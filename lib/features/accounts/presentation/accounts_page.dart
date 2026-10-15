@@ -497,14 +497,19 @@ class _GroupCard extends StatelessWidget {
   final Widget child;
 
   /// 分组头部小图标：一眼区分五类资产属性。
-  static IconData _iconOf(String title) => switch (title) {
-        '资金类' => Icons.wallet_outlined,
-        '负债类' => Icons.credit_card_outlined,
-        '投资类' => Icons.trending_up_outlined,
-        '应收类' => Icons.south_west_outlined,
-        '应付类' => Icons.north_east_outlined,
-        _ => Icons.circle_outlined,
-      };
+  /// 分组头图标：走全局统一的账户分类线稿（与账户行、账户选择弹层、
+  /// 账本筛选页同源），避免同页一半线稿一半 Material 割裂。
+  static LineIconKind _iconOf(String title) {
+    final AccountCategory? cat = switch (title) {
+      '资金类' => AccountCategory.capital,
+      '负债类' => AccountCategory.debt,
+      '投资类' => AccountCategory.investment,
+      '应收类' => AccountCategory.receivable,
+      '应付类' => AccountCategory.payable,
+      _ => null,
+    };
+    return cat == null ? LineIconKind.star : accountCategoryLineKind(cat);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -543,7 +548,8 @@ class _GroupCard extends StatelessWidget {
                           AppDimens.radiusSm,
                         ),
                       ),
-                      child: Icon(_iconOf(title), size: 16, color: iconColor),
+                      child:
+                          LineIcon(_iconOf(title), size: 16, color: iconColor),
                     ),
                     const SizedBox(width: AppDimens.sm),
                     Expanded(
@@ -832,7 +838,7 @@ class _ReceivableBody extends StatelessWidget {
         if (lendOutMinor != 0)
           _CounterpartyBalanceBody(
             title: '借出',
-            icon: Icons.handshake_outlined,
+            icon: LineIconKind.lendOut,
             totalMinor: lendOutMinor,
             balances: lendOutBalances,
             amountColor: AppPalette.income,
@@ -891,7 +897,7 @@ class _PayableBody extends StatelessWidget {
         if (borrowInMinor != 0)
           _CounterpartyBalanceBody(
             title: '借入',
-            icon: Icons.handshake_outlined,
+            icon: LineIconKind.borrowIn,
             totalMinor: borrowInMinor,
             balances: borrowInBalances,
             amountColor: AppPalette.expense,
@@ -914,7 +920,7 @@ class _CounterpartyBalanceBody extends StatelessWidget {
   });
 
   final String title;
-  final IconData icon;
+  final LineIconKind icon;
   final int totalMinor;
   final Map<String, int> balances;
   final Color amountColor;
@@ -992,7 +998,7 @@ class _SummaryRow extends StatelessWidget {
     this.amountColor = AppPalette.income,
   });
 
-  final IconData icon;
+  final LineIconKind icon;
   final String title;
   final int amountMinor;
   final VoidCallback onTap;
@@ -1007,7 +1013,7 @@ class _SummaryRow extends StatelessWidget {
       leading: ClayIconTile(
         size: 40,
         color: amountColor,
-        child: Icon(
+        child: LineIcon(
           icon,
           size: 20,
           color: Color.lerp(
