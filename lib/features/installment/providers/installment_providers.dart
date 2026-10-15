@@ -38,6 +38,15 @@ final StreamProvider<List<InstallmentPeriod>> installmentBookPeriodsProvider =
       .watchBookPeriods(ref.watch(currentBookIdProvider)),
 );
 
+/// 指定账本下全部分期的每期明细（family 版）：预算分类页按页内账本
+/// （切账本后可与当前账本不同）订阅待入账，做现金流预估。
+final AutoDisposeStreamProviderFamily<List<InstallmentPeriod>, String>
+    installmentBookPeriodsFamilyProvider =
+    StreamProvider.autoDispose.family<List<InstallmentPeriod>, String>(
+  (Ref ref, String bookId) =>
+      ref.watch(installmentRepositoryProvider).watchBookPeriods(bookId),
+);
+
 /// 单个计划。详情页按 planId 订阅，而不是列表页把对象传过来 ——
 /// 这样详情页可以被深链直接打开，刷新后也不会持有过期快照。
 final AutoDisposeStreamProviderFamily<InstallmentPlan, String>

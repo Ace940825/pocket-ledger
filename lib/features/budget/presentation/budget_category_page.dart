@@ -10,6 +10,7 @@ import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/empty_state.dart';
@@ -22,6 +23,7 @@ import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
 import '../../categories/providers/categories_providers.dart';
+import '../../installment/providers/installment_providers.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../providers/budget_providers.dart';
 import 'budget_editor.dart';
@@ -70,12 +72,15 @@ final AutoDisposeStreamProviderFamily<Map<String, CategoryTotal>,
   },
 );
 
-/// 预算分类页（2026-10-14 依小青账截图占位）：
+/// 预算分类页（2026-10-15 依小青账截图对标）：
 ///
-/// - 顶部：✕ 关闭 + 居中「N月预算 / YYYY年预算」+ ¥（进「设置月预算」
-///   同界面，2026-10-14 第 12 批改）+ 📅 选周期；方向由入口参数固定。
-/// - 账本卡：账本名 + 周期日期范围（⟳ 与 … 占位），「剩余X预算（元）」
+/// - 顶部：✕ 关闭 + 居中「N月预算 / YYYY年预算」+ ⟳ 切换账本 + 📅 选周期；
+///   方向由入口参数固定；「设置月预算」入口在账本行「⋯」菜单。
+/// - 账本卡：账本名 + 周期日期范围 + ⟳ 切换账本 + 「⋯」菜单
+///   （设置月预算 / 结转下期预算 / 删除当前预算），「剩余X预算（元）」
 ///   大数字（未设置显 ----）+ 铅笔编辑 + 进度环 + 四格统计 + 日均三行；
+/// - 现金流预估卡（小青账该位置为会员功能，按现有数据推演）：
+///   待入账分期 + 预计期末结余 = 剩余预算 − 本周期未入账分期；
 /// - 分类预算卡：「添加」pill + 各分类预算行（黏土方糖图标 + 剩余% +
 ///   进度条 + 本期消费/收入 + 笔数）；
 /// - 底部悬浮「月预算 / 年预算」胶囊。
@@ -112,6 +117,9 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
 
   /// 已展开「二级预算折叠栏」的一级分类 id 集合（默认空 = 进入页面全折叠）。
   final Set<String> _expandedCats = <String>{};
+
+  /// 页内切换的目标账本（null = 用入口参数/当前账本）。
+  String? _bookIdOverride;
 
   bool get _isExpense => _direction == CategoryType.expense;
 
@@ -222,38 +230,193 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
       ? Money.zero.format()
       : Money.fromMinor(minor ~/ units).format();
 
-  /// 账本行「⋯」菜单（2026-10-14 第 13 批反馈，对标小青账「设置」弹层）：
-  /// 结转月预算 / 删除当前预算。删除 = 当期该账本全部预算（总 + 分类）软删。
-  Future<void> _showBookMoreSheet(List<Budget> periodBudgets) async {
+  /// 切换账本（对标小青账账本行 ⟳ / 顶栏 ⟳）：弹出账本列表，
+  /// 选中后页内 state 切换，各 provider 按 bookId 自动重订阅。
+  Future<void> _pickBook(String currentBookId) async {
+    final List<Book> books =
+        ref.read(_booksProvider).valueOrNull ?? const <Book>[];
+    if (books.length <= 1) {
+      showToast(context, '暂无其他账本可切换');
+      return;
+    }
+    final String? picked = await showAppModalSheet<String>(
+      context,
+      title: '切换账本',
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (final Book b in books)
+            InkWell(
+              onTap: () => Navigator.of(context).pop(b.id),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        b.name,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: b.id == currentBookId
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                          color: b.id == currentBookId
+                              ? AppPalette.primary
+                              : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    if (b.id == currentBookId)
+                      const LineGlyph(
+                        Icons.check,
+                        size: 18,
+                        color: AppPalette.primary,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || picked == currentBookId || !mounted) {
+      return;
+    }
+    setState(() => _bookIdOverride = picked);
+  }
+
+  /// 结转：把当前周期预算（总 + 分类）复制到下一周期，已存在的跳过。
+  Future<void> _carryToNextPeriod(
+    String bookId,
+    List<Budget> periodBudgets,
+  ) async {
+    if (periodBudgets.isEmpty) {
+      showToast(context, '当前周期暂无预算可结转');
+      return;
+    }
+    final int targetYear;
+    final int targetIndex;
+    final BudgetPeriod targetPeriod;
+    if (_yearly) {
+      targetYear = _year + 1;
+      targetIndex = 1;
+      targetPeriod = BudgetPeriod.yearly;
+    } else if (_month == 12) {
+      targetYear = _year + 1;
+      targetIndex = 1;
+      targetPeriod = BudgetPeriod.monthly;
+    } else {
+      targetYear = _year;
+      targetIndex = _month + 1;
+      targetPeriod = BudgetPeriod.monthly;
+    }
+    final String targetLabel =
+        _yearly ? '$targetYear年' : '$targetYear年$targetIndex月';
+
+    final bool confirmed = (await showConfirm(
+          context,
+          title: '结转至$targetLabel？',
+          content: '将把当前${_yearly ? '年' : '月'}的 ${periodBudgets.length} 项预算'
+              '（总预算 + 分类预算）复制到$targetLabel，已存在的项目跳过。',
+          confirmText: '结转',
+        )) ??
+        false;
+    if (!confirmed || !mounted) {
+      return;
+    }
+
+    final List<Budget> all =
+        ref.read(bookBudgetsProvider(bookId)).valueOrNull ?? const <Budget>[];
+    final repo = ref.read(budgetRepositoryProvider);
+    int added = 0;
+    int skipped = 0;
+    for (final Budget b in periodBudgets) {
+      final bool exists = all.any(
+        (Budget x) =>
+            x.scope == b.scope &&
+            x.categoryId == b.categoryId &&
+            x.period == targetPeriod &&
+            x.year == targetYear &&
+            x.periodIndex == targetIndex,
+      );
+      if (exists) {
+        skipped++;
+        continue;
+      }
+      await repo.add(
+        bookId: bookId,
+        scope: b.scope,
+        period: targetPeriod,
+        amountMinor: b.amountMinor,
+        year: targetYear,
+        periodIndex: targetIndex,
+        categoryId: b.categoryId,
+        alertEnabled: b.alertEnabled,
+        alertThreshold: b.alertThreshold,
+      );
+      added++;
+    }
+    if (mounted) {
+      showToast(
+        context,
+        '已结转 $added 项到$targetLabel'
+        '${skipped > 0 ? '（跳过 $skipped 项已存在）' : ''}',
+      );
+    }
+  }
+
+  /// 账本行「⋯」菜单（对标小青账「设置」弹层）：
+  /// 设置月预算 / 结转下期预算 / 删除当前预算。
+  /// 删除 = 当期该账本全部预算（总 + 分类）软删。
+  Future<void> _showBookMoreSheet(
+    String bookId,
+    List<Budget> periodBudgets,
+  ) async {
     final String? action = await showAppModalSheet<String>(
       context,
       title: '设置',
-      body: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: <Widget>[
-            _SheetAction(
-              label: '结转月预算',
-              icon: Icons.swap_horiz,
-              color: AppPalette.primary,
-              onTap: () => Navigator.of(context).pop('carry'),
-            ),
-            const SizedBox(width: 16),
-            _SheetAction(
-              label: '删除当前预算',
-              icon: Icons.delete_outline,
-              color: Theme.of(context).colorScheme.error,
-              onTap: () => Navigator.of(context).pop('delete'),
-            ),
-          ],
-        ),
+      bodyPadding: const EdgeInsets.symmetric(vertical: 6),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _MenuRow(
+            label: '设置月预算',
+            icon: Icons.currency_yuan_outlined,
+            onTap: () => Navigator.of(context).pop('setup'),
+          ),
+          _MenuRow(
+            label: '结转下期预算',
+            icon: Icons.swap_horiz,
+            onTap: () => Navigator.of(context).pop('carry'),
+          ),
+          _MenuRow(
+            label: '删除当前预算',
+            icon: Icons.delete_outline,
+            danger: true,
+            onTap: () => Navigator.of(context).pop('delete'),
+          ),
+        ],
       ),
     );
     if (!mounted || action == null) {
       return;
     }
+    if (action == 'setup') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => BudgetSetupPage(
+            initialTargetMonth: DateTime(_year, _month),
+            bookId: bookId,
+          ),
+        ),
+      );
+      return;
+    }
     if (action == 'carry') {
-      showToast(context, '结转月预算开发中，可先用「设置月预算」复制上月');
+      await _carryToNextPeriod(bookId, periodBudgets);
       return;
     }
     if (action == 'delete') {
@@ -447,7 +610,8 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     final ColorScheme scheme = theme.colorScheme;
     final String dirLabel = _isExpense ? '支出' : '收入';
 
-    final String bookId = widget.bookId ?? ref.watch(currentBookIdProvider);
+    final String bookId =
+        _bookIdOverride ?? widget.bookId ?? ref.watch(currentBookIdProvider);
     // 账本名：按 bookId 从账本列表查；查不到退回当前账本名/默认。
     final List<Book> books =
         ref.watch(_booksProvider).valueOrNull ?? const <Book>[];
@@ -476,6 +640,20 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     final Map<String, CategoryTotal> catTotals =
         ref.watch(_catTotalsProvider(totalKey)).valueOrNull ??
             const <String, CategoryTotal>{};
+
+    // 现金流预估：本周期内未入账分期（到期未入账都算，含逾期未补账）。
+    final AsyncValue<List<InstallmentPeriod>> periodsAsync =
+        ref.watch(installmentBookPeriodsFamilyProvider(bookId));
+    int pendingMinor = 0;
+    int pendingCount = 0;
+    periodsAsync.whenData((List<InstallmentPeriod> ps) {
+      for (final InstallmentPeriod p in ps) {
+        if (p.transactionId == null && p.dueAt < endAt) {
+          pendingMinor += p.amountMinor;
+          pendingCount++;
+        }
+      }
+    });
 
     final int remaining = totalBudget - spent;
     final int remainUnits = _remainUnits;
@@ -543,19 +721,12 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                           ),
                         ),
                       ),
+                      // 顶栏 ⟳ = 切换账本（对标小青账；设置月预算入口
+                      // 在账本行「⋯」菜单，方向由主页入口决定）。
                       _ClayIconButton(
-                        tooltip: '设置预算',
-                        icon: Icons.currency_yuan_outlined,
-                        // ¥ 进「设置月预算」同界面（2026-10-14 第 12 批反馈，
-                        // 非切方向——方向由主页支出/收入分组卡入口决定）。
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => BudgetSetupPage(
-                              initialTargetMonth: DateTime(_year, _month),
-                              bookId: bookId,
-                            ),
-                          ),
-                        ),
+                        tooltip: '切换账本',
+                        icon: Icons.autorenew,
+                        onPressed: () => _pickBook(bookId),
                       ),
                       const SizedBox(width: 8),
                       _ClayIconButton(
@@ -593,7 +764,8 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                         remainUnits > 0 ? remainUnits : 1,
                       ),
                       yearly: _yearly,
-                      onMore: () => _showBookMoreSheet(periodBudgets),
+                      onSwitchBook: () => _pickBook(bookId),
+                      onMore: () => _showBookMoreSheet(bookId, periodBudgets),
                       onEditTotal: () {
                         if (!_isExpense) {
                           showToast(context, '收入总预算暂未支持单独保存，可先添加收入分类预算');
@@ -619,6 +791,14 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                           bookId,
                         );
                       },
+                    ),
+                    const SizedBox(height: 12),
+                    // 现金流预估（小青账该位置为会员功能，按现有数据推演）。
+                    _CashFlowCard(
+                      pendingMinor: pendingMinor,
+                      pendingCount: pendingCount,
+                      remaining: remaining,
+                      endLabel: _yearly ? '年底' : '本月底',
                     ),
                     const SizedBox(height: 12),
                     _CategoryBudgetsCard(
@@ -752,6 +932,7 @@ class _OverviewCard extends StatelessWidget {
     required this.avgBudget,
     required this.avgRemain,
     required this.yearly,
+    required this.onSwitchBook,
     required this.onMore,
     required this.onEditTotal,
   });
@@ -776,6 +957,9 @@ class _OverviewCard extends StatelessWidget {
 
   /// 月视图（false）/ 年视图（true）——剩余天数/月份列的文案开关。
   final bool yearly;
+
+  /// 账本行 ⟳：切换账本。
+  final VoidCallback onSwitchBook;
 
   /// 账本行「⋯」菜单（结转/删除当期预算）。
   final VoidCallback onMore;
@@ -827,6 +1011,20 @@ class _OverviewCard extends StatelessWidget {
                   ],
                 ),
               ),
+              // 账本行右侧：「⟳ 切换账本」+「⋯」菜单（对标小青账账本行）。
+              InkWell(
+                borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+                onTap: onSwitchBook,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: LineGlyph(
+                    Icons.autorenew,
+                    size: 20,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
               // 「⋯」菜单（2026-10-14 第 13 批：chevron 改三点键，弹设置弹层）。
               InkWell(
                 borderRadius: BorderRadius.circular(AppDimens.radiusChip),
@@ -1472,54 +1670,167 @@ class _CategoryRow extends StatelessWidget {
   bool get _isIncome => category.type == CategoryType.income;
 }
 
-/// 「设置」弹层里的动作块（2026-10-14 第 13 批，对标小青账）：
-/// 黏土方糖图标 + 两行标签，横向排列在弹层左上。
-class _SheetAction extends StatelessWidget {
-  const _SheetAction({
+/// 「设置」弹层菜单行（对标小青账设置弹层）：黏土方糖图标 + 标签 + chevron。
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
     required this.label,
     required this.icon,
-    required this.color,
     required this.onTap,
+    this.danger = false,
   });
 
   final String label;
   final IconData icon;
-  final Color color;
   final VoidCallback onTap;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final Color tint = danger ? scheme.error : AppPalette.primary;
     return InkWell(
-      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+      borderRadius: BorderRadius.circular(AppDimens.sm),
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+        child: Row(
           children: <Widget>[
             ClayIconTile(
-              color: color,
-              size: 48,
-              child: LineGlyph(icon, size: 22, color: color),
+              size: 40,
+              color: tint,
+              child: LineGlyph(icon, size: 20, color: tint),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: 64,
+            const SizedBox(width: 14),
+            Expanded(
               child: Text(
                 label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  height: 1.3,
-                  color: theme.colorScheme.onSurface,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
                 ),
               ),
+            ),
+            LineGlyph(
+              Icons.chevron_right,
+              size: 18,
+              color: scheme.onSurfaceVariant,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 现金流预估卡（小青账该位置为会员功能，按现有数据推演）：
+/// 待入账分期 + 预计期末结余 = 剩余预算 − 本周期未入账分期。
+class _CashFlowCard extends StatelessWidget {
+  const _CashFlowCard({
+    required this.pendingMinor,
+    required this.pendingCount,
+    required this.remaining,
+    required this.endLabel,
+  });
+
+  /// 本周期内未入账分期合计（分）与期数。
+  final int pendingMinor;
+  final int pendingCount;
+
+  /// 当前剩余预算（分，可为负 = 已超支）。
+  final int remaining;
+
+  /// 周期末文案（「本月底」/「年底」）。
+  final String endLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final int projected = remaining - pendingMinor;
+    final bool ok = projected >= 0;
+    return HairlineCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // 标题行与「分类预算」卡同款：渐变竖条 + 标题。
+          Row(
+            children: <Widget>[
+              Container(
+                width: 4,
+                height: 18,
+                decoration: BoxDecoration(
+                  gradient: context.app.sageGradient,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '现金流预估',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _cfRow(
+            context,
+            label: '待入账分期',
+            value: pendingCount == 0
+                ? '暂无'
+                : '$pendingCount期 · ${Money.fromMinor(pendingMinor).format()}',
+          ),
+          const SizedBox(height: 8),
+          _cfRow(
+            context,
+            label: '预计$endLabel结余',
+            value: Money.fromMinor(projected).format(),
+            emphasis: true,
+            valueColor: ok ? AppPalette.sageMeadow : scheme.error,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '按本周期内未入账分期推算，未含日常消费与储蓄计划',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cfRow(
+    BuildContext context, {
+    required String label,
+    required String value,
+    bool emphasis = false,
+    Color? valueColor,
+  }) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurface,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: emphasis ? FontWeight.w800 : FontWeight.w600,
+            color: valueColor ?? scheme.onSurface,
+          ),
+        ),
+      ],
     );
   }
 }
