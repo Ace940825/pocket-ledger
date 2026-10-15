@@ -10,6 +10,7 @@ import '../../../../shared/models/money.dart';
 import '../../../../shared/widgets/attachment_viewer.dart';
 import '../../../../shared/widgets/badges.dart';
 import '../../../../shared/widgets/clay_icon_tile.dart';
+import '../../../../shared/widgets/line_icon_map.dart';
 import '../../../../shared/widgets/line_icons.dart';
 import '../../../../shared/widgets/money_text.dart';
 import '../../../../theme/app_colors.dart';
@@ -19,7 +20,6 @@ import '../../../reimbursement/data/reimbursement_repository.dart';
 import '../../../reimbursement/providers/reimbursement_providers.dart';
 import '../../providers/ledger_providers.dart';
 import 'txn_icon.dart';
-import '../../../../shared/widgets/line_icon_map.dart';
 
 /// 流水列表项（小青账版本，对齐参考稿卡片逻辑）。
 ///

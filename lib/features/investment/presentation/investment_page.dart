@@ -16,6 +16,7 @@ import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
 import '../../../theme/theme.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
@@ -24,7 +25,6 @@ import '../data/market/security_meta_repository.dart';
 import '../providers/investment_providers.dart';
 import 'holding_detail_page.dart';
 import 'widgets/security_candidate_tile.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 投资页：顶部组合汇总卡 + 持仓 / 清仓双 Tab（对齐分期入口布局）。
 ///

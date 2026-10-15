@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// 设置 / 详情页「图标 + 标题 + 副标题 + 箭头」操作行（全应用统一）。
 ///

@@ -14,6 +14,7 @@ import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/info_tip_row.dart';
 import '../../../shared/widgets/label_pill.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/menu_item.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
@@ -24,7 +25,6 @@ import '../../record/providers/recording_settings_provider.dart';
 import '../providers/savings_providers.dart';
 import 'savings_modes.dart';
 import 'savings_schedule.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 存钱模式创建页（参照小青账「365天存钱法 / 30天倒数存钱法 /
 /// 12月定额存钱法 / 灵活存钱法」独立页面）。

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
@@ -17,7 +18,6 @@ import '../data/account_icon.dart';
 import '../data/bank_data.dart';
 import '../providers/accounts_providers.dart';
 import 'bank_select_page.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 账户表单页。
 ///

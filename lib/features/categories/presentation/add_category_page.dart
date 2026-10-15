@@ -10,10 +10,10 @@ import '../../../providers/app_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/color_chip.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/categories_providers.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 添加一级分类页。
 ///

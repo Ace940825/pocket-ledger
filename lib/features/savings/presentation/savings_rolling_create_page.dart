@@ -8,11 +8,11 @@ import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/hairline_card.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../theme/app_colors.dart';
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
 import '../providers/savings_providers.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 36 期滚存法创建 / 编辑页。
 ///

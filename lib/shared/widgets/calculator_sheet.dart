@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// 安全的中缀算术求值：仅支持非负数字与 `+ - * /` 运算符。
 ///

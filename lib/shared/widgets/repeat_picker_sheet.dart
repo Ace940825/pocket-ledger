@@ -4,8 +4,8 @@ import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../features/installment/domain/repeat_rule.dart';
 import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
+import 'line_icon_map.dart';
 import 'sheet_scaffold.dart';
-import '../../shared/widgets/line_icon_map.dart';
 
 /// 小青账风格的分期「执行方式 / 重复周期」底部选择面板。
 ///

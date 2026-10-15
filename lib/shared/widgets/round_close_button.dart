@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// 圆形关闭按钮（全应用统一）。
 ///

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// ⓘ 信息提示行（全应用统一）：奶油底圆角卡 + 左侧 info 图标 + 灰字说明。
 ///

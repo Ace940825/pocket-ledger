@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// 空状态占位。
 class EmptyState extends StatelessWidget {

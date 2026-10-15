@@ -16,6 +16,7 @@ import '../../../shared/widgets/calendar_month_view.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/label_pill.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/loading_state.dart';
 import '../../../shared/widgets/module_list_scaffold.dart' show confirmDelete;
@@ -35,7 +36,6 @@ import 'savings_modes.dart';
 import 'savings_page.dart';
 import 'savings_rolling_detail_widgets.dart';
 import 'savings_schedule.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 储蓄计划详情页（参照小青账计划详情）：
 ///

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
@@ -19,6 +18,7 @@ import '../../../shared/widgets/action_row.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
@@ -36,7 +36,6 @@ import '../providers/accounts_providers.dart';
 import 'account_ledger_grouping.dart';
 import 'widgets/account_transaction_tile.dart';
 import 'widgets/asset_stats_settings_sheet.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 单个账户的资产详情页（小青账「资产详情」复刻）。
 ///

@@ -19,6 +19,7 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/clay_icon_tile.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
@@ -27,7 +28,6 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../providers/recording_settings_provider.dart';
 import 'default_asset_settings_sheet.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 // ───────────────────── 模板专属微调色（token 未覆盖的精确值，保持与设计一致） ─────────────────────
 

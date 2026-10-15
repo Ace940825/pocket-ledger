@@ -18,12 +18,12 @@ import '../../../database/app_database.dart';
 import '../../../database/daos/tags_dao.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
 import '../providers/tag_providers.dart';
 import 'tag_scope_toggle.dart';
 import 'tag_toast.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 标签管理页（全屏，从右滑入）。
 ///

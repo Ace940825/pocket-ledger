@@ -17,6 +17,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../../../shared/widgets/repeat_picker_sheet.dart';
@@ -26,7 +27,6 @@ import '../../record/presentation/account_picker_sheet.dart';
 import '../domain/installment_dates.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 添加分期页（小青账模板）。
 ///

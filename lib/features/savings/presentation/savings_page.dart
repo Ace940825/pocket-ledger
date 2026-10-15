@@ -7,6 +7,7 @@ import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
 import '../../../shared/widgets/section_header.dart';
@@ -22,7 +23,6 @@ import 'savings_mode_sheet.dart';
 import 'savings_modes.dart';
 import 'savings_rolling_create_page.dart';
 import 'savings_schedule.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 储蓄页：「计划 / 归档」双 Tab。
 /// - 计划：内嵌「存钱模式选择」双列九宫格，点卡直接进该模式创建页；

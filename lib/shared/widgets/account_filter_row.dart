@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// 筛选页账户行：左侧头像 / 图标盒 + 标题 + 可选副标题 + 右侧圆形勾选圈。
 ///

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -25,7 +26,6 @@ import '../data/account_group_collapse.dart';
 import '../data/account_group_order.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 账户列表页（分组卡片布局）。
 ///

@@ -336,6 +336,10 @@ LineIconKind materialLineKind(IconData icon) =>
 /// 用途：把 `Icon(Icons.foo, size: 20, color: tint)` 机械替换为
 /// `LineGlyph(Icons.foo, size: 20, color: tint)`，外观即变为线稿，
 /// 调用点其余语义（尺寸 / 颜色 / 无障碍标签）保持不变。
+///
+/// [icon] 允许为 null：部分调用点传入的是 `final IconData? icon` 字段
+/// （公有字段不可类型提升，`icon != null` 判断后仍是可空类型），
+/// null 时渲染空占位，与调用点原有的判空分支语义一致。
 class LineGlyph extends StatelessWidget {
   const LineGlyph(
     this.icon, {
@@ -345,15 +349,17 @@ class LineGlyph extends StatelessWidget {
     this.semanticLabel,
   });
 
-  final IconData icon;
+  final IconData? icon;
   final double? size;
   final Color? color;
   final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
+    final IconData? ic = icon;
+    if (ic == null) return const SizedBox.shrink();
     final Widget glyph = LineIcon(
-      materialLineKind(icon),
+      materialLineKind(ic),
       size: size ?? IconTheme.of(context).size ?? 16,
       color: color,
     );
@@ -362,15 +368,3 @@ class LineGlyph extends StatelessWidget {
     return Semantics(label: label, child: glyph);
   }
 }
-
-/// Material 图标 → 线稿字形的直接转换（供自定义 widget 内部渲染用）。
-///
-/// 用于那些把图标作为 `final IconData icon` 字段向下传递的组件——
-/// 字段类型保持 `IconData` 不变（调用点零改动），只在渲染处走线稿。
-Widget lineGlyphOf(
-  IconData icon, {
-  double? size,
-  Color? color,
-  String? semanticLabel,
-}) =>
-    LineGlyph(icon, size: size, color: color, semanticLabel: semanticLabel);

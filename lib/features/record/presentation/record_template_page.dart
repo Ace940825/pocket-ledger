@@ -14,6 +14,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../../../theme/app_colors.dart';
@@ -22,7 +23,6 @@ import '../providers/record_template_providers.dart';
 import '../record_tab.dart';
 import 'record_sheet.dart';
 import 'record_template_sheet.dart' show RecordTemplateDraft;
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「账单模板」独立管理页（方案 C1 · 晕染延续）：
 /// 晕染带（✕ 钮 + 头卡/帮助 + 虚线说明卡）→ 搜索 + 类型筛选 → 条目列表

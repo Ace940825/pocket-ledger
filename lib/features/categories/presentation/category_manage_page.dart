@@ -12,12 +12,12 @@ import '../../../routing/app_router.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/category_widgets.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/menu_item.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/categories_providers.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 分类管理页：按小青账模板重构。
 ///

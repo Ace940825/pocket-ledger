@@ -21,10 +21,10 @@ import 'package:pocket_ledger/theme/app_theme.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../routing/app_router.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/recording_settings_provider.dart';
 import 'account_picker_sheet.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 class DefaultAssetSettingsSheet extends ConsumerWidget {
   const DefaultAssetSettingsSheet({super.key});

@@ -8,6 +8,7 @@ import '../../../core/utils/note_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../theme/theme.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
@@ -16,7 +17,6 @@ import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../data/investment_repository.dart';
 import '../providers/investment_providers.dart';
 import 'investment_page.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 持仓详情页：顶部持仓信息卡（份额/成本/现价/市值/盈亏），
 /// 下方「交易流水」区按时间倒序列出该标的全部买入/卖出流水。

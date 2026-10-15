@@ -55,6 +55,7 @@ import '../../../shared/widgets/calculator_sheet.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../sync/sync_adapter.dart';
 import '../../../theme/app_colors.dart';
@@ -70,7 +71,6 @@ import 'account_picker_sheet.dart';
 import 'bill_selection_page.dart';
 import 'record_template_sheet.dart';
 import 'recording_settings_sheet.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 投资成交回执：保存成功后弹窗展示的只读数据快照。
 typedef _InvReceipt = ({

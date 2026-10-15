@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// 颜色选择圆点：选中态加粗描边 + 对勾，默认色用「自动」星星图标。
 ///

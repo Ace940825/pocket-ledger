@@ -185,6 +185,5 @@ class FormGap extends StatelessWidget {
   const FormGap({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const SizedBox(height: AppDimens.md);
+  Widget build(BuildContext context) => const SizedBox(height: AppDimens.md);
 }

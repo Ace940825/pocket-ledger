@@ -9,9 +9,9 @@ import '../../../features/record/presentation/record_sheet.dart';
 import '../../../features/record/record_tab.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../theme/app_colors.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 记账天数：当前账本最早一笔流水的【真实记录时刻】所在自然日至今（含首尾），
 /// 无流水为 0。

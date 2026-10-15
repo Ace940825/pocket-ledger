@@ -7,10 +7,10 @@ import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/hairline_card.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/menu_item.dart';
 import '../../../sync/sync_engine.dart';
 import 'sync_config_card.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 同步状态卡片：展示适配器、上次同步时间、待同步条数，并提供手动同步。
 class SyncStatusCard extends ConsumerWidget {

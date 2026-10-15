@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// 账户选择胶囊：未选显示 [label] 占位，已选显示账户名（深绿加粗 + 绿底）。
 ///

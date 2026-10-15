@@ -10,6 +10,7 @@ import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
 import '../../../theme/app_colors.dart';
@@ -19,7 +20,6 @@ import '../domain/fee_utils.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
 import 'installment_detail_page.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 分期页：进行中 / 已结束双 Tab + 计划卡片（对照有钱记账分期文档布局）。
 ///

@@ -12,6 +12,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/animated_money_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/fade_slide_in.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -22,7 +23,6 @@ import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../record/presentation/record_sheet.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 首页总览：顶部三张可横向滑动卡片（资产 / 预算 / 本月收支）+ 快捷入口 + 最近流水。
 class HomePage extends ConsumerWidget {

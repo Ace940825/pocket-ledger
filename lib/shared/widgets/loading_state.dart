@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pocket_ledger/shared/widgets/app_button.dart';
 
 import '../../theme/app_dimens.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// 主题化加载指示（spinner）。
 ///

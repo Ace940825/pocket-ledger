@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../theme/app_dimens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -23,7 +24,6 @@ import '../../categories/providers/categories_providers.dart';
 import '../data/budget_repository.dart';
 import '../providers/budget_providers.dart';
 import 'budget_editor.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 任意月份收支合计快照（预算概览用；bookId/year/month/type 定位）。
 /// 复用 [TransactionsDao.watchTotalInRange] 的「实付口径」

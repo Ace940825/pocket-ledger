@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +21,6 @@ import '../../investment/data/investment_repository.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 编辑账户页（参照小青账编辑逻辑），按账户类型分流多种布局：
 ///

@@ -6,13 +6,13 @@ import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../theme/app_colors.dart';
 import '../../record/providers/recording_settings_provider.dart' show appPrefs;
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
 import '../providers/savings_providers.dart';
 import 'savings_schedule.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 36 期滚存法详情可视化组件。
 ///

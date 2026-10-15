@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import 'hairline_card.dart';
-import '../../shared/widgets/line_icon_map.dart';
+import 'line_icon_map.dart';
 
 /// 菜单行（全应用统一）：左侧 tint 圆底图标 + 标题 + 可选副标题 + 右侧 chevron。
 ///

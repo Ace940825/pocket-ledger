@@ -12,9 +12,9 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 转账页：在两个账户间划转资金，不影响净资产。
 class TransferPage extends ConsumerStatefulWidget {

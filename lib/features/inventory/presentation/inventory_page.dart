@@ -9,10 +9,10 @@ import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
 import '../data/inventory_repository.dart';
 import '../providers/inventory_providers.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 物品页：大件资产清单、折旧与保修跟踪。
 class InventoryPage extends ConsumerWidget {

@@ -6,10 +6,10 @@ import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 import 'package:pocket_ledger/shared/widgets/settings_tile.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/recording_settings_provider.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 功能按钮固定调色板（账户/图片/标签/不计入/模板），集中为令牌以遵守「页面不抓原始调色板」。
 const Color _funcAccount = Color(0xFFFFD666); // ignore: no_raw_colors

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../theme/app_dimens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,7 +17,6 @@ import '../../categories/providers/categories_providers.dart';
 import '../providers/budget_providers.dart';
 import 'budget_category_page.dart';
 import 'budget_setup_page.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 
 /// 全部账本（支出/收入预算分组卡的账本网格）。
 final AutoDisposeStreamProvider<List<Book>> _booksProvider =

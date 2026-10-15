@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/widgets/line_icon_map.dart';
 import '../../data/investment_repository.dart';
 import '../../data/market/security_meta_repository.dart';
-import '../../../../shared/widgets/line_icon_map.dart';
 
 /// 行情候选行：代码 + 名称 + 品种标签，点击回填。
 ///
