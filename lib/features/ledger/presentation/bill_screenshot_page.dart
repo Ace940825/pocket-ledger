@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../theme/app_colors.dart';
@@ -71,18 +71,18 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
         children: <Widget>[
           ListView(
             padding: const EdgeInsets.fromLTRB(
-              AppDimens.spaceLg,
-              AppDimens.spaceMd,
-              AppDimens.spaceLg,
-              AppDimens.spaceXl,
+              AppDimens.lg,
+              AppDimens.md,
+              AppDimens.lg,
+              AppDimens.xxl,
             ),
             children: <Widget>[
               Container(
                 decoration: BoxDecoration(
                   color: AppPalette.softGreen,
-                  borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                  borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                 ),
-                padding: const EdgeInsets.all(AppDimens.spaceMd),
+                padding: const EdgeInsets.all(AppDimens.md),
                 child: Text(
                   '选择账单 / 收据截图，云端识别后自动填好金额、收支方向与分类，'
                   '确认即可入账。截图仅用于本次识别，服务端不长期存储。',
@@ -93,15 +93,15 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppDimens.spaceMd),
+              const SizedBox(height: AppDimens.md),
               if (!ScreenshotOcrService.instance.isConfigured)
                 Container(
-                  margin: const EdgeInsets.only(bottom: AppDimens.spaceMd),
+                  margin: const EdgeInsets.only(bottom: AppDimens.md),
                   decoration: BoxDecoration(
                     color: AppPalette.redSoftBg,
-                    borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                    borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                   ),
-                  padding: const EdgeInsets.all(AppDimens.spaceMd),
+                  padding: const EdgeInsets.all(AppDimens.md),
                   child: const Text(
                     '识别服务尚未配置：请在设置页填入阿里云百炼 API Key，'
                     '或在出包时加 '
@@ -190,10 +190,10 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
   Widget _actionBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceSm,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
+        AppDimens.lg,
+        AppDimens.sm,
+        AppDimens.lg,
+        AppDimens.lg,
       ),
       child: Row(
         children: <Widget>[
@@ -203,14 +203,14 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
             label: const Text('相册'),
             style: _outlineStyle(),
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.sm),
           OutlinedButton.icon(
             onPressed: _busy ? null : _pickCamera,
             icon: const Icon(Icons.camera_alt_outlined, size: 18),
             label: const Text('拍照'),
             style: _outlineStyle(),
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.sm),
           Expanded(
             child: SizedBox(
               height: 48,

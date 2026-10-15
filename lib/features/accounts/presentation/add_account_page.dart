@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../shared/widgets/line_icons.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../domain/enums.dart';
 import '../data/account_icon.dart';
 import 'account_form_page.dart';
@@ -110,7 +110,7 @@ class _TabContent extends StatelessWidget {
     final List<AccountType> types = _typesForTab(index);
 
     return ListView(
-      padding: const EdgeInsets.all(AppDimens.spaceLg),
+      padding: const EdgeInsets.all(AppDimens.lg),
       children: <Widget>[
         Text(
           '账户类型',
@@ -118,7 +118,7 @@ class _TabContent extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         if (types.isEmpty)
           const _NoTypeHint()
         else
@@ -148,7 +148,7 @@ class _NoTypeHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      padding: const EdgeInsets.all(AppDimens.md),
       decoration: BoxDecoration(
         color: Theme.of(context)
             .colorScheme
@@ -182,8 +182,8 @@ class _TypeOption extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceMd,
-          vertical: AppDimens.spaceMd,
+          horizontal: AppDimens.md,
+          vertical: AppDimens.md,
         ),
         child: Row(
           children: <Widget>[
@@ -192,7 +192,7 @@ class _TypeOption extends StatelessWidget {
               size: 22,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(width: AppDimens.spaceMd),
+            const SizedBox(width: AppDimens.md),
             Expanded(
               child: Text(
                 type.label,

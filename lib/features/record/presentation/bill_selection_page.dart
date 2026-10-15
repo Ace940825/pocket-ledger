@@ -5,7 +5,7 @@ import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -117,12 +117,12 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
                       ? const EmptyState(message: '暂无账单')
                       : ListView.separated(
                           padding: const EdgeInsets.only(
-                            bottom: AppDimens.spaceLg,
+                            bottom: AppDimens.lg,
                           ),
                           itemCount: filtered.length,
                           separatorBuilder: (_, __) => const Divider(
                             height: 1,
-                            indent: AppDimens.spaceLg + 40 + AppDimens.spaceMd,
+                            indent: AppDimens.lg + 40 + AppDimens.md,
                           ),
                           itemBuilder: (BuildContext ctx, int index) {
                             final Transaction t = filtered[index];
@@ -150,8 +150,8 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
   Widget _buildFilterBar(List<Transaction> filtered) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceLg,
-        vertical: AppDimens.spaceSm,
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.sm,
       ),
       child: Row(
         children: <Widget>[
@@ -262,10 +262,10 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceMd,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg + MediaQuery.paddingOf(context).bottom,
+        AppDimens.lg,
+        AppDimens.md,
+        AppDimens.lg,
+        AppDimens.lg + MediaQuery.paddingOf(context).bottom,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -371,13 +371,13 @@ class _BillTile extends ConsumerWidget {
       onTap: onToggle,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceLg,
-          vertical: AppDimens.spaceMd,
+          horizontal: AppDimens.lg,
+          vertical: AppDimens.md,
         ),
         child: Row(
           children: <Widget>[
             ClayIconTile(size: 40, color: tint, child: leadIcon),
-            const SizedBox(width: AppDimens.spaceMd),
+            const SizedBox(width: AppDimens.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,7 +406,7 @@ class _BillTile extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(width: AppDimens.spaceSm),
+            const SizedBox(width: AppDimens.sm),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
@@ -470,7 +470,7 @@ class _BillTile extends ConsumerWidget {
                   ),
               ],
             ),
-            const SizedBox(width: AppDimens.spaceMd),
+            const SizedBox(width: AppDimens.md),
             _SelectionCircle(selected: selected),
           ],
         ),

@@ -25,6 +25,12 @@ class AppDimens {
   static const double radiusSheet = 30.0; // 弹窗顶
   static const double radiusKey = 14.0; // 数字键
   static const double radiusChip = 999.0; // 药丸标签
+  // 兼容旧令牌命名（由 lib/core/constants/app_dimens.dart 并入，值不变）
+  static const double radiusSm = 8.0;
+  static const double radiusMd = 12.0;
+
+  /// 列表卡片高度（流水行）
+  static const double listTileHeight = 68.0;
 
   // 布局
   static const double screenPadding = 24.0; // 安全边距

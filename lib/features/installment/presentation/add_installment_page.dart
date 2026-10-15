@@ -8,7 +8,7 @@ import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
@@ -138,7 +138,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           Expanded(
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              padding: const EdgeInsets.all(AppDimens.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -205,7 +205,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppDimens.spaceLg),
+                  const SizedBox(height: AppDimens.lg),
                   _buildSection(
                     '本金',
                     <Widget>[
@@ -228,7 +228,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppDimens.spaceLg),
+                  const SizedBox(height: AppDimens.lg),
                   _buildSection(
                     '利息',
                     <Widget>[
@@ -267,7 +267,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppDimens.spaceLg),
+                  const SizedBox(height: AppDimens.lg),
                   _buildSection(
                     '账单信息',
                     <Widget>[
@@ -276,7 +276,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       _buildCategoryRow(),
                     ],
                   ),
-                  const SizedBox(height: AppDimens.spaceLg),
+                  const SizedBox(height: AppDimens.lg),
                 ],
               ),
             ),
@@ -335,7 +335,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
-            const SizedBox(width: AppDimens.spaceSm),
+            const SizedBox(width: AppDimens.sm),
             Text(
               title,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -347,10 +347,10 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             ),
           ],
         ),
-        const SizedBox(height: AppDimens.spaceMd),
+        const SizedBox(height: AppDimens.md),
         HairlineCard(
           radius: 16,
-          padding: const EdgeInsets.all(AppDimens.spaceMd),
+          padding: const EdgeInsets.all(AppDimens.md),
           borderWidth: 0,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,8 +409,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       filled: true,
       fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceMd,
-        vertical: AppDimens.spaceXs / 2,
+        horizontal: AppDimens.md,
+        vertical: AppDimens.xs / 2,
       ),
       border: border,
       enabledBorder: border,
@@ -542,7 +542,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             size: 18,
             color: Theme.of(context).colorScheme.primary,
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.sm),
           Text(label, style: Theme.of(context).textTheme.bodyMedium),
           const Spacer(),
           Text(
@@ -573,7 +573,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             size: 18,
             color: Theme.of(context).colorScheme.primary,
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,7 +695,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.all(AppDimens.spaceMd),
+              padding: const EdgeInsets.all(AppDimens.md),
               child: Text(
                 title,
                 style: Theme.of(context).textTheme.titleSmall,
@@ -721,7 +721,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                 },
               ),
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
           ],
         ),
       ),
@@ -748,7 +748,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                 size: 18,
                 color: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(width: AppDimens.spaceSm),
+              const SizedBox(width: AppDimens.sm),
               Expanded(
                 child: Text(
                   selected?.name ?? '请选择负债账户',
@@ -829,7 +829,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                 ),
               ),
             ),
-            const SizedBox(width: AppDimens.spaceSm),
+            const SizedBox(width: AppDimens.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -871,7 +871,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                 size: 18,
                 color: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(width: AppDimens.spaceSm),
+              const SizedBox(width: AppDimens.sm),
               Expanded(
                 child: Text(
                   selected?.name ?? '分类',
@@ -919,7 +919,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Padding(
-                padding: const EdgeInsets.all(AppDimens.spaceMd),
+                padding: const EdgeInsets.all(AppDimens.md),
                 child: Row(
                   children: <Widget>[
                     // 返回键：二级列表回到一级（对齐函数头注释「标题变分类名 + 返回键」）。
@@ -1022,7 +1022,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   },
                 ),
               ),
-              const SizedBox(height: AppDimens.spaceMd),
+              const SizedBox(height: AppDimens.md),
             ],
           );
         },
@@ -1037,10 +1037,10 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   Widget _buildFooter() {
     return BottomActionBar(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceMd,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
+        AppDimens.lg,
+        AppDimens.md,
+        AppDimens.lg,
+        AppDimens.lg,
       ),
       useSafeArea: false,
       child: Row(
@@ -1052,7 +1052,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               fullWidth: false,
             ),
           ),
-          const SizedBox(width: AppDimens.spaceMd),
+          const SizedBox(width: AppDimens.md),
           Expanded(
             child: FilledButton(
               onPressed: _saving ? null : _save,
@@ -1146,7 +1146,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.all(AppDimens.spaceMd),
+              padding: const EdgeInsets.all(AppDimens.md),
               child: Text(
                 name.isEmpty ? '分期预览' : '「$name」预览',
                 style: Theme.of(context).textTheme.titleSmall,
@@ -1179,7 +1179,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                 },
               ),
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
           ],
         ),
       ),

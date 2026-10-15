@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../theme/app_colors.dart';
 
 /// 图片附件展示与查看的共享组件。
@@ -137,7 +137,7 @@ Future<void> openImageViewer(
   return showDialog<void>(
     context: context,
     builder: (_) => Dialog(
-      insetPadding: const EdgeInsets.all(AppDimens.spaceMd),
+      insetPadding: const EdgeInsets.all(AppDimens.md),
       child: SizedBox(
         width: double.maxFinite,
         height: 360,

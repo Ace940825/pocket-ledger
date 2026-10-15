@@ -8,7 +8,7 @@ import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -101,7 +101,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           Expanded(
             child: ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              padding: const EdgeInsets.all(AppDimens.lg),
               children: isDebt
                   ? _debtSections(account)
                   : isDebit
@@ -130,7 +130,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           radius: AppDimens.radiusMd,
           padding: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            padding: const EdgeInsets.all(AppDimens.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -141,10 +141,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   textInputAction: TextInputAction.done,
                   decoration: _filledDecoration(),
                 ),
-                const SizedBox(height: AppDimens.spaceMd),
+                const SizedBox(height: AppDimens.md),
                 _fieldLabel(isLend ? '借出金额' : '借入金额'),
                 _readOnlyAmount(account.balanceMinor),
-                const SizedBox(height: AppDimens.spaceXs),
+                const SizedBox(height: AppDimens.xs),
                 Text(
                   '由名下未结清借还记录自动计算，不可手动修改',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -155,7 +155,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             ),
           ),
         ),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _otherSection(),
       ];
 
@@ -180,7 +180,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         radius: AppDimens.radiusMd,
         padding: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(AppDimens.spaceMd),
+          padding: const EdgeInsets.all(AppDimens.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -191,10 +191,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 textInputAction: TextInputAction.done,
                 decoration: _filledDecoration(),
               ),
-              const SizedBox(height: AppDimens.spaceMd),
+              const SizedBox(height: AppDimens.md),
               _fieldLabel('投资余额'),
               _readOnlyAmount(display),
-              const SizedBox(height: AppDimens.spaceXs),
+              const SizedBox(height: AppDimens.xs),
               Text(
                 hasHoldings
                     ? '现金 ${Money.fromMinor(account.balanceMinor)} · 持仓市值 ${Money.fromMinor(market)}（不可手动修改）'
@@ -207,7 +207,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           ),
         ),
       ),
-      const SizedBox(height: AppDimens.spaceLg),
+      const SizedBox(height: AppDimens.lg),
       _otherSection(),
     ];
   }
@@ -217,16 +217,16 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   List<Widget> _debitSections(Account account) => <Widget>[
         _sectionLabel('资产类型'),
         _assetTypeCard(account),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _sectionLabel('基本信息'),
         _basicInfoCard(),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _sectionLabel('资金'),
         HairlineCard(
           radius: AppDimens.radiusMd,
           padding: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            padding: const EdgeInsets.all(AppDimens.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -246,7 +246,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             ),
           ),
         ),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _otherSection(),
       ];
 
@@ -258,13 +258,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   List<Widget> _fundSections(Account account) => <Widget>[
         _sectionLabel('资产类型'),
         _assetTypeCard(account, name: account.type.label),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _sectionLabel('基本信息'),
         HairlineCard(
           radius: AppDimens.radiusMd,
           padding: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            padding: const EdgeInsets.all(AppDimens.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -274,7 +274,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   textInputAction: TextInputAction.next,
                   decoration: _filledDecoration(),
                 ),
-                const SizedBox(height: AppDimens.spaceMd),
+                const SizedBox(height: AppDimens.md),
                 _fieldLabel('账户余额'),
                 KeypadField(
                   controller: _balanceController,
@@ -291,7 +291,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             ),
           ),
         ),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _otherSection(),
       ];
 
@@ -303,16 +303,16 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   List<Widget> _debtSections(Account account) => <Widget>[
         _sectionLabel('资产类型'),
         _assetTypeCard(account),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _sectionLabel('基本信息'),
         _basicInfoCard(),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _sectionLabel('资金'),
         HairlineCard(
           radius: AppDimens.radiusMd,
           padding: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            padding: const EdgeInsets.all(AppDimens.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -323,7 +323,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   decoration: _filledDecoration(),
                   onChanged: (_) => setState(() {}),
                 ),
-                const SizedBox(height: AppDimens.spaceMd),
+                const SizedBox(height: AppDimens.md),
                 _fieldLabel('当前欠款'),
                 KeypadField(
                   controller: _balanceController,
@@ -331,10 +331,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   decoration: _filledDecoration(),
                   onChanged: (_) => setState(() {}),
                 ),
-                const SizedBox(height: AppDimens.spaceMd),
+                const SizedBox(height: AppDimens.md),
                 _fieldLabel('剩余额度'),
                 _readOnlyAmount(_remainingLimitMinor),
-                const SizedBox(height: AppDimens.spaceXs),
+                const SizedBox(height: AppDimens.xs),
                 Row(
                   children: <Widget>[
                     Icon(
@@ -359,13 +359,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             ),
           ),
         ),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _sectionLabel('账单/还款日期'),
         HairlineCard(
           radius: AppDimens.radiusMd,
           padding: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            padding: const EdgeInsets.all(AppDimens.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -375,7 +375,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   allowDecimal: false,
                   decoration: _dayDecoration(),
                 ),
-                const SizedBox(height: AppDimens.spaceMd),
+                const SizedBox(height: AppDimens.md),
                 _fieldLabel('还款日期'),
                 KeypadField(
                   controller: _dueDayController,
@@ -386,7 +386,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             ),
           ),
         ),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         _otherSection(),
       ];
 
@@ -395,7 +395,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         radius: AppDimens.radiusMd,
         padding: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(AppDimens.spaceMd),
+          padding: const EdgeInsets.all(AppDimens.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -405,7 +405,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 textInputAction: TextInputAction.next,
                 decoration: _filledDecoration(),
               ),
-              const SizedBox(height: AppDimens.spaceMd),
+              const SizedBox(height: AppDimens.md),
               _fieldLabel('银行卡号'),
               TextField(
                 controller: _cardNumberController,
@@ -437,7 +437,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           onTap: () => _renameDialog(account),
           child: Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceMd),
+            padding: const EdgeInsets.all(AppDimens.md),
             child: Row(
               children: <Widget>[
                 ClayIconTile(
@@ -453,7 +453,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     )!,
                   ),
                 ),
-                const SizedBox(width: AppDimens.spaceMd),
+                const SizedBox(width: AppDimens.md),
                 Expanded(
                   child: Text(
                     name ?? account.name,
@@ -480,13 +480,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         radius: AppDimens.radiusMd,
         padding: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(AppDimens.spaceMd),
+          padding: const EdgeInsets.all(AppDimens.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               _cardTitle('其他'),
               _statusRow(),
-              const SizedBox(height: AppDimens.spaceMd),
+              const SizedBox(height: AppDimens.md),
               _includeRow(),
             ],
           ),
@@ -535,7 +535,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   // ---- 区块与字段 ----
 
   Widget _sectionLabel(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: AppDimens.spaceSm),
+        padding: const EdgeInsets.only(bottom: AppDimens.sm),
         child: Text(
           text,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -547,7 +547,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 
   /// 卡片内部区块标题（参照小青账：标题在卡片内第一行）。
   Widget _cardTitle(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
+        padding: const EdgeInsets.only(bottom: AppDimens.md),
         child: Text(
           text,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -558,7 +558,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       );
 
   Widget _fieldLabel(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: AppDimens.spaceXs),
+        padding: const EdgeInsets.only(bottom: AppDimens.xs),
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -571,8 +571,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceMd,
-          vertical: AppDimens.spaceSm + 2,
+          horizontal: AppDimens.md,
+          vertical: AppDimens.sm + 2,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -591,8 +591,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   Widget _readOnlyAmount(int? balanceMinor) => Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceMd,
-          vertical: AppDimens.spaceSm + 4,
+          horizontal: AppDimens.md,
+          vertical: AppDimens.sm + 4,
         ),
         decoration: BoxDecoration(
           color: Theme.of(context)
@@ -625,13 +625,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 color: Theme.of(context).colorScheme.onSurface,
               ),
         ),
-        const SizedBox(width: AppDimens.spaceMd),
+        const SizedBox(width: AppDimens.md),
         Expanded(
           child: Align(
             alignment: Alignment.centerRight,
             child: Wrap(
-              spacing: AppDimens.spaceSm,
-              runSpacing: AppDimens.spaceXs,
+              spacing: AppDimens.sm,
+              runSpacing: AppDimens.xs,
               alignment: WrapAlignment.end,
               children: statuses
                   .map(
@@ -683,7 +683,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   // ---- 保存 ----
 
   Widget _saveButton(Account account) => Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         child: SizedBox(
           width: double.infinity,
           height: 48,
@@ -827,7 +827,7 @@ class _StatusPill extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceMd,
+          horizontal: AppDimens.md,
           vertical: 6,
         ),
         decoration: BoxDecoration(

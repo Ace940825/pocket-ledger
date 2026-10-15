@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../data/bank_data.dart';
 
 /// 银行选择页。
@@ -115,10 +115,10 @@ class _BankSelectPageState extends State<BankSelectPage> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppDimens.spaceLg,
-                    AppDimens.spaceMd,
-                    AppDimens.spaceLg,
-                    AppDimens.spaceSm,
+                    AppDimens.lg,
+                    AppDimens.md,
+                    AppDimens.lg,
+                    AppDimens.sm,
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -129,12 +129,12 @@ class _BankSelectPageState extends State<BankSelectPage> {
                       fillColor:
                           Theme.of(context).colorScheme.surfaceContainerHighest,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppDimens.spaceMd,
-                        vertical: AppDimens.spaceSm,
+                        horizontal: AppDimens.md,
+                        vertical: AppDimens.sm,
                       ),
                     ),
                   ),
@@ -151,9 +151,9 @@ class _BankSelectPageState extends State<BankSelectPage> {
                     key: _sectionKeys[entry.key],
                     child: Padding(
                       padding: const EdgeInsets.only(
-                        left: AppDimens.spaceLg,
-                        top: AppDimens.spaceMd,
-                        bottom: AppDimens.spaceSm,
+                        left: AppDimens.lg,
+                        top: AppDimens.md,
+                        bottom: AppDimens.sm,
                       ),
                       child: Text(
                         entry.key,
@@ -178,7 +178,7 @@ class _BankSelectPageState extends State<BankSelectPage> {
                   ),
                 ],
               const SliverPadding(
-                padding: EdgeInsets.only(bottom: AppDimens.spaceLg),
+                padding: EdgeInsets.only(bottom: AppDimens.lg),
               ),
             ],
           ),
@@ -211,8 +211,8 @@ class _BankTile extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceLg,
-          vertical: AppDimens.spaceMd,
+          horizontal: AppDimens.lg,
+          vertical: AppDimens.md,
         ),
         child: Row(
           children: <Widget>[
@@ -234,7 +234,7 @@ class _BankTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: AppDimens.spaceMd),
+            const SizedBox(width: AppDimens.md),
             Expanded(
               child: Text(
                 bank.name,

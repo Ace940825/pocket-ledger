@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -71,45 +71,45 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppDimens.spaceLg,
-                  AppDimens.spaceLg,
-                  AppDimens.spaceLg,
+                  AppDimens.lg,
+                  AppDimens.lg,
+                  AppDimens.lg,
                   0,
                 ),
                 child: _buildNameField(theme),
               ),
-              const SizedBox(height: AppDimens.spaceLg),
+              const SizedBox(height: AppDimens.lg),
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                    const EdgeInsets.symmetric(horizontal: AppDimens.lg),
                 child: _buildHint(theme),
               ),
-              const SizedBox(height: AppDimens.spaceLg),
+              const SizedBox(height: AppDimens.lg),
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                    const EdgeInsets.symmetric(horizontal: AppDimens.lg),
                 child: _buildColorPicker(theme),
               ),
-              const SizedBox(height: AppDimens.spaceLg),
+              const SizedBox(height: AppDimens.lg),
               Expanded(
                 child: SingleChildScrollView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(
-                    AppDimens.spaceLg,
+                    AppDimens.lg,
                     0,
-                    AppDimens.spaceLg,
-                    AppDimens.spaceLg,
+                    AppDimens.lg,
+                    AppDimens.lg,
                   ),
                   child: _buildIconPicker(theme, color),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppDimens.spaceLg,
+                  AppDimens.lg,
                   0,
-                  AppDimens.spaceLg,
-                  AppDimens.spaceLg,
+                  AppDimens.lg,
+                  AppDimens.lg,
                 ),
                 child: SizedBox(
                   width: double.infinity,
@@ -149,7 +149,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
   Widget _buildHint(ThemeData theme) {
     return HairlineCard(
       radius: AppDimens.radiusMd,
-      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      padding: const EdgeInsets.all(AppDimens.md),
       borderWidth: 0,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,7 +159,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
             size: 16,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.sm),
           Expanded(
             child: Text(
               '分类名称需手动输入，选择图标后不会自动填充名称。',
@@ -183,10 +183,10 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         Wrap(
-          spacing: AppDimens.spaceSm,
-          runSpacing: AppDimens.spaceSm,
+          spacing: AppDimens.sm,
+          runSpacing: AppDimens.sm,
           children: <Widget>[
             ColorChip(
               selected: _selectedColorValue == null,
@@ -216,15 +216,15 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         GridView.builder(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 6,
-            mainAxisSpacing: AppDimens.spaceSm,
-            crossAxisSpacing: AppDimens.spaceSm,
+            mainAxisSpacing: AppDimens.sm,
+            crossAxisSpacing: AppDimens.sm,
             childAspectRatio: 1,
           ),
           itemCount: categoryIconOptions.length,

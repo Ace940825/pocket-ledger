@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
@@ -45,15 +45,15 @@ class HomePage extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () => ref.read(syncControllerProvider.notifier).syncNow(),
         child: ListView(
-          padding: const EdgeInsets.all(AppDimens.spaceLg),
+          padding: const EdgeInsets.all(AppDimens.lg),
           children: <Widget>[
             const FadeSlideIn(child: _SwipeCards()),
-            const SizedBox(height: AppDimens.spaceLg),
+            const SizedBox(height: AppDimens.lg),
             const FadeSlideIn(
               delay: Duration(milliseconds: 90),
               child: _QuickActions(),
             ),
-            const SizedBox(height: AppDimens.spaceXl),
+            const SizedBox(height: AppDimens.xxl),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -183,7 +183,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
             ],
           ),
         ),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         _PageDots(
           controller: _pageController,
           count: _pageCount,
@@ -244,7 +244,7 @@ class _AssetsCard extends StatelessWidget {
                   valueColor: ForestAssetText.emphasis,
                 ),
               ),
-              const SizedBox(width: AppDimens.spaceMd),
+              const SizedBox(width: AppDimens.md),
               Expanded(
                 child: _MiniStat(
                   label: '总负债',
@@ -280,7 +280,7 @@ class _BudgetCard extends StatelessWidget {
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.spaceLg,
+                  horizontal: AppDimens.lg,
                 ),
                 child: Text(
                   '暂未设置预算，点此去设置',
@@ -322,7 +322,7 @@ class _BudgetCard extends StatelessWidget {
                         valueColor: ForestAssetText.emphasis,
                       ),
                     ),
-                    const SizedBox(width: AppDimens.spaceMd),
+                    const SizedBox(width: AppDimens.md),
                     Expanded(
                       child: _MiniStat(
                         label: '已用',
@@ -391,7 +391,7 @@ class _IncomeExpenseCard extends StatelessWidget {
                   valueColor: ForestAssetGreen.deep,
                 ),
               ),
-              const SizedBox(width: AppDimens.spaceMd),
+              const SizedBox(width: AppDimens.md),
               Expanded(
                 child: _MiniStat(
                   label: '支出',
@@ -430,20 +430,20 @@ class _TappableSurface extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Material(
         color: hasGradient ? Colors.transparent : background,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
         clipBehavior: Clip.antiAlias,
         child: Container(
           decoration: hasGradient
               ? BoxDecoration(
                   gradient: gradient,
-                  borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                  borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                   boxShadow: ForestAssetElevation.card,
                 )
               : null,
           child: InkWell(
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.all(AppDimens.spaceLg),
+              padding: const EdgeInsets.all(AppDimens.lg),
               child: child,
             ),
           ),

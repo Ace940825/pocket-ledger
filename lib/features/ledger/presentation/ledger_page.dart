@@ -8,7 +8,7 @@ import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -214,10 +214,10 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceXs,
-        AppDimens.spaceLg,
-        AppDimens.spaceSm,
+        AppDimens.lg,
+        AppDimens.xs,
+        AppDimens.lg,
+        AppDimens.sm,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -228,7 +228,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
             onTap: () => _pickPeriod(context, period),
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.spaceXs,
+                horizontal: AppDimens.xs,
                 vertical: 4,
               ),
               child: Row(
@@ -257,7 +257,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
             onTap: () => _openFilterPage(context),
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.spaceXs,
+                horizontal: AppDimens.xs,
                 vertical: 4,
               ),
               child: Row(
@@ -337,10 +337,10 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         : '${effective.month}月${effective.day}日';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg),
       child: HairlineCard(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
-        radius: AppDimens.radiusLg,
+        padding: const EdgeInsets.all(AppDimens.lg),
+        radius: AppDimens.radiusCard,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -375,7 +375,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                 ),
               ),
             ),
-            const SizedBox(height: AppDimens.spaceSm),
+            const SizedBox(height: AppDimens.sm),
             // 图表系列：支出 / 收入双柱并排，随开关各自显隐；全关保留同高占位。
             _periodBars(context, stats, period, monthly, effective),
           ],
@@ -787,18 +787,18 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceSm,
-        AppDimens.spaceLg,
+        AppDimens.lg,
+        AppDimens.sm,
+        AppDimens.lg,
         0,
       ),
       child: HairlineCard(
         backgroundColor: context.colors.surface,
         borderColor: Theme.of(context).colorScheme.outline,
-        radius: AppDimens.radiusLg,
+        radius: AppDimens.radiusCard,
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceLg,
-          vertical: AppDimens.spaceMd,
+          horizontal: AppDimens.lg,
+          vertical: AppDimens.md,
         ),
         child: Row(
           children: <Widget>[
@@ -828,7 +828,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                 ),
               ),
             ),
-            const SizedBox(width: AppDimens.spaceLg),
+            const SizedBox(width: AppDimens.lg),
             Text(
               '日均支出：',
               style: TextStyle(
@@ -861,7 +861,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
   Widget _detailHeader(int count) {
     return Padding(
-      padding: const EdgeInsets.only(top: AppDimens.spaceLg),
+      padding: const EdgeInsets.only(top: AppDimens.lg),
       child: SectionHeader(
         title: '账单明细',
         trailing: Row(
@@ -928,10 +928,10 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceMd,
-        AppDimens.spaceLg,
-        AppDimens.spaceXs,
+        AppDimens.lg,
+        AppDimens.md,
+        AppDimens.lg,
+        AppDimens.xs,
       ),
       child: Row(
         children: <Widget>[

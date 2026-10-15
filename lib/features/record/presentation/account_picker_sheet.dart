@@ -13,7 +13,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -308,7 +308,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
         ref.watch(investmentMarketValueByAccountProvider);
     if (items.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         child: Text(
           '暂无账户，点击右上角添加',
           textAlign: TextAlign.center,

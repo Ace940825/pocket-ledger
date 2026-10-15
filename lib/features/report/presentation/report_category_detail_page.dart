@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -118,15 +118,15 @@ class _ReportCategoryDetailPageState
           : TxnSlidableGroup(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
-                  AppDimens.spaceLg,
-                  AppDimens.spaceSm,
-                  AppDimens.spaceLg,
-                  AppDimens.spaceXl,
+                  AppDimens.lg,
+                  AppDimens.sm,
+                  AppDimens.lg,
+                  AppDimens.xxl,
                 ),
                 children: <Widget>[
                   _headerRow(),
                   ..._daySections(mine, cats, accounts),
-                  const SizedBox(height: AppDimens.spaceMd),
+                  const SizedBox(height: AppDimens.md),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -169,7 +169,7 @@ class _ReportCategoryDetailPageState
 
   Widget _headerRow() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppDimens.spaceSm),
+      padding: const EdgeInsets.only(bottom: AppDimens.sm),
       child: Row(
         children: <Widget>[
           const Text(
@@ -232,7 +232,7 @@ class _ReportCategoryDetailPageState
       for (final Transaction t in list) {
         out.add(TxnSlidable(txn: t, child: _txnTile(t, cats, accounts)));
       }
-      out.add(const SizedBox(height: AppDimens.spaceSm));
+      out.add(const SizedBox(height: AppDimens.sm));
     }
     return out;
   }

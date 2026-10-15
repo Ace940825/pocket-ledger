@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 
-import '../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../core/theme/forest_design_tokens.dart';
 import '../../core/utils/date_utils.dart';
 import '../../theme/app_colors.dart';
@@ -906,9 +906,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
 
   Widget _buildHeader() => Padding(
         padding: const EdgeInsets.fromLTRB(
-          AppDimens.spaceLg,
-          AppDimens.spaceMd,
-          AppDimens.spaceLg,
+          AppDimens.lg,
+          AppDimens.md,
+          AppDimens.lg,
           4,
         ),
         child: Row(
@@ -1736,7 +1736,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       children: <Widget>[
         _sageBar(title: '$_mpBrowseYear 年'),
         Padding(
-          padding: const EdgeInsets.all(AppDimens.spaceLg),
+          padding: const EdgeInsets.all(AppDimens.lg),
           child: GestureDetector(
             // 左右滑动切年（2026-10-14 第 17 批反馈，取代 ‹ › 箭头）。
             behavior: HitTestBehavior.opaque,
@@ -1814,7 +1814,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       children: <Widget>[
         _sageBar(title: '$_ypBrowseYear 年'),
         Padding(
-          padding: const EdgeInsets.all(AppDimens.spaceLg),
+          padding: const EdgeInsets.all(AppDimens.lg),
           child: GestureDetector(
             // 左右滑动平移年份窗口（2026-10-14 第 17 批反馈，取代 ‹ › 箭头）。
             behavior: HitTestBehavior.opaque,
@@ -2844,7 +2844,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           ),
         ),
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceSm,
+          horizontal: AppDimens.sm,
           vertical: 12,
         ),
         child: Row(

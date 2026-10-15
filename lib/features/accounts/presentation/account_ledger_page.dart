@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../core/utils/date_utils.dart';
@@ -571,10 +571,10 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          AppDimens.spaceLg,
-          AppDimens.spaceSm,
-          AppDimens.spaceLg,
-          AppDimens.spaceLg,
+          AppDimens.lg,
+          AppDimens.sm,
+          AppDimens.lg,
+          AppDimens.lg,
         ),
         child: FilledButton(
           onPressed: () => openRecordSheet(
@@ -582,7 +582,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
             initialTab: isLendAccount ? RecordTab.lend : RecordTab.expense,
           ),
           child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppDimens.spaceMd),
+            padding: EdgeInsets.symmetric(vertical: AppDimens.md),
             child: Text('记一笔'),
           ),
         ),
@@ -612,15 +612,15 @@ class _AccountCardHeader extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceMd,
-        AppDimens.spaceLg,
-        AppDimens.spaceMd,
+        AppDimens.lg,
+        AppDimens.md,
+        AppDimens.lg,
+        AppDimens.md,
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: cardColor,
-          borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
           boxShadow: <BoxShadow>[
             BoxShadow(
               color: Theme.of(context)
@@ -633,7 +633,7 @@ class _AccountCardHeader extends ConsumerWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(AppDimens.spaceLg),
+          padding: const EdgeInsets.all(AppDimens.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -652,7 +652,7 @@ class _AccountCardHeader extends ConsumerWidget {
                       )!,
                     ),
                   ),
-                  const SizedBox(width: AppDimens.spaceMd),
+                  const SizedBox(width: AppDimens.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,7 +701,7 @@ class _AccountCardHeader extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppDimens.spaceLg),
+              const SizedBox(height: AppDimens.lg),
               Text(
                 switch (account.type) {
                   // 借出/借入账户按小青账口径展示本金净额（= 名下未结清合计）
@@ -713,7 +713,7 @@ class _AccountCardHeader extends ConsumerWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: AppDimens.spaceXs),
+              const SizedBox(height: AppDimens.xs),
               MoneyText(
                 Money.fromMinor(display),
                 style: theme.textTheme.headlineMedium?.copyWith(
@@ -722,7 +722,7 @@ class _AccountCardHeader extends ConsumerWidget {
                 ),
               ),
               if (market > 0) ...<Widget>[
-                const SizedBox(height: AppDimens.spaceXs),
+                const SizedBox(height: AppDimens.xs),
                 Text(
                   '现金 ${Money.fromMinor(account.balanceMinor).format()} · '
                   '市值 ${Money.fromMinor(market).format()}',
@@ -755,8 +755,8 @@ class _YearSelectorRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceLg,
-        vertical: AppDimens.spaceMd,
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.md,
       ),
       child: Row(
         children: <Widget>[
@@ -765,8 +765,8 @@ class _YearSelectorRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppDimens.radiusMd),
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.spaceSm,
-                vertical: AppDimens.spaceXs,
+                horizontal: AppDimens.sm,
+                vertical: AppDimens.xs,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -840,8 +840,8 @@ class _MonthSection extends StatelessWidget {
           onTap: onToggle,
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceLg,
-              vertical: AppDimens.spaceMd,
+              horizontal: AppDimens.lg,
+              vertical: AppDimens.md,
             ),
             child: Row(
               children: <Widget>[
@@ -849,7 +849,7 @@ class _MonthSection extends StatelessWidget {
                   collapsed ? Icons.chevron_right : Icons.expand_more,
                   size: 20,
                 ),
-                const SizedBox(width: AppDimens.spaceXs),
+                const SizedBox(width: AppDimens.xs),
                 Text(
                   '${group.month.month}月',
                   style: theme.textTheme.titleSmall?.copyWith(
@@ -864,7 +864,7 @@ class _MonthSection extends StatelessWidget {
                     color: AppPalette.expense,
                   ),
                 ),
-                const SizedBox(width: AppDimens.spaceMd),
+                const SizedBox(width: AppDimens.md),
                 Text(
                   '收入 ${Money.fromMinor(stats.incomeMinor).format()}',
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -879,7 +879,7 @@ class _MonthSection extends StatelessWidget {
           _MonthSummary(stats: stats),
           ..._buildDays(context),
         ],
-        const Divider(height: 1, indent: AppDimens.spaceLg),
+        const Divider(height: 1, indent: AppDimens.lg),
       ],
     );
   }
@@ -918,10 +918,10 @@ class _DayHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceMd,
-        AppDimens.spaceLg,
-        AppDimens.spaceXs,
+        AppDimens.lg,
+        AppDimens.md,
+        AppDimens.lg,
+        AppDimens.xs,
       ),
       child: Text(
         accountLedgerDateLabel(dateAt),
@@ -957,8 +957,8 @@ class _MonthSummary extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceLg,
-        vertical: AppDimens.spaceSm,
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.sm,
       ),
       child: Text(
         text,

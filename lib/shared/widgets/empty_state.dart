@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 
 /// 空状态占位。
 class EmptyState extends StatelessWidget {
@@ -27,10 +27,10 @@ class EmptyState extends StatelessWidget {
   final String? subMessage;
   final Widget? action;
 
-  /// 整体内边距，默认 [AppDimens.spaceXl] 四周。
+  /// 整体内边距，默认 [AppDimens.xxl] 四周。
   final EdgeInsetsGeometry? padding;
 
-  /// 图标与文案之间的间距，默认 [AppDimens.spaceLg]。
+  /// 图标与文案之间的间距，默认 [AppDimens.lg]。
   final double? gap;
 
   /// 主文案与 [subMessage] 之间的间距，默认 4。
@@ -44,8 +44,8 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final EdgeInsetsGeometry resolvedPadding =
-        padding ?? const EdgeInsets.all(AppDimens.spaceXl);
-    final double resolvedGap = gap ?? AppDimens.spaceLg;
+        padding ?? const EdgeInsets.all(AppDimens.xxl);
+    final double resolvedGap = gap ?? AppDimens.lg;
     final double resolvedSubGap = subGap ?? 4;
     final TextStyle? resolvedTextStyle = textStyle ??
         theme.textTheme.bodyMedium?.copyWith(

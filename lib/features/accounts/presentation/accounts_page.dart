@@ -5,7 +5,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../database/app_database.dart';
@@ -515,8 +515,8 @@ class _GroupCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceLg,
-        vertical: AppDimens.spaceSm,
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,7 +531,7 @@ class _GroupCard extends StatelessWidget {
                 top: Radius.circular(AppDimens.radiusMd),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(AppDimens.spaceMd),
+                padding: const EdgeInsets.all(AppDimens.md),
                 child: Row(
                   children: <Widget>[
                     Container(
@@ -545,7 +545,7 @@ class _GroupCard extends StatelessWidget {
                       ),
                       child: Icon(_iconOf(title), size: 16, color: iconColor),
                     ),
-                    const SizedBox(width: AppDimens.spaceSm),
+                    const SizedBox(width: AppDimens.sm),
                     Expanded(
                       child: Text(
                         title,
@@ -614,7 +614,7 @@ class _AccountBody extends StatelessWidget {
   Widget build(BuildContext context) {
     if (accounts.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
+        padding: const EdgeInsets.only(bottom: AppDimens.md),
         child: EmptyState(message: emptyHint),
       );
     }
@@ -663,7 +663,7 @@ class _AccountBody extends StatelessWidget {
                     // 与分组头部 Padding(spaceMd) 对齐：金额右缘同线
                     // （ListTile 默认水平 16，比头部 12 多 4px，会向左错位）
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppDimens.spaceMd,
+                      horizontal: AppDimens.md,
                     ),
                     onTap: () => onOpenDetail(accounts[i]),
                     leading: ClayIconTile(
@@ -759,7 +759,7 @@ class _SlideAction extends StatelessWidget {
       foregroundColor: color,
       padding: EdgeInsets.zero,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: AppDimens.spaceXs / 2),
+        margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs / 2),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -810,7 +810,7 @@ class _ReceivableBody extends StatelessWidget {
   Widget build(BuildContext context) {
     if (accounts.isEmpty && lendOutMinor == 0) {
       return const Padding(
-        padding: EdgeInsets.only(bottom: AppDimens.spaceMd),
+        padding: EdgeInsets.only(bottom: AppDimens.md),
         child: EmptyState(message: '没有待收回的款项'),
       );
     }
@@ -869,7 +869,7 @@ class _PayableBody extends StatelessWidget {
   Widget build(BuildContext context) {
     if (accounts.isEmpty && borrowInMinor == 0) {
       return const Padding(
-        padding: EdgeInsets.only(bottom: AppDimens.spaceMd),
+        padding: EdgeInsets.only(bottom: AppDimens.md),
         child: EmptyState(message: '没有待归还的款项'),
       );
     }
@@ -963,8 +963,8 @@ class _CounterpartyRow extends StatelessWidget {
         dense: true,
         // 右缘对齐分组头部（12）；左侧补 16 保持文字位置不变
         contentPadding: const EdgeInsets.only(
-          left: AppDimens.spaceLg,
-          right: AppDimens.spaceMd,
+          left: AppDimens.lg,
+          right: AppDimens.md,
         ),
         title: Text(
           name,
@@ -1003,7 +1003,7 @@ class _SummaryRow extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       // 右缘对齐分组头部（12），头像 x=12 与账户行一致
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppDimens.md),
       leading: ClayIconTile(
         size: 40,
         color: amountColor,
@@ -1028,7 +1028,7 @@ class _SummaryRow extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          const SizedBox(width: AppDimens.spaceXs),
+          const SizedBox(width: AppDimens.xs),
           Icon(
             Icons.chevron_right,
             size: 18,
@@ -1065,11 +1065,11 @@ class _NetAssetsHeader extends ConsumerWidget {
           );
 
     return Container(
-      margin: const EdgeInsets.all(AppDimens.spaceLg),
-      padding: const EdgeInsets.all(AppDimens.spaceLg),
+      margin: const EdgeInsets.all(AppDimens.lg),
+      padding: const EdgeInsets.all(AppDimens.lg),
       decoration: BoxDecoration(
         gradient: ForestAssetBg.card,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
         boxShadow: ForestAssetElevation.card,
       ),
       child: Column(
@@ -1081,17 +1081,17 @@ class _NetAssetsHeader extends ConsumerWidget {
               color: ForestAssetText.primary.withValues(alpha: 0.85),
             ),
           ),
-          const SizedBox(height: AppDimens.spaceXs),
+          const SizedBox(height: AppDimens.xs),
           Text(
             value.isLoading ? '--' : Money.fromMinor(net).format(),
             style: base,
           ),
-          const SizedBox(height: AppDimens.spaceMd),
+          const SizedBox(height: AppDimens.md),
           // 总资产 / 总负债摘要：一眼看出净值的两个构成
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceMd,
-              vertical: AppDimens.spaceSm,
+              horizontal: AppDimens.md,
+              vertical: AppDimens.sm,
             ),
             decoration: BoxDecoration(
               color:

@@ -4,7 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -243,19 +243,19 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceLg,
-                AppDimens.spaceMd,
-                AppDimens.spaceLg,
-                AppDimens.spaceLg,
+                AppDimens.lg,
+                AppDimens.md,
+                AppDimens.lg,
+                AppDimens.lg,
               ),
               children: <Widget>[
                 if (widget.initialDraft == null) ...<Widget>[
                   Container(
                     decoration: BoxDecoration(
                       color: AppPalette.softGreen,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                     ),
-                    padding: const EdgeInsets.all(AppDimens.spaceMd),
+                    padding: const EdgeInsets.all(AppDimens.md),
                     child: Text(
                       '粘贴本 App 导出的 CSV / JSON 内容，或点「选择文件」从本地任选 '
                       '.csv / .json。账户 / 分类按名称归户，'
@@ -267,11 +267,11 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppDimens.spaceMd),
+                  const SizedBox(height: AppDimens.md),
                   Container(
                     decoration: BoxDecoration(
                       color: AppPalette.white,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                     ),
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                     child: TextField(
@@ -286,7 +286,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                       style: const TextStyle(fontSize: 13, height: 1.5),
                     ),
                   ),
-                  const SizedBox(height: AppDimens.spaceSm),
+                  const SizedBox(height: AppDimens.sm),
                   Row(
                     children: <Widget>[
                       Expanded(
@@ -298,7 +298,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                           style: _outlineStyle(),
                         ),
                       ),
-                      const SizedBox(width: AppDimens.spaceSm),
+                      const SizedBox(width: AppDimens.sm),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _text.text.trim().isEmpty ? null : _parse,
@@ -332,13 +332,13 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
   List<Widget> _previewSection() {
     final ParseResult p = _parsed!;
     return <Widget>[
-      const SizedBox(height: AppDimens.spaceLg),
+      const SizedBox(height: AppDimens.lg),
       Container(
         decoration: BoxDecoration(
           color: AppPalette.white,
-          borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
         ),
-        padding: const EdgeInsets.all(AppDimens.spaceMd),
+        padding: const EdgeInsets.all(AppDimens.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -381,7 +381,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                 ],
               ],
             ),
-            const SizedBox(height: AppDimens.spaceSm),
+            const SizedBox(height: AppDimens.sm),
             for (int i = 0; i < p.rows.length && i < 20; i++)
               _previewRow(p.rows[i]),
             if (p.rows.length > 20)
@@ -492,16 +492,16 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
   Widget _importBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceSm,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
+        AppDimens.lg,
+        AppDimens.sm,
+        AppDimens.lg,
+        AppDimens.lg,
       ),
       child: Column(
         children: <Widget>[
           if (_resultMsg != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: AppDimens.spaceSm),
+              padding: const EdgeInsets.only(bottom: AppDimens.sm),
               child: Text(
                 _resultMsg!,
                 style: TextStyle(

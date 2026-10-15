@@ -5,7 +5,7 @@ import 'package:pocket_ledger/shared/widgets/menu_item.dart';
 import 'package:pocket_ledger/shared/widgets/round_close_button.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 
-import '../../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../../providers/asset_stats_settings.dart';
 import '../../../../shared/widgets/sheet_scaffold.dart';
 import '../../../../theme/app_colors.dart';
@@ -62,10 +62,10 @@ class _AssetStatsSettingsSheetState
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppDimens.spaceLg,
-              AppDimens.spaceMd,
-              AppDimens.spaceLg,
-              AppDimens.spaceLg,
+              AppDimens.lg,
+              AppDimens.md,
+              AppDimens.lg,
+              AppDimens.lg,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -89,7 +89,7 @@ class _AssetStatsSettingsSheetState
                     ),
                   ],
                 ),
-                const SizedBox(height: AppDimens.spaceSm),
+                const SizedBox(height: AppDimens.sm),
                 SettingsSwitchRow(
                   title: '支出流水统计',
                   subtitle: _draft.expenseWithTransfer
@@ -124,14 +124,14 @@ class _AssetStatsSettingsSheetState
                   title: '账单列表样式',
                   onTap: _openListStyleSettings,
                 ),
-                const SizedBox(height: AppDimens.spaceLg),
+                const SizedBox(height: AppDimens.lg),
                 FilledButton(
                   onPressed: _save,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppPalette.primaryLight,
                     foregroundColor: AppPalette.primaryDark,
                     padding: const EdgeInsets.symmetric(
-                      vertical: AppDimens.spaceMd,
+                      vertical: AppDimens.md,
                     ),
                   ),
                   child: const Text('保存'),
@@ -206,10 +206,10 @@ class _BillListSettingsSheetState extends State<_BillListSettingsSheet> {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppDimens.spaceLg,
-              AppDimens.spaceMd,
-              AppDimens.spaceLg,
-              AppDimens.spaceSm,
+              AppDimens.lg,
+              AppDimens.md,
+              AppDimens.lg,
+              AppDimens.sm,
             ),
             child: Row(
               children: <Widget>[
@@ -244,7 +244,7 @@ class _BillListSettingsSheetState extends State<_BillListSettingsSheet> {
             onChanged: (bool v) =>
                 _update(_draft.copyWith(groupByMonthReimburse: v)),
           ),
-          const SizedBox(height: AppDimens.spaceLg),
+          const SizedBox(height: AppDimens.lg),
         ],
       ),
     );

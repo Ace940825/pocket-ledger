@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
 
@@ -178,10 +178,10 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
     final String displayExpr = _expr.isEmpty ? '0' : _expr;
     return Container(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppDimens.spaceMd,
-        left: AppDimens.spaceLg,
-        right: AppDimens.spaceLg,
-        top: AppDimens.spaceMd,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppDimens.md,
+        left: AppDimens.lg,
+        right: AppDimens.lg,
+        top: AppDimens.md,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -199,14 +199,14 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
               ),
             ],
           ),
-          const SizedBox(height: AppDimens.spaceMd),
+          const SizedBox(height: AppDimens.md),
           if (_aaMode)
             _buildAa(context, result)
           else
             _buildExpr(context, displayExpr, result),
-          const SizedBox(height: AppDimens.spaceMd),
+          const SizedBox(height: AppDimens.md),
           if (!_aaMode) _buildPad(context),
-          const SizedBox(height: AppDimens.spaceMd),
+          const SizedBox(height: AppDimens.md),
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -246,8 +246,8 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceMd,
-        vertical: AppDimens.spaceMd,
+        horizontal: AppDimens.md,
+        vertical: AppDimens.md,
       ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
@@ -262,7 +262,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: AppDimens.spaceXs),
+          const SizedBox(height: AppDimens.xs),
           Text(
             result == null ? '' : '= ${_formatCurrency(result)}',
             style: theme.textTheme.headlineSmall?.copyWith(
@@ -300,13 +300,13 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
               borderSide: const BorderSide(color: AppPalette.primary),
             ),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceMd,
-              vertical: AppDimens.spaceMd,
+              horizontal: AppDimens.md,
+              vertical: AppDimens.md,
             ),
           ),
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: AppDimens.spaceMd),
+        const SizedBox(height: AppDimens.md),
         KeypadField(
           controller: _aaPeople,
           allowDecimal: false,
@@ -324,16 +324,16 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
               borderSide: const BorderSide(color: AppPalette.primary),
             ),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceMd,
-              vertical: AppDimens.spaceMd,
+              horizontal: AppDimens.md,
+              vertical: AppDimens.md,
             ),
           ),
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: AppDimens.spaceMd),
+        const SizedBox(height: AppDimens.md),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(AppDimens.spaceMd),
+          padding: const EdgeInsets.all(AppDimens.md),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -376,8 +376,8 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
       crossAxisCount: 4,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppDimens.spaceXs,
-      crossAxisSpacing: AppDimens.spaceXs,
+      mainAxisSpacing: AppDimens.xs,
+      crossAxisSpacing: AppDimens.xs,
       childAspectRatio: 1.6,
       children: <Widget>[
         for (final String k in keys) _buildKey(context, k),
@@ -522,8 +522,8 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
         borderSide: const BorderSide(color: AppPalette.primary),
       ),
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceMd,
-        vertical: AppDimens.spaceMd,
+        horizontal: AppDimens.md,
+        vertical: AppDimens.md,
       ),
     );
   }
@@ -534,10 +534,10 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
     return SingleChildScrollView(
       child: Padding(
         padding: EdgeInsets.only(
-          left: AppDimens.spaceLg,
-          right: AppDimens.spaceLg,
-          top: AppDimens.spaceMd,
-          bottom: MediaQuery.of(context).viewInsets.bottom + AppDimens.spaceMd,
+          left: AppDimens.lg,
+          right: AppDimens.lg,
+          top: AppDimens.md,
+          bottom: MediaQuery.of(context).viewInsets.bottom + AppDimens.md,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -569,10 +569,10 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                 const SizedBox(width: 32),
               ],
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
             // 说明
             Container(
-              padding: const EdgeInsets.all(AppDimens.spaceMd),
+              padding: const EdgeInsets.all(AppDimens.md),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -585,7 +585,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                     size: 18,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: AppDimens.spaceSm),
+                  const SizedBox(width: AppDimens.sm),
                   Expanded(
                     child: Text(
                       '如手续费和优惠都存在的情况，手续费-优惠=真正的手续费',
@@ -597,7 +597,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                 ],
               ),
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
             // 手续费
             KeypadField(
               controller: _feeController,
@@ -605,7 +605,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
               decoration: _fieldDecoration(context, '手续费'),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
             // 优惠
             KeypadField(
               controller: _discountController,
@@ -613,13 +613,13 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
               decoration: _fieldDecoration(context, '优惠'),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
             // 剩余手续费
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.spaceMd,
-                vertical: AppDimens.spaceMd,
+                horizontal: AppDimens.md,
+                vertical: AppDimens.md,
               ),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest,
@@ -644,7 +644,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                 ],
               ),
             ),
-            const SizedBox(height: AppDimens.spaceLg),
+            const SizedBox(height: AppDimens.lg),
             // 保存按钮
             SizedBox(
               width: double.infinity,

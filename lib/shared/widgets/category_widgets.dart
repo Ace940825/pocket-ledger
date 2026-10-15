@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 
 /// 分类类型切换标签（下划线选中态）。
 ///
@@ -28,7 +28,7 @@ class TypeTab extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceSm),
+        padding: const EdgeInsets.symmetric(vertical: AppDimens.sm),
         decoration: BoxDecoration(
           border: selected
               ? Border(

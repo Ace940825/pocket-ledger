@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
 
@@ -38,7 +38,7 @@ class AmountField extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              const SizedBox(width: AppDimens.spaceMd),
+              const SizedBox(width: AppDimens.md),
               Container(
                 width: 3,
                 height: 20,
@@ -47,7 +47,7 @@ class AmountField extends StatelessWidget {
                   borderRadius: BorderRadius.circular(1.5),
                 ),
               ),
-              const SizedBox(width: AppDimens.spaceMd),
+              const SizedBox(width: AppDimens.md),
               Expanded(
                 child: TextFormField(
                   controller: controller,
@@ -86,8 +86,8 @@ class AmountField extends StatelessWidget {
         if (helperText != null)
           Padding(
             padding: const EdgeInsets.only(
-              top: AppDimens.spaceXs,
-              left: AppDimens.spaceMd,
+              top: AppDimens.xs,
+              left: AppDimens.md,
             ),
             child: Text(
               helperText!,
@@ -186,5 +186,5 @@ class FormGap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      const SizedBox(height: AppDimens.spaceMd);
+      const SizedBox(height: AppDimens.md);
 }

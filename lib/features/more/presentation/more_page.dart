@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../routing/app_router.dart';
 
 /// 更多功能入口：收纳转账、报销、储蓄、分期、投资、物品与分类管理。
@@ -71,11 +71,11 @@ class MorePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('全部功能')),
       body: GridView.builder(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          crossAxisSpacing: AppDimens.spaceMd,
-          mainAxisSpacing: AppDimens.spaceMd,
+          crossAxisSpacing: AppDimens.md,
+          mainAxisSpacing: AppDimens.md,
           childAspectRatio: 1.5,
         ),
         itemCount: _modules.length,
@@ -92,13 +92,13 @@ class MorePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               onTap: () => context.push(module.route),
               child: Padding(
-                padding: const EdgeInsets.all(AppDimens.spaceLg),
+                padding: const EdgeInsets.all(AppDimens.lg),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Icon(module.icon, size: 28),
-                    const SizedBox(height: AppDimens.spaceSm),
+                    const SizedBox(height: AppDimens.sm),
                     Text(
                       module.title,
                       style: Theme.of(context).textTheme.titleSmall,

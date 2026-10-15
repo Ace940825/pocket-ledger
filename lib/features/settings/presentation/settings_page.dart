@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/hairline_card.dart';
@@ -21,18 +21,18 @@ class SyncStatusCard extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
 
     return HairlineCard(
-      padding: const EdgeInsets.all(AppDimens.spaceLg),
+      padding: const EdgeInsets.all(AppDimens.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
               const Icon(Icons.cloud_sync_outlined),
-              const SizedBox(width: AppDimens.spaceSm),
+              const SizedBox(width: AppDimens.sm),
               Text('云备份与同步', style: theme.textTheme.titleMedium),
             ],
           ),
-          const SizedBox(height: AppDimens.spaceMd),
+          const SizedBox(height: AppDimens.md),
           state.when(
             data: (SyncState s) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,7 +51,7 @@ class SyncStatusCard extends ConsumerWidget {
                 InfoKVRow(label: '待同步', value: Text('${s.pendingCount} 条')),
                 if (s.error != null)
                   Padding(
-                    padding: const EdgeInsets.only(top: AppDimens.spaceSm),
+                    padding: const EdgeInsets.only(top: AppDimens.sm),
                     child: Text(
                       s.error!,
                       style: TextStyle(color: theme.colorScheme.error),
@@ -62,7 +62,7 @@ class SyncStatusCard extends ConsumerWidget {
             loading: () => const LinearProgressIndicator(),
             error: (Object e, StackTrace? s) => Text('状态加载失败：$e'),
           ),
-          const SizedBox(height: AppDimens.spaceMd),
+          const SizedBox(height: AppDimens.md),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
@@ -73,7 +73,7 @@ class SyncStatusCard extends ConsumerWidget {
               label: const Text('立即同步'),
             ),
           ),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           Text(
             '云端仅用于多设备备份与共享。关闭后应用依然是功能完整的本地记账工具。',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -95,12 +95,12 @@ class SettingsPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
       body: ListView(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         children: <Widget>[
           const SyncConfigCard(),
-          const SizedBox(height: AppDimens.spaceLg),
+          const SizedBox(height: AppDimens.lg),
           const SyncStatusCard(),
-          const SizedBox(height: AppDimens.spaceLg),
+          const SizedBox(height: AppDimens.lg),
           MenuGroup(
             children: <Widget>[
               MenuItem(
@@ -115,7 +115,7 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppDimens.spaceLg),
+          const SizedBox(height: AppDimens.lg),
           MenuGroup(
             children: <Widget>[
               MenuItem(

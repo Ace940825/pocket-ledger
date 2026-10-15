@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
@@ -50,7 +50,7 @@ class _TransferPageState extends ConsumerState<TransferPage> {
         key: _formKey,
         child: ListView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.all(AppDimens.spaceLg),
+          padding: const EdgeInsets.all(AppDimens.lg),
           children: <Widget>[
             _AccountPicker(
               label: '转出账户',
@@ -59,7 +59,7 @@ class _TransferPageState extends ConsumerState<TransferPage> {
               value: _fromAccountId,
               onChanged: (String? v) => setState(() => _fromAccountId = v),
             ),
-            const SizedBox(height: AppDimens.spaceLg),
+            const SizedBox(height: AppDimens.lg),
             _AccountPicker(
               label: '转入账户',
               accounts: accounts,
@@ -67,7 +67,7 @@ class _TransferPageState extends ConsumerState<TransferPage> {
               value: _toAccountId,
               onChanged: (String? v) => setState(() => _toAccountId = v),
             ),
-            const SizedBox(height: AppDimens.spaceLg),
+            const SizedBox(height: AppDimens.lg),
             AmountField(
               controller: _amountController,
               label: '金额',
@@ -77,7 +77,7 @@ class _TransferPageState extends ConsumerState<TransferPage> {
                 return null;
               },
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.calendar_today_outlined),
@@ -90,7 +90,7 @@ class _TransferPageState extends ConsumerState<TransferPage> {
               decoration: const InputDecoration(labelText: '备注'),
               maxLines: 2,
             ),
-            const SizedBox(height: AppDimens.spaceXl),
+            const SizedBox(height: AppDimens.xxl),
             FilledButton(
               onPressed: _saving ? null : _save,
               child: _saving
@@ -199,7 +199,7 @@ class _AccountPicker extends StatelessWidget {
             list.where((Account a) => a.id != exclude).toList(growable: false);
         if (options.isEmpty) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceMd),
+            padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
             child: Text(
               '还没有账户，请先到「账户」页添加一个',
               style: TextStyle(color: Theme.of(context).colorScheme.error),

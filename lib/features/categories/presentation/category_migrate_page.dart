@@ -4,7 +4,7 @@ import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -58,7 +58,7 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
                 () => _selectedType = CategoryType.expense,
               ),
             ),
-            const SizedBox(width: AppDimens.spaceXl),
+            const SizedBox(width: AppDimens.xxl),
             TypeTab(
               label: '收入',
               selected: _selectedType == CategoryType.income,
@@ -104,8 +104,8 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
 
     return ListView(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceLg,
-        vertical: AppDimens.spaceSm,
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.sm,
       ),
       children: <Widget>[
         for (final Category parent in roots)
@@ -202,7 +202,7 @@ class _MigrateParentTile extends StatelessWidget {
                           size: 22,
                         ),
                       ),
-                      const SizedBox(width: AppDimens.spaceMd),
+                      const SizedBox(width: AppDimens.md),
                       Expanded(
                         child: Text(
                           parent.name,
@@ -215,7 +215,7 @@ class _MigrateParentTile extends StatelessWidget {
                       if (hasChildren)
                         Padding(
                           padding:
-                              const EdgeInsets.only(right: AppDimens.spaceSm),
+                              const EdgeInsets.only(right: AppDimens.sm),
                           child: Text(
                             '${children.length}',
                             style:
@@ -286,7 +286,7 @@ class _MigrateChildTile extends StatelessWidget {
                 size: 22,
               ),
             ),
-            const SizedBox(width: AppDimens.spaceMd),
+            const SizedBox(width: AppDimens.md),
             Expanded(
               child: Text(
                 category.name,

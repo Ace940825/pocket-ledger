@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../database/app_database.dart';
 import '../../../features/record/presentation/record_sheet.dart';
 import '../../../features/record/record_tab.dart';
@@ -66,12 +66,12 @@ class MePage extends ConsumerWidget {
         padding: EdgeInsets.zero,
         children: <Widget>[
           _buildHeader(context, ref, days),
-          const SizedBox(height: AppDimens.spaceLg),
+          const SizedBox(height: AppDimens.lg),
           _buildTwoCards(context, ref),
           _buildSection(context, '常用功能', _commonFeatures),
           _buildSection(context, '管理工具', _billAssets),
           _buildSection(context, '偏好', _preferences),
-          const SizedBox(height: AppDimens.spaceXl),
+          const SizedBox(height: AppDimens.xxl),
         ],
       ),
     );
@@ -89,10 +89,10 @@ class MePage extends ConsumerWidget {
         ),
       ),
       padding: EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
+        AppDimens.lg,
         MediaQuery.of(context).padding.top + 8,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
+        AppDimens.lg,
+        AppDimens.lg,
       ),
       child: Column(
         children: <Widget>[
@@ -265,7 +265,7 @@ class MePage extends ConsumerWidget {
 
   Widget _buildTwoCards(BuildContext context, WidgetRef ref) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg),
       child: Row(
         children: <Widget>[
           Expanded(
@@ -277,7 +277,7 @@ class MePage extends ConsumerWidget {
               onTap: () => context.push(Routes.settings),
             ),
           ),
-          const SizedBox(width: AppDimens.spaceMd),
+          const SizedBox(width: AppDimens.md),
           Expanded(
             child: _bigCard(
               context,
@@ -301,12 +301,12 @@ class MePage extends ConsumerWidget {
   }) {
     return Material(
       color: AppPalette.white,
-      borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(AppDimens.spaceMd),
+          padding: const EdgeInsets.all(AppDimens.md),
           child: Row(
             children: <Widget>[
               Expanded(

@@ -5,7 +5,7 @@ import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 import 'package:pocket_ledger/shared/widgets/settings_tile.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/recording_settings_provider.dart';
@@ -964,7 +964,7 @@ class _KeyboardPreview extends ConsumerWidget {
           top: BorderSide(color: Theme.of(context).colorScheme.outline),
         ),
         borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusXl),
+          top: Radius.circular(AppDimens.xl),
         ),
       ),
       child: Column(

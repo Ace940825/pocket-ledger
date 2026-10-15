@@ -5,7 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -361,14 +361,14 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceSm,
-        AppDimens.spaceLg,
-        AppDimens.spaceXl,
+        AppDimens.lg,
+        AppDimens.sm,
+        AppDimens.lg,
+        AppDimens.xxl,
       ),
       children: <Widget>[
         _headerRow(timeLabel, period, filter),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         if (period.mode == LedgerPeriodMode.week)
           ..._weekChildren(period.start, weekFiltered)
         else if (calMonth == null)
@@ -395,9 +395,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
     return <Widget>[
       _yearCard(year, months, yearExpense, yearIncome),
-      const SizedBox(height: AppDimens.spaceSm),
+      const SizedBox(height: AppDimens.sm),
       _summaryRow(balance, yearIncome),
-      const SizedBox(height: AppDimens.spaceLg),
+      const SizedBox(height: AppDimens.lg),
       if (totalCount > 0) ...<Widget>[
         const Align(
           alignment: Alignment.centerLeft,
@@ -406,7 +406,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         _yearBillTable(year, months),
       ],
     ];
@@ -428,7 +428,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
           onTap: () => _pickPeriod(period),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceXs,
+              horizontal: AppDimens.xs,
               vertical: 4,
             ),
             child: Row(
@@ -459,7 +459,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
           onTap: () => _openFilterPage(context),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceXs,
+              horizontal: AppDimens.xs,
               vertical: 4,
             ),
             child: Text(
@@ -487,7 +487,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         child: Column(
           children: <Widget>[
             Row(
@@ -516,7 +516,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 ),
               ],
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
             GridView.count(
               crossAxisCount: 4,
               shrinkWrap: true,
@@ -680,8 +680,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceLg,
-          vertical: AppDimens.spaceMd,
+          horizontal: AppDimens.lg,
+          vertical: AppDimens.md,
         ),
         child: Row(
           children: <Widget>[
@@ -810,7 +810,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceSm),
+        padding: const EdgeInsets.symmetric(vertical: AppDimens.sm),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1000,9 +1000,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
     return <Widget>[
       _monthCard(year, month, days, dim, sel),
-      const SizedBox(height: AppDimens.spaceSm),
+      const SizedBox(height: AppDimens.sm),
       _monthSummaryRow(monthExpense, monthIncome, dim, year, month),
-      const SizedBox(height: AppDimens.spaceLg),
+      const SizedBox(height: AppDimens.lg),
       _dayBillSection(DateTime(year, month, sel), selAgg, txns),
     ];
   }
@@ -1068,14 +1068,14 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
     return <Widget>[
       _weekCard(m0, days, selIdx),
-      const SizedBox(height: AppDimens.spaceSm),
+      const SizedBox(height: AppDimens.sm),
       _calSummaryRow(
         unit: '周',
         expense: weekExpense,
         income: weekIncome,
         denom: denom,
       ),
-      const SizedBox(height: AppDimens.spaceLg),
+      const SizedBox(height: AppDimens.lg),
       _dayBillSection(m0.add(Duration(days: selIdx)), days[selIdx], txns),
     ];
   }
@@ -1085,7 +1085,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         child: Column(
           children: <Widget>[
             Row(
@@ -1107,7 +1107,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 ),
               ],
             ),
-            const SizedBox(height: AppDimens.spaceXs),
+            const SizedBox(height: AppDimens.xs),
             Row(
               children: <Widget>[
                 for (final String w in const <String>[
@@ -1280,7 +1280,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         child: Column(
           children: <Widget>[
             Row(
@@ -1302,7 +1302,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 ),
               ],
             ),
-            const SizedBox(height: AppDimens.spaceXs),
+            const SizedBox(height: AppDimens.xs),
             Row(
               children: <Widget>[
                 for (final String w in const <String>[
@@ -1646,8 +1646,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceLg,
-          vertical: AppDimens.spaceMd,
+          horizontal: AppDimens.lg,
+          vertical: AppDimens.md,
         ),
         child: Row(
           children: <Widget>[
@@ -1737,7 +1737,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
             ),
           ],
         ),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         if (visible.isEmpty)
           EmptyState(
             icon: Icons.receipt_long_outlined,
@@ -1954,14 +1954,14 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceSm,
-        AppDimens.spaceLg,
-        AppDimens.spaceXl,
+        AppDimens.lg,
+        AppDimens.sm,
+        AppDimens.lg,
+        AppDimens.xxl,
       ),
       children: <Widget>[
         _headerRow(period, filter),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         _statCard(
           periodPrefix: period.prefix,
           expenseTotal: expenseTotal,
@@ -1970,7 +1970,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
           slices: slices,
           total: activeTotal,
         ),
-        const SizedBox(height: AppDimens.spaceLg),
+        const SizedBox(height: AppDimens.lg),
         if (slices.isNotEmpty) ...<Widget>[
           const Align(
             alignment: Alignment.centerLeft,
@@ -1979,7 +1979,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           for (int i = 0; i < slices.length; i++)
             _detailTile(slices[i], activeTotal, i),
         ],
@@ -2000,7 +2000,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
           onTap: () => _pickPeriod(context, period),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceXs,
+              horizontal: AppDimens.xs,
               vertical: 4,
             ),
             child: Row(
@@ -2028,7 +2028,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
           onTap: () => _openFilterPage(context),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.spaceXs,
+              horizontal: AppDimens.xs,
               vertical: 4,
             ),
             child: Text(
@@ -2058,7 +2058,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         child: Column(
           children: <Widget>[
             Row(
@@ -2084,7 +2084,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                 _settingsButton(),
               ],
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
             _donut(slices, total),
           ],
         ),
@@ -2219,7 +2219,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
               size: 56,
               color: AppPalette.sageLine,
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
             Text(
               '咦~没有发现账单哦',
               style: TextStyle(

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -79,45 +79,45 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppDimens.spaceLg,
-                  AppDimens.spaceLg,
-                  AppDimens.spaceLg,
+                  AppDimens.lg,
+                  AppDimens.lg,
+                  AppDimens.lg,
                   0,
                 ),
                 child: _buildParentCard(theme, parentColor),
               ),
-              const SizedBox(height: AppDimens.spaceLg),
+              const SizedBox(height: AppDimens.lg),
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                    const EdgeInsets.symmetric(horizontal: AppDimens.lg),
                 child: _buildNameField(theme),
               ),
-              const SizedBox(height: AppDimens.spaceLg),
+              const SizedBox(height: AppDimens.lg),
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: AppDimens.spaceLg),
+                    const EdgeInsets.symmetric(horizontal: AppDimens.lg),
                 child: _buildHint(theme),
               ),
-              const SizedBox(height: AppDimens.spaceLg),
+              const SizedBox(height: AppDimens.lg),
               Expanded(
                 child: SingleChildScrollView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(
-                    AppDimens.spaceLg,
+                    AppDimens.lg,
                     0,
-                    AppDimens.spaceLg,
-                    AppDimens.spaceLg,
+                    AppDimens.lg,
+                    AppDimens.lg,
                   ),
                   child: _buildIconPicker(theme, parentColor),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppDimens.spaceLg,
+                  AppDimens.lg,
                   0,
-                  AppDimens.spaceLg,
-                  AppDimens.spaceLg,
+                  AppDimens.lg,
+                  AppDimens.lg,
                 ),
                 child: SizedBox(
                   width: double.infinity,
@@ -146,7 +146,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
   Widget _buildParentCard(ThemeData theme, Color color) {
     return HairlineCard(
       radius: AppDimens.radiusMd,
-      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      padding: const EdgeInsets.all(AppDimens.md),
       child: Row(
         children: <Widget>[
           Text(
@@ -169,7 +169,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
               )!,
             ),
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.sm),
           Text(
             _selectedParent.name,
             style: theme.textTheme.bodyLarge,
@@ -193,7 +193,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
   Widget _buildHint(ThemeData theme) {
     return HairlineCard(
       radius: AppDimens.radiusMd,
-      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      padding: const EdgeInsets.all(AppDimens.md),
       borderWidth: 0,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +203,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
             size: 16,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.sm),
           Expanded(
             child: Text(
               '分类名称需手动输入，选择图标后不会自动填充名称。',
@@ -224,8 +224,8 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 6,
-        mainAxisSpacing: AppDimens.spaceSm,
-        crossAxisSpacing: AppDimens.spaceSm,
+        mainAxisSpacing: AppDimens.sm,
+        crossAxisSpacing: AppDimens.sm,
         childAspectRatio: 1,
       ),
       itemCount: categoryIconOptions.length,

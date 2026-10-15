@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../database/app_database.dart';
 
 import '../../../shared/widgets/app_toast.dart';
@@ -125,20 +125,20 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceLg,
-                AppDimens.spaceMd,
-                AppDimens.spaceLg,
-                AppDimens.spaceLg,
+                AppDimens.lg,
+                AppDimens.md,
+                AppDimens.lg,
+                AppDimens.lg,
               ),
               children: <Widget>[
                 _formatCard(),
-                const SizedBox(height: AppDimens.spaceMd),
+                const SizedBox(height: AppDimens.md),
                 Container(
                   decoration: BoxDecoration(
                     color: AppPalette.softGreen,
-                    borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                    borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                   ),
-                  padding: const EdgeInsets.all(AppDimens.spaceMd),
+                  padding: const EdgeInsets.all(AppDimens.md),
                   child: Text(
                     '导出当前账本全部账单（含转账）。点「保存到文件」选本地位置存为 '
                     'CSV / JSON 文件；下方「复制内容」可把文本粘贴到微信 / 备忘录等作他用。',
@@ -150,7 +150,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                   ),
                 ),
                 if (_content != null) ...<Widget>[
-                  const SizedBox(height: AppDimens.spaceLg),
+                  const SizedBox(height: AppDimens.lg),
                   _resultCard(),
                 ],
               ],
@@ -166,7 +166,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
     return Container(
       decoration: BoxDecoration(
         color: AppPalette.white,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
       ),
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
@@ -273,9 +273,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
     return Container(
       decoration: BoxDecoration(
         color: AppPalette.white,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
       ),
-      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      padding: const EdgeInsets.all(AppDimens.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -299,7 +299,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               ),
             ],
           ),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           SelectableText(
             _path ?? '',
             style: TextStyle(
@@ -307,10 +307,10 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(AppDimens.spaceSm),
+            padding: const EdgeInsets.all(AppDimens.sm),
             decoration: BoxDecoration(
               color: AppPalette.graySurface,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -325,7 +325,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               ),
             ),
           ),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -349,10 +349,10 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
   Widget _actionBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceSm,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
+        AppDimens.lg,
+        AppDimens.sm,
+        AppDimens.lg,
+        AppDimens.lg,
       ),
       child: SizedBox(
         width: double.infinity,

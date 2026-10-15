@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../providers/app_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../theme/app_colors.dart';
@@ -76,7 +76,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         child: asyncSettings.when(
           loading: () => const SizedBox(
             height: 48,
@@ -95,11 +95,11 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                   Row(
                     children: <Widget>[
                       const Icon(Icons.cloud_outlined),
-                      const SizedBox(width: AppDimens.spaceSm),
+                      const SizedBox(width: AppDimens.sm),
                       Text('云端配置', style: theme.textTheme.titleMedium),
                     ],
                   ),
-                  const SizedBox(height: AppDimens.spaceSm),
+                  const SizedBox(height: AppDimens.sm),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('启用云同步'),
@@ -132,7 +132,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: AppDimens.spaceMd),
+                  const SizedBox(height: AppDimens.md),
                   TextFormField(
                     controller: _tokenController,
                     enabled: settings.enabled,
@@ -153,7 +153,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                     validator: (String? v) =>
                         (v ?? '').trim().isEmpty ? '请填写令牌' : null,
                   ),
-                  const SizedBox(height: AppDimens.spaceMd),
+                  const SizedBox(height: AppDimens.md),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -168,7 +168,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                       label: const Text('保存配置'),
                     ),
                   ),
-                  const SizedBox(height: AppDimens.spaceSm),
+                  const SizedBox(height: AppDimens.sm),
                   Text(
                     '部署 Cloudflare Workers 后填入以上两项。端点与令牌只保存在本机钥匙串，'
                     '不会写入数据库，也不随任何备份外传。',

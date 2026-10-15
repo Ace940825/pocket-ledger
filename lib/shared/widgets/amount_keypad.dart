@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
-import '../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import 'sheet_scaffold.dart';
@@ -227,7 +227,7 @@ class _AmountKeypadState extends State<AmountKeypad> {
     // 场景下装不下 4 行，导致键盘被截断且 NeverScrollable 无法滚动补看。
     return LayoutBuilder(
       builder: (BuildContext ctx, BoxConstraints cons) {
-        const double gap = AppDimens.spaceSm;
+        const double gap = AppDimens.sm;
         final double tileW = (cons.maxWidth - (cols - 1) * gap) / cols;
         final double tileH = tileW / 2.0;
         final double height = rows * tileH + (rows - 1) * gap;

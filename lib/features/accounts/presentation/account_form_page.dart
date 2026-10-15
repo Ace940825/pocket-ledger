@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -208,11 +208,11 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             hint: '如「招商储蓄卡」',
           ),
         );
-        fields.add(const Divider(height: 1, indent: AppDimens.spaceMd));
+        fields.add(const Divider(height: 1, indent: AppDimens.md));
       }
       fields
         ..add(_TextField(controller: _noteController, label: '备注信息'))
-        ..add(const Divider(height: 1, indent: AppDimens.spaceMd))
+        ..add(const Divider(height: 1, indent: AppDimens.md))
         ..add(
           _TextField(
             controller: _cardNumberController,
@@ -230,7 +230,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             label: nameLabel,
           ),
         )
-        ..add(const Divider(height: 1, indent: AppDimens.spaceMd))
+        ..add(const Divider(height: 1, indent: AppDimens.md))
         ..add(
           _TextField(
             controller: _balanceController,
@@ -256,7 +256,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             label: '账户名称',
           ),
         )
-        ..add(const Divider(height: 1, indent: AppDimens.spaceMd))
+        ..add(const Divider(height: 1, indent: AppDimens.md))
         ..add(
           _TextField(
             controller: _balanceController,
@@ -288,7 +288,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
         ),
-        const Divider(height: 1, indent: AppDimens.spaceMd),
+        const Divider(height: 1, indent: AppDimens.md),
         _TextField(
           controller: _balanceController,
           label: '当前欠款',
@@ -297,7 +297,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
         ),
-        const Divider(height: 1, indent: AppDimens.spaceMd),
+        const Divider(height: 1, indent: AppDimens.md),
         _ReadOnlyField(
           label: '剩余额度',
           value: _remainingLimitText ?? '',
@@ -305,10 +305,10 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppDimens.spaceMd,
-            AppDimens.spaceSm,
-            AppDimens.spaceMd,
-            AppDimens.spaceMd,
+            AppDimens.md,
+            AppDimens.sm,
+            AppDimens.md,
+            AppDimens.md,
           ),
           child: Row(
             children: <Widget>[
@@ -317,7 +317,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 size: 14,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: AppDimens.spaceSm),
+              const SizedBox(width: AppDimens.sm),
               Expanded(
                 child: Text(
                   '当前欠款 和 信用额度 输入一个即可自动识别计算',
@@ -358,7 +358,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
         suffix: '每月$billDay日',
         onTap: () => _pickDay(_billingDayController, '选择账单日期'),
       ),
-      const Divider(height: 1, indent: AppDimens.spaceMd),
+      const Divider(height: 1, indent: AppDimens.md),
       _DayPickerField(
         label: '还款日期',
         suffix: '每月$dueDay日',
@@ -381,13 +381,13 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
       ),
       body: ListView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         children: <Widget>[
           // 资产类型（只读）
           const _SectionTitle('资产类型'),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           _TypeHeader(type: widget.accountType),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
 
           // 银行头部（借记卡 / 信用卡）
           if (_hasBankHeader)
@@ -404,11 +404,11 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 if (bank != null) setState(() => _bankName = bank);
               },
             ),
-          if (_hasBankHeader) const SizedBox(height: AppDimens.spaceXl),
+          if (_hasBankHeader) const SizedBox(height: AppDimens.xxl),
 
           // 基本信息
           const _SectionTitle('基本信息'),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           HairlineCard(
             radius: AppDimens.radiusMd,
             padding: EdgeInsets.zero,
@@ -416,12 +416,12 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               children: _basicInfoFields(),
             ),
           ),
-          const SizedBox(height: AppDimens.spaceXl),
+          const SizedBox(height: AppDimens.xxl),
 
           // 资金 / 负债（借记卡余额 / 负债额度，借出借入报销金额已在基本信息）
           if (_isDebitCard || _isDebtTemplate) ...<Widget>[
             _SectionTitle(_isDebt ? '负债' : '资金'),
-            const SizedBox(height: AppDimens.spaceSm),
+            const SizedBox(height: AppDimens.sm),
             HairlineCard(
               radius: AppDimens.radiusMd,
               padding: EdgeInsets.zero,
@@ -429,13 +429,13 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 children: _capitalFields(),
               ),
             ),
-            const SizedBox(height: AppDimens.spaceXl),
+            const SizedBox(height: AppDimens.xxl),
           ],
 
           // 账单 / 还款日期（信用卡与负债非信用卡）
           if (_isDebtTemplate) ...<Widget>[
             const _SectionTitle('账单/还款日期'),
-            const SizedBox(height: AppDimens.spaceSm),
+            const SizedBox(height: AppDimens.sm),
             HairlineCard(
               radius: AppDimens.radiusMd,
               padding: EdgeInsets.zero,
@@ -443,21 +443,21 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 children: _billDateFields(),
               ),
             ),
-            const SizedBox(height: AppDimens.spaceXl),
+            const SizedBox(height: AppDimens.xxl),
           ],
 
           // 余额同步（仅借出 / 借入默认开启）
           if (_isSyncBillVisible) ...<Widget>[
             const _SectionTitle('余额同步'),
-            const SizedBox(height: AppDimens.spaceSm),
+            const SizedBox(height: AppDimens.sm),
             HairlineCard(
               radius: AppDimens.radiusMd,
               padding: EdgeInsets.zero,
               child: SettingsSwitchRow(
                 activeThumbColor: AppPalette.primary,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.spaceMd,
-                  vertical: AppDimens.spaceSm,
+                  horizontal: AppDimens.md,
+                  vertical: AppDimens.sm,
                 ),
                 title: '同时记一笔账单',
                 subtitle: '将金额记一笔对应类型账单',
@@ -467,9 +467,9 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
             ),
             Padding(
               padding: const EdgeInsets.only(
-                left: AppDimens.spaceMd,
-                top: AppDimens.spaceSm,
-                right: AppDimens.spaceMd,
+                left: AppDimens.md,
+                top: AppDimens.sm,
+                right: AppDimens.md,
               ),
               child: Text(
                 '如创建资产初始金额不为0并打开同时记一笔账单，'
@@ -480,12 +480,12 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 ),
               ),
             ),
-            const SizedBox(height: AppDimens.spaceXl),
+            const SizedBox(height: AppDimens.xxl),
           ],
 
           // 其他
           const _SectionTitle('其他'),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           HairlineCard(
             radius: AppDimens.radiusMd,
             padding: EdgeInsets.zero,
@@ -494,10 +494,10 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppDimens.spaceMd,
-                    AppDimens.spaceMd,
-                    AppDimens.spaceMd,
-                    AppDimens.spaceSm,
+                    AppDimens.md,
+                    AppDimens.md,
+                    AppDimens.md,
+                    AppDimens.sm,
                   ),
                   child: Text(
                     '资产状态',
@@ -509,13 +509,13 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppDimens.spaceMd,
+                    AppDimens.md,
                     0,
-                    AppDimens.spaceMd,
-                    AppDimens.spaceMd,
+                    AppDimens.md,
+                    AppDimens.md,
                   ),
                   child: Wrap(
-                    spacing: AppDimens.spaceSm,
+                    spacing: AppDimens.sm,
                     children: AccountStatus.values
                         .map(
                           (AccountStatus s) => _StatusChip(
@@ -527,12 +527,12 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                         .toList(growable: false),
                   ),
                 ),
-                const Divider(height: 1, indent: AppDimens.spaceMd),
+                const Divider(height: 1, indent: AppDimens.md),
                 SettingsSwitchRow(
                   activeThumbColor: AppPalette.primary,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimens.spaceMd,
-                    vertical: AppDimens.spaceSm,
+                    horizontal: AppDimens.md,
+                    vertical: AppDimens.sm,
                   ),
                   title: '计入总资产',
                   subtitle: '是否加入总资产计算',
@@ -542,7 +542,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               ],
             ),
           ),
-          const SizedBox(height: AppDimens.spaceXl),
+          const SizedBox(height: AppDimens.xxl),
 
           // 保存按钮
           SizedBox(
@@ -554,7 +554,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 backgroundColor: primary,
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                  borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                 ),
               ),
               child: _saving
@@ -569,7 +569,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                   : const Text('保存'),
             ),
           ),
-          const SizedBox(height: AppDimens.spaceLg),
+          const SizedBox(height: AppDimens.lg),
         ],
       ),
     );
@@ -603,12 +603,12 @@ class _TypeHeader extends StatelessWidget {
       radius: AppDimens.radiusMd,
       padding: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceMd),
+        padding: const EdgeInsets.all(AppDimens.md),
         child: Row(
           children: <Widget>[
             LineIcon(accountLineKind(type) ?? LineIconKind.star,
                 color: AppPalette.primary, size: 24),
-            const SizedBox(width: AppDimens.spaceMd),
+            const SizedBox(width: AppDimens.md),
             Expanded(
               child: Text(
                 type.label,
@@ -651,7 +651,7 @@ class _BankHeader extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         child: Padding(
-          padding: const EdgeInsets.all(AppDimens.spaceMd),
+          padding: const EdgeInsets.all(AppDimens.md),
           child: Row(
             children: <Widget>[
               Container(
@@ -672,7 +672,7 @@ class _BankHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: AppDimens.spaceMd),
+              const SizedBox(width: AppDimens.md),
               Expanded(
                 child: Text(
                   name,
@@ -744,7 +744,7 @@ class _TextField extends StatelessWidget {
         hintText: hint,
         prefixText: prefixText,
         border: InputBorder.none,
-        contentPadding: const EdgeInsets.all(AppDimens.spaceMd),
+        contentPadding: const EdgeInsets.all(AppDimens.md),
       ),
     );
   }
@@ -764,7 +764,7 @@ class _ReadOnlyField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      padding: const EdgeInsets.all(AppDimens.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -774,7 +774,7 @@ class _ReadOnlyField extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           Text(
             value.isEmpty ? placeholder : value,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -805,7 +805,7 @@ class _DayPickerField extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceMd),
+        padding: const EdgeInsets.all(AppDimens.md),
         child: Row(
           children: <Widget>[
             Expanded(
@@ -818,7 +818,7 @@ class _DayPickerField extends StatelessWidget {
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
-                  const SizedBox(height: AppDimens.spaceSm),
+                  const SizedBox(height: AppDimens.sm),
                   Text(
                     suffix,
                     style: Theme.of(context).textTheme.bodyLarge,
@@ -860,14 +860,14 @@ class _StatusChip extends StatelessWidget {
               .colorScheme
               .onSurfaceVariant
               .withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
         child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppDimens.spaceLg,
-            vertical: AppDimens.spaceSm,
+            horizontal: AppDimens.lg,
+            vertical: AppDimens.sm,
           ),
           child: Text(
             status.label,

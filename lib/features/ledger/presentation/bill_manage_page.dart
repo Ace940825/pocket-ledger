@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../theme/app_colors.dart';
@@ -23,10 +23,10 @@ class BillManagePage extends StatelessWidget {
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
-          AppDimens.spaceLg,
-          AppDimens.spaceSm,
-          AppDimens.spaceLg,
-          AppDimens.spaceXl,
+          AppDimens.lg,
+          AppDimens.sm,
+          AppDimens.lg,
+          AppDimens.xxl,
         ),
         children: <Widget>[
           _groupCard(
@@ -51,7 +51,7 @@ class BillManagePage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppDimens.spaceLg),
+          const SizedBox(height: AppDimens.lg),
           _groupCard(
             context,
             title: '导出/导入',
@@ -82,7 +82,7 @@ class BillManagePage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppDimens.spaceLg),
+          const SizedBox(height: AppDimens.lg),
           _groupCard(
             context,
             title: '账单清理',
@@ -112,7 +112,7 @@ class BillManagePage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppPalette.white,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
       ),
       padding: const EdgeInsets.fromLTRB(14, 14, 6, 6),
       child: Column(

@@ -25,7 +25,7 @@ import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/config/env.dart';
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../core/utils/date_utils.dart';
@@ -1857,7 +1857,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             shown.any((Account a) => a.id == value) ? value : null;
         if (shown.isEmpty) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceMd),
+            padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
             child: Text(
               '还没有账户，请先到「账户」页添加',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -1895,7 +1895,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             list.any((Category c) => c.id == _categoryId) ? _categoryId : null;
         if (list.isEmpty) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppDimens.spaceMd),
+            padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
             child: Text(
               '还没有分类，请先到「分类」页添加',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -2038,7 +2038,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         for (final SavingsGoal g in list) SavingsGoalTile(goal: g),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         _rbCard(
           onTap: () {
             FocusManager.instance.primaryFocus?.unfocus();
@@ -2176,11 +2176,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               // 账户卡」主组撑到正好抵住底部功能键上沿（lend 分支用），
               // 其余 Tab 不受影响（minHeight 只对借还生效）。
               final double viewportHeight =
-                  viewport.maxHeight - 2 * AppDimens.spaceLg;
+                  viewport.maxHeight - 2 * AppDimens.lg;
               return SingleChildScrollView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.all(AppDimens.spaceLg),
+                padding: const EdgeInsets.all(AppDimens.lg),
                 // 点击表单空白处（按钮/输入框之外的区域）→ 移除焦点：
                 // 借还利息/转账费用框退回主金额录入，备注框收起系统键盘。
                 // 子级可交互控件（TextField/按钮）的手势在竞技场中优先胜出，不受影响。
@@ -2201,21 +2201,21 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         // 功能键行、金额栏、备注栏三段垂直间距统一为 spaceSm。
         Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppDimens.spaceLg,
+            horizontal: AppDimens.lg,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               _buildFunctionBar(),
-              const SizedBox(height: AppDimens.spaceSm),
+              const SizedBox(height: AppDimens.sm),
               _buildInlineAmount(),
-              const SizedBox(height: AppDimens.spaceSm),
+              const SizedBox(height: AppDimens.sm),
               _buildDateNoteRow(),
             ],
           ),
         ),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         // 系统键盘（备注输入）弹出或键盘折叠时，不渲染键盘栏。
         if (!systemKeyboardOpen) _buildCollapsibleKeypad(),
       ],
@@ -2867,7 +2867,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   Widget _buildTransferHint() {
     return HairlineCard(
       radius: AppDimens.radiusMd,
-      padding: const EdgeInsets.all(AppDimens.spaceMd),
+      padding: const EdgeInsets.all(AppDimens.md),
       borderWidth: 0,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2877,7 +2877,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             size: 16,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.sm),
           Expanded(
             child: Text(
               '转账、信用卡还款、取现可以用这个功能哦。\n'
@@ -3975,9 +3975,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             _buildTransferFlowZone(),
             const SizedBox(height: 14),
             _buildTransferFeeRow(),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
             _buildTransferHint(),
-            const SizedBox(height: AppDimens.spaceLg),
+            const SizedBox(height: AppDimens.lg),
             _buildAttachmentSection(),
           ],
         );
@@ -4104,10 +4104,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         Expanded(
           child: ListView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(AppDimens.spaceLg),
+            padding: const EdgeInsets.all(AppDimens.lg),
             children: <Widget>[
               _amountDisplay(),
-              const SizedBox(height: AppDimens.spaceLg),
+              const SizedBox(height: AppDimens.lg),
               ..._formFields(),
             ],
           ),
@@ -4115,10 +4115,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppDimens.spaceLg,
-            AppDimens.spaceSm,
-            AppDimens.spaceLg,
-            AppDimens.spaceLg,
+            AppDimens.lg,
+            AppDimens.sm,
+            AppDimens.lg,
+            AppDimens.lg,
           ),
           child: AmountKeypad(
             value: _amount,
@@ -4142,12 +4142,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   Widget _buildSavingsBody() {
     return SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.all(AppDimens.spaceLg),
+      padding: const EdgeInsets.all(AppDimens.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           _buildSectionTitle('存钱计划'),
-          const SizedBox(height: AppDimens.spaceSm),
+          const SizedBox(height: AppDimens.sm),
           _buildSavingsGoalZone(),
         ],
       ),
@@ -4357,10 +4357,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceLg,
-                AppDimens.spaceMd,
-                AppDimens.spaceLg,
-                AppDimens.spaceLg,
+                AppDimens.lg,
+                AppDimens.md,
+                AppDimens.lg,
+                AppDimens.lg,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -5057,10 +5057,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(
-                  AppDimens.spaceLg,
-                  AppDimens.spaceMd,
-                  AppDimens.spaceLg,
-                  AppDimens.spaceLg,
+                  AppDimens.lg,
+                  AppDimens.md,
+                  AppDimens.lg,
+                  AppDimens.lg,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -5171,7 +5171,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
-            const SizedBox(width: AppDimens.spaceSm),
+            const SizedBox(width: AppDimens.sm),
             Text(
               title,
               style: TextStyle(
@@ -6312,10 +6312,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   Widget _buildSaveFooter() {
     return BottomActionBar(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceSm,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
+        AppDimens.lg,
+        AppDimens.sm,
+        AppDimens.lg,
+        AppDimens.lg,
       ),
       useSafeArea: false,
       child: SizedBox(
@@ -6353,7 +6353,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         Expanded(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(AppDimens.spaceLg),
+            padding: const EdgeInsets.all(AppDimens.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: _buildRefundForm(),
@@ -6372,24 +6372,24 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         note:
             _refundOriginals.isEmpty ? null : '已选 ${_refundOriginals.length} 笔',
       ),
-      const SizedBox(height: AppDimens.spaceSm),
+      const SizedBox(height: AppDimens.sm),
       _buildRefundOriginalField(),
-      const SizedBox(height: AppDimens.spaceMd),
+      const SizedBox(height: AppDimens.md),
       _buildSectionTitle('退款信息'),
-      const SizedBox(height: AppDimens.spaceSm),
+      const SizedBox(height: AppDimens.sm),
       _buildRefundAmountRow(),
-      const SizedBox(height: AppDimens.spaceMd),
+      const SizedBox(height: AppDimens.md),
       _buildRefundDateCard(),
-      const SizedBox(height: AppDimens.spaceMd),
+      const SizedBox(height: AppDimens.md),
       _buildRefundNoteField(),
-      const SizedBox(height: AppDimens.spaceMd),
+      const SizedBox(height: AppDimens.md),
       // 账户卡内已带「原账单账户」快捷键，标题行不再重复放置。
       _buildSectionTitle('账户'),
-      const SizedBox(height: AppDimens.spaceSm),
+      const SizedBox(height: AppDimens.sm),
       _buildRefundAccountRow(),
-      const SizedBox(height: AppDimens.spaceMd),
+      const SizedBox(height: AppDimens.md),
       _buildAttachmentSection(),
-      const SizedBox(height: AppDimens.spaceMd),
+      const SizedBox(height: AppDimens.md),
       _buildRefundBookRow(),
     ];
   }
@@ -6410,7 +6410,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             borderRadius: BorderRadius.circular(3),
           ),
         ),
-        const SizedBox(width: AppDimens.spaceSm),
+        const SizedBox(width: AppDimens.sm),
         Text(
           label,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -7423,7 +7423,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppDimens.spaceSm),
+        separatorBuilder: (_, __) => const SizedBox(width: AppDimens.sm),
         itemBuilder: (BuildContext context, int index) {
           final _FunctionItem item = items[index];
           return _buildFunctionChip(item);
@@ -7752,9 +7752,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const SizedBox(height: AppDimens.spaceMd),
+        const SizedBox(height: AppDimens.md),
         _buildSectionTitle('图片附件'),
-        const SizedBox(height: AppDimens.spaceSm),
+        const SizedBox(height: AppDimens.sm),
         SizedBox(
           // 72px 缩略图 + 上下 4px 余量，容纳 ✕ 徽标越出缩略图 2px
           height: 80,
@@ -7765,7 +7765,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 for (int i = 0; i < _attachmentPaths.length; i++) ...<Widget>[
-                  if (i > 0) const SizedBox(width: AppDimens.spaceSm),
+                  if (i > 0) const SizedBox(width: AppDimens.sm),
                   _stripCell(i),
                 ],
               ],
@@ -8122,7 +8122,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
     return Container(
       height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.md),
       child: _hasExpression
           ? Column(
               mainAxisSize: MainAxisSize.min,
@@ -8166,7 +8166,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   Widget _buildDateNoteRow() {
     return Container(
       height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.spaceMd),
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.md),
       decoration: BoxDecoration(
         // A3 设计稿：日期备注行 = 深沙底、无边框。
         color: context.colors.surfaceContainerHighest,
@@ -8192,7 +8192,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               ],
             ),
           ),
-          const SizedBox(width: AppDimens.spaceMd),
+          const SizedBox(width: AppDimens.md),
           Expanded(
             child: TextField(
               controller: _noteController,
@@ -8250,13 +8250,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
     return Container(
       margin: EdgeInsets.fromLTRB(
-        AppDimens.spaceMd,
+        AppDimens.md,
         0,
-        AppDimens.spaceMd,
-        AppDimens.spaceSm + bottomSafe,
+        AppDimens.md,
+        AppDimens.sm + bottomSafe,
       ),
       // A3 设计稿：键盘无独立白色面板，按键直接铺在暖纸底上。
-      padding: const EdgeInsets.all(AppDimens.spaceSm),
+      padding: const EdgeInsets.all(AppDimens.sm),
       child: AmountKeypad(
         value: keypadValue,
         enabled: !_saving,
@@ -8673,7 +8673,7 @@ class _ViewToggle extends StatelessWidget {
           icon: Icons.grid_view_outlined,
           label: '宫格',
         ),
-        const SizedBox(width: AppDimens.spaceSm),
+        const SizedBox(width: AppDimens.sm),
         buildOption(
           value: true,
           icon: Icons.list_alt_outlined,
@@ -8736,10 +8736,10 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppDimens.spaceLg,
-            AppDimens.spaceSm,
-            AppDimens.spaceLg,
-            AppDimens.spaceLg,
+            AppDimens.lg,
+            AppDimens.sm,
+            AppDimens.lg,
+            AppDimens.lg,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -8752,7 +8752,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                     onTap: () => Navigator.of(context).pop(widget.parent.id),
                     child: _categoryLeadIcon(widget.parent.iconKey, color),
                   ),
-                  const SizedBox(width: AppDimens.spaceSm),
+                  const SizedBox(width: AppDimens.sm),
                   Expanded(
                     child: InkWell(
                       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -8778,7 +8778,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppDimens.spaceSm),
+                  const SizedBox(width: AppDimens.sm),
                   FilledButton(
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(0, 40),
@@ -8793,7 +8793,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppDimens.spaceMd),
+              const SizedBox(height: AppDimens.md),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: <Widget>[
@@ -8804,10 +8804,10 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppDimens.spaceMd),
+              const SizedBox(height: AppDimens.md),
               if (widget.children.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: AppDimens.spaceMd),
+                  padding: const EdgeInsets.only(bottom: AppDimens.md),
                   child: Text(
                     '暂无子分类，可选择上方「${widget.parent.name}」，或点右上角「添加」新建',
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -9511,10 +9511,10 @@ class _PromptSheetState extends State<_PromptSheet> {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppDimens.spaceLg,
-              AppDimens.spaceLg,
-              AppDimens.spaceMd,
-              AppDimens.spaceSm,
+              AppDimens.lg,
+              AppDimens.lg,
+              AppDimens.md,
+              AppDimens.sm,
             ),
             child: Row(
               children: <Widget>[
@@ -9529,7 +9529,7 @@ class _PromptSheetState extends State<_PromptSheet> {
           ),
           const Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.all(AppDimens.spaceLg),
+            padding: const EdgeInsets.all(AppDimens.lg),
             child: TextField(
               controller: _controller,
               decoration: const InputDecoration(),
@@ -9540,10 +9540,10 @@ class _PromptSheetState extends State<_PromptSheet> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppDimens.spaceLg,
+              AppDimens.lg,
               0,
-              AppDimens.spaceLg,
-              AppDimens.spaceLg,
+              AppDimens.lg,
+              AppDimens.lg,
             ),
             child: SizedBox(
               width: double.infinity,
@@ -11037,7 +11037,7 @@ class _InvestHoldingPickerSheetState
     final List<InvestmentHolding> items = _items;
     if (items.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        padding: const EdgeInsets.all(AppDimens.lg),
         child: Text(
           '暂无持仓，点右上角「＋ 新建」',
           textAlign: TextAlign.center,
@@ -11678,11 +11678,11 @@ class _InvestmentReceiptCard extends StatelessWidget {
     final Color accent = isBuy ? AppPalette.expense : AppPalette.income;
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.all(AppDimens.spaceMd),
-        padding: const EdgeInsets.all(AppDimens.spaceLg),
+        margin: const EdgeInsets.all(AppDimens.md),
+        padding: const EdgeInsets.all(AppDimens.lg),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -11694,7 +11694,7 @@ class _InvestmentReceiptCard extends StatelessWidget {
                   Icons.receipt_long_outlined,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: AppDimens.spaceSm),
+                const SizedBox(width: AppDimens.sm),
                 Text(
                   '成交回执',
                   style: theme.textTheme.titleMedium
@@ -11718,7 +11718,7 @@ class _InvestmentReceiptCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppDimens.spaceLg),
+            const SizedBox(height: AppDimens.lg),
             InfoKVRow(
               label: unitLabel == '份' ? '份额' : '数量',
               value: Text('${_fmtQtySmart(quantityMicros)} $unitLabel'),
@@ -11739,14 +11739,14 @@ class _InvestmentReceiptCard extends StatelessWidget {
               value: Text(Money.fromMinor(signedNet).formatSigned()),
               valueStyle: TextStyle(fontWeight: FontWeight.w600, color: accent),
             ),
-            const Divider(height: AppDimens.spaceLg),
+            const Divider(height: AppDimens.lg),
             Text(
               '$accountName · 现金 + 市值',
               style: theme.textTheme.labelMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: AppDimens.spaceSm),
+            const SizedBox(height: AppDimens.sm),
             Row(
               children: <Widget>[
                 Expanded(
@@ -11769,7 +11769,7 @@ class _InvestmentReceiptCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppDimens.spaceLg),
+            const SizedBox(height: AppDimens.lg),
             SizedBox(
               width: double.infinity,
               child: PrimaryButton(

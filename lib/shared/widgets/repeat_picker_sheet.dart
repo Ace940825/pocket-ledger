@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../features/installment/domain/repeat_rule.dart';
 import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
@@ -151,16 +151,16 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
             child: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.only(
-                  left: AppDimens.spaceLg,
-                  right: AppDimens.spaceLg,
-                  top: AppDimens.spaceMd,
-                  bottom: AppDimens.spaceMd,
+                  left: AppDimens.lg,
+                  right: AppDimens.lg,
+                  top: AppDimens.md,
+                  bottom: AppDimens.md,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     _buildUnitTabs(theme),
-                    const SizedBox(height: AppDimens.spaceLg),
+                    const SizedBox(height: AppDimens.lg),
                     _buildCenteredContent(theme),
                   ],
                 ),
@@ -171,9 +171,9 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           if (!keyboardVisible)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppDimens.spaceLg,
-                AppDimens.spaceMd,
-                AppDimens.spaceLg,
+                AppDimens.lg,
+                AppDimens.md,
+                AppDimens.lg,
                 0,
               ),
               child: SizedBox(
@@ -200,8 +200,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
   Widget _buildHeader(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceMd,
-        vertical: AppDimens.spaceMd,
+        horizontal: AppDimens.md,
+        vertical: AppDimens.md,
       ),
       child: Stack(
         alignment: Alignment.center,
@@ -279,7 +279,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(width: AppDimens.spaceMd),
+        const SizedBox(width: AppDimens.md),
         _stepperButton(
           icon: Icons.remove,
           onTap: _interval <= 1 ? null : () => _changeInterval(-1),
@@ -321,7 +321,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           icon: Icons.add,
           onTap: _interval >= 120 ? null : () => _changeInterval(1),
         ),
-        const SizedBox(width: AppDimens.spaceMd),
+        const SizedBox(width: AppDimens.md),
         Text(
           _unitText,
           style: theme.textTheme.bodyLarge?.copyWith(
@@ -368,7 +368,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         final double optionsHeight = _calcMonthGridHeight(optionsWidth);
         const double stepperHeight = 40;
         final double contentHeight =
-            optionsHeight + stepperHeight + AppDimens.spaceLg;
+            optionsHeight + stepperHeight + AppDimens.lg;
 
         return SizedBox(
           height: contentHeight,
@@ -377,7 +377,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 _buildIntervalStepper(theme),
-                const SizedBox(height: AppDimens.spaceLg),
+                const SizedBox(height: AppDimens.lg),
                 _buildExtraOptionsContent(theme, optionsWidth),
               ],
             ),

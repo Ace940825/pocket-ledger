@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -65,8 +65,8 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.spaceSm,
-        vertical: AppDimens.spaceSm,
+        horizontal: AppDimens.sm,
+        vertical: AppDimens.sm,
       ),
       child: Row(
         children: <Widget>[
@@ -84,7 +84,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
                     selected: _type == CategoryType.expense,
                     onTap: () => setState(() => _type = CategoryType.expense),
                   ),
-                  const SizedBox(width: AppDimens.spaceXl),
+                  const SizedBox(width: AppDimens.xxl),
                   TypeTab(
                     label: '收入分类',
                     selected: _type == CategoryType.income,
@@ -107,9 +107,9 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
   Widget _buildArchivedToggle(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceSm,
-        AppDimens.spaceLg,
+        AppDimens.lg,
+        AppDimens.sm,
+        AppDimens.lg,
         0,
       ),
       child: Row(
@@ -120,7 +120,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
-          const SizedBox(width: AppDimens.spaceSm),
+          const SizedBox(width: AppDimens.sm),
           Switch(
             value: _showArchived,
             onChanged: (bool value) => setState(() => _showArchived = value),
@@ -155,10 +155,10 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
 
     return ListView.builder(
       padding: const EdgeInsets.only(
-        left: AppDimens.spaceLg,
-        right: AppDimens.spaceLg,
-        top: AppDimens.spaceMd,
-        bottom: AppDimens.spaceLg,
+        left: AppDimens.lg,
+        right: AppDimens.lg,
+        top: AppDimens.md,
+        bottom: AppDimens.lg,
       ),
       itemCount: roots.length,
       itemBuilder: (BuildContext context, int index) {
@@ -197,10 +197,10 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
   Widget _buildAddButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
+        AppDimens.lg,
         0,
-        AppDimens.spaceLg,
-        AppDimens.spaceLg,
+        AppDimens.lg,
+        AppDimens.lg,
       ),
       child: SizedBox(
         width: double.infinity,
@@ -358,7 +358,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
               size: 22,
             ),
           ),
-          const SizedBox(width: AppDimens.spaceMd),
+          const SizedBox(width: AppDimens.md),
           Expanded(
             child: Text(
               category.name,
@@ -445,7 +445,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
             trailing: const SizedBox.shrink(),
             onTap: () => Navigator.of(context).pop('delete'),
           ),
-          const SizedBox(height: AppDimens.spaceMd),
+          const SizedBox(height: AppDimens.md),
         ],
       ),
     );
@@ -527,7 +527,7 @@ class _CategoryRow extends StatelessWidget {
                 size: 22,
               ),
             ),
-            const SizedBox(width: AppDimens.spaceMd),
+            const SizedBox(width: AppDimens.md),
             Expanded(
               child: Text(
                 category.name,
@@ -538,7 +538,7 @@ class _CategoryRow extends StatelessWidget {
             ),
             if (category.isArchived)
               Container(
-                margin: const EdgeInsets.only(right: AppDimens.spaceSm),
+                margin: const EdgeInsets.only(right: AppDimens.sm),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 6,
                   vertical: 2,
@@ -700,7 +700,7 @@ Future<void> _showSortSheet(
           children: <Widget>[
             // 支出 / 收入 分段切换：两段各自独立排序，互不影响。
             Padding(
-              padding: const EdgeInsets.only(top: AppDimens.spaceSm),
+              padding: const EdgeInsets.only(top: AppDimens.sm),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
@@ -711,7 +711,7 @@ Future<void> _showSortSheet(
                       () => current = CategoryType.expense,
                     ),
                   ),
-                  const SizedBox(width: AppDimens.spaceXl),
+                  const SizedBox(width: AppDimens.xxl),
                   TypeTab(
                     label: _typeLabel(CategoryType.income),
                     selected: current == CategoryType.income,
@@ -722,7 +722,7 @@ Future<void> _showSortSheet(
                 ],
               ),
             ),
-            const SizedBox(height: AppDimens.spaceSm),
+            const SizedBox(height: AppDimens.sm),
             Expanded(
               child: items.length < 2
                   ? Center(
@@ -737,7 +737,7 @@ Future<void> _showSortSheet(
                     )
                   : ReorderableListView(
                       padding: const EdgeInsets.symmetric(
-                        vertical: AppDimens.spaceSm,
+                        vertical: AppDimens.sm,
                       ),
                       buildDefaultDragHandles: true,
                       onReorderItem: (int oldIndex, int newIndex) async {
@@ -760,7 +760,7 @@ Future<void> _showSortSheet(
                       ],
                     ),
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
           ],
         );
       },
@@ -944,7 +944,7 @@ Future<void> _showChildSortSheet(
             Expanded(
               child: ReorderableListView(
                 padding: const EdgeInsets.symmetric(
-                  vertical: AppDimens.spaceSm,
+                  vertical: AppDimens.sm,
                 ),
                 buildDefaultDragHandles: true,
                 onReorderItem: (int oldIndex, int newIndex) async {
@@ -964,7 +964,7 @@ Future<void> _showChildSortSheet(
                 ],
               ),
             ),
-            const SizedBox(height: AppDimens.spaceMd),
+            const SizedBox(height: AppDimens.md),
           ],
         );
       },

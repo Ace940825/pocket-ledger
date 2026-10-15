@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../../core/theme/forest_design_tokens.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
@@ -165,8 +165,8 @@ class TransactionTile extends ConsumerWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppDimens.spaceLg,
-            vertical: AppDimens.spaceSm,
+            horizontal: AppDimens.lg,
+            vertical: AppDimens.sm,
           ),
           decoration: BoxDecoration(
             border: Border(
@@ -194,7 +194,7 @@ class TransactionTile extends ConsumerWidget {
                   )!,
                 ),
               ),
-              const SizedBox(width: AppDimens.spaceMd),
+              const SizedBox(width: AppDimens.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +251,7 @@ class TransactionTile extends ConsumerWidget {
               ),
               if (attachments != null && attachments.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(right: AppDimens.spaceXs),
+                  padding: const EdgeInsets.only(right: AppDimens.xs),
                   child: Icon(
                     Icons.attach_file,
                     size: 16,
@@ -498,10 +498,10 @@ class DateSectionHeader extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppDimens.spaceLg,
-        AppDimens.spaceMd,
-        AppDimens.spaceLg,
-        AppDimens.spaceXs,
+        AppDimens.lg,
+        AppDimens.md,
+        AppDimens.lg,
+        AppDimens.xs,
       ),
       child: Text(
         DateFormat('yyyy年M月d日').format(date),

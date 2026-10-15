@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 
-import '../../../../core/constants/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';;
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
 import '../../../../shared/models/money.dart';
@@ -55,8 +55,8 @@ class AccountTransactionTile extends ConsumerWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppDimens.spaceLg,
-          vertical: AppDimens.spaceMd,
+          horizontal: AppDimens.lg,
+          vertical: AppDimens.md,
         ),
         child: Row(
           children: <Widget>[
@@ -73,7 +73,7 @@ class AccountTransactionTile extends ConsumerWidget {
                 )!,
               ),
             ),
-            const SizedBox(width: AppDimens.spaceMd),
+            const SizedBox(width: AppDimens.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,7 +101,7 @@ class AccountTransactionTile extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(width: AppDimens.spaceSm),
+            const SizedBox(width: AppDimens.sm),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
