@@ -22,6 +22,7 @@ import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
+import '../../accounts/data/account_icon.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../providers/recording_settings_provider.dart';
@@ -790,7 +791,7 @@ class _AccountAvatar extends StatelessWidget {
       size: 40,
       color: color,
       child: LineIcon(
-        _accountIcon(account.type) ?? LineIconKind.star,
+        accountCategoryLineKind(account.type.category),
         color: Color.lerp(
           color,
           Theme.of(context).colorScheme.onSurface,
@@ -799,16 +800,6 @@ class _AccountAvatar extends StatelessWidget {
         size: 22,
       ),
     );
-  }
-
-  LineIconKind? _accountIcon(AccountType type) {
-    return switch (type.category) {
-      AccountCategory.capital => LineIconKind.account,
-      AccountCategory.investment => LineIconKind.trendUp,
-      AccountCategory.debt => LineIconKind.withdrawal,
-      AccountCategory.receivable => LineIconKind.borrowIn,
-      AccountCategory.payable => LineIconKind.repayDebt,
-    };
   }
 }
 

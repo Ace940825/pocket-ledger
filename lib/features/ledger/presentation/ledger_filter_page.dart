@@ -13,7 +13,9 @@ import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
+import '../../accounts/data/account_icon.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../../tags/providers/tag_providers.dart';
@@ -1100,8 +1102,8 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           color: AppPalette.paper2,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          Icons.account_balance_wallet_outlined,
+        child: LineIcon(
+          LineIconKind.otherDots,
           size: 22,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
@@ -1135,14 +1137,8 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     return ClayIconTile(
       size: 42,
       color: color,
-      child: Icon(
-        switch (a.type.category) {
-          AccountCategory.capital => Icons.account_balance_wallet_outlined,
-          AccountCategory.investment => Icons.trending_up,
-          AccountCategory.debt => Icons.credit_card,
-          AccountCategory.receivable => Icons.arrow_circle_up_outlined,
-          AccountCategory.payable => Icons.arrow_circle_down_outlined,
-        },
+      child: LineIcon(
+        accountCategoryLineKind(a.type.category),
         size: 21,
         color: Color.lerp(
           color,
