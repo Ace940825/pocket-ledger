@@ -25,7 +25,7 @@ import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/config/env.dart';
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../core/utils/date_utils.dart';

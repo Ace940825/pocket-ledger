@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';

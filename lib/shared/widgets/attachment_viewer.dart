@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../theme/app_colors.dart';
 
 /// 图片附件展示与查看的共享组件。

@@ -8,7 +8,7 @@ import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import 'sheet_scaffold.dart';

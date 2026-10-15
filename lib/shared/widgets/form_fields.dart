@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
 

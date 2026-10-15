@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../core/utils/date_utils.dart';

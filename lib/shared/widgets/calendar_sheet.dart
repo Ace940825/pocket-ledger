@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../core/theme/forest_design_tokens.dart';
 import '../../core/utils/date_utils.dart';
 import '../../theme/app_colors.dart';

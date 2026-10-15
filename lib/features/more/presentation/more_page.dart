@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../routing/app_router.dart';
 
 /// 更多功能入口：收纳转账、报销、储蓄、分期、投资、物品与分类管理。

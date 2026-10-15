@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../data/bank_data.dart';
 
 /// 银行选择页。

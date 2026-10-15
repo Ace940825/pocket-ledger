@@ -5,7 +5,7 @@ import 'package:pocket_ledger/shared/widgets/menu_item.dart';
 import 'package:pocket_ledger/shared/widgets/round_close_button.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../../providers/asset_stats_settings.dart';
 import '../../../../shared/widgets/sheet_scaffold.dart';
 import '../../../../theme/app_colors.dart';

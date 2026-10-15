@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/hairline_card.dart';

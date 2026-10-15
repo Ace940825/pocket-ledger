@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 
 /// 分类类型切换标签（下划线选中态）。
 ///

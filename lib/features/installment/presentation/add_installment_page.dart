@@ -8,7 +8,7 @@ import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';

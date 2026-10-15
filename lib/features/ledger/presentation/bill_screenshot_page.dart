@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import 'package:pocket_ledger/theme/app_dimens.dart';;
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../theme/app_colors.dart';
