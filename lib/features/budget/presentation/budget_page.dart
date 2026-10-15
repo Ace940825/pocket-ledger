@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/line_icon_map.dart';
-import '../../../theme/app_dimens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -10,13 +9,19 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/hairline_card.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/segmented_row.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimens.dart';
 import '../../categories/providers/categories_providers.dart';
+import '../data/shopping_list_store.dart';
 import '../providers/budget_providers.dart';
 import 'budget_category_page.dart';
 import 'budget_setup_page.dart';
+import 'widgets/budget_hero_card.dart';
+import 'widgets/recent_bills_card.dart';
+import 'widgets/shopping_list_card.dart';
 
 /// 全部账本（支出/收入预算分组卡的账本网格）。
 final AutoDisposeStreamProvider<List<Book>> _booksProvider =
@@ -24,13 +29,17 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
   (Ref ref) => ref.watch(booksDaoProvider).watchAll(),
 );
 
-/// 预算主页（2026-10-14 第 10 批迭代）：
+/// 预算主页（2026-10-16 第 12 批迭代，对标小青账截图 1-3）：
 ///
-/// - 顶部月份头卡：黏土方糖币种图标 + 「N月预算」标题（原「帮助」胶囊已移除）。
-/// - AppBar 右上两枚黏土方糖按钮（与内容图标统一风格）：¥ 进「设置月预算」
-///   （金额字符，与分类页方向切换按钮同款，2026-10-14 第 11 批统一）、
-///   📅 选周期——月预算模式选月份（CalendarSheet month）、年预算模式选年份
-///   （year，单击选中、再点同格确认）。
+/// - 顶部月份头卡：黏土方糖币种图标 + 「N月预算」标题。
+/// - AppBar 右上两枚黏土方糖按钮：¥ 进「设置月预算」、📅 选周期
+///   （月预算模式选月份、年预算模式选年份）。
+/// - **指标切换卡**（[BudgetHeroCard]，小青账会员位推演）：预算剩余(元) /
+///   总预算(元) / 剩余日均(元) 三指标 ⇄ 循环 + sage 渐变进度环；
+///   口径 = 当前账本、当前查看周期的支出方向预算（与「支出预算」分组卡同源）。
+/// - 操作胶囊行：「购物清单 · N」（展开本地清单，点项可预填金额/备注快速记账）
+///   与「预算设置」（进设置页）。
+/// - 「近3日账单」区：近 3 日流水小列（按时间/按金额切换，点项进详情）。
 /// - 「支出预算」「收入预算」两张分组卡：预算金额总和 + 双列**账本**
 ///   项卡网格（黏土方糖钱包 + 账本名 + 预算金额/未设置）；
 ///   点账本卡进该账本该方向的「预算分类」页（[BudgetCategoryPage]）。
@@ -50,12 +59,26 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
   int _month = DateTime.now().month;
   bool _yearly = false;
 
+  /// 购物清单区是否展开（操作胶囊切换）。
+  bool _showShopping = false;
+
   /// 行是否落在当前视图周期（月视图：monthly+年+月；年视图：yearly+年）。
   bool _inPeriod(Budget b) => _yearly
       ? (b.period == BudgetPeriod.yearly && b.year == _year)
       : (b.period == BudgetPeriod.monthly &&
           b.year == _year &&
           b.periodIndex == _month);
+
+  /// 查看周期剩余天数（含今天）；周期已结束为 0。
+  int _daysLeft() {
+    final DateTime now = localNow();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime periodEnd = _yearly
+        ? DateTime(_year, 12, 31)
+        : DateTime(_year, _month, daysInMonth(_year, _month));
+    if (periodEnd.isBefore(today)) return 0;
+    return periodEnd.difference(today).inDays + 1;
+  }
 
   /// 某账本某方向的周期预算合计：支出=总预算行+支出分类预算；
   /// 收入=收入分类预算合计（表无方向字段，按分类类型归组）。
@@ -140,6 +163,19 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
 
     final String periodLabel = _yearly ? '$_year年预算' : '$_month月预算';
 
+    // 指标卡数据：当前账本在查看周期内的预算行（页面侧已按周期过滤）。
+    final List<Budget> currentPeriodBudgets =
+        (ref.watch(bookBudgetsProvider(currentId)).valueOrNull ??
+                const <Budget>[])
+            .where(_inPeriod)
+            .toList(growable: false);
+
+    // 购物清单待购条数（胶囊徽标）。
+    final int shoppingPending = ref
+        .watch(shoppingListProvider)
+        .where((ShoppingItem e) => !e.done)
+        .length;
+
     return Scaffold(
       appBar: AppBar(
         actions: <Widget>[
@@ -169,6 +205,43 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 110),
             children: <Widget>[
               _HeaderCard(periodLabel: periodLabel),
+              const SizedBox(height: 12),
+              BudgetHeroCard(
+                budgets: currentPeriodBudgets,
+                catById: catById,
+                daysLeft: _daysLeft(),
+              ),
+              const SizedBox(height: 12),
+              // 操作胶囊行：购物清单（展开/收起 + 待购数）/ 预算设置。
+              Row(
+                children: <Widget>[
+                  _ActionPill(
+                    icon: Icons.shopping_cart_outlined,
+                    label: '购物清单',
+                    badge: shoppingPending > 0 ? '$shoppingPending' : null,
+                    active: _showShopping,
+                    onTap: () => setState(() => _showShopping = !_showShopping),
+                  ),
+                  const SizedBox(width: 8),
+                  _ActionPill(
+                    icon: Icons.settings_outlined,
+                    label: '预算设置',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => BudgetSetupPage(
+                          initialTargetMonth: DateTime(_year, _month),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_showShopping) ...<Widget>[
+                const SizedBox(height: 12),
+                const ShoppingListCard(),
+              ],
+              const SizedBox(height: 12),
+              RecentBillsCard(bookId: currentId),
               const SizedBox(height: 12),
               _BookGroupCard(
                 title: '支出预算',
@@ -254,6 +327,70 @@ class _ClayIconButton extends StatelessWidget {
           size: 40,
           color: AppPalette.primary,
           child: LineGlyph(icon, size: 20, color: AppPalette.primary),
+        ),
+      ),
+    );
+  }
+}
+
+/// 操作胶囊（指标卡下方）：「购物清单 / 预算设置」。
+///
+/// [active] 时整粒转 sage 实底（用于购物清单展开态）；[badge] 为右上角
+/// 待购计数（空则不渲染）。
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.badge,
+    this.active = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final String? badge;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final Color fg = active
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurfaceVariant;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: active
+              ? AppPalette.primary
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            LineGlyph(icon, size: 15, color: fg),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: fg,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (badge != null) ...<Widget>[
+              const SizedBox(width: 4),
+              Text(
+                badge!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

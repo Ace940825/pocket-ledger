@@ -334,6 +334,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           final String? refundSourceId;
           final List<String> refundSourceIds;
           final String? reimburseSourceId;
+          final int? initialAmountMinor;
+          final String? initialNote;
           final VoidCallback? onSaved;
           if (extra is RecordSheetLaunchArgs) {
             initialTab = extra.initialTab;
@@ -341,6 +343,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             refundSourceId = extra.refundSourceId;
             refundSourceIds = extra.refundSourceIds;
             reimburseSourceId = extra.reimburseSourceId;
+            initialAmountMinor = extra.initialAmountMinor;
+            initialNote = extra.initialNote;
             onSaved = extra.onSaved;
           } else if (extra is RecordTab) {
             initialTab = extra;
@@ -348,6 +352,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             refundSourceId = null;
             refundSourceIds = const <String>[];
             reimburseSourceId = null;
+            initialAmountMinor = null;
+            initialNote = null;
             onSaved = null;
           } else {
             initialTab = RecordTab.expense;
@@ -355,6 +361,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             refundSourceId = null;
             refundSourceIds = const <String>[];
             reimburseSourceId = null;
+            initialAmountMinor = null;
+            initialNote = null;
             onSaved = null;
           }
           return RecordSheet(
@@ -363,6 +371,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             refundSourceId: refundSourceId,
             refundSourceIds: refundSourceIds,
             reimburseSourceId: reimburseSourceId,
+            initialAmountMinor: initialAmountMinor,
+            initialNote: initialNote,
             onSaved: onSaved,
           );
         },

@@ -207,6 +207,8 @@ class RecordSheetLaunchArgs {
     this.refundSourceId,
     this.refundSourceIds = const <String>[],
     this.reimburseSourceId,
+    this.initialAmountMinor,
+    this.initialNote,
     this.onSaved,
   });
   final RecordTab initialTab;
@@ -226,9 +228,16 @@ class RecordSheetLaunchArgs {
   /// 同时预填该账单的报销账户（未指定则留空）。
   final String? reimburseSourceId;
 
+  /// 预填金额（分）：预算页「购物清单」点项快速记账用（仅新建支出生效）。
+  final int? initialAmountMinor;
+
+  /// 预设备注：同上。
+  final String? initialNote;
+
   /// 保存成功回调（仅内存传递，不走深链序列化）：
-  /// 退款真正落库后触发。分期详情「退款」入口用它把计划转为已结束——
-  /// 多选退款 relatedId 为空、无法从退款数据反推归属，必须由入口显式联动。
+  /// 任一 Tab 落库后触发。分期详情「退款」入口用它把计划转为已结束——
+  /// 多选退款 relatedId 为空、无法从退款数据反推归属，必须由入口显式联动；
+  /// 预算页购物清单入口用它把点项标记为已购。
   final VoidCallback? onSaved;
 }
 
@@ -239,6 +248,8 @@ Future<void> openRecordSheet(
   String? refundSourceId,
   List<String> refundSourceIds = const <String>[],
   String? reimburseSourceId,
+  int? initialAmountMinor,
+  String? initialNote,
   VoidCallback? onSaved,
 }) async {
   await context.push<void>(
@@ -249,6 +260,8 @@ Future<void> openRecordSheet(
       refundSourceId: refundSourceId,
       refundSourceIds: refundSourceIds,
       reimburseSourceId: reimburseSourceId,
+      initialAmountMinor: initialAmountMinor,
+      initialNote: initialNote,
       onSaved: onSaved,
     ),
   );
@@ -265,6 +278,8 @@ class RecordSheet extends ConsumerStatefulWidget {
     this.refundSourceId,
     this.refundSourceIds = const <String>[],
     this.reimburseSourceId,
+    this.initialAmountMinor,
+    this.initialNote,
     this.onSaved,
   });
 
@@ -300,9 +315,17 @@ class RecordSheet extends ConsumerStatefulWidget {
   /// 同时预填该账单的报销账户。
   final String? reimburseSourceId;
 
+  /// 预填金额（分）：预算页「购物清单」点项快速记账入口用。
+  /// 仅普通新建支出模式生效（模板 / 编辑 / 退款 / 报销预关联不适用），
+  /// 金额写入自定义键盘的原始字符串，用户可改。
+  final int? initialAmountMinor;
+
+  /// 预设备注：同上，写入备注输入框（用户可改）。
+  final String? initialNote;
+
   /// 保存成功回调（[RecordSheetLaunchArgs.onSaved] 透传）：
-  /// 退款 Tab 落库成功后触发一次；分期详情「退款」入口借此把
-  /// 计划转为已结束。取消 / 校验失败不触发。
+  /// 任一 Tab 落库成功后触发一次（退款 / 购物清单快速记账等入口联动）；
+  /// 取消 / 校验失败不触发。连续记账（「再记」）每保存一笔触发一次。
   final VoidCallback? onSaved;
 
   /// 模板模式（账单模板页「添加」入口）：
@@ -525,6 +548,23 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     // 编辑预填：控制器就绪后写表单字段（纯赋值，无需 setState）。
     if (widget.initialTemplate != null) {
       _applyTemplateFields(widget.initialTemplate!);
+    }
+    // 购物清单预填：仅普通新建支出模式（模板 / 编辑 / 退款 / 报销
+    // 预关联入口各有自己的回填逻辑，不参与）。
+    if (widget.initialTemplate == null &&
+        widget.editTxnId == null &&
+        widget.editLendId == null &&
+        widget.initialTab == RecordTab.expense) {
+      final int? preMinor = widget.initialAmountMinor;
+      if (preMinor != null && preMinor > 0 && _amount.isEmpty) {
+        _amount = Money.fromMinor(preMinor).decimal.toStringAsFixed(2);
+      }
+      final String? preNote = widget.initialNote;
+      if (preNote != null &&
+          preNote.isNotEmpty &&
+          _noteController.text.isEmpty) {
+        _noteController.text = preNote;
+      }
     }
     // 编辑模式：异步加载原记录并回填（流水 / 借还二选一）。
     if (widget.editTxnId != null) {
@@ -1338,8 +1378,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 attachmentUrls: _attachmentPaths,
                 // 位置仅支出默认开启：退款收入不携带。
               );
-          // 退款真正落库后再触发入口联动（分期详情「退款」→ 计划转已结束）。
-          widget.onSaved?.call();
+        // 退款落库成功后的入口联动统一在保存 funnel 处触发
+        // （见本方法末尾 savedId != nil 分支）。
         case RecordTab.lend:
           // 编辑模式：直接更新原借还记录（保留 status / repaidMinor 等原值），
           // 不重跑 add / repay / debtReduction 的业务逻辑。
@@ -1514,6 +1554,13 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       // 不阻塞保存返回——上传失败会保留本机路径，本地仍可见，下次联网重试。
       if (savedId != null && _attachmentPaths.isNotEmpty && mounted) {
         unawaited(_uploadAttachments(savedId));
+      }
+
+      // 保存成功 funnel：任一 Tab 落库后触发入口联动一次
+      // （分期详情「退款」→ 计划转已结束；预算页购物清单点项 → 标记已购）。
+      // 校验失败会在此前抛出，savedId 保持 null，不触发。
+      if (savedId != null && mounted) {
+        widget.onSaved?.call();
       }
 
       if (!mounted) return;
