@@ -58,27 +58,31 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
   (Ref ref) => ref.watch(booksDaoProvider).watchAll(),
 );
 
-/// 设置月预算页（2026-10-15 依小青账截图对标，第 25 批反馈修正）：
+/// 设置月预算页（2026-10-15 依小青账截图对标，第 25 批反馈修正；
+/// 第 28 批「收入预算→收入目标」语义重构）：
 ///
-/// - 顶部：✕ 关闭 + 居中「设置月预算」（支出/收入切换不在顶栏）；
-/// - 头卡：黏土方糖 ¥ + 「设置月预算」 + 「是否每月提示」开关（已接线：
-///   保存时写入总预算与带入分类的 alertEnabled，未手动改时跟随目标月
-///   已有预算的开关值）；
+/// - 顶部：✕ 关闭 + 居中「设置月预算」（收入方向显「设置月收入目标」；
+///   支出/收入切换不在顶栏）；
+/// - 头卡：黏土方糖 ¥ + 「设置月预算/设置月收入目标」+ 「是否每月提示」
+///   开关（已接线：保存时写入总预算与带入分类的 alertEnabled，未手动改时
+///   跟随目标月已有预算的开关值）；
 /// - 复制范围卡：账本行（可点，弹账本列表切换）+ 来源月份 → 目标月份；
 /// - 「{目标月}预算」标题行（行右 = 支出/收入切换，对标小青账）；
-///   「{来源月}预算概览」卡：
+///   「{来源月}预算概览」卡（收入方向显「收入概览」，三格 =
+///   目标/收入/差额）：
 ///   预算/消费/结余三格 + 不复制/仅结余/超支结余分段（结余为 0 时置灰）；
-/// - 「{目标月}总预算」卡：输入框，草稿口径 = 目标月已有预算 >
-///   复制模式起草（不复制=来源总预算 / 仅结余=结余>0 时的结余 /
-///   超支结余=结余负值按 0）；
-/// - 「{目标月}分类预算」卡：空状态 + 添加（接通预算编辑弹窗），
-///   已有预算列行，点按编辑；保存时复制模式非「不复制」会把来源月
-///   有、目标月没有的同方向分类预算一并带入；
-/// - 底部粘性保存按钮（鼠尾草渐变，文案随方向）。
+/// - 「{目标月}总预算」卡（收入方向显「总目标」）：输入框，草稿口径 =
+///   目标月已有预算 > 复制模式起草（不复制=来源总预算 / 仅结余=结余>0
+///   时的结余 / 超支结余=结余负值按 0）；
+/// - 「{目标月}分类预算」卡（收入方向显「分类目标」）：空状态 + 添加
+///   （接通预算编辑弹窗），已有预算列行，点按编辑；保存时复制模式非
+///   「不复制」会把来源月有、目标月没有的同方向分类预算一并带入；
+/// - 底部粘性保存按钮（鼠尾草渐变，支出=「保存支出预算」/ 收入=
+///   「保存收入目标」）。
 ///
 /// 口径说明：预算表无收支方向字段——总预算行（scope=overall）按
-/// 支出口径保存；收入方向的总预算暂不支持单独保存（toast 提示），
-/// 收入方向走分类预算。收入概览的「预算」= 来源月收入分类预算合计。
+/// 支出口径保存；收入方向的总目标暂不支持单独保存（toast 提示），
+/// 收入方向走分类目标。收入概览的「目标」= 来源月收入分类预算合计。
 class BudgetSetupPage extends ConsumerStatefulWidget {
   const BudgetSetupPage({
     super.key,
@@ -281,12 +285,15 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
   Future<void> _save() async {
     final double? amount = double.tryParse(_totalController.text.trim());
     if (amount == null || amount <= 0) {
-      showToast(context, '请输入大于 0 的总预算');
+      showToast(
+        context,
+        _direction == CategoryType.expense ? '请输入大于 0 的总预算' : '请输入大于 0 的总目标',
+      );
       return;
     }
-    // 预算表无方向字段：总预算行按支出口径保存；收入总预算待表结构支持。
+    // 预算表无方向字段：总预算行按支出口径保存；收入总目标待表结构支持。
     if (_direction != CategoryType.expense) {
-      showToast(context, '收入总预算暂未支持单独保存，可先添加收入分类预算');
+      showToast(context, '收入总目标暂未支持单独保存，可先添加收入分类目标');
       return;
     }
     final List<Budget> budgets =
@@ -485,7 +492,10 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                   Expanded(
                     child: Center(
                       child: Text(
-                        '设置月预算',
+                        // 收入方向走「收入目标」措辞（第 28 批）。
+                        _direction == CategoryType.expense
+                            ? '设置月预算'
+                            : '设置月收入目标',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: scheme.onSurface,
@@ -502,6 +512,8 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
               children: <Widget>[
                 _HeaderCard(
+                  title:
+                      _direction == CategoryType.expense ? '设置月预算' : '设置月收入目标',
                   reminder: _reminder,
                   onReminderChanged: (bool v) => setState(() {
                     _reminder = v;
@@ -606,7 +618,10 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        '${_target.year}-${_target.month}预算',
+                        // 收入方向：标题行显「收入目标」（第 28 批）。
+                        _direction == CategoryType.expense
+                            ? '${_target.year}-${_target.month}预算'
+                            : '${_target.year}-${_target.month}收入目标',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: scheme.onSurface,
@@ -639,7 +654,11 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                SectionHeader(title: '${_source.year}-${_source.month}预算概览'),
+                SectionHeader(
+                  title: _direction == CategoryType.expense
+                      ? '${_source.year}-${_source.month}预算概览'
+                      : '${_source.year}-${_source.month}收入概览',
+                ),
                 const SizedBox(height: 8),
                 HairlineCard(
                   margin: EdgeInsets.zero,
@@ -650,19 +669,19 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                         children: <Widget>[
                           _statBox(
                             context,
-                            '预算',
+                            _direction == CategoryType.expense ? '预算' : '目标',
                             Money.fromMinor(srcBudgetMinor).format(),
                           ),
                           const SizedBox(width: 8),
                           _statBox(
                             context,
-                            '消费',
+                            _direction == CategoryType.expense ? '消费' : '收入',
                             Money.fromMinor(srcSpentMinor).format(),
                           ),
                           const SizedBox(width: 8),
                           _statBox(
                             context,
-                            '结余',
+                            _direction == CategoryType.expense ? '结余' : '差额',
                             Money.fromMinor(srcBalanceMinor).format(),
                           ),
                         ],
@@ -707,7 +726,9 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                 ),
                 const SizedBox(height: 16),
                 SectionHeader(
-                  title: '${_target.year}-${_target.month}总预算',
+                  title: _direction == CategoryType.expense
+                      ? '${_target.year}-${_target.month}总预算'
+                      : '${_target.year}-${_target.month}总目标',
                   padding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 8),
@@ -754,17 +775,24 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                       ),
                       const SizedBox(height: 10),
                       InfoTipRow(
-                        text: _overallOf(budgets, _target) != null
-                            ? '${_target.year}-${_target.month}已有预算，'
-                                '保存将更新已有金额；分类没有时会从来源月份带入'
-                            : '默认等于${_source.year}-${_source.month}预算，可自行调整',
+                        text: _direction == CategoryType.expense
+                            ? (_overallOf(budgets, _target) != null
+                                ? '${_target.year}-${_target.month}已有预算，'
+                                    '保存将更新已有金额；分类没有时会从来源月份带入'
+                                : '默认等于${_source.year}-${_source.month}预算，可自行调整')
+                            : (_overallOf(budgets, _target) != null
+                                ? '${_target.year}-${_target.month}已有目标，'
+                                    '保存将更新已有金额；分类没有时会从来源月份带入'
+                                : '默认等于${_source.year}-${_source.month}目标，可自行调整'),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
                 SectionHeader(
-                  title: '${_target.year}-${_target.month}分类预算',
+                  title: _direction == CategoryType.expense
+                      ? '${_target.year}-${_target.month}分类预算'
+                      : '${_target.year}-${_target.month}分类目标',
                   padding: EdgeInsets.zero,
                   trailing: _AmberPill(label: '添加', onTap: _addCategoryBudget),
                 ),
@@ -774,7 +802,9 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                   padding: const EdgeInsets.all(12),
                   child: targetCatBudgets.isEmpty
                       ? EmptyState(
-                          message: '暂无$dirLabel分类预算',
+                          message: _direction == CategoryType.expense
+                              ? '暂无$dirLabel分类预算'
+                              : '暂无收入分类目标',
                           icon: Icons.account_balance_wallet_outlined,
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           action:
@@ -826,7 +856,10 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                     onTap: _save,
                     child: Center(
                       child: Text(
-                        '保存$dirLabel预算',
+                        // 收入方向保存文案走「目标」（第 28 批）。
+                        _direction == CategoryType.expense
+                            ? '保存$dirLabel预算'
+                            : '保存收入目标',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -920,11 +953,17 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
   }
 }
 
-/// 头卡：黏土方糖 ¥ + 「设置月预算」 + 「是否每月提示」开关
+/// 头卡：黏土方糖 ¥ + 「设置月预算/设置月收入目标」+ 「是否每月提示」开关
 /// （开关已接线：保存时写入总预算与带入分类的 alertEnabled）。
 class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({required this.reminder, required this.onReminderChanged});
+  const _HeaderCard({
+    required this.title,
+    required this.reminder,
+    required this.onReminderChanged,
+  });
 
+  /// 标题随方向：支出「设置月预算」/ 收入「设置月收入目标」（第 28 批）。
+  final String title;
   final bool reminder;
   final ValueChanged<bool> onReminderChanged;
 
@@ -947,7 +986,7 @@ class _HeaderCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              '设置月预算',
+              title,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: theme.colorScheme.onSurface,

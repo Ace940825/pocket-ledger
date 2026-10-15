@@ -71,20 +71,26 @@ final AutoDisposeStreamProviderFamily<Map<String, CategoryTotal>,
   },
 );
 
-/// 预算分类页（2026-10-15 依小青账截图对标，第 25 批反馈修正）：
+/// 预算分类页（2026-10-15 依小青账截图对标，第 25 批反馈修正；
+/// 第 28 批「收入预算→收入目标」语义重构）：
 ///
-/// - 顶部：✕ 关闭 + 居中「N月预算 / YYYY年预算」+ ¥ 设置月预算 + 📅 选周期；
+/// - 顶部：✕ 关闭 + 居中「N月预算 / YYYY年预算」（收入方向显
+///   「N月收入目标」）+ ¥ 设置月预算 + 📅 选周期；
 ///   方向由入口参数固定（设置月预算入口从「⋯」弹层移出为顶栏直达）。
 /// - 账本卡：账本名 + 周期日期范围 + 「⋯」菜单
-///   （结转下期预算 / 删除当前预算），「剩余X预算（元）」
-///   大数字（未设置显 ----）+ 铅笔编辑 + 进度环 + 四格统计 + 日均三行；
+///   （结转下期预算 / 删除当前预算），「剩余X预算（元）」大数字
+///   （收入方向=「距X收入目标（元）」，已达成显「已达成」；未设置显 ----）
+///   + 铅笔编辑 + 进度环 + 四格统计 + 日均三行；
+///   收入方向口径：环与四格第三格显「目标完成%」而非「预算剩余%」，
+///   预算列显「X目标」、日均显「日均目标」。
 /// - 分类预算卡：「添加」pill + 一级分类聚合行（默认折叠，点击展开/
 ///   收起；展开显示二级预算行 + 「添加二级预算」入口）+ 各分类预算行
 ///   （黏土方糖图标 + 剩余% + 进度条 + 本期消费/收入 + 笔数）；
+///   收入方向：卡标题「分类目标」、行内「已完成%」/「已达成」/「目标:」。
 /// - 底部悬浮「月预算 / 年预算」胶囊。
 ///
 /// 口径：总预算（scope=overall）按支出口径保存（表无方向字段），
-/// 收入方向的「预算」= 收入分类预算合计；铅笔编辑仅支出方向可用。
+/// 收入方向的「目标」= 收入分类预算合计；铅笔编辑仅支出方向可用。
 class BudgetCategoryPage extends ConsumerStatefulWidget {
   const BudgetCategoryPage({
     super.key,
@@ -160,7 +166,8 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
 
   /// 周期内总预算：支出 = 总预算行 + Σ支出分类预算（第 21 批反馈：
   /// 「月预算没有识别到分类预算」——未设总预算时也要把分类预算算进来，
-  /// 与预算主页 book 总口径一致）；收入 = 收入分类预算合计。
+  /// 与预算主页 book 总口径一致）；收入 = 收入分类目标合计（第 28 批
+  /// 「收入预算→收入目标」，数据同源、措辞不同）。
   int _totalBudgetMinor(
       List<Budget> periodBudgets, Map<String, Category> byId) {
     if (_isExpense) {
@@ -244,7 +251,7 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     List<Budget> periodBudgets,
   ) async {
     if (periodBudgets.isEmpty) {
-      showToast(context, '当前周期暂无预算可结转');
+      showToast(context, _isExpense ? '当前周期暂无预算可结转' : '当前周期暂无目标可结转');
       return;
     }
     final int targetYear;
@@ -269,8 +276,10 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     final bool confirmed = (await showConfirm(
           context,
           title: '结转至$targetLabel？',
-          content: '将把当前${_yearly ? '年' : '月'}的 ${periodBudgets.length} 项预算'
-              '（总预算 + 分类预算）复制到$targetLabel，已存在的项目跳过。',
+          content: '将把当前${_yearly ? '年' : '月'}的 ${periodBudgets.length} 项'
+              '${_isExpense ? '预算' : '目标'}'
+              '（${_isExpense ? '总预算 + 分类预算' : '总目标 + 分类目标'}）'
+              '复制到$targetLabel，已存在的项目跳过。',
           confirmText: '结转',
         )) ??
         false;
@@ -333,12 +342,12 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           _MenuRow(
-            label: '结转下期预算',
+            label: _isExpense ? '结转下期预算' : '结转下期目标',
             icon: Icons.swap_horiz,
             onTap: () => Navigator.of(context).pop('carry'),
           ),
           _MenuRow(
-            label: '删除当前预算',
+            label: _isExpense ? '删除当前预算' : '删除当前目标',
             icon: Icons.delete_outline,
             danger: true,
             onTap: () => Navigator.of(context).pop('delete'),
@@ -355,14 +364,16 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     }
     if (action == 'delete') {
       if (periodBudgets.isEmpty) {
-        showToast(context, '当前周期暂无预算');
+        showToast(context, _isExpense ? '当前周期暂无预算' : '当前周期暂无目标');
         return;
       }
       final bool ok = await confirmDelete(
         context,
-        title: '删除当前${_yearly ? '年' : '月'}预算？',
+        title: '删除当前${_yearly ? '年' : '月'}${_isExpense ? '预算' : '目标'}？',
         content: '将删除本${_yearly ? '年' : '月'}的全部${_isExpense ? '' : '收入'}'
-            '预算（共 ${periodBudgets.length} 项，含总预算与分类预算），'
+            '${_isExpense ? '预算' : '目标'}'
+            '（共 ${periodBudgets.length} 项，'
+            '含${_isExpense ? '总预算与分类预算' : '总目标与分类目标'}），'
             '删除后不可撤销。',
       );
       if (!ok) {
@@ -373,7 +384,10 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
         await repo.remove(b.id);
       }
       if (mounted) {
-        showToast(context, '已删除 ${periodBudgets.length} 项预算');
+        showToast(
+          context,
+          '已删除 ${periodBudgets.length} 项${_isExpense ? '预算' : '目标'}',
+        );
       }
     }
   }
@@ -454,10 +468,12 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
 
   /// 左滑「删除」（一二级通用）：删除单条预算行。
   Future<void> _deleteBudgetRow(Budget b, Category c) async {
+    final bool income = c.type == CategoryType.income;
     final bool ok = await confirmDelete(
       context,
-      title: '删除分类预算？',
-      content: '将删除「${c.name}」的本${_yearly ? '年' : '月'}预算'
+      title: income ? '删除分类目标？' : '删除分类预算？',
+      content: '将删除「${c.name}」的本${_yearly ? '年' : '月'}'
+          '${income ? '目标' : '预算'}'
           '（${Money.fromMinor(b.amountMinor).format()}），删除后不可撤销。',
     );
     if (!ok) {
@@ -465,25 +481,27 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     }
     await ref.read(budgetRepositoryProvider).remove(b.id);
     if (mounted) {
-      showToast(context, '已删除「${c.name}」的预算');
+      showToast(context, '已删除「${c.name}」的${income ? '目标' : '预算'}');
     }
   }
 
   /// 一级行「删除」：有直接预算删直接预算；否则清空名下全部二级预算。
   Future<void> _deleteBudgetGroup(_BudgetGroupData g) async {
+    final bool income = g.category.type == CategoryType.income;
     if (g.own != null) {
       await _deleteBudgetRow(g.own!.$1, g.own!.$2);
       return;
     }
     if (g.children.isEmpty) {
-      showToast(context, '「${g.category.name}」暂无预算可删除');
+      showToast(context, '「${g.category.name}」暂无${income ? '目标' : '预算'}可删除');
       return;
     }
     final bool ok = await confirmDelete(
       context,
-      title: '删除二级预算？',
-      content: '「${g.category.name}」没有直接预算，将删除名下 '
-          '${g.children.length} 项二级预算，删除后不可撤销。',
+      title: income ? '删除二级目标？' : '删除二级预算？',
+      content: '「${g.category.name}」没有直接${income ? '目标' : '预算'}，'
+          '将删除名下 ${g.children.length} 项二级${income ? '目标' : '预算'}，'
+          '删除后不可撤销。',
     );
     if (!ok) {
       return;
@@ -493,7 +511,7 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
       await repo.remove(b.id);
     }
     if (mounted) {
-      showToast(context, '已删除 ${g.children.length} 项二级预算');
+      showToast(context, '已删除 ${g.children.length} 项二级${income ? '目标' : '预算'}');
     }
   }
 
@@ -587,12 +605,15 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     // 周期文案
     final String rangeLabel =
         _yearly ? '1月1日–12月31日' : '$_month月1日–$_month月$_daysInMonth日';
+    // 大数字标签：支出=「剩余预算」（越花越少的上限口径）；
+    // 收入=「距收入目标」（越挣越少的目标缺口口径，第 28 批收入预算→收入目标）。
     final String remainLabel = _yearly
-        ? (_isExpense ? '剩余年预算（元）' : '剩余年收入预算（元）')
-        : (_isExpense ? '剩余月预算（元）' : '剩余月收入预算（元）');
+        ? (_isExpense ? '剩余年预算（元）' : '距年收入目标（元）')
+        : (_isExpense ? '剩余月预算（元）' : '距月收入目标（元）');
     final String spentLabel =
         _isExpense ? (_yearly ? '本年消费' : '本月消费') : (_yearly ? '本年收入' : '本月收入');
-    final String budgetColLabel = _yearly ? '年预算' : '月预算';
+    final String budgetColLabel =
+        _yearly ? (_isExpense ? '年预算' : '年目标') : (_isExpense ? '月预算' : '月目标');
     final String remainUnitLabel =
         _yearly ? '$remainUnits个月' : '剩$remainUnits天';
 
@@ -602,11 +623,11 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     final String avgRemainLabel;
     if (_yearly) {
       avgSpentLabel = _isExpense ? '本年月均消费' : '本年月均收入';
-      avgBudgetLabel = '月均预算';
+      avgBudgetLabel = _isExpense ? '月均预算' : '月均目标';
       avgRemainLabel = _isExpense ? '剩余每月可消费金额' : '剩余每月可收入金额';
     } else {
       avgSpentLabel = _isExpense ? '本月日均消费' : '本月日均收入';
-      avgBudgetLabel = '日均预算';
+      avgBudgetLabel = _isExpense ? '日均预算' : '日均目标';
       avgRemainLabel = _isExpense ? '剩余日均' : '剩余每日可收入金额';
     }
     final int avgUnits = _yearly ? 12 : _daysInMonth;
@@ -615,12 +636,14 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     final List<_BudgetGroupData> budgetGroups =
         _buildBudgetGroups(periodBudgets, catById);
 
+    // 环填充 = 已发生/总额（支出=已用越多越满；收入=已得越多越满，
+    // 第 28 批：收入侧即「目标完成度」）。
     final double ringValue =
         totalBudget > 0 ? (spent / totalBudget).clamp(0.0, 1.0) : 0.0;
     // 环中心百分比（第 24 批反馈：圆环没有显示百分比）——
-    // 与「预算剩余」同口径（剩余/总预算），无预算时 100%。
+    // 支出口径 = 剩余/总预算；收入口径 = 已得/总目标（完成度）；无预算时 100%。
     final String ringLabel = totalBudget > 0
-        ? '${(remaining / totalBudget * 100).clamp(0.0, 999.0).toStringAsFixed(0)}%'
+        ? '${((_isExpense ? remaining : spent) / totalBudget * 100).clamp(0.0, 999.0).toStringAsFixed(0)}%'
         : '100%';
 
     return Scaffold(
@@ -638,7 +661,10 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                       Expanded(
                         child: Center(
                           child: Text(
-                            _yearly ? '$_year年预算' : '$_month月预算',
+                            // 收入方向顶栏走「收入目标」措辞（第 28 批）。
+                            _yearly
+                                ? (_isExpense ? '$_year年预算' : '$_year年收入目标')
+                                : (_isExpense ? '$_month月预算' : '$_month月收入目标'),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: scheme.onSurface,
@@ -689,10 +715,11 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                         remainUnits > 0 ? remainUnits : 1,
                       ),
                       yearly: _yearly,
+                      isIncome: !_isExpense,
                       onMore: () => _showBookMoreSheet(bookId, periodBudgets),
                       onEditTotal: () {
                         if (!_isExpense) {
-                          showToast(context, '收入总预算暂未支持单独保存，可先添加收入分类预算');
+                          showToast(context, '收入总目标暂未支持单独保存，可先添加收入分类目标');
                           return;
                         }
                         showBudgetEditor(
@@ -719,6 +746,7 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                     const SizedBox(height: 12),
                     _CategoryBudgetsCard(
                       dirLabel: dirLabel,
+                      isIncome: !_isExpense,
                       groups: budgetGroups,
                       catTotals: catTotals,
                       spentLabel: spentLabel,
@@ -827,7 +855,8 @@ class _ClayIconButton extends StatelessWidget {
   }
 }
 
-/// 概览卡：账本行 + 剩余预算大数字（铅笔编辑）+ 进度环 + 四格统计 + 日均三行。
+/// 概览卡：账本行 + 剩余预算/距收入目标大数字（铅笔编辑）+ 进度环 +
+/// 四格统计 + 日均三行。收入方向（isIncome）大数字已达成显「已达成」。
 class _OverviewCard extends StatelessWidget {
   const _OverviewCard({
     required this.bookName,
@@ -848,6 +877,7 @@ class _OverviewCard extends StatelessWidget {
     required this.avgBudget,
     required this.avgRemain,
     required this.yearly,
+    required this.isIncome,
     required this.onMore,
     required this.onEditTotal,
   });
@@ -872,6 +902,10 @@ class _OverviewCard extends StatelessWidget {
 
   /// 月视图（false）/ 年视图（true）——剩余天数/月份列的文案开关。
   final bool yearly;
+
+  /// 收入方向（第 28 批「收入预算→收入目标」）：大数字与第三格统计
+  /// 走目标口径（还差/已完成），支出口径走剩余口径。
+  final bool isIncome;
 
   /// 账本行「⋯」菜单（结转/删除当期预算）。
   final VoidCallback onMore;
@@ -940,7 +974,7 @@ class _OverviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          // 剩余预算大数字（铅笔编辑）+ 进度环。
+          // 剩余预算/距目标大数字（铅笔编辑）+ 进度环。
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
@@ -963,9 +997,12 @@ class _OverviewCard extends StatelessWidget {
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              totalBudget > 0
-                                  ? Money.fromMinor(remaining).format()
-                                  : '----',
+                              // 支出=剩余预算（负值=超支）；收入=距目标差额，已达成显「已达成」。
+                              totalBudget <= 0
+                                  ? '----'
+                                  : (isIncome && remaining <= 0
+                                      ? '已达成'
+                                      : Money.fromMinor(remaining).format()),
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
                                 color: scheme.onSurface,
@@ -995,7 +1032,7 @@ class _OverviewCard extends StatelessWidget {
               SizedBox(
                 width: 56,
                 height: 56,
-                // 环中心显示剩余百分比（第 24 批反馈）。
+                // 环中心显示剩余%（支出）/完成%（收入）（第 24 批反馈）。
                 child: Stack(
                   alignment: Alignment.center,
                   children: <Widget>[
@@ -1021,7 +1058,8 @@ class _OverviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // 四格统计：本期消费 / 预算 / 预算剩余 / 剩余天数或月份。
+          // 四格统计：本期消费/收入 / 预算(目标) / 预算剩余(目标完成) /
+          // 剩余天数或月份。
           Row(
             children: <Widget>[
               _statCol(context, spentLabel, Money.fromMinor(spent).format()),
@@ -1032,10 +1070,10 @@ class _OverviewCard extends StatelessWidget {
               ),
               _statCol(
                 context,
-                '预算剩余',
+                isIncome ? '目标完成' : '预算剩余',
                 totalBudget > 0
-                    ? '${(remaining / totalBudget * 100).toStringAsFixed(1)}%'
-                    : '100.0%',
+                    ? '${((isIncome ? spent : remaining) / totalBudget * 100).clamp(0.0, 999.0).toStringAsFixed(1)}%'
+                    : (isIncome ? '0.0%' : '100.0%'),
               ),
               _statCol(context, yearly ? '剩余月份' : '剩余天数', remainUnitLabel),
             ],
@@ -1179,6 +1217,7 @@ class _BudgetGroupData {
 class _CategoryBudgetsCard extends StatelessWidget {
   const _CategoryBudgetsCard({
     required this.dirLabel,
+    required this.isIncome,
     required this.groups,
     required this.catTotals,
     required this.spentLabel,
@@ -1194,6 +1233,10 @@ class _CategoryBudgetsCard extends StatelessWidget {
   });
 
   final String dirLabel;
+
+  /// 收入方向（第 28 批「收入预算→收入目标」）：卡标题/空态/二级入口
+  /// 走「目标」措辞。
+  final bool isIncome;
   final List<_BudgetGroupData> groups;
   final Map<String, CategoryTotal> catTotals;
   final String spentLabel;
@@ -1249,7 +1292,7 @@ class _CategoryBudgetsCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '分类预算',
+                  isIncome ? '分类目标' : '分类预算',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: scheme.onSurface,
@@ -1282,7 +1325,7 @@ class _CategoryBudgetsCard extends StatelessWidget {
           const SizedBox(height: 6),
           if (groups.isEmpty)
             EmptyState(
-              message: '暂无$dirLabel分类预算',
+              message: isIncome ? '暂无收入分类目标' : '暂无$dirLabel分类预算',
               icon: Icons.account_balance_wallet_outlined,
               padding: const EdgeInsets.symmetric(vertical: 20),
             )
@@ -1350,7 +1393,7 @@ class _CategoryBudgetsCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                '添加二级预算',
+                                isIncome ? '添加二级目标' : '添加二级预算',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                 ),
@@ -1372,7 +1415,8 @@ class _CategoryBudgetsCard extends StatelessWidget {
 }
 
 /// 单个分类预算行（一二级通用）：
-/// 黏土方糖图标 + 名称/总额 + 剩余% + 进度条 + 本期消费 + 笔数；
+/// 黏土方糖图标 + 名称/总额 + 剩余%（收入=已完成%）+ 进度条 +
+/// 本期消费/收入 + 笔数；
 /// 无展开箭头（第 23 批：折叠交互保留、箭头图标删除）；
 /// 左滑出 编辑/删除 两键。
 class _CategoryRow extends StatelessWidget {
@@ -1420,8 +1464,11 @@ class _CategoryRow extends StatelessWidget {
     final double remainPct = amountMinor > 0
         ? ((amountMinor - spent) / amountMinor * 100).clamp(0.0, 100.0)
         : 0.0;
+    // 收入目标口径（第 28 批）：行内显示「已完成%」而非「剩余%」。
+    final double donePct =
+        amountMinor > 0 ? (spent / amountMinor * 100).clamp(0.0, 100.0) : 0.0;
     final String remainLabel = _isIncome
-        ? '未完成收入${remainPct.toStringAsFixed(2)}%'
+        ? '已完成${donePct.toStringAsFixed(2)}%'
         : '剩余${remainPct.toStringAsFixed(2)}%';
 
     return Slidable(
@@ -1486,7 +1533,8 @@ class _CategoryRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '总额: ${Money.fromMinor(amountMinor).format()}',
+                      // 支出=「总额:」；收入目标口径=「目标:」（第 28 批）。
+                      '${_isIncome ? '目标' : '总额'}: ${Money.fromMinor(amountMinor).format()}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -1513,7 +1561,11 @@ class _CategoryRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      Money.fromMinor(amountMinor - spent).format(),
+                      _isIncome
+                          ? (spent >= amountMinor
+                              ? '已达成'
+                              : Money.fromMinor(amountMinor - spent).format())
+                          : Money.fromMinor(amountMinor - spent).format(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(

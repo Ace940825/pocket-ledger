@@ -32,14 +32,15 @@ class BudgetSeed {
   final BudgetScope? scope;
   final String? categoryId;
 
-  /// 分类下拉的候选类型（收入预算卡点进时列收入分类）。
+  /// 分类下拉的候选类型（收入目标卡点进时列收入分类）。
   final CategoryType? categoryType;
   final BudgetPeriod? period;
   final int? year;
   final int? periodIndex;
 }
 
-/// 预算编辑**底部弹窗**（2026-10-14 第 18 批极简化）：
+/// 预算编辑**底部弹窗**（2026-10-14 第 18 批极简化；第 28 批收入方向
+/// 改「目标」措辞）：
 ///
 /// - 移除「范围 / 周期 / 提醒阈值 / 超支提醒 / 年份」全部表单项——
 ///   范围由入口决定（弹窗只添加分类预算，总预算走概览卡铅笔），
@@ -47,7 +48,8 @@ class BudgetSeed {
 /// - 分类选择改为**矮弹层**（限高约 45% 屏高）且**只列一级分类**
 ///   （第 21 批反馈：二级预算不在通用弹窗里建，走一级分组内入口）。
 /// - 传 [parentCategory]（一级分组内「添加二级预算」入口）时，候选分类
-///   锁定为该一级名下的二级分类，标题为「添加二级预算」。
+///   锁定为该一级名下的二级分类，标题为「添加二级预算」（收入方向=
+///   「添加二级目标」）。
 /// - scope=overall（铅笔编辑总预算）时连分类选择也不显示，只留额度。
 Future<void> showBudgetEditor(
   BuildContext context,
@@ -59,6 +61,9 @@ Future<void> showBudgetEditor(
 ]) async {
   final CategoryType categoryType =
       parentCategory?.type ?? seed?.categoryType ?? CategoryType.expense;
+  // 第 28 批「收入预算→收入目标」：收入方向的标题/额度字段/提示
+  // 全部走「目标」措辞。
+  final bool isIncome = categoryType == CategoryType.income;
   final bool isOverall = (budget?.scope ?? seed?.scope) == BudgetScope.overall;
 
   // 候选分类（第 21 批口径）：通用入口只列一级分类；传 parentCategory 时
@@ -163,8 +168,12 @@ Future<void> showBudgetEditor(
   final bool? saved = await showAppModalSheet<bool>(
     context,
     title: budget == null
-        ? (parentCategory != null ? '添加二级预算' : '添加分类预算')
-        : (isOverall ? '编辑总预算' : '编辑分类预算'),
+        ? (parentCategory != null
+            ? (isIncome ? '添加二级目标' : '添加二级预算')
+            : (isIncome ? '添加分类目标' : '添加分类预算'))
+        : (isOverall
+            ? (isIncome ? '编辑总目标' : '编辑总预算')
+            : (isIncome ? '编辑分类目标' : '编辑分类预算')),
     isScrollControlled: true,
     body: StatefulBuilder(
       builder: (BuildContext ctx, StateSetter setState) =>
@@ -226,7 +235,10 @@ Future<void> showBudgetEditor(
                 ),
               ),
             const FormGap(),
-            AmountField(controller: amountController, label: '预算额度'),
+            AmountField(
+              controller: amountController,
+              label: isIncome ? '目标额度' : '预算额度',
+            ),
           ],
         ),
       ),
@@ -243,7 +255,10 @@ Future<void> showBudgetEditor(
         onTap: () {
           final double? amount = double.tryParse(amountController.text.trim());
           if (amount == null || amount <= 0) {
-            showToast(context, '预算额度必须大于 0');
+            showToast(
+              context,
+              isIncome ? '目标额度必须大于 0' : '预算额度必须大于 0',
+            );
             return;
           }
           Navigator.of(context).pop(true);
@@ -271,7 +286,7 @@ Future<void> showBudgetEditor(
 
   final double? amount = double.tryParse(amountController.text.trim());
   if (amount == null || amount <= 0) {
-    showToast(context, '预算额度必须大于 0');
+    showToast(context, isIncome ? '目标额度必须大于 0' : '预算额度必须大于 0');
     return;
   }
 
@@ -311,7 +326,10 @@ Future<void> showBudgetEditor(
               b.periodIndex == periodIndex,
         );
         if (duplicated) {
-          showToast(context, '该分类本期已有预算，可在列表中左滑编辑');
+          showToast(
+            context,
+            isIncome ? '该分类本期已有目标，可在列表中左滑编辑' : '该分类本期已有预算，可在列表中左滑编辑',
+          );
           return;
         }
       }

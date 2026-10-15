@@ -33,13 +33,13 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
 ///   （月预算模式选月份、年预算模式选年份）。
 /// - 操作胶囊行：「购物清单 · N」（展开本地清单，点项可预填金额/备注快速记账）
 ///   与「预算设置」（进设置页）。
-/// - 「支出预算」「收入预算」两张分组卡：预算金额总和 + 双列**账本**
-///   项卡网格（黏土方糖钱包 + 账本名 + 预算金额/未设置）；
+/// - 「支出预算」「收入目标」两张分组卡：金额总和 + 双列**账本**
+///   项卡网格（黏土方糖钱包 + 账本名 + 预算/目标金额或未设置）；
 ///   点账本卡进该账本该方向的「预算分类」页（[BudgetCategoryPage]）。
 /// - 底部悬浮「月预算 / 年预算」胶囊。
 ///
 /// 口径：总预算（scope=overall）按支出口径计入；收入方向 = 收入分类
-/// 预算合计（预算表无方向字段）。
+/// 目标合计（预算表无方向字段）。
 ///
 /// 第 25 批反馈（2026-10-15）：旧版指标切换卡 + 进度环、现金流预估卡移除；
 /// 第 27 批反馈：第 26 批误建的「剩余/总预算/已用」三态渐变卡移除（用户
@@ -224,7 +224,7 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
               ),
               const SizedBox(height: 12),
               _BookGroupCard(
-                title: '收入预算',
+                title: '收入目标',
                 direction: CategoryType.income,
                 books: tiles,
                 catById: catById,
@@ -406,7 +406,8 @@ class _HeaderCard extends StatelessWidget {
   }
 }
 
-/// 分组卡：「支出预算 / 收入预算」+ 预算金额总和 + 双列账本项卡网格。
+/// 分组卡：「支出预算 / 收入目标」+ 金额总和 + 双列账本项卡网格。
+/// 收入方向（第 28 批「收入预算→收入目标」重构）文案走目标措辞。
 class _BookGroupCard extends ConsumerWidget {
   const _BookGroupCard({
     required this.title,
@@ -428,6 +429,7 @@ class _BookGroupCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
+    final bool isIncome = direction == CategoryType.income;
     final int totalMinor = books.fold<int>(
       0,
       (int s, Book b) =>
@@ -449,7 +451,7 @@ class _BookGroupCard extends ConsumerWidget {
           SectionHeader(title: title, padding: EdgeInsets.zero),
           const SizedBox(height: 10),
           Text(
-            '预算金额总和',
+            isIncome ? '目标金额总和' : '预算金额总和',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -474,6 +476,7 @@ class _BookGroupCard extends ConsumerWidget {
               for (final Book b in books)
                 _BookTile(
                   book: b,
+                  amountLabel: isIncome ? '目标金额' : '预算金额',
                   amountMinor: dirBudgetMinor(
                     ref.watch(bookBudgetsProvider(b.id)).valueOrNull ??
                         const <Budget>[],
@@ -491,19 +494,23 @@ class _BookGroupCard extends ConsumerWidget {
   }
 }
 
-/// 账本项卡：黏土方糖钱包 + 账本名 / 「预算金额」label + 额度或「未设置」。
+/// 账本项卡：黏土方糖钱包 + 账本名 / 「预算金额/目标金额」label + 额度或「未设置」。
 /// 点击进该账本该方向的预算分类页。
 class _BookTile extends StatelessWidget {
   const _BookTile({
     required this.book,
     required this.amountMinor,
     required this.onTap,
+    this.amountLabel = '预算金额',
     super.key,
   });
 
   final Book book;
   final int amountMinor;
   final VoidCallback onTap;
+
+  /// 金额列标签：支出方向「预算金额」/ 收入方向「目标金额」。
+  final String amountLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -551,9 +558,9 @@ class _BookTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // 「预算金额」label + 金额左对齐上下堆叠。
+            // 「预算金额/目标金额」label + 金额左对齐上下堆叠。
             Text(
-              '预算金额',
+              amountLabel,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
