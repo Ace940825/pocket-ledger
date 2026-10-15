@@ -35,6 +35,7 @@ import 'savings_modes.dart';
 import 'savings_page.dart';
 import 'savings_rolling_detail_widgets.dart';
 import 'savings_schedule.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 储蓄计划详情页（参照小青账计划详情）：
 ///
@@ -253,7 +254,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
-                        const Icon(Icons.expand_more, size: 20),
+                        const LineGlyph(Icons.expand_more, size: 20),
                       ],
                     ),
                   ),
@@ -262,7 +263,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                 // 排序键：底部弹窗选择排序方式（小青账「排序方式」同款）。
                 IconButton(
                   tooltip: '排序方式',
-                  icon: Icon(
+                  icon: LineGlyph(
                     Icons.schedule,
                     size: 20,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -273,7 +274,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                 // 图标始终显示「将切换到的形态」（网格态显列表键，列表态显网格键）。
                 IconButton(
                   tooltip: _grid ? '切换为列表' : '切换为网格',
-                  icon: Icon(
+                  icon: LineGlyph(
                     _grid ? Icons.view_list_rounded : Icons.grid_view_outlined,
                     size: 20,
                     color: AppPalette.deepGreen,
@@ -611,7 +612,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.tune, size: 15, color: AppPalette.deepGreen),
+            LineGlyph(Icons.tune, size: 15, color: AppPalette.deepGreen),
             SizedBox(width: 4),
             Text(
               '调整',
@@ -790,7 +791,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                                   shape: BoxShape.circle,
                                 ),
                                 alignment: Alignment.center,
-                                child: Icon(
+                                child: LineGlyph(
                                   Icons.close,
                                   size: 17,
                                   color: theme.colorScheme.onSurfaceVariant,
@@ -835,7 +836,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                           ),
                           child: Row(
                             children: <Widget>[
-                              Icon(
+                              LineGlyph(
                                 Icons.info_outline,
                                 size: 16,
                                 color: theme.colorScheme.onSurfaceVariant,
@@ -923,7 +924,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                                         ],
                                       ),
                                     ),
-                                    Icon(
+                                    LineGlyph(
                                       Icons.chevron_right,
                                       size: 22,
                                       color: theme.colorScheme.onSurfaceVariant,
@@ -1028,8 +1029,8 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                                     }
                                   }
                                 },
-                                icon:
-                                    const Icon(Icons.delete_outline, size: 18),
+                                icon: const LineGlyph(Icons.delete_outline,
+                                    size: 18),
                                 label: const Text('撤销存入'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: theme.colorScheme.error,
@@ -1175,7 +1176,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
               borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
-            child: Icon(
+            child: LineGlyph(
               Icons.currency_yuan,
               size: 17,
               color: theme.colorScheme.onSurfaceVariant,
@@ -1230,7 +1231,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
             borderRadius: BorderRadius.circular(10),
           ),
           alignment: Alignment.center,
-          child: Icon(
+          child: LineGlyph(
             leadingIcon,
             size: 17,
             color: theme.colorScheme.onSurfaceVariant,
@@ -1380,7 +1381,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                             shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
-                          child: Icon(
+                          child: LineGlyph(
                             Icons.close,
                             size: 17,
                             color: theme.colorScheme.onSurfaceVariant,
@@ -1424,10 +1425,10 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                       ),
                       if (key == _sort) ...<Widget>[
                         const SizedBox(width: 8),
-                        const Icon(Icons.check, size: 17),
+                        const LineGlyph(Icons.check, size: 17),
                       ],
                       const Spacer(),
-                      Icon(
+                      LineGlyph(
                         Icons.chevron_right,
                         size: 20,
                         color: theme.colorScheme.onSurfaceVariant,
@@ -1489,7 +1490,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                 },
               ),
             ListTile(
-              leading: const Icon(Icons.archive_outlined),
+              leading: const LineGlyph(Icons.archive_outlined),
               title: const Text('归档'),
               onTap: () async {
                 Navigator.of(context).pop();
@@ -1509,7 +1510,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
               },
             ),
             ListTile(
-              leading: Icon(
+              leading: LineGlyph(
                 Icons.delete_outline,
                 color: Theme.of(context).colorScheme.error,
               ),
@@ -1856,7 +1857,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                                     shape: BoxShape.circle,
                                   ),
                                   alignment: Alignment.center,
-                                  child: Icon(
+                                  child: LineGlyph(
                                     Icons.close,
                                     size: 17,
                                     color: theme.colorScheme.onSurfaceVariant,
@@ -2255,7 +2256,7 @@ class _SavingsCalendarViewState extends State<SavingsCalendarView> {
                   width: 1.5,
                 ),
               ),
-              child: const Icon(
+              child: const LineGlyph(
                 Icons.check,
                 size: 9,
                 color: AppPalette.white,
@@ -2521,7 +2522,7 @@ class _EntryListTile extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(
+            LineGlyph(
               Icons.chevron_right,
               size: 20,
               color: theme.colorScheme.onSurfaceVariant,

@@ -20,6 +20,7 @@ import '../../investment/data/investment_repository.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 编辑账户页（参照小青账编辑逻辑），按账户类型分流多种布局：
 ///
@@ -92,7 +93,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       appBar: AppBar(
         title: const Text('编辑账户'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
+          icon: const LineGlyph(Icons.arrow_back_ios_new),
           onPressed: () => context.pop(),
         ),
       ),
@@ -235,7 +236,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   controller: _balanceController,
                   allowDecimal: true,
                   decoration: _filledDecoration().copyWith(
-                    suffixIcon: Icon(
+                    suffixIcon: LineGlyph(
                       Icons.account_balance_wallet_outlined,
                       size: 20,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -280,7 +281,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   controller: _balanceController,
                   allowDecimal: true,
                   decoration: _filledDecoration().copyWith(
-                    suffixIcon: Icon(
+                    suffixIcon: LineGlyph(
                       Icons.account_balance_wallet_outlined,
                       size: 20,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -337,7 +338,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 const SizedBox(height: AppDimens.xs),
                 Row(
                   children: <Widget>[
-                    Icon(
+                    LineGlyph(
                       Icons.info_outline,
                       size: 14,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -463,7 +464,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
-                Icon(
+                LineGlyph(
                   Icons.chevron_right,
                   size: 22,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,

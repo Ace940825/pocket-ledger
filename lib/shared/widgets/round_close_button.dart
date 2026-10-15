@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 圆形关闭按钮（全应用统一）。
 ///
@@ -35,7 +36,7 @@ class RoundCloseButton extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         alignment: Alignment.center,
-        child: Icon(
+        child: LineGlyph(
           Icons.close,
           size: iconSize ?? size * 0.5,
           color: scheme.onSurfaceVariant,

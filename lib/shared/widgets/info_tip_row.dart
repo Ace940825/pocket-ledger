@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// ⓘ 信息提示行（全应用统一）：奶油底圆角卡 + 左侧 info 图标 + 灰字说明。
 ///
@@ -32,7 +33,8 @@ class InfoTipRow extends StatelessWidget {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(top: 1),
-            child: Icon(icon, size: iconSize, color: scheme.onSurfaceVariant),
+            child:
+                LineGlyph(icon, size: iconSize, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(width: 8),
           Expanded(

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'calendar_sheet.dart';
 import 'line_icons.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 轻量日期选择行（可选清除）。多个模块表单复用。
 class DateField extends StatelessWidget {
@@ -73,7 +74,7 @@ class DateField extends StatelessWidget {
         ),
         if (allowClear && value != null)
           IconButton(
-            icon: const Icon(Icons.clear, size: 18),
+            icon: const LineGlyph(Icons.clear, size: 18),
             onPressed: () => onChanged(null),
           ),
       ],

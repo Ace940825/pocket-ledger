@@ -12,6 +12,7 @@ import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
 import '../providers/savings_providers.dart';
 import 'savings_schedule.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 36 期滚存法详情可视化组件。
 ///
@@ -143,7 +144,7 @@ class _RollingTimelineCardState extends State<RollingTimelineCard> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    const Icon(Icons.expand_more, size: 20),
+                    const LineGlyph(Icons.expand_more, size: 20),
                   ],
                 ),
               ),
@@ -151,7 +152,7 @@ class _RollingTimelineCardState extends State<RollingTimelineCard> {
             const Spacer(),
             IconButton(
               tooltip: _grid ? '切换为列表' : '切换为网格',
-              icon: Icon(
+              icon: LineGlyph(
                 _grid ? Icons.view_list_rounded : Icons.grid_view_outlined,
                 size: 20,
                 color: AppPalette.deepGreen,
@@ -926,7 +927,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     if (items[i].$1 == selected) ...<Widget>[
-                      const Icon(
+                      const LineGlyph(
                         Icons.check,
                         size: 15,
                         color: AppPalette.deepGreen,
@@ -1026,7 +1027,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                     ),
                     IconButton(
                       visualDensity: VisualDensity.compact,
-                      icon: const Icon(
+                      icon: const LineGlyph(
                         Icons.delete_outline,
                         size: 20,
                         color: AppPalette.expense,
@@ -1048,7 +1049,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
               foregroundColor: AppPalette.deepGreen,
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
-            icon: const Icon(Icons.add, size: 18),
+            icon: const LineGlyph(Icons.add, size: 18),
             label: Text('添加$title'),
           ),
         ],

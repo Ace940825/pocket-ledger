@@ -24,6 +24,7 @@ import '../../record/presentation/record_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart' show appPrefs;
 import '../providers/report_providers.dart';
 import 'report_category_detail_page.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 报表页：报表 / 日历双 Tab。
 ///
@@ -445,7 +446,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                     ),
                   ),
                 ),
-                Icon(
+                LineGlyph(
                   Icons.expand_more,
                   size: 20,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -568,7 +569,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                     : Border.all(color: AppPalette.sageLeaf, width: 1.2),
               ),
               child: selected
-                  ? const Icon(Icons.check, size: 10, color: AppPalette.white)
+                  ? const LineGlyph(Icons.check,
+                      size: 10, color: AppPalette.white)
                   : const SizedBox.shrink(),
             ),
             const SizedBox(width: 5),
@@ -1098,7 +1100,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     iconSize: 20,
-                    icon: Icon(
+                    icon: LineGlyph(
                       Icons.settings_outlined,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -1293,7 +1295,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     iconSize: 20,
-                    icon: Icon(
+                    icon: LineGlyph(
                       Icons.settings_outlined,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -1721,7 +1723,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Icon(Icons.history, size: 15, color: AppPalette.deepGreen),
+                    LineGlyph(Icons.history,
+                        size: 15, color: AppPalette.deepGreen),
                     SizedBox(width: 4),
                     Text(
                       '记一笔',
@@ -2013,7 +2016,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Icon(
+                LineGlyph(
                   Icons.expand_more,
                   size: 20,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -2133,7 +2136,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                     ),
                   ),
                   child: selected
-                      ? const Icon(
+                      ? const LineGlyph(
                           Icons.check,
                           size: 10,
                           color: AppPalette.white,
@@ -2183,7 +2186,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
       child: IconButton(
         padding: EdgeInsets.zero,
         iconSize: 20,
-        icon: Icon(
+        icon: LineGlyph(
           Icons.settings_outlined,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
@@ -2214,7 +2217,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Icon(
+            const LineGlyph(
               Icons.pie_chart_outline,
               size: 56,
               color: AppPalette.sageLine,
@@ -2667,7 +2670,7 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                       color: AppPalette.neutralMist,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
+                    child: LineGlyph(
                       Icons.close,
                       size: 18,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -2969,7 +2972,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                 color: AppPalette.softGreen,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, size: 20, color: AppPalette.deepGreen),
+              child: LineGlyph(icon, size: 20, color: AppPalette.deepGreen),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -3066,7 +3069,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                       color: AppPalette.neutralMist,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
+                    child: LineGlyph(
                       Icons.close,
                       size: 18,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -3184,7 +3187,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                               ),
                             ),
                           ),
-                          Icon(
+                          LineGlyph(
                             Icons.chevron_right,
                             size: 22,
                             color:
@@ -3233,7 +3236,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                       title: '日历报表阈值',
                       subtitle: '设置每日金额颜色深度样式',
                       onTap: widget.onOpenThreshold,
-                      trailing: Icon(
+                      trailing: LineGlyph(
                         Icons.chevron_right,
                         size: 22,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -3293,7 +3296,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                               : null,
                         ),
                         child: _chartColor == i
-                            ? const Icon(
+                            ? const LineGlyph(
                                 Icons.check,
                                 size: 20,
                                 color: AppPalette.white,

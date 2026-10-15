@@ -7,6 +7,7 @@ import '../../../domain/enums.dart';
 import '../data/account_icon.dart';
 import 'account_form_page.dart';
 import 'bank_select_page.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 新增账户页（独立页面）。
 ///
@@ -72,7 +73,7 @@ class _AddAccountPageState extends State<AddAccountPage>
       appBar: AppBar(
         title: const Text('新增账户'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
+          icon: const LineGlyph(Icons.arrow_back_ios_new),
           onPressed: () => Navigator.of(context).pop(),
         ),
         bottom: TabBar(

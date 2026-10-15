@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 分类类型切换标签（下划线选中态）。
 ///
@@ -69,7 +70,7 @@ class ExpandArrow extends StatelessWidget {
         icon: AnimatedRotation(
           turns: expanded ? 0.25 : 0,
           duration: const Duration(milliseconds: 200),
-          child: const Icon(Icons.chevron_right, size: 20),
+          child: const LineGlyph(Icons.chevron_right, size: 20),
         ),
       ),
     );

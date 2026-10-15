@@ -19,6 +19,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../providers/ledger_providers.dart';
 import 'ledger_filter_page.dart';
 import 'widgets/txn_icon.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「账单清理」页（我的 → 账单管理 → 账单清理，小青账布局）。
 ///
@@ -159,7 +160,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
             top: 0,
             bottom: 0,
             child: IconButton(
-              icon: Icon(
+              icon: LineGlyph(
                 Icons.arrow_back_ios_new,
                 size: 19,
                 color: Theme.of(context).colorScheme.onSurface,
@@ -195,7 +196,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  Icon(
+                  LineGlyph(
                     Icons.keyboard_arrow_down_rounded,
                     size: 20,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -491,7 +492,7 @@ class _TipCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Icon(
+                LineGlyph(
                   Icons.info_outline,
                   size: 14,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -634,7 +635,8 @@ class _CleanTile extends StatelessWidget {
                   ),
                 ),
                 child: checked
-                    ? const Icon(Icons.check, size: 14, color: AppPalette.white)
+                    ? const LineGlyph(Icons.check,
+                        size: 14, color: AppPalette.white)
                     : null,
               ),
             ],

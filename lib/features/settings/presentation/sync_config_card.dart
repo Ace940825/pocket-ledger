@@ -7,6 +7,7 @@ import '../../../shared/widgets/app_toast.dart';
 import '../../../theme/app_colors.dart';
 import '../data/sync_settings.dart';
 import '../providers/sync_settings_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 云同步配置卡片：开关 + Workers 端点 + 访问令牌。
 ///
@@ -94,7 +95,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                 children: <Widget>[
                   Row(
                     children: <Widget>[
-                      const Icon(Icons.cloud_outlined),
+                      const LineGlyph(Icons.cloud_outlined),
                       const SizedBox(width: AppDimens.sm),
                       Text('云端配置', style: theme.textTheme.titleMedium),
                     ],
@@ -121,7 +122,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                     decoration: const InputDecoration(
                       labelText: 'Workers 端点',
                       hintText: 'https://pocket-ledger.xxx.workers.dev',
-                      prefixIcon: Icon(Icons.link),
+                      prefixIcon: LineGlyph(Icons.link),
                     ),
                     validator: (String? v) {
                       final String url = (v ?? '').trim();
@@ -139,9 +140,9 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                     obscureText: _obscureToken,
                     decoration: InputDecoration(
                       labelText: '访问令牌',
-                      prefixIcon: const Icon(Icons.key_outlined),
+                      prefixIcon: const LineGlyph(Icons.key_outlined),
                       suffixIcon: IconButton(
-                        icon: Icon(
+                        icon: LineGlyph(
                           _obscureToken
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
@@ -164,7 +165,7 @@ class _SyncConfigCardState extends ConsumerState<SyncConfigCard> {
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.save_outlined),
+                          : const LineGlyph(Icons.save_outlined),
                       label: const Text('保存配置'),
                     ),
                   ),

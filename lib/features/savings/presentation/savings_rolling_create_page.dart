@@ -12,6 +12,7 @@ import '../../../theme/app_colors.dart';
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
 import '../providers/savings_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 36 期滚存法创建 / 编辑页。
 ///
@@ -419,7 +420,7 @@ class _SavingsRollingCreatePageState
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     if (items[i].$1 == selected) ...<Widget>[
-                      const Icon(
+                      const LineGlyph(
                         Icons.check,
                         size: 15,
                         color: AppPalette.deepGreen,

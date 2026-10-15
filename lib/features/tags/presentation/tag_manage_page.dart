@@ -23,6 +23,7 @@ import '../../../theme/app_theme.dart';
 import '../providers/tag_providers.dart';
 import 'tag_scope_toggle.dart';
 import 'tag_toast.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 标签管理页（全屏，从右滑入）。
 ///
@@ -128,7 +129,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
               children: <Widget>[
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.chevron_left, size: 26),
+                  icon: const LineGlyph(Icons.chevron_left, size: 26),
                   color: Theme.of(context).colorScheme.onSurface,
                   padding: EdgeInsets.zero,
                   constraints:
@@ -243,7 +244,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 4),
               child: Row(
                 children: <Widget>[
-                  Icon(
+                  LineGlyph(
                     Icons.search,
                     size: 18,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -480,7 +481,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
       body: ActionGroup(
         children: <Widget>[
           ActionRow(
-            icon: const Icon(
+            icon: const LineGlyph(
               Icons.edit_outlined,
               size: 18,
               color: ForestGreen.deep,
@@ -493,8 +494,8 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
             },
           ),
           ActionRow(
-            icon:
-                const Icon(Icons.swap_vert, size: 18, color: ForestGreen.deep),
+            icon: const LineGlyph(Icons.swap_vert,
+                size: 18, color: ForestGreen.deep),
             title: '类别排序',
             subtitle: '拖拽调整类别顺序',
             onTap: () {
@@ -503,7 +504,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
             },
           ),
           ActionRow(
-            icon: const Icon(
+            icon: const LineGlyph(
               Icons.label_outline,
               size: 18,
               color: ForestGreen.deep,
@@ -516,7 +517,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
             },
           ),
           ActionRow(
-            icon: const Icon(
+            icon: const LineGlyph(
               Icons.delete_outline,
               size: 18,
               color: ForestSemantic.expense,
@@ -1013,7 +1014,7 @@ class _TagCategoryReorderPageState
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: Icon(
+          icon: LineGlyph(
             Icons.chevron_left,
             color: Theme.of(context).colorScheme.onSurface,
           ),
@@ -1208,7 +1209,7 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: Icon(
+          icon: LineGlyph(
             Icons.chevron_left,
             color: Theme.of(context).colorScheme.onSurface,
           ),

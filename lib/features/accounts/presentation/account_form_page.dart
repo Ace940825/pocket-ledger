@@ -17,6 +17,7 @@ import '../data/account_icon.dart';
 import '../data/bank_data.dart';
 import '../providers/accounts_providers.dart';
 import 'bank_select_page.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 账户表单页。
 ///
@@ -312,7 +313,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
           ),
           child: Row(
             children: <Widget>[
-              Icon(
+              LineGlyph(
                 Icons.info_outline,
                 size: 14,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -375,7 +376,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
       appBar: AppBar(
         title: const Text('新建账户'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
+          icon: const LineGlyph(Icons.arrow_back_ios_new),
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
         ),
       ),
@@ -683,7 +684,7 @@ class _BankHeader extends StatelessWidget {
                       ),
                 ),
               ),
-              Icon(
+              LineGlyph(
                 Icons.chevron_right,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -826,7 +827,7 @@ class _DayPickerField extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
+            LineGlyph(
               Icons.chevron_right,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),

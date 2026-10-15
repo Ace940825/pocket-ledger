@@ -36,6 +36,7 @@ import '../providers/accounts_providers.dart';
 import 'account_ledger_grouping.dart';
 import 'widgets/account_transaction_tile.dart';
 import 'widgets/asset_stats_settings_sheet.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 单个账户的资产详情页（小青账「资产详情」复刻）。
 ///
@@ -94,7 +95,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
           if (account != null)
             IconButton(
               tooltip: '账户操作',
-              icon: const Icon(Icons.more_vert),
+              icon: const LineGlyph(Icons.more_vert),
               onPressed: () => _showActionsSheet(account),
             ),
         ],
@@ -298,7 +299,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
               ActionGroup(
                 children: <Widget>[
                   ActionRow(
-                    icon: const Icon(
+                    icon: const LineGlyph(
                       Icons.swap_horiz,
                       size: 17,
                       color: ForestGreen.deep,
@@ -334,7 +335,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
                     onTap: () => Navigator.of(context).pop('clear'),
                   ),
                   ActionRow(
-                    icon: const Icon(
+                    icon: const LineGlyph(
                       Icons.delete_forever,
                       size: 17,
                       color: ForestSemantic.expense,
@@ -779,7 +780,7 @@ class _YearSelectorRow extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(
+                  LineGlyph(
                     Icons.keyboard_arrow_down,
                     size: 20,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -791,7 +792,7 @@ class _YearSelectorRow extends StatelessWidget {
           const Spacer(),
           IconButton(
             onPressed: onOpenSettings,
-            icon: const Icon(Icons.settings_outlined),
+            icon: const LineGlyph(Icons.settings_outlined),
             tooltip: '资产月消费统计',
           ),
         ],
@@ -845,7 +846,7 @@ class _MonthSection extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                Icon(
+                LineGlyph(
                   collapsed ? Icons.chevron_right : Icons.expand_more,
                   size: 20,
                 ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../theme/app_colors.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 图片附件展示与查看的共享组件。
 ///
@@ -95,7 +96,7 @@ class AttachmentThumb extends StatelessWidget {
                 width: size,
                 height: size,
                 color: AppPalette.surfaceLight,
-                child: Icon(
+                child: LineGlyph(
                   Icons.broken_image_outlined,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -114,7 +115,7 @@ class AttachmentThumb extends StatelessWidget {
                   color: Colors.black54, // ignore: no_raw_colors
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: const LineGlyph(
                   Icons.cancel,
                   size: 18,
                   color: Colors.white, // ignore: no_raw_colors
@@ -153,7 +154,7 @@ Future<void> openImageViewer(
                 image: provider,
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => Center(
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.broken_image_outlined,
                     size: 48,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

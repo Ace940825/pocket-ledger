@@ -10,6 +10,7 @@ import '../../../shared/widgets/hairline_card.dart';
 import '../../../shared/widgets/menu_item.dart';
 import '../../../sync/sync_engine.dart';
 import 'sync_config_card.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 同步状态卡片：展示适配器、上次同步时间、待同步条数，并提供手动同步。
 class SyncStatusCard extends ConsumerWidget {
@@ -27,7 +28,7 @@ class SyncStatusCard extends ConsumerWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Icon(Icons.cloud_sync_outlined),
+              const LineGlyph(Icons.cloud_sync_outlined),
               const SizedBox(width: AppDimens.sm),
               Text('云备份与同步', style: theme.textTheme.titleMedium),
             ],
@@ -69,7 +70,7 @@ class SyncStatusCard extends ConsumerWidget {
               onPressed: state.value?.status == SyncStatus.disabled
                   ? null
                   : () => ref.read(syncControllerProvider.notifier).syncNow(),
-              icon: const Icon(Icons.sync),
+              icon: const LineGlyph(Icons.sync),
               label: const Text('立即同步'),
             ),
           ),

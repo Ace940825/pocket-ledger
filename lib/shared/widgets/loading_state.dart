@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pocket_ledger/shared/widgets/app_button.dart';
 
 import '../../theme/app_dimens.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 主题化加载指示（spinner）。
 ///
@@ -92,7 +93,7 @@ class ErrorState extends StatelessWidget {
     final Widget child = Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Icon(icon, size: 56, color: theme.colorScheme.outlineVariant),
+        LineGlyph(icon, size: 56, color: theme.colorScheme.outlineVariant),
         const SizedBox(height: AppDimens.lg),
         Text(
           message,

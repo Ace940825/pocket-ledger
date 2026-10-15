@@ -22,6 +22,7 @@ import '../providers/record_template_providers.dart';
 import '../record_tab.dart';
 import 'record_sheet.dart';
 import 'record_template_sheet.dart' show RecordTemplateDraft;
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「账单模板」独立管理页（方案 C1 · 晕染延续）：
 /// 晕染带（✕ 钮 + 头卡/帮助 + 虚线说明卡）→ 搜索 + 类型筛选 → 条目列表
@@ -316,7 +317,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                               color: Theme.of(context).colorScheme.outline,
                             ),
                           ),
-                          child: Icon(
+                          child: LineGlyph(
                             Icons.close,
                             size: 18,
                             color:
@@ -348,7 +349,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                             width: 44,
                             height: 44,
                             radius: 14,
-                            child: Icon(
+                            child: LineGlyph(
                               Icons.bookmark_outline,
                               size: 22,
                               color: ForestGreen.deep,
@@ -426,7 +427,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                             children: <Widget>[
                               const Padding(
                                 padding: EdgeInsets.only(top: 2),
-                                child: Icon(
+                                child: LineGlyph(
                                   Icons.info_outline,
                                   size: 15,
                                   color: AppPalette.sageRibbon,
@@ -449,7 +450,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                   ),
                                 ),
                               ),
-                              Icon(
+                              LineGlyph(
                                 _noteExpanded
                                     ? Icons.expand_less
                                     : Icons.expand_more,
@@ -478,7 +479,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                   ),
                   child: Row(
                     children: <Widget>[
-                      Icon(
+                      LineGlyph(
                         Icons.search,
                         size: 16,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -511,7 +512,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                             _searchCtl.clear();
                             setState(() => _query = '');
                           },
-                          child: Icon(
+                          child: LineGlyph(
                             Icons.close,
                             size: 15,
                             color:
@@ -832,15 +833,16 @@ class RecordTemplateCard extends ConsumerWidget {
         template.categoryId == null ? null : categories[template.categoryId];
     final (Widget, Color) fallback = switch (tab) {
       RecordTab.income => (
-          const Icon(Icons.south_west, size: 22, color: ForestSemantic.income),
+          const LineGlyph(Icons.south_west,
+              size: 22, color: ForestSemantic.income),
           ForestSemantic.income
         ),
       RecordTab.transfer => (
-          const Icon(Icons.swap_horiz, size: 22, color: ForestGreen.deep),
+          const LineGlyph(Icons.swap_horiz, size: 22, color: ForestGreen.deep),
           ForestGreen.deep
         ),
       RecordTab.lend => (
-          const Icon(
+          const LineGlyph(
             Icons.handshake_outlined,
             size: 22,
             color: ForestGreen.deep,
@@ -848,7 +850,7 @@ class RecordTemplateCard extends ConsumerWidget {
           ForestGreen.deep
         ),
       _ => (
-          const Icon(
+          const LineGlyph(
             Icons.shopping_bag_outlined,
             size: 22,
             color: ForestSemantic.expense,

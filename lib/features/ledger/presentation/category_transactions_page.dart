@@ -16,6 +16,7 @@ import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/transaction_tile.dart';
 import 'widgets/txn_slidable.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 分类账单页 · 布局与退款记录页同款。
 ///
@@ -171,7 +172,7 @@ class _CategoryTransactionsPageState
                     ),
                   ],
                 ),
-                child: Icon(
+                child: LineGlyph(
                   Icons.close,
                   size: 20,
                   color: Theme.of(context).colorScheme.onSurface,
@@ -220,7 +221,7 @@ class _CategoryTransactionsPageState
                         ),
                       ),
                     ),
-                    Icon(
+                    LineGlyph(
                       Icons.keyboard_arrow_down_rounded,
                       size: 20,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -246,7 +247,7 @@ class _CategoryTransactionsPageState
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(
+                  LineGlyph(
                     byAmount ? Icons.payments_outlined : Icons.schedule_rounded,
                     size: 14,
                     color: ForestGreen.deep,
@@ -261,7 +262,7 @@ class _CategoryTransactionsPageState
                     ),
                   ),
                   const SizedBox(width: 3),
-                  const Icon(
+                  const LineGlyph(
                     Icons.swap_vert_rounded,
                     size: 14,
                     color: ForestGreen.deep,
@@ -414,7 +415,8 @@ class _DayGroup extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 5),
-                const Icon(Icons.autorenew, size: 14, color: ForestGreen.deep),
+                const LineGlyph(Icons.autorenew,
+                    size: 14, color: ForestGreen.deep),
                 const Spacer(),
                 Text(
                   _totalLabel,

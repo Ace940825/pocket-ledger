@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../routing/app_router.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 更多功能入口：收纳转账、报销、储蓄、分期、投资、物品与分类管理。
 /// 借还不再设独立入口——借出/借入账户在账户页管理，点击进资产详情页，
@@ -97,7 +98,7 @@ class MorePage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Icon(module.icon, size: 28),
+                    LineGlyph(module.icon, size: 28),
                     const SizedBox(height: AppDimens.sm),
                     Text(
                       module.title,

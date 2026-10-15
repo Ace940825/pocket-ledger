@@ -24,6 +24,7 @@ import '../data/market/security_meta_repository.dart';
 import '../providers/investment_providers.dart';
 import 'holding_detail_page.dart';
 import 'widgets/security_candidate_tile.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 投资页：顶部组合汇总卡 + 持仓 / 清仓双 Tab（对齐分期入口布局）。
 ///
@@ -87,7 +88,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.refresh),
+                : const LineGlyph(Icons.refresh),
             tooltip: '刷新行情',
             onPressed: _refreshing ? null : _refreshPrices,
           ),
@@ -895,7 +896,7 @@ Future<void> showHoldingEditor(
                   children: <Widget>[
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.close, size: 22),
+                      icon: const LineGlyph(Icons.close, size: 22),
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       onPressed: () => Navigator.of(context).pop(false),
                     ),

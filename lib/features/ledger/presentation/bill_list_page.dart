@@ -18,6 +18,7 @@ import '../providers/ledger_providers.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/txn_icon.dart';
 import 'widgets/txn_slidable.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「账单列表」页（我的 → 账单管理 → 账单列表，小青账布局）。
 ///
@@ -76,7 +77,7 @@ class _BillListPageState extends ConsumerState<BillListPage> {
                     shape: BoxShape.circle,
                     color: AppPalette.neutralSoft,
                   ),
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.close,
                     size: 20,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -318,7 +319,7 @@ class _SortSheet extends StatelessWidget {
                           shape: BoxShape.circle,
                           color: AppPalette.neutralSoft,
                         ),
-                        child: Icon(
+                        child: LineGlyph(
                           Icons.close,
                           size: 18,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -366,7 +367,7 @@ class _SortSheet extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      Icon(
+                      LineGlyph(
                         Icons.chevron_right,
                         size: 22,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

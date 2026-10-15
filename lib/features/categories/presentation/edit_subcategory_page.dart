@@ -12,6 +12,7 @@ import '../../../shared/widgets/category_icons.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/categories_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 编辑子分类页。
 ///
@@ -65,7 +66,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
         actions: <Widget>[
           TextButton.icon(
             onPressed: () => context.push('/categories'),
-            icon: const Icon(Icons.auto_fix_high_outlined),
+            icon: const LineGlyph(Icons.auto_fix_high_outlined),
             label: const Text('自定义'),
           ),
         ],
@@ -88,14 +89,12 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
               ),
               const SizedBox(height: AppDimens.lg),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppDimens.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg),
                 child: _buildNameField(theme),
               ),
               const SizedBox(height: AppDimens.lg),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppDimens.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg),
                 child: _buildHint(theme),
               ),
               const SizedBox(height: AppDimens.lg),
@@ -198,7 +197,7 @@ class _EditSubcategoryPageState extends ConsumerState<EditSubcategoryPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(
+          LineGlyph(
             Icons.info_outline,
             size: 16,
             color: Theme.of(context).colorScheme.onSurfaceVariant,

@@ -16,6 +16,7 @@ import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 退款可选的原账单来源模块：仅日常支出与分期。
 ///
@@ -87,7 +88,7 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
         title: Text(widget.title),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
+          icon: const LineGlyph(Icons.arrow_back_ios_new),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: <Widget>[
@@ -159,7 +160,7 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
           const Spacer(),
           TextButton.icon(
             onPressed: _showFilterHint,
-            icon: const Icon(Icons.filter_list, size: 18),
+            icon: const LineGlyph(Icons.filter_list, size: 18),
             label: const Text('筛选'),
           ),
         ],
@@ -184,14 +185,14 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
                 ListTile(
                   title: const Text('全部月份'),
                   trailing: current == null
-                      ? const Icon(Icons.check, color: AppPalette.primary)
+                      ? const LineGlyph(Icons.check, color: AppPalette.primary)
                       : null,
                   onTap: () => Navigator.of(context).pop(null),
                 ),
                 const Divider(height: 1),
                 ListTile(
                   title: const Text('选择具体月份'),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const LineGlyph(Icons.chevron_right),
                   onTap: () async {
                     final CalendarSelection? sel = await CalendarSheet.show(
                       context,
@@ -220,7 +221,7 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          const Icon(Icons.arrow_drop_down),
+          const LineGlyph(Icons.arrow_drop_down),
         ],
       ),
     );
@@ -356,7 +357,7 @@ class _BillTile extends ConsumerWidget {
             size: 20,
             color: leadColor,
           )
-        : Icon(Icons.category_outlined, size: 20, color: leadColor);
+        : LineGlyph(Icons.category_outlined, size: 20, color: leadColor);
 
     // 退款标注：被退款过的原账单显示「退款 ¥X=¥Y」
     // （X=累计已退合计，Y=剩余=实付−已退，与流水列表同口径）。
@@ -500,7 +501,7 @@ class _SelectionCircle extends StatelessWidget {
         ),
       ),
       child: selected
-          ? Icon(
+          ? LineGlyph(
               Icons.check,
               size: 14,
               color: Theme.of(context).colorScheme.onPrimary,

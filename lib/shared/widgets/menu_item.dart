@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import 'hairline_card.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 菜单行（全应用统一）：左侧 tint 圆底图标 + 标题 + 可选副标题 + 右侧 chevron。
 ///
@@ -61,7 +62,7 @@ class MenuItem extends StatelessWidget {
                   color: tint.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppDimens.radiusKey),
                 ),
-                child: Icon(icon, size: 20, color: tint),
+                child: LineGlyph(icon, size: 20, color: tint),
               ));
     final Widget trailingW = trailing ??
         (onTap == null && value == null
@@ -80,7 +81,7 @@ class MenuItem extends StatelessWidget {
                       ),
                     ),
                   if (onTap != null)
-                    Icon(
+                    LineGlyph(
                       Icons.chevron_right,
                       size: 18,
                       color: scheme.onSurfaceVariant,

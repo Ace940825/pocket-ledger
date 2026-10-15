@@ -4,6 +4,7 @@ import '../../core/theme/forest_design_tokens.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 标签芯片（全应用统一）：选中 = 鼠尾草渐变 + 墨绿字；未选 = 沙底 + 发丝线。
 ///
@@ -75,7 +76,7 @@ class TagChip extends StatelessWidget {
           child: InkWell(
             onTap: onDeleted,
             borderRadius: BorderRadius.circular(AppDimens.radiusChip),
-            child: Icon(
+            child: LineGlyph(
               Icons.close,
               size: 14,
               color: selected ? ForestSage.ink : scheme.onSurfaceVariant,

@@ -15,6 +15,7 @@ import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../providers/categories_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 账单迁移页：把源分类下的全部流水改挂到目标分类。
 ///
@@ -46,7 +47,7 @@ class _CategoryMigratePageState extends ConsumerState<CategoryMigratePage> {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          icon: const LineGlyph(Icons.arrow_back_ios_new, size: 20),
         ),
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -214,8 +215,7 @@ class _MigrateParentTile extends StatelessWidget {
                       ),
                       if (hasChildren)
                         Padding(
-                          padding:
-                              const EdgeInsets.only(right: AppDimens.sm),
+                          padding: const EdgeInsets.only(right: AppDimens.sm),
                           child: Text(
                             '${children.length}',
                             style:

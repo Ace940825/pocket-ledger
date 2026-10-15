@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import 'sheet_scaffold.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 「选择日期」底部弹窗（共享组件）：纯 1~31 数字宫格（7 列顺序排布，
 /// 不带月份标题/星期表头），选中日浅绿实心圆白字；底部右侧
@@ -71,7 +72,7 @@ class _DayPickSheetState extends State<_DayPickSheet> {
                         shape: BoxShape.circle,
                         color: AppPalette.neutralSoft,
                       ),
-                      child: Icon(
+                      child: LineGlyph(
                         Icons.close,
                         size: 18,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

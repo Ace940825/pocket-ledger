@@ -25,6 +25,7 @@ import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../providers/budget_providers.dart';
 import 'budget_editor.dart';
 import 'budget_setup_page.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 全部账本（账本名按 bookId 查找用）。
 final AutoDisposeStreamProvider<List<Book>> _booksProvider =
@@ -723,7 +724,7 @@ class _ClayIconButton extends StatelessWidget {
         child: ClayIconTile(
           size: 40,
           color: AppPalette.primary,
-          child: Icon(icon, size: 20, color: AppPalette.primary),
+          child: LineGlyph(icon, size: 20, color: AppPalette.primary),
         ),
       ),
     );
@@ -796,7 +797,7 @@ class _OverviewCard extends StatelessWidget {
             children: <Widget>[
               const ClayIconTile(
                 color: AppPalette.primary,
-                child: Icon(
+                child: LineGlyph(
                   Icons.account_balance_wallet_outlined,
                   size: 20,
                   color: AppPalette.primary,
@@ -832,7 +833,7 @@ class _OverviewCard extends StatelessWidget {
                 onTap: onMore,
                 child: Padding(
                   padding: const EdgeInsets.all(4),
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.more_horiz,
                     size: 22,
                     color: scheme.onSurfaceVariant,
@@ -881,7 +882,7 @@ class _OverviewCard extends StatelessWidget {
                           onTap: onEditTotal,
                           child: Padding(
                             padding: const EdgeInsets.all(4),
-                            child: Icon(
+                            child: LineGlyph(
                               Icons.edit_outlined,
                               size: 18,
                               color: scheme.onSurfaceVariant,
@@ -1235,7 +1236,7 @@ class _CategoryBudgetsCard extends StatelessWidget {
                           padding: const EdgeInsets.only(left: 30, top: 4),
                           child: Row(
                             children: <Widget>[
-                              Icon(
+                              LineGlyph(
                                 Icons.add_circle_outline,
                                 size: 16,
                                 color: scheme.onSurfaceVariant,
@@ -1500,7 +1501,7 @@ class _SheetAction extends StatelessWidget {
             ClayIconTile(
               color: color,
               size: 48,
-              child: Icon(icon, size: 22, color: color),
+              child: LineGlyph(icon, size: 22, color: color),
             ),
             const SizedBox(height: 8),
             SizedBox(

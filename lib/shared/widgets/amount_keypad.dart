@@ -5,6 +5,7 @@ import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import 'sheet_scaffold.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 工程内数字键盘（记一笔底部键盘的**标准形态**，全工程统一复用）。
 ///
@@ -356,7 +357,7 @@ class _AkKey extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               if (icon != null && !isSave && !isAgain)
-                Icon(
+                LineGlyph(
                   icon,
                   size: label == '.' ? 8 : 20,
                   color: contentColor,

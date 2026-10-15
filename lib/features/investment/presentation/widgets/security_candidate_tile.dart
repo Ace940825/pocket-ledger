@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/investment_repository.dart';
 import '../../data/market/security_meta_repository.dart';
+import '../../../../shared/widgets/line_icon_map.dart';
 
 /// 行情候选行：代码 + 名称 + 品种标签，点击回填。
 ///
@@ -53,7 +54,7 @@ class SecurityCandidateTile extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
             ),
             const SizedBox(width: 6),
-            Icon(Icons.north_west, size: 14, color: cs.onSurfaceVariant),
+            LineGlyph(Icons.north_west, size: 14, color: cs.onSurfaceVariant),
           ],
         ),
       ),

@@ -5,6 +5,7 @@ import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import 'savings_modes.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「存钱模式选择」底部弹层（参照小青账）：双列模式卡，点选返回预设。
 ///
@@ -22,7 +23,7 @@ class SavingsModeSheet extends StatelessWidget {
           IconButton(
             tooltip: '关闭',
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close, size: 22),
+            icon: const LineGlyph(Icons.close, size: 22),
           ),
           Expanded(
             child: Center(

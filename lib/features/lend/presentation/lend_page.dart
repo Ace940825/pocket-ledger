@@ -18,6 +18,7 @@ import '../../../theme/theme.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/record_sheet.dart';
 import '../providers/lend_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 借还页：对照报销页总览——每个借出 / 借入账户一张存钱计划样式卡片。
 ///
@@ -314,7 +315,7 @@ class _LendAccountCard extends StatelessWidget {
                     ForestAccent.gold,
                   ),
                   const Spacer(),
-                  Icon(
+                  LineGlyph(
                     Icons.chevron_right,
                     size: 18,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -359,7 +360,7 @@ class _UnassignedTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isOut = record.direction == LendDirection.lendOut;
     return ListTile(
-      leading: Icon(
+      leading: LineGlyph(
         isOut ? Icons.north_east : Icons.south_west,
         color: isOut ? AppPalette.expense : AppPalette.income,
       ),
@@ -383,7 +384,7 @@ class _UnassignedTile extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, size: 20),
+            icon: const LineGlyph(Icons.delete_outline, size: 20),
             onPressed: onDelete,
           ),
         ],

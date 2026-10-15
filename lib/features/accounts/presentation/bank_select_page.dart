@@ -3,6 +3,7 @@ import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../data/bank_data.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 银行选择页。
 ///
@@ -124,12 +125,13 @@ class _BankSelectPageState extends State<BankSelectPage> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: '搜索银行',
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: const LineGlyph(Icons.search),
                       filled: true,
                       fillColor:
                           Theme.of(context).colorScheme.surfaceContainerHighest,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+                        borderRadius:
+                            BorderRadius.circular(AppDimens.radiusCard),
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(

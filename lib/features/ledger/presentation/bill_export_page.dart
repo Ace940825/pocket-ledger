@@ -13,6 +13,7 @@ import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../data/bill_io.dart';
 import '../providers/ledger_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「账单管理 → 账单导出」页。
 ///
@@ -330,7 +331,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: _copy,
-              icon: const Icon(Icons.copy_outlined, size: 18),
+              icon: const LineGlyph(Icons.copy_outlined, size: 18),
               label: const Text('复制全部内容'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppPalette.ctaGreen,

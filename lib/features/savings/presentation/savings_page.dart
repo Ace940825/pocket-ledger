@@ -22,6 +22,7 @@ import 'savings_mode_sheet.dart';
 import 'savings_modes.dart';
 import 'savings_rolling_create_page.dart';
 import 'savings_schedule.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 储蓄页：「计划 / 归档」双 Tab。
 /// - 计划：内嵌「存钱模式选择」双列九宫格，点卡直接进该模式创建页；
@@ -442,7 +443,7 @@ class SavingsGoalTile extends ConsumerWidget {
           onTap: () => _showScheduleSheet(context, ref),
           child: Padding(
             padding: const EdgeInsets.all(4),
-            child: Icon(
+            child: LineGlyph(
               Icons.calendar_today_outlined,
               size: 18,
               color: theme.colorScheme.onSurfaceVariant,
@@ -614,7 +615,7 @@ class _ArchivedTile extends ConsumerWidget {
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.only(right: 6),
-                child: Icon(
+                child: LineGlyph(
                   Icons.archive_outlined,
                   size: 18,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -639,7 +640,7 @@ class _ArchivedTile extends ConsumerWidget {
               TextButton.icon(
                 onPressed: () =>
                     _setArchived(context, ref, goal, archived: false),
-                icon: const Icon(Icons.unarchive_outlined, size: 18),
+                icon: const LineGlyph(Icons.unarchive_outlined, size: 18),
                 label: const Text('恢复'),
               ),
               const SizedBox(width: 8),
@@ -659,7 +660,7 @@ class _ArchivedTile extends ConsumerWidget {
                     if (context.mounted) showToast(context, e.message);
                   }
                 },
-                icon: const Icon(Icons.delete_outline, size: 18),
+                icon: const LineGlyph(Icons.delete_outline, size: 18),
                 label: const Text('删除'),
               ),
             ],

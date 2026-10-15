@@ -12,6 +12,7 @@ import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
 import '../data/inventory_repository.dart';
 import '../providers/inventory_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 物品页：大件资产清单、折旧与保修跟踪。
 class InventoryPage extends ConsumerWidget {
@@ -145,7 +146,7 @@ class _ItemTile extends ConsumerWidget {
           if (warn)
             Padding(
               padding: const EdgeInsets.only(left: 4),
-              child: Icon(
+              child: LineGlyph(
                 Icons.warning_amber_rounded,
                 size: 14,
                 color: theme.colorScheme.error,

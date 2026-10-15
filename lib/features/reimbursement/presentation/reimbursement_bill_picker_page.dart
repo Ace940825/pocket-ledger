@@ -16,6 +16,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../data/reimbursement_repository.dart';
 import '../providers/reimbursement_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「选择账单」独立页参数：报销账户 ID（未选账户时为 null，
 /// 页内只列未指定报销账户的账单）+ 已勾选集合。
@@ -96,7 +97,7 @@ class _ReimbursementBillPickerPageState
             IconThemeData(color: Theme.of(context).colorScheme.onSurface),
         title: const Text('选择账单'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          icon: const LineGlyph(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: <Widget>[
@@ -271,7 +272,7 @@ class _ReimbursementBillPickerPageState
             size: 22,
             color: tint,
           )
-        : Icon(Icons.north_east, color: tint, size: 22);
+        : LineGlyph(Icons.north_east, color: tint, size: 22);
     final String title =
         cat?.name ?? (t.note?.isNotEmpty == true ? t.note! : '支出');
     final DateTime occurred = DateTime.fromMillisecondsSinceEpoch(
@@ -423,7 +424,7 @@ class _ReimbursementBillPickerPageState
               : null,
         ),
         child: sel
-            ? Icon(
+            ? LineGlyph(
                 Icons.check,
                 size: 13,
                 color: Theme.of(context).colorScheme.onPrimary,

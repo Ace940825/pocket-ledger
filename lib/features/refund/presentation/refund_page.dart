@@ -17,6 +17,7 @@ import '../../ledger/presentation/widgets/transaction_tile.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../record/record_tab.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 退款记录页（「我的 → 退款」入口）。
 ///
@@ -134,7 +135,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
                     ),
                   ],
                 ),
-                child: Icon(
+                child: LineGlyph(
                   Icons.arrow_back_ios_new,
                   size: 18,
                   color: Theme.of(context).colorScheme.onSurface,
@@ -187,7 +188,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
                         ),
                       ),
                     ),
-                    Icon(
+                    LineGlyph(
                       Icons.keyboard_arrow_down_rounded,
                       size: 20,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -211,7 +212,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(
+                  LineGlyph(
                     _sortByAmount
                         ? Icons.payments_outlined
                         : Icons.schedule_rounded,
@@ -228,7 +229,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
                     ),
                   ),
                   const SizedBox(width: 3),
-                  const Icon(
+                  const LineGlyph(
                     Icons.swap_vert_rounded,
                     size: 14,
                     color: ForestGreen.deep,
@@ -249,7 +250,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(Icons.add, size: 14, color: ForestGreen.deep),
+                  LineGlyph(Icons.add, size: 14, color: ForestGreen.deep),
                   SizedBox(width: 3),
                   Text(
                     '记退款',
@@ -388,7 +389,7 @@ class _DayGroup extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 5),
-                const Icon(
+                const LineGlyph(
                   Icons.assignment_return_outlined,
                   size: 14,
                   color: ForestGreen.deep,

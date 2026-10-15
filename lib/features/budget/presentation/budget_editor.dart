@@ -16,6 +16,7 @@ import '../../../theme/app_dimens.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../data/budget_repository.dart';
 import '../providers/budget_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 预算编辑种子：从项卡点进编辑弹窗时预填范围/分类/周期，省手选。
 class BudgetSeed {
@@ -143,7 +144,7 @@ Future<void> showBudgetEditor(
                       ),
                     ),
                     if (selected)
-                      const Icon(
+                      const LineGlyph(
                         Icons.check,
                         size: 18,
                         color: AppPalette.primary,
@@ -215,7 +216,7 @@ Future<void> showBudgetEditor(
                           ),
                         ),
                       ),
-                      Icon(
+                      LineGlyph(
                         Icons.expand_more,
                         size: 20,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

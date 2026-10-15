@@ -22,6 +22,7 @@ import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../record/presentation/record_sheet.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 首页总览：顶部三张可横向滑动卡片（资产 / 预算 / 本月收支）+ 快捷入口 + 最近流水。
 class HomePage extends ConsumerWidget {
@@ -37,7 +38,7 @@ class HomePage extends ConsumerWidget {
         title: const Text('首页'),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            icon: const LineGlyph(Icons.settings_outlined),
             onPressed: () => context.push(Routes.settings),
           ),
         ],
@@ -536,7 +537,7 @@ class _QuickActions extends StatelessWidget {
         Expanded(
           child: FilledButton.icon(
             onPressed: () => openRecordSheet(context),
-            icon: const Icon(Icons.add),
+            icon: const LineGlyph(Icons.add),
             label: const Text('记一笔'),
           ),
         ),

@@ -27,6 +27,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../providers/recording_settings_provider.dart';
 import 'default_asset_settings_sheet.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 // ───────────────────── 模板专属微调色（token 未覆盖的精确值，保持与设计一致） ─────────────────────
 
@@ -225,7 +226,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                       ),
                       child: Row(
                         children: <Widget>[
-                          const Icon(
+                          const LineGlyph(
                             Icons.info_outline,
                             size: 15,
                             color: AppPalette.clayBrown,
@@ -420,7 +421,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                   color: ForestSurface.raised,
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(
+                child: const LineGlyph(
                   Icons.block,
                   size: 16,
                   color: ForestAccent.gold,
@@ -539,7 +540,7 @@ class _ListRow extends StatelessWidget {
             ),
             if (selected) ...<Widget>[
               const SizedBox(width: 8),
-              const Icon(
+              const LineGlyph(
                 Icons.check_circle,
                 size: 20,
                 color: ForestSage.ink,
@@ -626,7 +627,7 @@ class _AccountTile extends StatelessWidget {
             child: SizedBox(
               width: 18,
               height: 18,
-              child: Icon(
+              child: LineGlyph(
                 Icons.check_circle,
                 size: 18,
                 color: ForestSage.ink,
@@ -828,7 +829,7 @@ class _IconBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(17),
             border: Border.all(color: _SheetA.cardBorder, width: 1),
           ),
-          child: Icon(icon, size: 15, color: color),
+          child: LineGlyph(icon, size: 15, color: color),
         ),
       );
 }

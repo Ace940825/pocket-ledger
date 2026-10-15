@@ -16,6 +16,7 @@ import '../../categories/providers/categories_providers.dart';
 import '../providers/budget_providers.dart';
 import 'budget_category_page.dart';
 import 'budget_setup_page.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 全部账本（支出/收入预算分组卡的账本网格）。
 final AutoDisposeStreamProvider<List<Book>> _booksProvider =
@@ -252,7 +253,7 @@ class _ClayIconButton extends StatelessWidget {
         child: ClayIconTile(
           size: 40,
           color: AppPalette.primary,
-          child: Icon(icon, size: 20, color: AppPalette.primary),
+          child: LineGlyph(icon, size: 20, color: AppPalette.primary),
         ),
       ),
     );
@@ -275,7 +276,7 @@ class _HeaderCard extends StatelessWidget {
         children: <Widget>[
           const ClayIconTile(
             color: AppPalette.primary,
-            child: Icon(
+            child: LineGlyph(
               Icons.currency_yuan_outlined,
               size: 22,
               color: AppPalette.primary,
@@ -420,7 +421,7 @@ class _BookTile extends StatelessWidget {
                 const ClayIconTile(
                   size: 32,
                   color: AppPalette.primary,
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.account_balance_wallet_outlined,
                     size: 17,
                     color: AppPalette.primary,

@@ -5,6 +5,7 @@ import '../../features/installment/domain/repeat_rule.dart';
 import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
 import 'sheet_scaffold.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 小青账风格的分期「执行方式 / 重复周期」底部选择面板。
 ///
@@ -215,7 +216,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           Positioned(
             left: 0,
             child: IconButton(
-              icon: const Icon(Icons.close, size: 20),
+              icon: const LineGlyph(Icons.close, size: 20),
               onPressed: () => Navigator.of(context).pop(),
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
@@ -348,7 +349,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
             right: Radius.zero,
           ),
         ),
-        child: Icon(
+        child: LineGlyph(
           icon,
           size: 18,
           color: onTap == null

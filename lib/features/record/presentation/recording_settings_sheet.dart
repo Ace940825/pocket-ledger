@@ -9,6 +9,7 @@ import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/recording_settings_provider.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 功能按钮固定调色板（账户/图片/标签/不计入/模板），集中为令牌以遵守「页面不抓原始调色板」。
 const Color _funcAccount = Color(0xFFFFD666); // ignore: no_raw_colors
@@ -108,7 +109,7 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
           ),
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: Icon(
+            child: LineGlyph(
               Icons.close,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -572,7 +573,7 @@ class _SimpleSettingsSheet extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () => Navigator.of(context).pop(),
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.close,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -632,7 +633,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
                 ),
                 GestureDetector(
                   onTap: () => Navigator.of(context).pop(),
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.close,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -1031,7 +1032,7 @@ class _KeyboardPreview extends ConsumerWidget {
                         color: b.color,
                         borderRadius: BorderRadius.circular(9),
                       ),
-                      child: Icon(b.icon, size: 11, color: b.textColor),
+                      child: LineGlyph(b.icon, size: 11, color: b.textColor),
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -1057,7 +1058,7 @@ class _KeyboardPreview extends ConsumerWidget {
             );
           }),
           const Spacer(),
-          Icon(
+          LineGlyph(
             Icons.settings_outlined,
             size: 18,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1093,7 +1094,7 @@ class _KeyboardPreview extends ConsumerWidget {
             ),
             Row(
               children: <Widget>[
-                Icon(
+                LineGlyph(
                   Icons.calendar_today_outlined,
                   size: 13,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1155,7 +1156,7 @@ class _KeyboardPreview extends ConsumerWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(
+                  LineGlyph(
                     Icons.calendar_today_outlined,
                     size: 13,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1379,7 +1380,7 @@ class _ArrowBox extends StatelessWidget {
         color: AppPalette.mintSheen,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(
+      child: const LineGlyph(
         Icons.keyboard_arrow_down,
         size: 18,
         color: AppPalette.primary,

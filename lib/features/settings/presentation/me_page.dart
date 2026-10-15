@@ -11,6 +11,7 @@ import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../theme/app_colors.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 记账天数：当前账本最早一笔流水的【真实记录时刻】所在自然日至今（含首尾），
 /// 无流水为 0。
@@ -106,7 +107,7 @@ class MePage extends ConsumerWidget {
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   iconSize: 22,
-                  icon: const Icon(
+                  icon: const LineGlyph(
                     Icons.settings_outlined,
                     color: AppPalette.white,
                   ),
@@ -203,7 +204,7 @@ class MePage extends ConsumerWidget {
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                 child: Row(
                   children: <Widget>[
-                    const Icon(
+                    const LineGlyph(
                       Icons.stars_rounded,
                       size: 18,
                       color: AppPalette.sageLeaf,
@@ -334,7 +335,7 @@ class MePage extends ConsumerWidget {
                   ],
                 ),
               ),
-              Icon(icon, size: 34, color: AppPalette.sageLeaf),
+              LineGlyph(icon, size: 34, color: AppPalette.sageLeaf),
             ],
           ),
         ),
@@ -431,7 +432,7 @@ class MePage extends ConsumerWidget {
               color: AppPalette.neutralMist,
             ),
             alignment: Alignment.center,
-            child: Icon(
+            child: LineGlyph(
               item.icon,
               size: 22,
               color: Theme.of(context).colorScheme.onSurface,

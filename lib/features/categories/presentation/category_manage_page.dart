@@ -17,6 +17,7 @@ import '../../../shared/widgets/menu_item.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/categories_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 分类管理页：按小青账模板重构。
 ///
@@ -72,7 +73,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
         children: <Widget>[
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            icon: const LineGlyph(Icons.arrow_back_ios_new, size: 20),
           ),
           Expanded(
             child: Center(
@@ -96,7 +97,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           ),
           IconButton(
             onPressed: () => _showSortSheet(context, ref, _type),
-            icon: const Icon(Icons.sort_outlined),
+            icon: const LineGlyph(Icons.sort_outlined),
             tooltip: '分类排序',
           ),
         ],
@@ -369,7 +370,7 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
           ),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close),
+            icon: const LineGlyph(Icons.close),
           ),
         ],
       ),
@@ -557,7 +558,7 @@ class _CategoryRow extends StatelessWidget {
               ),
             IconButton(
               onPressed: onMore,
-              icon: Icon(
+              icon: LineGlyph(
                 Icons.more_horiz,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -605,7 +606,7 @@ class _SubcategoryChip extends StatelessWidget {
                       color: AppPalette.surfaceLight,
                       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     ),
-                    child: const Icon(
+                    child: const LineGlyph(
                       Icons.add_circle_outline,
                       color: AppPalette.primary,
                       size: 24,
@@ -689,7 +690,7 @@ Future<void> _showSortSheet(
     title: '分类排序',
     titleTrailing: IconButton(
       onPressed: () => Navigator.of(context).pop(),
-      icon: const Icon(Icons.close),
+      icon: const LineGlyph(Icons.close),
     ),
     isScrollControlled: true,
     body: StatefulBuilder(
@@ -793,7 +794,7 @@ class _SortTile extends StatelessWidget {
         ),
       ),
       title: Text(category.name),
-      trailing: Icon(
+      trailing: LineGlyph(
         Icons.drag_handle,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
@@ -831,7 +832,7 @@ Future<void> _showChangeParentSheet(
     title: '改为子分类',
     titleTrailing: IconButton(
       onPressed: () => Navigator.of(context).pop(),
-      icon: const Icon(Icons.close),
+      icon: const LineGlyph(Icons.close),
     ),
     isScrollControlled: true,
     body: ListView.builder(
@@ -934,7 +935,7 @@ Future<void> _showChildSortSheet(
     title: '子分类排序',
     titleTrailing: IconButton(
       onPressed: () => Navigator.of(context).pop(),
-      icon: const Icon(Icons.close),
+      icon: const LineGlyph(Icons.close),
     ),
     isScrollControlled: true,
     body: StatefulBuilder(

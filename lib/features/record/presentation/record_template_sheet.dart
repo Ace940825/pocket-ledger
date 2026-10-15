@@ -10,6 +10,7 @@ import '../../../database/app_database.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/record_template_providers.dart';
 import 'record_template_page.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 模板草稿：模板模式记一笔页「保存」时打包返回的可入库字段。
 ///
@@ -188,7 +189,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                       color: Theme.of(context).colorScheme.outline,
                     ),
                   ),
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.close,
                     size: 15,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

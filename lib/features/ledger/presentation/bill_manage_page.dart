@@ -5,6 +5,7 @@ import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../theme/app_colors.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「我的 → 账单管理」页（小青账布局）。
 ///
@@ -168,7 +169,7 @@ class _RowItem extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
-              child: Icon(icon, size: 22, color: iconColor),
+              child: LineGlyph(icon, size: 22, color: iconColor),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -196,7 +197,7 @@ class _RowItem extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
+            LineGlyph(
               Icons.chevron_right,
               size: 22,
               color: Theme.of(context).colorScheme.onSurfaceVariant,

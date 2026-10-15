@@ -18,6 +18,7 @@ import '../../../theme/app_theme.dart';
 import '../providers/tag_providers.dart';
 import 'tag_manage_page.dart';
 import 'tag_scope_toggle.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 标签选择弹窗（50% 半屏）。
 ///
@@ -209,7 +210,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       width: 32,
                       height: 32,
                       shape: BoxShape.circle,
-                      child: Icon(
+                      child: LineGlyph(
                         Icons.close,
                         size: 16,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -282,7 +283,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 4),
             child: Row(
               children: <Widget>[
-                Icon(
+                LineGlyph(
                   Icons.search,
                   size: 18,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -314,7 +315,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       _searchCtl.clear();
                       setState(() => _query = '');
                     },
-                    child: Icon(
+                    child: LineGlyph(
                       Icons.close,
                       size: 16,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,

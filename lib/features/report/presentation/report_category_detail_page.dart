@@ -13,6 +13,7 @@ import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../providers/report_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 报表 · 分类明细汇总页。
 ///
@@ -94,14 +95,14 @@ class _ReportCategoryDetailPageState
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const LineGlyph(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,
         title: Text(title),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.refresh_outlined),
+            icon: const LineGlyph(Icons.refresh_outlined),
             tooltip: '刷新',
             onPressed: () {
               ref.invalidate(reportPeriodTransactionsProvider);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 空状态占位。
 class EmptyState extends StatelessWidget {
@@ -52,7 +53,7 @@ class EmptyState extends StatelessWidget {
           color: theme.colorScheme.onSurfaceVariant,
         );
     final Widget iconSlot = iconWidget ??
-        Icon(
+        LineGlyph(
           icon,
           size: 56,
           color: theme.colorScheme.outlineVariant,

@@ -25,6 +25,7 @@ import '../data/account_group_collapse.dart';
 import '../data/account_group_order.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 账户列表页（分组卡片布局）。
 ///
@@ -52,7 +53,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         title: const Text('账户'),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const LineGlyph(Icons.add),
             tooltip: '新增账户',
             onPressed: () => context.push(Routes.accountAdd),
           ),
@@ -774,7 +775,7 @@ class _SlideAction extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(icon, size: 20, color: color),
+            LineGlyph(icon, size: 20, color: color),
             const SizedBox(height: 2),
             Text(
               label,
@@ -1035,7 +1036,7 @@ class _SummaryRow extends StatelessWidget {
                 ),
           ),
           const SizedBox(width: AppDimens.xs),
-          Icon(
+          LineGlyph(
             Icons.chevron_right,
             size: 18,
             color: Theme.of(context).colorScheme.onSurfaceVariant,

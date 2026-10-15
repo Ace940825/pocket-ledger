@@ -3,6 +3,7 @@ import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/shared/widgets/badge_pill.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/theme/app_colors.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 设置页「标题 + 副标题 + 可选徽标 + 可选箭头」卡片行（全应用统一）。
 ///
@@ -116,7 +117,8 @@ class SettingsTile extends StatelessWidget {
             SizedBox(width: 8 * scale),
             trailing!,
           ] else if (onTap != null)
-            const Icon(Icons.chevron_right, color: AppPalette.neutralSlate),
+            const LineGlyph(Icons.chevron_right,
+                color: AppPalette.neutralSlate),
         ],
       ),
     );

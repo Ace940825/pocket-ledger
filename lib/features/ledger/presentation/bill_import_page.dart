@@ -18,6 +18,7 @@ import '../../categories/providers/categories_providers.dart';
 import '../data/bill_io.dart';
 import '../data/transaction_repository.dart';
 import '../providers/ledger_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「账单管理 → 账单导入」页。
 ///
@@ -292,8 +293,8 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _pickFile,
-                          icon:
-                              const Icon(Icons.folder_open_outlined, size: 18),
+                          icon: const LineGlyph(Icons.folder_open_outlined,
+                              size: 18),
                           label: const Text('选择文件'),
                           style: _outlineStyle(),
                         ),
@@ -302,7 +303,8 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _text.text.trim().isEmpty ? null : _parse,
-                          icon: const Icon(Icons.preview_outlined, size: 18),
+                          icon:
+                              const LineGlyph(Icons.preview_outlined, size: 18),
                           label: const Text('解析预览'),
                           style: _outlineStyle(),
                         ),

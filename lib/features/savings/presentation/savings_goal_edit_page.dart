@@ -18,6 +18,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart';
 import '../providers/savings_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 存钱计划编辑页（参照小青账「存钱计划」编辑页截图）：
 ///
@@ -395,7 +396,7 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
             ],
           ),
         ),
-        Icon(
+        LineGlyph(
           Icons.chevron_right,
           size: 22,
           color: Theme.of(context).colorScheme.onSurfaceVariant,

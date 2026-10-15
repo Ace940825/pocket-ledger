@@ -12,6 +12,7 @@ import '../../../shared/widgets/app_toast.dart';
 import '../../../theme/app_colors.dart';
 import '../data/bill_io.dart';
 import '../data/screenshot_ocr.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 「账单管理 → 从截图导入」页。
 ///
@@ -173,7 +174,7 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
                     color: AppPalette.black54,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: const LineGlyph(
                     Icons.close,
                     size: 14,
                     color: AppPalette.white,
@@ -199,14 +200,14 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
         children: <Widget>[
           OutlinedButton.icon(
             onPressed: _busy ? null : _pickGallery,
-            icon: const Icon(Icons.photo_library_outlined, size: 18),
+            icon: const LineGlyph(Icons.photo_library_outlined, size: 18),
             label: const Text('相册'),
             style: _outlineStyle(),
           ),
           const SizedBox(width: AppDimens.sm),
           OutlinedButton.icon(
             onPressed: _busy ? null : _pickCamera,
-            icon: const Icon(Icons.camera_alt_outlined, size: 18),
+            icon: const LineGlyph(Icons.camera_alt_outlined, size: 18),
             label: const Text('拍照'),
             style: _outlineStyle(),
           ),

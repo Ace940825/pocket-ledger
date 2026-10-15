@@ -26,6 +26,7 @@ import '../../record/presentation/account_picker_sheet.dart';
 import '../domain/installment_dates.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 添加分期页（小青账模板）。
 ///
@@ -537,7 +538,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       onTap: onTap,
       child: Row(
         children: <Widget>[
-          Icon(
+          LineGlyph(
             Icons.access_time_outlined,
             size: 18,
             color: Theme.of(context).colorScheme.primary,
@@ -568,7 +569,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(
+          LineGlyph(
             icon,
             size: 18,
             color: Theme.of(context).colorScheme.primary,
@@ -713,7 +714,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   return ListTile(
                     title: Text(option),
                     trailing: option == selected
-                        ? const Icon(Icons.check, color: AppPalette.sage600)
+                        ? const LineGlyph(Icons.check,
+                            color: AppPalette.sage600)
                         : null,
                     onTap: () =>
                         Navigator.of(context, rootNavigator: true).pop(option),
@@ -743,7 +745,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           onTap: () => _showAccountPicker(),
           child: Row(
             children: <Widget>[
-              Icon(
+              LineGlyph(
                 Icons.credit_card_outlined,
                 size: 18,
                 color: Theme.of(context).colorScheme.primary,
@@ -866,7 +868,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           onTap: list.isEmpty ? null : () => _showCategoryPicker(list),
           child: Row(
             children: <Widget>[
-              Icon(
+              LineGlyph(
                 Icons.category_outlined,
                 size: 18,
                 color: Theme.of(context).colorScheme.primary,
@@ -925,7 +927,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                     // 返回键：二级列表回到一级（对齐函数头注释「标题变分类名 + 返回键」）。
                     if (drilled != null)
                       IconButton(
-                        icon: const Icon(Icons.arrow_back),
+                        icon: const LineGlyph(Icons.arrow_back),
                         iconSize: 20,
                         visualDensity: VisualDensity.compact,
                         onPressed: () => setSheetState(() => drilled = null),
@@ -969,7 +971,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                         ),
                         title: Text(category.name),
                         trailing: hasChildren
-                            ? Icon(
+                            ? LineGlyph(
                                 Icons.chevron_right,
                                 size: 20,
                                 color: Theme.of(context)
@@ -977,7 +979,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                                     .onSurfaceVariant,
                               )
                             : (category.id == _categoryId
-                                ? const Icon(
+                                ? const LineGlyph(
                                     Icons.check,
                                     color: AppPalette.sage600,
                                   )
@@ -1011,7 +1013,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       ),
                       title: Text(category.name),
                       trailing: category.id == _categoryId
-                          ? const Icon(
+                          ? const LineGlyph(
                               Icons.check,
                               color: AppPalette.sage600,
                             )
@@ -1290,7 +1292,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
         IconButton(
-          icon: const Icon(Icons.remove_circle_outline),
+          icon: const LineGlyph(Icons.remove_circle_outline),
           onPressed: widget.value <= widget.min ? null : _decrease,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
           padding: EdgeInsets.zero,
@@ -1326,7 +1328,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.add_circle_outline),
+          icon: const LineGlyph(Icons.add_circle_outline),
           onPressed: widget.value >= widget.max ? null : _increase,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
           padding: EdgeInsets.zero,

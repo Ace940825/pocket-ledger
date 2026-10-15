@@ -11,6 +11,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import 'app_toast.dart';
 import 'sheet_scaffold.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 口袋账本「全局共用日历组件」。
 ///
@@ -756,7 +757,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           shape: BoxShape.circle,
         ),
         child: visible
-            ? Icon(
+            ? LineGlyph(
                 Icons.gps_fixed,
                 size: 17,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -3065,7 +3066,7 @@ class _CloseButton extends StatelessWidget {
           radius: 17,
           padding: EdgeInsets.zero,
           child: IconButton(
-            icon: Icon(
+            icon: LineGlyph(
               Icons.close,
               size: 18,
               color: Theme.of(context).colorScheme.onSurface,
@@ -3128,7 +3129,7 @@ class _Arrow extends StatelessWidget {
         margin: const EdgeInsets.only(left: 6),
         radius: 10,
         child: IconButton(
-          icon: Icon(
+          icon: LineGlyph(
             icon,
             size: 16,
             color: Theme.of(context).colorScheme.onSurface,

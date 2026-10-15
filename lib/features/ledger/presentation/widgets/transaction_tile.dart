@@ -19,6 +19,7 @@ import '../../../reimbursement/data/reimbursement_repository.dart';
 import '../../../reimbursement/providers/reimbursement_providers.dart';
 import '../../providers/ledger_providers.dart';
 import 'txn_icon.dart';
+import '../../../../shared/widgets/line_icon_map.dart';
 
 /// 流水列表项（小青账版本，对齐参考稿卡片逻辑）。
 ///
@@ -252,7 +253,7 @@ class TransactionTile extends ConsumerWidget {
               if (attachments != null && attachments.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(right: AppDimens.xs),
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.attach_file,
                     size: 16,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

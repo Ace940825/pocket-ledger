@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../theme/app_colors.dart';
 import 'amount_keypad.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 安全的中缀算术求值：仅支持非负数字与 `+ - * /` 运算符。
 ///
@@ -547,7 +548,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
               children: <Widget>[
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(
+                  icon: LineGlyph(
                     Icons.close,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -580,7 +581,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(
+                  LineGlyph(
                     Icons.info_outline,
                     size: 18,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

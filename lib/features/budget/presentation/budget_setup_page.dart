@@ -23,6 +23,7 @@ import '../../categories/providers/categories_providers.dart';
 import '../data/budget_repository.dart';
 import '../providers/budget_providers.dart';
 import 'budget_editor.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 任意月份收支合计快照（预算概览用；bookId/year/month/type 定位）。
 /// 复用 [TransactionsDao.watchTotalInRange] 的「实付口径」
@@ -356,7 +357,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                           children: <Widget>[
                             const ClayIconTile(
                               color: AppPalette.primary,
-                              child: Icon(
+                              child: LineGlyph(
                                 Icons.account_balance_wallet_outlined,
                                 size: 20,
                                 color: AppPalette.primary,
@@ -383,7 +384,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                                 ],
                               ),
                             ),
-                            Icon(
+                            LineGlyph(
                               Icons.chevron_right,
                               size: 20,
                               color: scheme.onSurfaceVariant,
@@ -402,7 +403,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Icon(
+                            child: LineGlyph(
                               Icons.arrow_right_alt,
                               color: scheme.onSurfaceVariant,
                             ),
@@ -750,7 +751,7 @@ class _HeaderCard extends StatelessWidget {
         children: <Widget>[
           const ClayIconTile(
             color: AppPalette.primary,
-            child: Icon(
+            child: LineGlyph(
               Icons.currency_yuan_outlined,
               size: 22,
               color: AppPalette.primary,

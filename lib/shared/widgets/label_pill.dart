@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
+import '../../shared/widgets/line_icon_map.dart';
 
 /// 静态字段标签胶囊（全应用统一）。
 ///
@@ -41,7 +42,7 @@ class LabelPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (icon != null) ...<Widget>[
-            Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+            LineGlyph(icon, size: 14, color: scheme.onSurfaceVariant),
             const SizedBox(width: 4),
           ],
           Text(

@@ -20,6 +20,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../../tags/providers/tag_providers.dart';
 import '../providers/ledger_providers.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 流水筛选页（小青账布局）：
 /// 顶部返回 + 基本/分类/标签/账户四 Tab + 重置；底部「查询(条件N个)」。
@@ -278,7 +279,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            icon: const LineGlyph(Icons.arrow_back_ios_new, size: 20),
             color: Theme.of(context).colorScheme.onSurface,
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -395,7 +396,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(
+                  LineGlyph(
                     Icons.auto_stories_outlined,
                     size: 15,
                     color: active
@@ -627,7 +628,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                 AnimatedRotation(
                   turns: expanded ? 0.25 : 0,
                   duration: const Duration(milliseconds: 160),
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.chevron_right,
                     size: 20,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -722,7 +723,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           borderRadius: BorderRadius.circular(6),
         ),
         child: checked
-            ? const Icon(Icons.check, size: 14, color: AppPalette.white)
+            ? const LineGlyph(Icons.check, size: 14, color: AppPalette.white)
             : null,
       ),
     );
@@ -870,7 +871,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           fontSize: 15,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
-        prefixIcon: Icon(
+        prefixIcon: LineGlyph(
           Icons.search,
           size: 20,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1498,7 +1499,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                 color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            Icon(
+            LineGlyph(
               Icons.keyboard_arrow_down,
               size: 20,
               color: Theme.of(context).colorScheme.onSurface,

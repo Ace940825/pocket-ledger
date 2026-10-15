@@ -24,6 +24,7 @@ import '../../record/providers/recording_settings_provider.dart';
 import '../providers/savings_providers.dart';
 import 'savings_modes.dart';
 import 'savings_schedule.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 存钱模式创建页（参照小青账「365天存钱法 / 30天倒数存钱法 /
 /// 12月定额存钱法 / 灵活存钱法」独立页面）。
@@ -715,7 +716,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                   left: 10,
                   top: 8,
                   child: IconButton(
-                    icon: const Icon(Icons.close, size: 22),
+                    icon: const LineGlyph(Icons.close, size: 22),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ),
@@ -777,8 +778,9 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                 ...options.map(
                   (String o) => ListTile(
                     title: Text(o, style: const TextStyle(fontSize: 15)),
-                    trailing:
-                        o == value ? const Icon(Icons.check, size: 20) : null,
+                    trailing: o == value
+                        ? const LineGlyph(Icons.check, size: 20)
+                        : null,
                     onTap: () => Navigator.of(context).pop(o),
                   ),
                 ),
@@ -835,7 +837,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
-            Icon(
+            LineGlyph(
               Icons.chevron_right,
               size: 22,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1008,7 +1010,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                 ],
               ),
             ),
-            Icon(
+            LineGlyph(
               Icons.chevron_right,
               size: 22,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1118,7 +1120,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
             ],
           ),
         ),
-        Icon(
+        LineGlyph(
           Icons.chevron_right,
           size: 22,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1511,7 +1513,7 @@ class _SavingsKeypad extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: Center(
           child: icon != null
-              ? Icon(
+              ? LineGlyph(
                   icon,
                   size: 20,
                   color: sage

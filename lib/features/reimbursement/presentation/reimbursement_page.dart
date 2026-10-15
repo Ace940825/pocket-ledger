@@ -33,6 +33,7 @@ import '../../record/presentation/record_sheet.dart';
 import '../data/reimbursement_repository.dart';
 import '../providers/reimbursement_providers.dart';
 import 'reimbursement_grouping.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 状态筛选（顶部 chips）：全部 / 待报销 / 已报销 / 报销收入。
 enum _StatusFilter { all, pending, reimbursed, incomes }
@@ -957,7 +958,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
                 child: _swipeChild(
                   context,
                   // 设计稿迁移图标：上箭头 + 下箭头（↥↧）。
-                  Icon(
+                  LineGlyph(
                     Icons.import_export,
                     size: 16,
                     color: Theme.of(context).colorScheme.onPrimary,
@@ -1119,7 +1120,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
                 onPressed: () => _showEditor(),
                 gradient: ForestGradients.button,
                 textColor: Theme.of(context).colorScheme.onPrimary,
-                icon: Icon(
+                icon: LineGlyph(
                   Icons.add,
                   size: 18,
                   color: Theme.of(context).colorScheme.onPrimary,
@@ -1396,7 +1397,7 @@ class _FilterRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 5),
                   // 设计稿 .year-btn svg：12px、text3
-                  Icon(
+                  LineGlyph(
                     Icons.keyboard_arrow_down,
                     size: 12,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1589,7 +1590,7 @@ class _ReimbTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(13),
                 ),
                 alignment: Alignment.center,
-                child: Icon(
+                child: LineGlyph(
                   pending ? Icons.hourglass_bottom : Icons.check,
                   size: 18,
                   color: pending ? ForestAccent.gold : ForestGreen.deep,
@@ -2085,7 +2086,7 @@ class _YearRow extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
-                  child: Icon(
+                  child: LineGlyph(
                     Icons.check,
                     size: 14,
                     color: Theme.of(context).colorScheme.onPrimary,
@@ -2224,7 +2225,7 @@ class _AssetActionSheet extends StatelessWidget {
               onTap: onEditAsset,
             ),
             ActionRow(
-              icon: const Icon(
+              icon: const LineGlyph(
                 Icons.swap_vert,
                 size: 17,
                 color: ForestGreen.deep,
@@ -2239,7 +2240,7 @@ class _AssetActionSheet extends StatelessWidget {
         ActionGroup(
           children: <Widget>[
             ActionRow(
-              icon: const Icon(
+              icon: const LineGlyph(
                 Icons.swap_horiz,
                 size: 17,
                 color: ForestGreen.deep,
@@ -2275,7 +2276,7 @@ class _AssetActionSheet extends StatelessWidget {
               onTap: onClear,
             ),
             ActionRow(
-              icon: const Icon(
+              icon: const LineGlyph(
                 Icons.delete_forever,
                 size: 17,
                 color: ForestSemantic.expense,
@@ -2351,7 +2352,7 @@ class _AccountPickerSheet extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        Icon(
+                        LineGlyph(
                           Icons.chevron_right,
                           size: 16,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -2532,7 +2533,7 @@ class _ReimbAccountCard extends StatelessWidget {
                     ForestAccent.gold,
                   ),
                   const Spacer(),
-                  Icon(
+                  LineGlyph(
                     Icons.chevron_right,
                     size: 18,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

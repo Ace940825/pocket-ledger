@@ -19,6 +19,7 @@ import '../domain/fee_utils.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
 import 'installment_detail_page.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 分期页：进行中 / 已结束双 Tab + 计划卡片（对照有钱记账分期文档布局）。
 ///
@@ -503,7 +504,8 @@ class _SlideAction extends StatelessWidget {
               border: Border.all(color: color.withValues(alpha: 0.20)),
             ),
             alignment: Alignment.center,
-            child: Icon(icon, size: 24, color: color, semanticLabel: label),
+            child:
+                LineGlyph(icon, size: 24, color: color, semanticLabel: label),
           ),
           const SizedBox(height: 4),
           Text(

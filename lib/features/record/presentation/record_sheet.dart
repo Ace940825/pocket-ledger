@@ -70,6 +70,7 @@ import 'account_picker_sheet.dart';
 import 'bill_selection_page.dart';
 import 'record_template_sheet.dart';
 import 'recording_settings_sheet.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 投资成交回执：保存成功后弹窗展示的只读数据快照。
 typedef _InvReceipt = ({
@@ -1830,7 +1831,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.backspace_outlined),
+          icon: const LineGlyph(Icons.backspace_outlined),
           onPressed: () => setState(() {
             _amount = _amount.isNotEmpty
                 ? _amount.substring(0, _amount.length - 1)
@@ -1995,7 +1996,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 color: ForestGreen.soft,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: const LineGlyph(
                 Icons.savings_outlined,
                 size: 18,
                 color: ForestGreen.deep,
@@ -2025,7 +2026,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ],
               ),
             ),
-            Icon(
+            LineGlyph(
               Icons.chevron_right,
               size: 20,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -2053,7 +2054,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   color: ForestGreen.soft,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: const LineGlyph(
                   Icons.add_circle_outline,
                   size: 18,
                   color: ForestGreen.deep,
@@ -2070,7 +2071,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   ),
                 ),
               ),
-              Icon(
+              LineGlyph(
                 Icons.chevron_right,
                 size: 20,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -2323,7 +2324,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           children: <Widget>[
             const Row(
               children: <Widget>[
-                Icon(Icons.sync_alt, size: 14, color: ForestGreen.deep),
+                LineGlyph(Icons.sync_alt, size: 14, color: ForestGreen.deep),
                 SizedBox(width: 6),
                 Text(
                   '账户互转',
@@ -2592,7 +2593,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               ),
             ],
           ),
-          child: Icon(
+          child: LineGlyph(
             Icons.sync_alt,
             size: 20,
             color: Theme.of(context).colorScheme.onPrimary,
@@ -2657,7 +2658,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       ),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.sync_alt, size: 13, color: ForestGreen.deep),
+          const LineGlyph(Icons.sync_alt, size: 13, color: ForestGreen.deep),
           const SizedBox(width: 5),
           Expanded(
             child: Row(
@@ -2872,7 +2873,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(
+          LineGlyph(
             Icons.info_outline,
             size: 16,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -2971,7 +2972,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       ]
                     : _Sage.shadow,
               ),
-              child: Icon(
+              child: LineGlyph(
                 action.icon(_lendDir),
                 size: 20,
                 color: selected
@@ -3105,7 +3106,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                           ),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(
+                        child: LineGlyph(
                           isAsset
                               ? Icons.account_balance_wallet_outlined
                               : Icons.account_box_outlined,
@@ -3164,7 +3165,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                           ],
                         ),
                       ),
-                      Icon(
+                      LineGlyph(
                         Icons.chevron_right,
                         size: 20,
                         color: picked
@@ -3192,7 +3193,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(
+          const LineGlyph(
             Icons.info_outline,
             size: 12,
             color: _Sage.sageB,
@@ -3258,7 +3259,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       ),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(
+                    child: LineGlyph(
                       Icons.account_box_outlined,
                       size: 17,
                       color: picked
@@ -3312,7 +3313,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       ],
                     ),
                   ),
-                  Icon(
+                  LineGlyph(
                     Icons.keyboard_arrow_down,
                     size: 20,
                     color: picked
@@ -3612,7 +3613,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(
+              LineGlyph(
                 Icons.calculate_outlined,
                 size: 15,
                 color: enabled
@@ -3756,7 +3757,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Icon(
+              const LineGlyph(
                 Icons.info_outline,
                 size: 14,
                 color: _Sage.greenDeep,
@@ -3803,7 +3804,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       ),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.timer_outlined, size: 16, color: _Sage.greenDeep),
+          const LineGlyph(Icons.timer_outlined,
+              size: 16, color: _Sage.greenDeep),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -4448,7 +4450,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 color: picked ? null : _Sage.greenSoft,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
+              child: LineGlyph(
                 Icons.show_chart_outlined,
                 size: 17,
                 color: picked
@@ -4485,7 +4487,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ],
               ),
             ),
-            Icon(
+            LineGlyph(
               Icons.chevron_right,
               size: 20,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -4810,7 +4812,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(Icons.info_outline, size: 16, color: _Sage.greenDeep),
+          const LineGlyph(Icons.info_outline, size: 16, color: _Sage.greenDeep),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -5198,7 +5200,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         if (pickIcon) ...<Widget>[
-                          Icon(
+                          LineGlyph(
                             Icons.grid_view_outlined,
                             size: 13,
                             color:
@@ -5361,7 +5363,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             shape: BoxShape.circle,
           ),
           child: Center(
-            child: Icon(
+            child: LineGlyph(
               Icons.check,
               size: 14,
               color: Theme.of(context).colorScheme.onPrimary,
@@ -5387,7 +5389,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               : null,
         ),
         child: sel
-            ? Icon(
+            ? LineGlyph(
                 Icons.check,
                 size: 13,
                 color: Theme.of(context).colorScheme.onPrimary,
@@ -5660,7 +5662,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             size: 20,
             color: tint,
           )
-        : Icon(Icons.receipt_long, size: 20, color: tint);
+        : LineGlyph(Icons.receipt_long, size: 20, color: tint);
     final String title =
         cat?.name ?? (t.note?.isNotEmpty == true ? t.note! : '支出');
     final DateTime occurred = DateTime.fromMillisecondsSinceEpoch(
@@ -5952,7 +5954,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               border: Border.all(color: _Sage.sageA, width: 1.5),
             ),
             child: const Center(
-              child: Icon(Icons.add, size: 22, color: _Sage.greenDeep),
+              child: LineGlyph(Icons.add, size: 22, color: _Sage.greenDeep),
             ),
           ),
         ),
@@ -8099,7 +8101,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           ),
         ),
         IconButton(
-          icon: Icon(
+          icon: LineGlyph(
             _keyboardExpanded
                 ? Icons.keyboard_arrow_down
                 : Icons.keyboard_arrow_up,
@@ -8179,7 +8181,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             onTap: _pickDate,
             child: Row(
               children: <Widget>[
-                Icon(
+                LineGlyph(
                   Icons.calendar_today_outlined,
                   size: 16,
                   color: Theme.of(context).colorScheme.primary,
@@ -8321,7 +8323,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           child: Row(
             children: <Widget>[
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new),
+                icon: const LineGlyph(Icons.arrow_back_ios_new),
                 iconSize: 24,
                 // 模板模式经 MaterialPageRoute push，不走 go_router 返回。
                 onPressed: () => widget.templateMode
@@ -8645,7 +8647,7 @@ class _ViewToggle extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(
+                LineGlyph(
                   icon,
                   size: 16,
                   color: selected ? scheme.primary : scheme.onSurfaceVariant,
@@ -8862,7 +8864,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
           leading: _categoryLeadIcon(child.iconKey, color),
           title: Text(child.name),
           trailing: child.id == widget.selectedId
-              ? Icon(Icons.check, color: theme.colorScheme.primary)
+              ? LineGlyph(Icons.check, color: theme.colorScheme.primary)
               : null,
           onTap: () => Navigator.of(context).pop(child.id),
         );
@@ -9062,7 +9064,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
               title: const Text('优惠前算法'),
               subtitle: const Text('键盘输入为优惠金额，优惠后 = 优惠前 − 优惠'),
               trailing: _algo == 'discount'
-                  ? const Icon(Icons.check, color: ForestGreen.deep)
+                  ? const LineGlyph(Icons.check, color: ForestGreen.deep)
                   : null,
               onTap: () => Navigator.of(context).pop('discount'),
             ),
@@ -9070,7 +9072,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
               title: const Text('优惠后算法'),
               subtitle: const Text('键盘输入为优惠后金额，优惠 = 优惠前 − 优惠后'),
               trailing: _algo == 'paid'
-                  ? const Icon(Icons.check, color: ForestGreen.deep)
+                  ? const LineGlyph(Icons.check, color: ForestGreen.deep)
                   : null,
               onTap: () => Navigator.of(context).pop('paid'),
             ),
@@ -9099,7 +9101,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Icon(
+            LineGlyph(
               Icons.info_outline,
               size: 16,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -9207,7 +9209,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
               ),
               child: Center(
                 child: selected
-                    ? Icon(
+                    ? LineGlyph(
                         Icons.check,
                         size: 12,
                         color: Theme.of(context).colorScheme.onPrimary,
@@ -9521,7 +9523,7 @@ class _PromptSheetState extends State<_PromptSheet> {
                 Text(widget.title, style: theme.textTheme.titleMedium),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const LineGlyph(Icons.close),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -9631,7 +9633,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                       width: 30,
                       height: 30,
                       shape: BoxShape.circle,
-                      child: Icon(
+                      child: LineGlyph(
                         Icons.close,
                         size: 16,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -9819,7 +9821,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
               fit: BoxFit.cover,
               errorBuilder: (_, Object e, StackTrace? st) => Container(
                 color: context.colors.surfaceContainerHighest,
-                child: Icon(
+                child: LineGlyph(
                   Icons.broken_image_outlined,
                   size: 22,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -9844,7 +9846,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                 shape: BoxShape.circle,
                 border: Border.all(color: context.colors.surface, width: 1.5),
               ),
-              child: Icon(
+              child: LineGlyph(
                 Icons.close,
                 size: 12,
                 color: Theme.of(context).colorScheme.onPrimary,
@@ -10888,7 +10890,7 @@ class _InvestHoldingPickerSheetState
               ),
             ),
             const SizedBox(width: 6),
-            Icon(
+            LineGlyph(
               Icons.north_west,
               size: 14,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -11278,7 +11280,7 @@ class _PickerIconBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(17),
             border: Border.all(color: context.colors.outline, width: 1),
           ),
-          child: Icon(
+          child: LineGlyph(
             icon,
             size: 15,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -11547,7 +11549,7 @@ class _HoldingTile extends StatelessWidget {
           Positioned(
             top: 10,
             right: 12,
-            child: Icon(
+            child: LineGlyph(
               Icons.check_circle,
               size: 18,
               color: Theme.of(context).colorScheme.onPrimary,
@@ -11594,7 +11596,7 @@ class _HoldingRow extends StatelessWidget {
                 color: _Sage.greenSoft,
                 borderRadius: BorderRadius.circular(AppDimens.radiusSm),
               ),
-              child: const Icon(
+              child: const LineGlyph(
                 Icons.show_chart_outlined,
                 color: _Sage.greenDeep,
                 size: 22,
@@ -11633,7 +11635,8 @@ class _HoldingRow extends StatelessWidget {
             ),
             if (selected) ...<Widget>[
               const SizedBox(width: 8),
-              const Icon(Icons.check_circle, size: 20, color: _Sage.greenDeep),
+              const LineGlyph(Icons.check_circle,
+                  size: 20, color: _Sage.greenDeep),
             ],
           ],
         ),
@@ -11690,7 +11693,7 @@ class _InvestmentReceiptCard extends StatelessWidget {
           children: <Widget>[
             Row(
               children: <Widget>[
-                Icon(
+                LineGlyph(
                   Icons.receipt_long_outlined,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),

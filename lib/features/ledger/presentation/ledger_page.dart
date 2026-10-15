@@ -24,6 +24,7 @@ import 'ledger_filter_page.dart';
 import 'transaction_detail_sheet.dart';
 import 'widgets/transaction_tile.dart';
 import 'widgets/txn_slidable.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 /// 账单页（小青账布局）：
 /// 顶部居中标题「账单」+ 右侧搜索；副标题行左侧周期切换、右侧筛选入口；
@@ -120,7 +121,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         title: const Text('账单'),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const LineGlyph(Icons.search),
             onPressed: () => showAppToast(context, '搜索功能将在后续版本提供'),
           ),
         ],
@@ -242,7 +243,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  Icon(
+                  LineGlyph(
                     Icons.keyboard_arrow_down,
                     size: 20,
                     color: Theme.of(context).colorScheme.onSurface,
@@ -263,7 +264,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(
+                  LineGlyph(
                     Icons.tune,
                     size: 18,
                     color: (advFilter?.isEmpty ?? true)

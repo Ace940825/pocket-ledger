@@ -24,6 +24,7 @@ import '../../../routing/app_router.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/recording_settings_provider.dart';
 import 'account_picker_sheet.dart';
+import '../../../shared/widgets/line_icon_map.dart';
 
 class DefaultAssetSettingsSheet extends ConsumerWidget {
   const DefaultAssetSettingsSheet({super.key});
@@ -288,7 +289,7 @@ class _ValuePill extends StatelessWidget {
               ),
             ),
             SizedBox(width: 4 * s),
-            Icon(
+            LineGlyph(
               Icons.chevron_right,
               size: 14 * s,
               color: ForestSage.ink.withValues(alpha: .65),
