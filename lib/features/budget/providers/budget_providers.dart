@@ -19,9 +19,9 @@ final StreamProvider<List<Budget>> budgetListProvider =
 /// 按账本取预算行（预算表带 bookId）。
 /// 预算主页的跨账本网格与预算分类页（任意账本）共用。
 final AutoDisposeStreamProviderFamily<List<Budget>, String>
-    bookBudgetsProvider = StreamProvider.autoDispose.family<List<Budget>, String>(
-  (Ref ref, String bookId) =>
-      ref.watch(budgetRepositoryProvider).watch(bookId),
+    bookBudgetsProvider =
+    StreamProvider.autoDispose.family<List<Budget>, String>(
+  (Ref ref, String bookId) => ref.watch(budgetRepositoryProvider).watch(bookId),
 );
 
 /// 单条预算的已用金额查询键。

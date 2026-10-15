@@ -3,7 +3,7 @@ import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/theme/app_colors.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 
-import '../../../shared/widgets/line_icons.dart';
+import 'line_icons.dart';
 
 /// 设置页「标题 + 副标题 + 开关」行（全应用统一）。
 ///

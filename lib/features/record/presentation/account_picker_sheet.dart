@@ -19,6 +19,7 @@ import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/clay_icon_tile.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
 import '../../accounts/providers/accounts_providers.dart';
