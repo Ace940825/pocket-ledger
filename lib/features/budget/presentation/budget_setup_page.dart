@@ -48,8 +48,10 @@ final AutoDisposeFutureProviderFamily<int, (String, int, int, TxnType)>
   },
 );
 
-/// 来源月结余如何并入目标月草稿（对标参考稿；暂为占位状态，
-/// 复制落库在分类预算草稿链路落地后接通）。
+/// 来源月结余/差额如何并入目标月草稿（对标参考稿）：
+/// 支出方向 = 不复制/仅结余/超支结余；收入方向 = 不复制/结转超额/
+/// 结转缺口（第 29 批按「收入目标」语义重命名——「结余/超支」是
+/// 支出词汇，收入侧的下月目标只用达成导向说法）。
 enum _CopyMode { none, balanceOnly, overspendBalance }
 
 /// 全部账本（账本名按 bookId 查找用）。
@@ -59,7 +61,7 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
 );
 
 /// 设置月预算页（2026-10-15 依小青账截图对标，第 25 批反馈修正；
-/// 第 28 批「收入预算→收入目标」语义重构）：
+/// 第 28 批「收入预算→收入目标」、第 29 批复制模式按方向改名）：
 ///
 /// - 顶部：✕ 关闭 + 居中「设置月预算」（收入方向显「设置月收入目标」；
 ///   支出/收入切换不在顶栏）；
@@ -69,20 +71,22 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
 /// - 复制范围卡：账本行（可点，弹账本列表切换）+ 来源月份 → 目标月份；
 /// - 「{目标月}预算」标题行（行右 = 支出/收入切换，对标小青账）；
 ///   「{来源月}预算概览」卡（收入方向显「收入概览」，三格 =
-///   目标/收入/差额）：
-///   预算/消费/结余三格 + 不复制/仅结余/超支结余分段（结余为 0 时置灰）；
+///   目标/收入/差额）+ 复制模式分段（结余/差额为 0 时置灰）：
+///   - 支出：不复制 / 仅结余 / 超支结余；
+///   - 收入：不复制 / 结转超额 / 结转缺口（第 29 批改名）；
 /// - 「{目标月}总预算」卡（收入方向显「总目标」）：输入框，草稿口径 =
-///   目标月已有预算 > 复制模式起草（不复制=来源总预算 / 仅结余=结余>0
-///   时的结余 / 超支结余=结余负值按 0）；
+///   目标月已有预算 > 复制模式起草（merge 模型：草稿 = 来源口径
+///   ± 结转额，与「并入」提示语一致；各模式算法见 _copyDraftMinor）；
 /// - 「{目标月}分类预算」卡（收入方向显「分类目标」）：空状态 + 添加
 ///   （接通预算编辑弹窗），已有预算列行，点按编辑；保存时复制模式非
 ///   「不复制」会把来源月有、目标月没有的同方向分类预算一并带入；
 /// - 底部粘性保存按钮（鼠尾草渐变，支出=「保存支出预算」/ 收入=
 ///   「保存收入目标」）。
 ///
-/// 口径说明：预算表无收支方向字段——总预算行（scope=overall）按
-/// 支出口径保存；收入方向的总目标暂不支持单独保存（toast 提示），
-/// 收入方向走分类目标。收入概览的「目标」= 来源月收入分类预算合计。
+/// 口径说明（第 29 批修正）：预算表无收支方向字段——总预算行
+/// （scope=overall）按支出口径保存；收入方向的总目标不单独落库
+/// （= Σ分类目标，输入框仅作结转预览），保存时执行「来源月分类
+/// 目标带入目标月」。收入概览的「目标」= 来源月收入分类预算合计。
 class BudgetSetupPage extends ConsumerStatefulWidget {
   const BudgetSetupPage({
     super.key,
@@ -151,16 +155,16 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
   void _syncDraft(List<Budget>? budgets) {
     if (budgets == null) return;
     if (!_totalTouched) {
-      // 目标月已有总预算 → 预填已有值（保存即更新）；
-      // 否则按复制模式从来源月起草（结余口径的草稿在 _applyCopyModeDraft）。
-      final Budget? targetOverall = _overallOf(budgets, _target);
-      final Budget? srcOverall = _overallOf(budgets, _source);
-      final String want = targetOverall != null
-          ? _minorText(targetOverall.amountMinor)
-          : _copyMode == _CopyMode.none
-              ? _minorText(srcOverall?.amountMinor ?? 0)
-              : _totalController.text;
-      if (_totalController.text != want) _totalController.text = want;
+      // 目标月已有总预算（仅支出口径）→ 预填已有值（保存即更新）；
+      // 否则预填交给 _applyCopyModeDraft（按复制模式从来源月起草，
+      // 含「不复制」——支出取来源月总预算、收入取来源月分类目标合计）。
+      final Budget? targetOverall = _direction == CategoryType.expense
+          ? _overallOf(budgets, _target)
+          : null;
+      if (targetOverall != null) {
+        final String want = _minorText(targetOverall.amountMinor);
+        if (_totalController.text != want) _totalController.text = want;
+      }
     }
     if (!_reminderTouched) {
       final bool want = _overallOf(budgets, _target)?.alertEnabled ?? true;
@@ -168,24 +172,55 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
     }
   }
 
-  /// 复制模式起草（需要来源月消费口径，build 里算出结余后调用）：
-  /// 未手动改、目标月无已有总预算时，按模式预填——
-  /// 不复制 = 来源月总预算；仅结余 = 结余 > 0 时的结余，否则留空；
-  /// 超支结余 = 结余（负值按 0 起草，预算不能为负）。
-  void _applyCopyModeDraft(int srcBalanceMinor) {
+  /// 复制模式起草（需要来源月口径，build 里算出后调用）：
+  /// 未手动改、目标月无已有总预算（仅支出口径）时，按模式预填。
+  /// merge 模型：草稿 = 来源口径 ± 结转额（与「并入」提示语一致）。
+  void _applyCopyModeDraft(int srcBudgetMinor, int srcBalanceMinor) {
     if (_totalTouched) return;
     final List<Budget>? budgets =
         ref.read(bookBudgetsProvider(_bookId)).valueOrNull;
-    if (budgets == null || _overallOf(budgets, _target) != null) return;
-    final String want = switch (_copyMode) {
-      _CopyMode.none =>
-        _minorText(_overallOf(budgets, _source)?.amountMinor ?? 0),
-      _CopyMode.balanceOnly =>
-        srcBalanceMinor > 0 ? _minorText(srcBalanceMinor) : '',
-      _CopyMode.overspendBalance =>
-        _minorText(srcBalanceMinor > 0 ? srcBalanceMinor : 0),
-    };
-    if (_totalController.text != want) _totalController.text = want;
+    if (budgets == null) return;
+    // 目标月已有总预算 → 预填已有值由 _syncDraft 负责（仅支出口径；
+    // 收入方向无 overall 行，永远按复制模式起草）。
+    if (_direction == CategoryType.expense &&
+        _overallOf(budgets, _target) != null) {
+      return;
+    }
+    final String text = _minorText(
+      _copyDraftMinor(srcBudgetMinor, srcBalanceMinor),
+    );
+    if (_totalController.text != text) _totalController.text = text;
+  }
+
+  /// 复制模式草稿额（merge 模型：来源口径 ± 结转额）：
+  ///
+  /// - 支出·不复制 = 来源月总预算；
+  /// - 支出·仅结余 = 总预算 + 结余（结余 > 0 才并入；超支不动）；
+  /// - 支出·超支结余 = 总预算 + 结余（含负结余：超支额抵减，≤0 留空）；
+  /// - 收入·不复制 = 来源月收入分类目标合计；
+  /// - 收入·结转超额 = 目标合计 − 超额（差额 < 0 才抵减；未达不动）；
+  /// - 收入·结转缺口 = 目标合计 + 缺口（差额 > 0 才累加；超额不动）。
+  int _copyDraftMinor(int srcBudgetMinor, int srcBalanceMinor) {
+    switch (_copyMode) {
+      case _CopyMode.none:
+        return srcBudgetMinor;
+      case _CopyMode.balanceOnly:
+        if (_direction == CategoryType.expense) {
+          return srcBalanceMinor > 0
+              ? srcBudgetMinor + srcBalanceMinor
+              : srcBudgetMinor;
+        }
+        return srcBalanceMinor < 0
+            ? srcBudgetMinor + srcBalanceMinor
+            : srcBudgetMinor;
+      case _CopyMode.overspendBalance:
+        if (_direction == CategoryType.expense) {
+          return srcBudgetMinor + srcBalanceMinor;
+        }
+        return srcBalanceMinor > 0
+            ? srcBudgetMinor + srcBalanceMinor
+            : srcBudgetMinor;
+    }
   }
 
   String _minorText(int minor) =>
@@ -287,13 +322,8 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
     if (amount == null || amount <= 0) {
       showToast(
         context,
-        _direction == CategoryType.expense ? '请输入大于 0 的总预算' : '请输入大于 0 的总目标',
+        _direction == CategoryType.expense ? '请输入大于 0 的总预算' : '请先设置来源月的收入分类目标',
       );
-      return;
-    }
-    // 预算表无方向字段：总预算行按支出口径保存；收入总目标待表结构支持。
-    if (_direction != CategoryType.expense) {
-      showToast(context, '收入总目标暂未支持单独保存，可先添加收入分类目标');
       return;
     }
     final List<Budget> budgets =
@@ -345,36 +375,44 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
           carried++;
         }
       }
-      if (existing == null) {
-        await repo.add(
-          bookId: _bookId,
-          scope: BudgetScope.overall,
-          period: BudgetPeriod.monthly,
-          amountMinor: Money.fromDecimal(amount).minor,
-          year: _target.year,
-          periodIndex: _target.month,
-          categoryId: null,
-          alertEnabled: _reminder,
-          alertThreshold: 80,
-        );
-      } else {
-        await repo.update(
-          id: existing.id,
-          scope: BudgetScope.overall,
-          period: BudgetPeriod.monthly,
-          amountMinor: Money.fromDecimal(amount).minor,
-          year: _target.year,
-          periodIndex: _target.month,
-          categoryId: null,
-          alertEnabled: _reminder,
-          alertThreshold: existing.alertThreshold,
-        );
+      // 总预算行仅支出口径落库（表无方向字段）；收入方向的总目标
+      // = Σ分类目标（不单独保存，输入框只作结转预览，第 29 批）。
+      if (_direction == CategoryType.expense) {
+        if (existing == null) {
+          await repo.add(
+            bookId: _bookId,
+            scope: BudgetScope.overall,
+            period: BudgetPeriod.monthly,
+            amountMinor: Money.fromDecimal(amount).minor,
+            year: _target.year,
+            periodIndex: _target.month,
+            categoryId: null,
+            alertEnabled: _reminder,
+            alertThreshold: 80,
+          );
+        } else {
+          await repo.update(
+            id: existing.id,
+            scope: BudgetScope.overall,
+            period: BudgetPeriod.monthly,
+            amountMinor: Money.fromDecimal(amount).minor,
+            year: _target.year,
+            periodIndex: _target.month,
+            categoryId: null,
+            alertEnabled: _reminder,
+            alertThreshold: existing.alertThreshold,
+          );
+        }
       }
       if (mounted) {
         showToast(
           context,
-          '已保存 ${_target.year}-${_target.month} 支出预算'
-          '${carried > 0 ? '，带入 $carried 个分类预算' : ''}',
+          _direction == CategoryType.expense
+              ? '已保存 ${_target.year}-${_target.month} 支出预算'
+                  '${carried > 0 ? '，带入 $carried 个分类预算' : ''}'
+              : carried > 0
+                  ? '已带入 $carried 个收入分类目标'
+                  : '收入分类目标已存在，无需带入',
         );
         Navigator.of(context).pop();
       }
@@ -461,8 +499,8 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
         0;
     final int srcBalanceMinor = srcBudgetMinor - srcSpentMinor;
 
-    // 复制模式起草：结余口径的预填要在消费数据到位后执行。
-    _applyCopyModeDraft(srcBalanceMinor);
+    // 复制模式起草：结余/差额口径的预填要在收支数据到位后执行。
+    _applyCopyModeDraft(srcBudgetMinor, srcBalanceMinor);
 
     // ── 目标月分类预算（按当前方向过滤）──
     final Map<String, Category> catById = <String, Category>{
@@ -688,18 +726,25 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                       ),
                       const SizedBox(height: 10),
                       SegmentedRow<_CopyMode>(
-                        options: const <SegmentOption<_CopyMode>>[
-                          SegmentOption<_CopyMode>(
+                        options: <SegmentOption<_CopyMode>>[
+                          const SegmentOption<_CopyMode>(
                             value: _CopyMode.none,
                             label: '不复制',
                           ),
                           SegmentOption<_CopyMode>(
                             value: _CopyMode.balanceOnly,
-                            label: '仅结余',
+                            // 支出=仅结余；收入=结转超额（第 29 批：
+                            // 「结余/超支」是支出词汇，收入侧按目标
+                            // 语义改名）。
+                            label: _direction == CategoryType.expense
+                                ? '仅结余'
+                                : '结转超额',
                           ),
                           SegmentOption<_CopyMode>(
                             value: _CopyMode.overspendBalance,
-                            label: '超支结余',
+                            label: _direction == CategoryType.expense
+                                ? '超支结余'
+                                : '结转缺口',
                           ),
                         ],
                         value: _copyMode,
@@ -710,16 +755,25 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                             return;
                           }
                           setState(() => _copyMode = v);
-                          _applyCopyModeDraft(srcBalanceMinor);
+                          _applyCopyModeDraft(srcBudgetMinor, srcBalanceMinor);
                         },
                       ),
                       const SizedBox(height: 10),
                       InfoTipRow(
                         text: srcBalanceMinor == 0
-                            ? '${_source.year}-${_source.month}没有可计入的结余或超支'
-                            : '可计入结余 '
-                                '${Money.fromMinor(srcBalanceMinor).format()}，'
-                                '保存后并入目标月份草稿',
+                            ? '${_source.year}-${_source.month}'
+                                '${_direction == CategoryType.expense ? '没有可计入的结余或超支' : '收入与目标持平，无可结转'}'
+                            : _direction == CategoryType.expense
+                                ? '可计入结余 '
+                                    '${Money.fromMinor(srcBalanceMinor).format()}，'
+                                    '保存后并入目标月份草稿'
+                                : srcBalanceMinor < 0
+                                    ? '可结转超额 '
+                                        '${Money.fromMinor(-srcBalanceMinor).format()}'
+                                        '（抵减下月目标），保存后并入目标月份草稿'
+                                    : '可结转缺口 '
+                                        '${Money.fromMinor(srcBalanceMinor).format()}'
+                                        '（累加到下月目标），保存后并入目标月份草稿',
                       ),
                     ],
                   ),

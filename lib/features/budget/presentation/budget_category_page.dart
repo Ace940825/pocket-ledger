@@ -86,11 +86,15 @@ final AutoDisposeStreamProviderFamily<Map<String, CategoryTotal>,
 /// - 分类预算卡：「添加」pill + 一级分类聚合行（默认折叠，点击展开/
 ///   收起；展开显示二级预算行 + 「添加二级预算」入口）+ 各分类预算行
 ///   （黏土方糖图标 + 剩余% + 进度条 + 本期消费/收入 + 笔数）；
-///   收入方向：卡标题「分类目标」、行内「已完成%」/「已达成」/「目标:」。
+///   收入方向：卡标题「分类目标」、行内「已完成%」/「已达成」/「目标:」；
+///   第 29 批总闸制：一级行金额 = 总闸优先否则 Σ二级（不叠加），
+///   一级行已用 = 自身 + Σ名下全部二级流水（穿透，含无预算的二级）；
 /// - 底部悬浮「月预算 / 年预算」胶囊。
 ///
 /// 口径：总预算（scope=overall）按支出口径保存（表无方向字段），
 /// 收入方向的「目标」= 收入分类预算合计；铅笔编辑仅支出方向可用。
+/// 一级/二级预算关系（第 29 批）：流水记在二级，一级是汇总容器——
+/// 已用必须穿透；金额总闸与二级不叠加，概览总额按分组成效额去重。
 class BudgetCategoryPage extends ConsumerStatefulWidget {
   const BudgetCategoryPage({
     super.key,
@@ -164,34 +168,28 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     }
   }
 
-  /// 周期内总预算：支出 = 总预算行 + Σ支出分类预算（第 21 批反馈：
-  /// 「月预算没有识别到分类预算」——未设总预算时也要把分类预算算进来，
-  /// 与预算主页 book 总口径一致）；收入 = 收入分类目标合计（第 28 批
-  /// 「收入预算→收入目标」，数据同源、措辞不同）。
+  /// 周期内总预算（第 29 批总闸制·去重）：
+  /// 支出 = 总预算行（scope=overall）+ Σ各一级分组成效额；
+  /// 收入 = Σ各一级分组成效额。分组成效额 = 一级自身预算（总闸）
+  /// 优先，否则 Σ二级预算——一级与二级不叠加，杜绝双计
+  /// （旧口径裸加全部预算行，一级二级同设时同一笔额度算两遍）。
   int _totalBudgetMinor(
-      List<Budget> periodBudgets, Map<String, Category> byId) {
+    List<Budget> periodBudgets,
+    List<_BudgetGroupData> groups,
+  ) {
+    final int byGroup = groups.fold<int>(
+      0,
+      (int s, _BudgetGroupData g) => s + g.effectiveMinor,
+    );
     if (_isExpense) {
       final int overall = periodBudgets
               .where((Budget b) => b.scope == BudgetScope.overall)
               .firstOrNull
               ?.amountMinor ??
           0;
-      final int byCat = periodBudgets
-          .where(
-            (Budget b) =>
-                b.scope == BudgetScope.category &&
-                byId[b.categoryId]?.type == CategoryType.expense,
-          )
-          .fold<int>(0, (int s, Budget b) => s + b.amountMinor);
-      return overall + byCat;
+      return overall + byGroup;
     }
-    return periodBudgets
-        .where(
-          (Budget b) =>
-              b.scope == BudgetScope.category &&
-              byId[b.categoryId]?.type == CategoryType.income,
-        )
-        .fold<int>(0, (int s, Budget b) => s + b.amountMinor);
+    return byGroup;
   }
 
   /// 周期内已流逝的天数/月数（未来周期=0，过去周期=全量）。
@@ -392,8 +390,10 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     }
   }
 
-  /// 分类预算分组（第 20 批）：按一级分类聚合——二级预算行挂到父级下，
-  /// 一级行显示 = 自身预算 + Σ二级（「一级等于二级之和」口径）。
+  /// 分类预算分组（第 20 批）：按一级分类聚合——二级预算行挂到父级下。
+  /// 第 29 批总闸制：一级行显示金额 = 自身预算（总闸）优先，否则
+  /// Σ二级（见 [_BudgetGroupData.effectiveMinor]）；已用穿透汇总见
+  /// [_CategoryBudgetsCard._groupSpent]。
   /// 孤儿二级（父分类缺失/方向不符）兜底按一级展示。
   List<_BudgetGroupData> _buildBudgetGroups(
     List<Budget> periodBudgets,
@@ -592,7 +592,21 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     final (String, int, int, TxnType) totalKey =
         (bookId, startAt, endAt, txnType);
 
-    final int totalBudget = _totalBudgetMinor(periodBudgets, catById);
+    // 一级 → 名下二级分类定义（第 29 批：一级行已用穿透汇总用，
+    // 含没有预算行的二级——流水记在二级，一级必须穿透才对得上账）。
+    final Map<String, List<Category>> childCatsById =
+        <String, List<Category>>{};
+    for (final Category c in categories) {
+      if (c.parentId == null || c.type != _direction || c.isSystem) continue;
+      (childCatsById[c.parentId!] ??= <Category>[]).add(c);
+    }
+
+    // 分类预算分组（第 20 批）：一级分类聚合自身 + 名下二级预算行。
+    final List<_BudgetGroupData> budgetGroups =
+        _buildBudgetGroups(periodBudgets, catById);
+
+    // 总预算（第 29 批总闸制·去重：依赖分组成效额，须先算分组）。
+    final int totalBudget = _totalBudgetMinor(periodBudgets, budgetGroups);
     final int spent = ref.watch(_rangeTotalProvider(totalKey)).valueOrNull ?? 0;
     final Map<String, CategoryTotal> catTotals =
         ref.watch(_catTotalsProvider(totalKey)).valueOrNull ??
@@ -624,17 +638,15 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     if (_yearly) {
       avgSpentLabel = _isExpense ? '本年月均消费' : '本年月均收入';
       avgBudgetLabel = _isExpense ? '月均预算' : '月均目标';
-      avgRemainLabel = _isExpense ? '剩余每月可消费金额' : '剩余每月可收入金额';
+      // 第 29 批：「剩余每月可收入金额」→「剩余每月需收入」——
+      // 口径 = (目标−已得)/剩余月数，即每月需再收入多少才达成。
+      avgRemainLabel = _isExpense ? '剩余每月可消费金额' : '剩余每月需收入';
     } else {
       avgSpentLabel = _isExpense ? '本月日均消费' : '本月日均收入';
       avgBudgetLabel = _isExpense ? '日均预算' : '日均目标';
-      avgRemainLabel = _isExpense ? '剩余日均' : '剩余每日可收入金额';
+      avgRemainLabel = _isExpense ? '剩余日均' : '剩余日均需收入';
     }
     final int avgUnits = _yearly ? 12 : _daysInMonth;
-
-    // 分类预算分组（第 20 批）：一级分类聚合自身 + 名下二级预算行。
-    final List<_BudgetGroupData> budgetGroups =
-        _buildBudgetGroups(periodBudgets, catById);
 
     // 环填充 = 已发生/总额（支出=已用越多越满；收入=已得越多越满，
     // 第 28 批：收入侧即「目标完成度」）。
@@ -748,6 +760,7 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                       dirLabel: dirLabel,
                       isIncome: !_isExpense,
                       groups: budgetGroups,
+                      childCatsById: childCatsById,
                       catTotals: catTotals,
                       spentLabel: spentLabel,
                       yearly: _yearly,
@@ -1191,7 +1204,7 @@ class _BudgetGroupData {
 
   final Category category;
 
-  /// 该一级分类自身的预算行（可能不存在——预算都设在二级上）。
+  /// 该一级分类自身的预算行（总闸；可能不存在——预算都设在二级上）。
   final (Budget, Category)? own;
   final List<(Budget, Category)> children;
 
@@ -1201,12 +1214,16 @@ class _BudgetGroupData {
 
   bool get hasChildren => children.isNotEmpty;
 
-  int get amountMinor =>
-      (own?.$1.amountMinor ?? 0) +
-      children.fold<int>(
-        0,
-        (int s, (Budget, Category) r) => s + r.$1.amountMinor,
-      );
+  /// 一级行生效预算额（第 29 批总闸制）：设了自身预算（总闸）时取
+  /// 自身；否则 = Σ二级预算。二者**不叠加**——旧口径 own+Σ二级，
+  /// 一级二级同设时同一笔额度双计。
+  int get effectiveMinor {
+    if (own != null) return own!.$1.amountMinor;
+    return children.fold<int>(
+      0,
+      (int s, (Budget, Category) r) => s + r.$1.amountMinor,
+    );
+  }
 }
 
 /// 分类预算卡：标题 + 「添加」pill + 一级分类聚合行（可展开二级折叠栏，
@@ -1214,11 +1231,18 @@ class _BudgetGroupData {
 /// 判定——有则展开/收起（展开后可添加二级预算），叶子一级分类仍直接
 /// 编辑/新增自身预算）。
 /// 所有行（一二级）支持左滑：编辑 / 删除。
+///
+/// 第 29 批总闸制口径：
+/// - 一级行金额 = 总闸（一级自身预算）优先，否则 Σ二级预算，不叠加；
+/// - 一级行已用 = 自身流水 + Σ名下**全部**二级分类流水（穿透汇总，
+///   含没有预算行的二级——流水记在二级，一级必须穿透才对得上账）；
+/// - 二级行 = 自己的预算 + 自己的流水（明细）。
 class _CategoryBudgetsCard extends StatelessWidget {
   const _CategoryBudgetsCard({
     required this.dirLabel,
     required this.isIncome,
     required this.groups,
+    required this.childCatsById,
     required this.catTotals,
     required this.spentLabel,
     required this.yearly,
@@ -1238,6 +1262,10 @@ class _CategoryBudgetsCard extends StatelessWidget {
   /// 走「目标」措辞。
   final bool isIncome;
   final List<_BudgetGroupData> groups;
+
+  /// 一级分类 id → 名下二级分类定义（第 29 批：一级行已用穿透汇总用，
+  /// 含没有预算行的二级）。
+  final Map<String, List<Category>> childCatsById;
   final Map<String, CategoryTotal> catTotals;
   final String spentLabel;
   final bool yearly;
@@ -1250,11 +1278,13 @@ class _CategoryBudgetsCard extends StatelessWidget {
   final void Function(Budget budget, Category category) onDeleteBudget;
   final void Function(_BudgetGroupData group) onDeleteGroup;
 
-  /// 一级行聚合消费（自身 + Σ二级；watchCategoryTotals 按分类扁平统计，
-  /// 父级不会自动含子分类流水，需显式求和）。
+  /// 一级行聚合消费（第 29 批总闸制·穿透）：自身精确匹配 +
+  /// Σ名下**全部**二级分类流水（含没有预算行的二级；watchCategoryTotals
+  /// 按分类扁平统计，父级不会自动含子分类流水，需显式穿透求和）。
   int _groupSpent(_BudgetGroupData g) {
     int spent = g.own == null ? 0 : (catTotals[g.own!.$2.id]?.totalMinor ?? 0);
-    for (final (Budget _, Category c) in g.children) {
+    for (final Category c
+        in childCatsById[g.category.id] ?? const <Category>[]) {
       spent += catTotals[c.id]?.totalMinor ?? 0;
     }
     return spent;
@@ -1262,7 +1292,8 @@ class _CategoryBudgetsCard extends StatelessWidget {
 
   int _groupCount(_BudgetGroupData g) {
     int count = g.own == null ? 0 : (catTotals[g.own!.$2.id]?.count ?? 0);
-    for (final (Budget _, Category c) in g.children) {
+    for (final Category c
+        in childCatsById[g.category.id] ?? const <Category>[]) {
       count += catTotals[c.id]?.count ?? 0;
     }
     return count;
@@ -1340,7 +1371,8 @@ class _CategoryBudgetsCard extends StatelessWidget {
                     _CategoryRow(
                       slidableKey: 'budget-group-${g.category.id}',
                       category: g.category,
-                      amountMinor: g.amountMinor,
+                      // 第 29 批总闸制：一级行金额 = 总闸优先，否则 Σ二级。
+                      amountMinor: g.effectiveMinor,
                       spent: _groupSpent(g),
                       count: _groupCount(g),
                       spentLabel: spentLabel,
