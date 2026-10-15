@@ -19,6 +19,7 @@ import '../../../shared/widgets/module_list_scaffold.dart' show showToast;
 import '../../../shared/widgets/round_close_button.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/segmented_row.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../data/budget_repository.dart';
@@ -57,18 +58,22 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
   (Ref ref) => ref.watch(booksDaoProvider).watchAll(),
 );
 
-/// 设置月预算页（2026-10-14 依参考截图占位布局）：
+/// 设置月预算页（2026-10-15 依小青账截图对标）：
 ///
-/// - 顶部圆关闭钮（RoundCloseButton），无 AppBar；
-/// - 头卡：黏土方糖 ¥ + 「设置 月预算」 + 「是否每月提示」开关（占位状态）；
-/// - 复制范围卡：账本行（占位不可切换）+ 来源月份 → 目标月份
-///   （点按唤起全局日历组件的「月」粒度，只取年月）；
-/// - 「{目标月}预算」标题行 + 支出/收入分段；「{来源月}预算概览」卡：
-///   预算/消费/结余三格 + 不复制/仅结余/超支结余分段（结余为 0 时锁定）；
-/// - 「{目标月}总预算」卡：胶囊输入框，默认预填来源月总预算；
-/// - 「{目标月}分类预算」卡：空状态 + 添加（唤起预算编辑弹窗），
-///   已有预算列黏土方糖行，点按编辑；
-/// - 底部粘性保存按钮（鼠尾草渐变）。
+/// - 顶部：✕ 关闭 + 居中「设置月预算」+ 支出/收入切换（对标小青账顶栏）；
+/// - 头卡：黏土方糖 ¥ + 「设置月预算」 + 「是否每月提示」开关（已接线：
+///   保存时写入总预算与带入分类的 alertEnabled，未手动改时跟随目标月
+///   已有预算的开关值）；
+/// - 复制范围卡：账本行（可点，弹账本列表切换）+ 来源月份 → 目标月份；
+/// - 「{目标月}预算」标题行（方向切换在顶栏）；「{来源月}预算概览」卡：
+///   预算/消费/结余三格 + 不复制/仅结余/超支结余分段（结余为 0 时置灰）；
+/// - 「{目标月}总预算」卡：输入框，草稿口径 = 目标月已有预算 >
+///   复制模式起草（不复制=来源总预算 / 仅结余=结余>0 时的结余 /
+///   超支结余=结余负值按 0）；
+/// - 「{目标月}分类预算」卡：空状态 + 添加（接通预算编辑弹窗），
+///   已有预算列行，点按编辑；保存时复制模式非「不复制」会把来源月
+///   有、目标月没有的同方向分类预算一并带入；
+/// - 底部粘性保存按钮（鼠尾草渐变，文案随方向）。
 ///
 /// 口径说明：预算表无收支方向字段——总预算行（scope=overall）按
 /// 支出口径保存；收入方向的总预算暂不支持单独保存（toast 提示），
@@ -91,16 +96,19 @@ class BudgetSetupPage extends ConsumerStatefulWidget {
 }
 
 class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
-  /// 生效账本（构造参数优先，否则当前账本）。
-  late final String _bookId = widget.bookId ?? ref.read(currentBookIdProvider);
+  /// 生效账本（构造参数优先，否则当前账本；页内可切换）。
+  late String _bookId = widget.bookId ?? ref.read(currentBookIdProvider);
 
   late DateTime _target;
   late DateTime _source;
   bool _reminder = false;
+
+  /// 用户是否手动改过「是否每月提示」（未改时跟随目标月已有预算的开关）。
+  bool _reminderTouched = false;
   CategoryType _direction = CategoryType.expense;
   _CopyMode _copyMode = _CopyMode.none;
 
-  /// 用户是否手动改过总预算（未改时跟随来源月总预算自动预填）。
+  /// 用户是否手动改过总预算（未改时跟随草稿逻辑自动预填）。
   bool _totalTouched = false;
   late final TextEditingController _totalController;
 
@@ -113,7 +121,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
     );
     _source = DateTime(_target.year, _target.month - 1);
     _totalController = TextEditingController();
-    _syncTotalPrefill(ref.read(bookBudgetsProvider(_bookId)).valueOrNull);
+    _syncDraft(ref.read(bookBudgetsProvider(_bookId)).valueOrNull);
   }
 
   @override
@@ -133,15 +141,50 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
       )
       .firstOrNull;
 
-  /// 未手动编辑时，总预算输入框跟随来源月总预算。
-  void _syncTotalPrefill(List<Budget>? budgets) {
-    if (_totalTouched || budgets == null) return;
-    final Budget? overall = _overallOf(budgets, _source);
-    final String want = overall == null
-        ? ''
-        : Money.fromMinor(overall.amountMinor).decimal.toStringAsFixed(2);
+  /// 草稿同步（预算数据 / 周期 / 账本变化时调用）：
+  /// 总预算输入框预填 + 「是否每月提示」跟随目标月已有预算。
+  void _syncDraft(List<Budget>? budgets) {
+    if (budgets == null) return;
+    if (!_totalTouched) {
+      // 目标月已有总预算 → 预填已有值（保存即更新）；
+      // 否则按复制模式从来源月起草（结余口径的草稿在 _applyCopyModeDraft）。
+      final Budget? targetOverall = _overallOf(budgets, _target);
+      final Budget? srcOverall = _overallOf(budgets, _source);
+      final String want = targetOverall != null
+          ? _minorText(targetOverall.amountMinor)
+          : _copyMode == _CopyMode.none
+              ? _minorText(srcOverall?.amountMinor ?? 0)
+              : _totalController.text;
+      if (_totalController.text != want) _totalController.text = want;
+    }
+    if (!_reminderTouched) {
+      final bool want = _overallOf(budgets, _target)?.alertEnabled ?? true;
+      if (_reminder != want) _reminder = want;
+    }
+  }
+
+  /// 复制模式起草（需要来源月消费口径，build 里算出结余后调用）：
+  /// 未手动改、目标月无已有总预算时，按模式预填——
+  /// 不复制 = 来源月总预算；仅结余 = 结余 > 0 时的结余，否则留空；
+  /// 超支结余 = 结余（负值按 0 起草，预算不能为负）。
+  void _applyCopyModeDraft(int srcBalanceMinor) {
+    if (_totalTouched) return;
+    final List<Budget>? budgets =
+        ref.read(bookBudgetsProvider(_bookId)).valueOrNull;
+    if (budgets == null || _overallOf(budgets, _target) != null) return;
+    final String want = switch (_copyMode) {
+      _CopyMode.none =>
+        _minorText(_overallOf(budgets, _source)?.amountMinor ?? 0),
+      _CopyMode.balanceOnly =>
+        srcBalanceMinor > 0 ? _minorText(srcBalanceMinor) : '',
+      _CopyMode.overspendBalance =>
+        _minorText(srcBalanceMinor > 0 ? srcBalanceMinor : 0),
+    };
     if (_totalController.text != want) _totalController.text = want;
   }
+
+  String _minorText(int minor) =>
+      minor > 0 ? Money.fromMinor(minor).decimal.toStringAsFixed(2) : '';
 
   /// 月份选择：全局日历组件「月」粒度，只提取年月（CalendarMonth）。
   Future<void> _pickMonth({required bool source}) async {
@@ -167,7 +210,71 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
         }
       }
     });
-    _syncTotalPrefill(ref.read(bookBudgetsProvider(_bookId)).valueOrNull);
+    _syncDraft(ref.read(bookBudgetsProvider(_bookId)).valueOrNull);
+  }
+
+  /// 切换账本（对标小青账「复制范围」账本行）：弹账本列表，
+  /// 选中后草稿整体重算（总预算预填 / 提示开关跟随）。
+  Future<void> _pickBook() async {
+    final List<Book> books =
+        ref.read(_booksProvider).valueOrNull ?? const <Book>[];
+    if (books.length <= 1) {
+      showToast(context, '暂无其他账本可切换');
+      return;
+    }
+    final String? picked = await showAppModalSheet<String>(
+      context,
+      title: '切换账本',
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (final Book b in books)
+            InkWell(
+              onTap: () => Navigator.of(context).pop(b.id),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        b.name,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: b.id == _bookId
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                          color: b.id == _bookId
+                              ? AppPalette.primary
+                              : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    if (b.id == _bookId)
+                      const LineGlyph(
+                        Icons.check,
+                        size: 18,
+                        color: AppPalette.primary,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || picked == _bookId || !mounted) {
+      return;
+    }
+    setState(() {
+      _bookId = picked;
+      // 换账本后草稿重算：预填与提示开关都重新跟随目标月。
+      _totalTouched = false;
+      _reminderTouched = false;
+    });
+    _syncDraft(ref.read(bookBudgetsProvider(_bookId)).valueOrNull);
   }
 
   Future<void> _save() async {
@@ -186,6 +293,50 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
     final Budget? existing = _overallOf(budgets, _target);
     final BudgetRepository repo = ref.read(budgetRepositoryProvider);
     try {
+      // 分类带入（小青账口径「分类没有时会从来源月份带入」）：复制模式非
+      // 「不复制」时，来源月有、目标月没有的同方向分类预算一并带入。
+      int carried = 0;
+      if (_copyMode != _CopyMode.none) {
+        final List<Category> categories =
+            ref.read(allCategoriesProvider).valueOrNull ?? const <Category>[];
+        final Map<String, Category> catById = <String, Category>{
+          for (final Category c in categories) c.id: c,
+        };
+        final Set<String> targetCatIds = <String>{
+          for (final Budget b in budgets)
+            if (b.scope == BudgetScope.category &&
+                b.period == BudgetPeriod.monthly &&
+                b.year == _target.year &&
+                b.periodIndex == _target.month &&
+                b.categoryId != null)
+              b.categoryId!,
+        };
+        for (final Budget b in budgets) {
+          if (b.scope != BudgetScope.category ||
+              b.period != BudgetPeriod.monthly ||
+              b.year != _source.year ||
+              b.periodIndex != _source.month ||
+              b.categoryId == null) {
+            continue;
+          }
+          final Category? c = catById[b.categoryId];
+          if (c == null || c.type != _direction) continue;
+          if (targetCatIds.contains(b.categoryId)) continue;
+          await repo.add(
+            bookId: _bookId,
+            scope: BudgetScope.category,
+            period: BudgetPeriod.monthly,
+            amountMinor: b.amountMinor,
+            year: _target.year,
+            periodIndex: _target.month,
+            categoryId: b.categoryId,
+            // 「是否每月提示」对本轮保存整体生效。
+            alertEnabled: _reminder,
+            alertThreshold: b.alertThreshold,
+          );
+          carried++;
+        }
+      }
       if (existing == null) {
         await repo.add(
           bookId: _bookId,
@@ -195,7 +346,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
           year: _target.year,
           periodIndex: _target.month,
           categoryId: null,
-          alertEnabled: true,
+          alertEnabled: _reminder,
           alertThreshold: 80,
         );
       } else {
@@ -207,12 +358,16 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
           year: _target.year,
           periodIndex: _target.month,
           categoryId: null,
-          alertEnabled: existing.alertEnabled,
+          alertEnabled: _reminder,
           alertThreshold: existing.alertThreshold,
         );
       }
       if (mounted) {
-        showToast(context, '已保存 ${_target.year}-${_target.month} 支出预算');
+        showToast(
+          context,
+          '已保存 ${_target.year}-${_target.month} 支出预算'
+          '${carried > 0 ? '，带入 $carried 个分类预算' : ''}',
+        );
         Navigator.of(context).pop();
       }
     } on AppFailure catch (e) {
@@ -244,7 +399,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
 
     ref.listen<AsyncValue<List<Budget>>>(bookBudgetsProvider(_bookId),
         (_, AsyncValue<List<Budget>> next) {
-      _syncTotalPrefill(next.valueOrNull);
+      _syncDraft(next.valueOrNull);
     });
 
     final List<Budget> budgets =
@@ -298,6 +453,9 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
         0;
     final int srcBalanceMinor = srcBudgetMinor - srcSpentMinor;
 
+    // 复制模式起草：结余口径的预填要在消费数据到位后执行。
+    _applyCopyModeDraft(srcBalanceMinor);
+
     // ── 目标月分类预算（按当前方向过滤）──
     final Map<String, Category> catById = <String, Category>{
       for (final Category c in categories) c.id: c,
@@ -321,7 +479,43 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: Row(
-                children: <Widget>[const RoundCloseButton(), const Spacer()],
+                children: <Widget>[
+                  const RoundCloseButton(),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        '设置月预算',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 支出/收入切换（对标小青账：顶栏右侧，非章节内）。
+                  SizedBox(
+                    width: 116,
+                    child: SegmentedRow<CategoryType>(
+                      options: const <SegmentOption<CategoryType>>[
+                        SegmentOption<CategoryType>(
+                          value: CategoryType.expense,
+                          label: '支出',
+                        ),
+                        SegmentOption<CategoryType>(
+                          value: CategoryType.income,
+                          label: '收入',
+                        ),
+                      ],
+                      value: _direction,
+                      onChanged: (CategoryType v) {
+                        setState(() => _direction = v);
+                        _syncDraft(
+                          ref.read(bookBudgetsProvider(_bookId)).valueOrNull,
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -331,7 +525,10 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
               children: <Widget>[
                 _HeaderCard(
                   reminder: _reminder,
-                  onReminderChanged: (bool v) => setState(() => _reminder = v),
+                  onReminderChanged: (bool v) => setState(() {
+                    _reminder = v;
+                    _reminderTouched = true;
+                  }),
                 ),
                 const SizedBox(height: 10),
                 InfoTipRow(
@@ -348,11 +545,11 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      // 账本行（占位：多账本切换待账本管理完善后接入）。
+                      // 账本行（对标小青账：可点，弹账本列表切换）。
                       InkWell(
                         borderRadius:
                             BorderRadius.circular(AppDimens.radiusCard),
-                        onTap: () => showToast(context, '账本切换即将支持'),
+                        onTap: _pickBook,
                         child: Row(
                           children: <Widget>[
                             const ClayIconTile(
@@ -424,7 +621,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // 「{目标月}预算」标题行 + 支出/收入分段。
+                // 「{目标月}预算」标题行（支出/收入切换已移顶栏）。
                 Row(
                   children: <Widget>[
                     Expanded(
@@ -434,24 +631,6 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                           fontWeight: FontWeight.w700,
                           color: scheme.onSurface,
                         ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 148,
-                      child: SegmentedRow<CategoryType>(
-                        options: const <SegmentOption<CategoryType>>[
-                          SegmentOption<CategoryType>(
-                            value: CategoryType.expense,
-                            label: '支出',
-                          ),
-                          SegmentOption<CategoryType>(
-                            value: CategoryType.income,
-                            label: '收入',
-                          ),
-                        ],
-                        value: _direction,
-                        onChanged: (CategoryType v) =>
-                            setState(() => _direction = v),
                       ),
                     ),
                   ],
@@ -509,6 +688,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                             return;
                           }
                           setState(() => _copyMode = v);
+                          _applyCopyModeDraft(srcBalanceMinor);
                         },
                       ),
                       const SizedBox(height: 10),
@@ -571,7 +751,10 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                       ),
                       const SizedBox(height: 10),
                       InfoTipRow(
-                        text: '默认等于${_source.year}-${_source.month}预算，可自行调整',
+                        text: _overallOf(budgets, _target) != null
+                            ? '${_target.year}-${_target.month}已有预算，'
+                                '保存将更新已有金额；分类没有时会从来源月份带入'
+                            : '默认等于${_source.year}-${_source.month}预算，可自行调整',
                       ),
                     ],
                   ),
@@ -734,7 +917,8 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
   }
 }
 
-/// 头卡：黏土方糖 ¥ + 「设置 月预算」 + 「是否每月提示」开关（占位状态）。
+/// 头卡：黏土方糖 ¥ + 「设置月预算」 + 「是否每月提示」开关
+/// （开关已接线：保存时写入总预算与带入分类的 alertEnabled）。
 class _HeaderCard extends StatelessWidget {
   const _HeaderCard({required this.reminder, required this.onReminderChanged});
 
@@ -760,7 +944,7 @@ class _HeaderCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              '设置 月预算',
+              '设置月预算',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: theme.colorScheme.onSurface,
