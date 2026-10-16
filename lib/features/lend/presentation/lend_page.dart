@@ -18,6 +18,7 @@ import '../../../shared/widgets/section_header.dart';
 import '../../../theme/theme.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/record_sheet.dart';
+import '../../record/record_tab.dart';
 import '../providers/lend_providers.dart';
 
 /// 借还页：对照报销页总览——每个借出 / 借入账户一张存钱计划样式卡片。
@@ -26,6 +27,14 @@ import '../providers/lend_providers.dart';
 /// （账户余额不变量 = 名下未结清合计）+「待收回 / 待归还」小标；
 /// 行3：进行中 / 已结清状态胶囊 + 进入箭头。
 /// 未指定账户的记录落在页尾「未指定账户的记录」平铺区，不丢数据。
+///
+/// 第 35 批：页面原先**只能看不能记**——唯一动作是空态里的「去账户页
+/// 新建」，用户必须先建借出/借入类型账户才能开始，而第 34 批起不再
+/// 预置账户，页面直接沦为死空态。现对齐报销页范式加底部常驻双按钮栏：
+/// 主按钮「记一笔借还」直开记一笔的借还 Tab（不建账户也能记——填对方
+/// 名即可，落「未指定账户」区；选了借出/借入类型账户则自动归户）；
+/// 幽灵按钮保留「去账户页新建」的进阶归户引导。空态去掉自有按钮
+/// （动作入口唯一，避免双按钮重复），只留图标 + 说明文案。
 class LendPage extends ConsumerStatefulWidget {
   const LendPage({super.key});
 
@@ -131,6 +140,59 @@ class _LendPageState extends ConsumerState<LendPage> {
                 ],
               ],
             ),
+      // 第 35 批：底部常驻双按钮栏（空态也显示，动作入口唯一）。
+      // 报销页同款布局：幽灵次级 + 渐变主按钮。
+      bottomNavigationBar: _bottomBar(context, isDark),
+    );
+  }
+
+  /// 底部双按钮栏：主「记一笔借还」直开记一笔借还 Tab（不建账户也能记，
+  /// 填对方名落「未指定账户」区；选借出/借入类型账户则自动归户）；
+  /// 次级「去账户页新建」保留进阶归户引导。
+  Widget _bottomBar(BuildContext context, bool isDark) {
+    final Color ghostBg =
+        isDark ? Theme.of(context).colorScheme.surface : context.colors.surface;
+    final Color ghostBorder = isDark
+        ? Theme.of(context).colorScheme.outline
+        : ForestNeutral.hairlineStrong;
+    return SafeArea(
+      child: Container(
+        color: isDark
+            ? Theme.of(context).colorScheme.surface
+            : context.colors.surface,
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: _LendPillButton(
+                onPressed: () => context.push(Routes.accounts),
+                backgroundColor: ghostBg,
+                border: Border.all(color: ghostBorder),
+                textColor: isDark
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Theme.of(context).colorScheme.onSurface,
+                label: '去账户页新建',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 135,
+              child: _LendPillButton(
+                onPressed: () =>
+                    openRecordSheet(context, initialTab: RecordTab.lend),
+                gradient: ForestGradients.button,
+                textColor: Theme.of(context).colorScheme.onPrimary,
+                icon: LineGlyph(
+                  Icons.add,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+                label: '记一笔借还',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -427,44 +489,84 @@ class _NoLendEmpty extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            '还没有借还账户',
+            '还没有借还记录',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isDark
-                  ? Theme.of(context).colorScheme.onSurface
-                  : Theme.of(context).colorScheme.onSurface,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            '到账户页新建借出 / 借入类型账户后，这里会显示对应卡片',
+            '点下方「记一笔借还」即可开始；\n'
+            '也可以到账户页新建借出 / 借入类型账户，之后自动归户',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 18),
-          InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: () => context.push(Routes.accounts),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
-              decoration: BoxDecoration(
-                gradient: ForestGradients.button,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '去账户页新建',
+        ],
+      ),
+    );
+  }
+}
+
+/// 底部栏胶囊按钮（报销页 [_PillButton] 同款布局，借还页私有）。
+class _LendPillButton extends StatelessWidget {
+  const _LendPillButton({
+    required this.onPressed,
+    this.backgroundColor,
+    this.gradient,
+    this.border,
+    required this.textColor,
+    this.icon,
+    required this.label,
+  });
+
+  final VoidCallback onPressed;
+  final Color? backgroundColor;
+  final Gradient? gradient;
+  final BoxBorder? border;
+  final Color textColor;
+  final Widget? icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(999),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          gradient: gradient,
+          border: border,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Container(
+          height: 48,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (icon != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 7),
+                  child: icon,
+                ),
+              Text(
+                label,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  color: textColor,
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
