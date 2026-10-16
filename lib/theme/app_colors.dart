@@ -151,6 +151,10 @@ class AppPalette {
         onSecondaryContainer: sage700,
         surface: cream,
         onSurface: ink,
+        // 框内底色（sunken/分组内衬）必须显式定义：缺省时 M3 基线回退
+        // 0xFFECECE4 泥灰，与全应用暖纸色系冲突（报销/存钱/借还等页
+        // 「框内颜色不一致」，2026-10-16 第 43 批）。统一取 paper2。
+        surfaceContainer: paper2,
         surfaceContainerHighest: paper2,
         onSurfaceVariant: ink2,
         outline: hairline,
@@ -173,6 +177,9 @@ class AppPalette {
         onSecondary: const Color(0xFF1A2114),
         surface: const Color(0xFF26291F), // D4 暗：暖绿调暗底（asset 去白派生）
         onSurface: const Color(0xFFD6E3C8), // D5 暗：淡鼠尾草字（绿调墨派生）
+        // 框内底色：介于 surface 与 highest 之间的暖绿中间层（同亮色，缺省会
+        // 回退 M3 冷灰基线）。
+        surfaceContainer: const Color(0xFF2D3025),
         surfaceContainerHighest: const Color(0xFF33332A),
         onSurfaceVariant: const Color(0xFFB8C6A8), // D5 暗：次文字绿调
         outline: const Color(0xFF4A4A3C),

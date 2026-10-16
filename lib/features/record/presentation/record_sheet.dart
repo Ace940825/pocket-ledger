@@ -477,6 +477,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   // 支出 / 收入新布局状态
   bool _keyboardExpanded = true;
+
+  /// 主动收起键盘时置 true（打开优惠弹窗前等），抑制备注失焦触发的
+  /// 「系统输入结束→恢复金额键盘」回弹；单次失效（见
+  /// [_onSystemFieldFocusChanged]）。
+  bool _suppressKeypadRestore = false;
   bool _isReimbursable = false;
   // 报销账户：支出页开启「报销」后显示的功能键；仅可选「报销」类型账户。
   // 数据模型暂无对应列（报销全链路待建），当前为页面内本地状态。
@@ -1001,9 +1006,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       } else {
         // 全部系统输入结束：恢复金额数字键盘。
         FocusManager.instance.primaryFocus?.unfocus();
-        if (!_keyboardExpanded) {
+        // 主动收起（打开优惠/标签弹窗前临时收起键盘）伴随的备注失焦
+        // 不回弹键盘——否则从优惠弹窗返回后键盘又展开（2026-10-16 第 43 批）。
+        if (!_keyboardExpanded && !_suppressKeypadRestore) {
           setState(() => _keyboardExpanded = true);
         }
+        _suppressKeypadRestore = false;
       }
     });
   }
@@ -7527,6 +7535,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   Future<void> _onDiscount() async {
     if (mounted && _keyboardExpanded) {
+      // 备注正聚焦时，下一行 unfocus 会让失焦回调把键盘又展开（「返回后
+      // 键盘不消失」根因），先挂抑制旗标。
+      _suppressKeypadRestore = _noteFocusNode.hasFocus;
       setState(() => _keyboardExpanded = false);
     }
     FocusManager.instance.primaryFocus?.unfocus();

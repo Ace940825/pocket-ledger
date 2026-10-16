@@ -82,6 +82,12 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
         title: const Text('投资'),
         actions: <Widget>[
           IconButton(
+            // 新增持仓入口：FAB 已删（第 40 批），空态文案指向本键。
+            icon: const LineGlyph(Icons.add),
+            tooltip: '新增持仓',
+            onPressed: () => showHoldingEditor(context, ref),
+          ),
+          IconButton(
             icon: _refreshing
                 ? const SizedBox(
                     width: 18,
@@ -121,7 +127,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
                         icon: _showCleared
                             ? Icons.history_outlined
                             : Icons.show_chart,
-                        message: _showCleared ? '暂无清仓记录' : '还没有持仓，点右下角「+」新增',
+                        message: _showCleared ? '暂无清仓记录' : '还没有持仓，点右上角「+」新增',
                       )
                     : TxnSlidableGroup(
                         child: ListView.separated(
@@ -878,113 +884,107 @@ Future<void> showHoldingEditor(
     isScrollControlled: true,
     surfaceColor: AppPalette.white,
     body: StatefulBuilder(
-      builder: (BuildContext context, StateSetter setState) => Padding(
-        // 键盘避让：输入框唤起系统键盘时弹层整体升到键盘上方。
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                // 标题行：编辑持仓 / 新增持仓 + 关闭
-                Row(
-                  children: <Widget>[
-                    const Spacer(),
-                    IconButton(
-                      icon: const LineGlyph(Icons.close, size: 22),
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      onPressed: () => Navigator.of(context).pop(false),
-                    ),
-                  ],
-                ),
-                Text(
-                  holding == null ? '新增持仓' : '编辑持仓',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+      builder: (BuildContext context, StateSetter setState) => SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // 标题行：编辑持仓 / 新增持仓 + 关闭
+              Row(
+                children: <Widget>[
+                  const Spacer(),
+                  IconButton(
+                    icon: const LineGlyph(Icons.close, size: 22),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    onPressed: () => Navigator.of(context).pop(false),
                   ),
+                ],
+              ),
+              Text(
+                holding == null ? '新增持仓' : '编辑持仓',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: symbolController,
-                  decoration: InputDecoration(
-                    labelText: '代码 / 标的',
-                    hintText: _symbolHint(type),
-                  ),
-                  autofocus: true,
-                  onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: symbolController,
+                decoration: InputDecoration(
+                  labelText: '代码 / 标的',
+                  hintText: _symbolHint(type),
                 ),
-                const FormGap(),
-                Consumer(
-                  builder: (BuildContext context, WidgetRef ref, _) {
-                    final String q = symbolController.text.trim();
-                    if (q.isEmpty) return const SizedBox.shrink();
-                    _ensureMetaLoaded(ref, type);
-                    final AsyncValue<List<SecurityCandidate>> meta = ref.watch(
-                      securityMetaSearchProvider(MetaQuery(q, type)),
-                    );
-                    return meta.when(
-                      data: (List<SecurityCandidate> cands) {
-                        if (cands.isEmpty) return const SizedBox.shrink();
-                        return HairlineCard(
-                          radius: 12,
-                          margin: const EdgeInsets.only(top: 6),
-                          padding: EdgeInsets.zero,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              for (final SecurityCandidate c in cands)
-                                SecurityCandidateTile(
-                                  candidate: c,
-                                  onTap: () {
-                                    symbolController.text = c.symbol;
-                                    if (nameController.text.isEmpty) {
-                                      nameController.text = c.name;
-                                    }
-                                    setState(() {});
-                                    FocusManager.instance.primaryFocus
-                                        ?.unfocus();
-                                  },
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                      loading: () => const SizedBox.shrink(),
-                      error: (Object _, StackTrace? __) =>
-                          const SizedBox.shrink(),
-                    );
-                  },
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+              ),
+              const FormGap(),
+              Consumer(
+                builder: (BuildContext context, WidgetRef ref, _) {
+                  final String q = symbolController.text.trim();
+                  if (q.isEmpty) return const SizedBox.shrink();
+                  _ensureMetaLoaded(ref, type);
+                  final AsyncValue<List<SecurityCandidate>> meta = ref.watch(
+                    securityMetaSearchProvider(MetaQuery(q, type)),
+                  );
+                  return meta.when(
+                    data: (List<SecurityCandidate> cands) {
+                      if (cands.isEmpty) return const SizedBox.shrink();
+                      return HairlineCard(
+                        radius: 12,
+                        margin: const EdgeInsets.only(top: 6),
+                        padding: EdgeInsets.zero,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            for (final SecurityCandidate c in cands)
+                              SecurityCandidateTile(
+                                candidate: c,
+                                onTap: () {
+                                  symbolController.text = c.symbol;
+                                  if (nameController.text.isEmpty) {
+                                    nameController.text = c.name;
+                                  }
+                                  setState(() {});
+                                  FocusManager.instance.primaryFocus?.unfocus();
+                                },
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (Object _, StackTrace? __) =>
+                        const SizedBox.shrink(),
+                  );
+                },
+              ),
+              const FormGap(),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: '名称'),
+              ),
+              const FormGap(),
+              EnumDropdown<InvestmentType>(
+                label: '品种',
+                value: type,
+                values: InvestmentType.displayOrder,
+                labelOf: (InvestmentType t) => t.label,
+                onChanged: (InvestmentType t) => setState(() => type = t),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
                 ),
-                const FormGap(),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: '名称'),
-                ),
-                const FormGap(),
-                EnumDropdown<InvestmentType>(
-                  label: '品种',
-                  value: type,
-                  values: InvestmentType.displayOrder,
-                  labelOf: (InvestmentType t) => t.label,
-                  onChanged: (InvestmentType t) => setState(() => type = t),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('保存'),
-                ),
-              ],
-            ),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('保存'),
+              ),
+            ],
           ),
         ),
       ),

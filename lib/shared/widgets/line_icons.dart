@@ -2486,11 +2486,16 @@ class _LineIconPainter extends CustomPainter {
 
   /// 调节：三条横向滑轨（各带一颗滑块）。
   void _sliders(Path p) {
-    _line(p, 3, 7, 21, 7);
+    // 轨道在滑块圆环两侧断开留缺口——此前轨道直穿圆环，小尺寸（15px，
+    // 如滚存计划「调整」胶囊）下线与环糊成一团实心横杠（2026-10-16 第 43 批）。
+    _line(p, 3, 7, 4.4, 7);
+    _line(p, 12.9, 7, 21, 7);
     p.addOval(Rect.fromCircle(center: const Offset(9, 7), radius: 2));
-    _line(p, 3, 12, 21, 12);
+    _line(p, 3, 12, 11.2, 12);
+    _line(p, 18.9, 12, 21, 12);
     p.addOval(Rect.fromCircle(center: const Offset(15, 12), radius: 2));
-    _line(p, 3, 17, 21, 17);
+    _line(p, 3, 17, 3.7, 17);
+    _line(p, 11.4, 17, 21, 17);
     p.addOval(Rect.fromCircle(center: const Offset(7.5, 17), radius: 2));
   }
 

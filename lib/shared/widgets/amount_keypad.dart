@@ -442,6 +442,11 @@ class NumKeypad extends StatelessWidget {
 /// [initial] 为初始值（如当前已填金额）；[allowDecimal] 控制是否允许小数点；
 /// [maxDecimalDigits] 放宽小数位（投资净值等传 4）。调用方拿到结果后自行解析落库。
 ///
+/// [replaceOnFirstInput] 控制「首键替换」：仅**新建空白录入**场景（从 0 开始
+/// 输）需要传 true；默认 false——编辑/回填场景（KeypadField 等 initial 取自
+/// 已有值的字段）预填必须保留，首键在其基础上追加，整体替换会「一按键就把
+/// 预填数字清掉」（2026-10-16 第 43 批真机反馈）。
+///
 /// 键盘本体已统一为工程标准 [AmountKeypad] 4 列布局
 /// （右列 删除 / − / + 占位 / 保存，− / + 灰显）。
 Future<String?> showAmountKeypad({
@@ -451,6 +456,7 @@ Future<String?> showAmountKeypad({
   int maxDecimalDigits = 2,
   String title = '',
   String confirmLabel = '完成',
+  bool replaceOnFirstInput = false,
 }) async {
   String value = initial;
   return showAppModalSheet<String>(
@@ -503,9 +509,9 @@ Future<String?> showAmountKeypad({
               allowDecimal: allowDecimal,
               maxDecimalDigits: maxDecimalDigits,
               confirmLabel: confirmLabel,
-              // 弹层以 initial（当前值）预填 → 全局开启「首键替换」，
-              // 首次按数字键整体替换预填（KeypadField 一并生效）。
-              replaceOnFirstInput: true,
+              // 首键替换默认关闭：弹层以 initial（当前值）预填，多为编辑/回填
+              // 场景，首键必须追加而非清掉预填；新建空白场景由调用方显式传 true。
+              replaceOnFirstInput: replaceOnFirstInput,
               onChanged: (String v) => set(() => value = v),
               onHide: () => Navigator.of(ctx).pop(null),
               onConfirm: () => Navigator.of(ctx).pop(value),
