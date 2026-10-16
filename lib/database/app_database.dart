@@ -74,15 +74,17 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) async {
           await m.createAll();
+          // 原生 SQL 台账表必须先于索引创建：下方 [_createIndexes] 里的
+          // idx_rolling_plans_goal 等直接引用这些表。
+          // 踩坑（2026-10-16）：_createIndexes 曾排在 _ensureRollingPlansTable
+          // 之前，全新安装首次开库即抛
+          // `SqliteException(1): no such table: main.savings_rolling_plans`
+          // → 迁移事务回滚 → bootstrapData 抛异常 → main() 中断 →
+          // runApp 永不执行 → App 卡在 Flutter 启动图。升级路径本就安全
+          // （onUpgrade 的 _createIndexes 在末尾、各版本建表步骤之后），
+          // 此处把 onCreate 对齐为同一顺序：先建表、再建索引。
+          await _ensureRawTables();
           await _createIndexes();
-          // 借还流水冲销台账（原始 SQL 建表，不参与 drift 代码生成）。
-          await _ensureLendFlowOffsetsTable();
-          // 分期「还款自动勾选」溯源表（原生 SQL，范式同上）。
-          await _ensureInstallmentAutoPaidTable();
-          // 行情候选库（自动补全元数据缓存）。
-          await _ensureSecurityMetaTable();
-          // 36 期滚存计划配置表（原生 SQL，见 _ensureRollingPlansTable）。
-          await _ensureRollingPlansTable();
         },
         onUpgrade: (Migrator m, int from, int to) async {
           // 每个版本必须在此追加 step-by-step 迁移。
@@ -478,6 +480,9 @@ class AppDatabase extends _$AppDatabase {
           // 漏迁移/半迁移的存量库。每次打开自愈，避免 SELECT * 读不到列 →
           // 映射非空 int 崩溃。幂等（PRAGMA 探测后仅在缺失时 ALTER）。
           await _ensureInvestmentHoldingColumns();
+          // 兜底建表：四张原生 SQL 台账表每次打开自愈（幂等，表已存在时
+          // 为零成本 no-op），覆盖任何漏写迁移步骤 / 建表顺序被改乱的库。
+          await _ensureRawTables();
         },
       );
 
@@ -605,6 +610,19 @@ class AppDatabase extends _$AppDatabase {
       }
     }
     return realized;
+  }
+
+  /// 幂等建表：四张原生 SQL 台账表一次建齐（表已存在时为零成本 no-op）。
+  ///
+  /// 集合口径：借还流水冲销台账、分期「还款自动勾选」溯源表、行情候选库、
+  /// 36 期滚存计划配置表。被 [migration] 的 onCreate（先于 [_createIndexes]，
+  /// 因索引直接引用这些表）与 beforeOpen（每次打开自愈）共用——将来新增
+  /// 第五张原生表时只需在此追加一行，onCreate/beforeOpen 自动覆盖。
+  Future<void> _ensureRawTables() async {
+    await _ensureLendFlowOffsetsTable();
+    await _ensureInstallmentAutoPaidTable();
+    await _ensureSecurityMetaTable();
+    await _ensureRollingPlansTable();
   }
 
   /// 幂等建表：借还流水冲销台账（[LendRepository] 用于跨账户冲销反向恢复）。
