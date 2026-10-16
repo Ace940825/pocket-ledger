@@ -59,3 +59,6 @@ app.*.map.json
 
 # Cloudflare Wrangler 本地缓存/构建产物（含 account 缓存，自动再生，不入库）
 **/.wrangler/
+
+# Flutter 金像测试失败产物（自动再生，不入库）
+test/failures/

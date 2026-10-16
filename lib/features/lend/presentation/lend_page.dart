@@ -97,7 +97,9 @@ class _LendPageState extends ConsumerState<LendPage> {
         title: const Text('借还'),
       ),
       body: pageEmpty
-          ? const _NoLendEmpty()
+          // 第 41 批：空态整体垂直居中（原来是 Padding + Column 顶格，
+          // 文字图标挤在页面上部）。Center 居中于 body 区（不含底栏）。
+          ? const Center(child: _NoLendEmpty())
           : ListView(
               padding: const EdgeInsets.only(bottom: 88),
               children: <Widget>[
@@ -461,52 +463,85 @@ class _NoLendEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 64),
+    // 第 41 批：去掉垂直顶格 padding（居中由外层 Center 负责），
+    // 仅留水平呼吸边距；Column mainAxisSize.min 整体居中。
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 32),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Container(
-            width: 84,
-            height: 84,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? ForestGreen.deep.withValues(alpha: 0.18)
-                  : ForestGreen.soft,
-              border: Border.all(
-                color: isDark
-                    ? ForestGreen.deep.withValues(alpha: 0.30)
-                    : ForestGreen.softBorder,
-              ),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: LineIcon(
-              LineIconKind.lend,
-              size: 34,
-              color: isDark ? ForestGreen.brand : ForestGreen.label,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            '还没有借还记录',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '点下方「记一笔借还」即可开始；\n'
-            '也可以到账户页新建借出 / 借入类型账户，之后自动归户',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
+          _LendEmptyIcon(),
+          SizedBox(height: 14),
+          _LendEmptyTitle(),
+          SizedBox(height: 6),
+          _LendEmptyHint(),
         ],
+      ),
+    );
+  }
+}
+
+/// 空态主文案（深色，onSurface）。
+class _LendEmptyTitle extends StatelessWidget {
+  const _LendEmptyTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '还没有借还记录',
+      style: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+    );
+  }
+}
+
+/// 空态次级说明（弱化色，onSurfaceVariant）。
+class _LendEmptyHint extends StatelessWidget {
+  const _LendEmptyHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '点下方「记一笔借还」即可开始；\n'
+      '也可以到账户页新建借出 / 借入类型账户，之后自动归户',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+/// 借还空态线稿图标圆牌（鼠尾草软底，报销页空态同款）。
+class _LendEmptyIcon extends StatelessWidget {
+  const _LendEmptyIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 84,
+      height: 84,
+      decoration: BoxDecoration(
+        color: isDark
+            ? ForestGreen.deep.withValues(alpha: 0.18)
+            : ForestGreen.soft,
+        border: Border.all(
+          color: isDark
+              ? ForestGreen.deep.withValues(alpha: 0.30)
+              : ForestGreen.softBorder,
+        ),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: LineIcon(
+        LineIconKind.lend,
+        size: 34,
+        color: isDark ? ForestGreen.brand : ForestGreen.label,
       ),
     );
   }
@@ -534,10 +569,14 @@ class _LendPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 第 41 批：渐变/底色/描边必须由 Container 自绘，不能用 Ink——
+    // Ink 装饰画在最近 Material 的 ink 层，会被本页 _bottomBar 的
+    // 不透明 Container(color: surface) 整体遮盖（真机事故：按钮隐形
+    // 但可点）。报销页空态按钮同款 Container 自绘渲染正常。
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(999),
-      child: Ink(
+      child: Container(
         decoration: BoxDecoration(
           color: backgroundColor,
           gradient: gradient,

@@ -119,6 +119,55 @@ void main() {
       groupByMonth: true,
     );
 
-    expect(find.text('还没有报销记录，点右下角新增'), findsOneWidget);
+    expect(find.text('没有内容了哦'), findsOneWidget);
+    expect(find.text('该状态下暂无账单'), findsOneWidget);
+  });
+
+  // ── 第 41 批回归锁 ──────────────────────────────────────
+  //
+  // 真机事故：报销页底栏双按钮整只隐形但可点。根因是 _PillButton 用 Ink
+  // 画装饰——Ink 装饰绘制在最近 Material 的 ink 层，被 _bottomBar 的
+  // 不透明 Container(color: surface) 整体遮盖（Scaffold 背景 Material 在
+  // 底栏子树之下；GoRouter 路由树上方的 MaterialApp 不包裹路由内容）。
+  // 修法：装饰改由 Container 自绘（本页 _NoAccountEmpty 空态按钮同款）。
+  testWidgets('底栏按钮装饰由 Container 自绘（ Ink 遮盖事故回归锁）',
+      (WidgetTester tester) async {
+    await _pump(
+      tester,
+      records: <Reimbursement>[
+        _reimb(id: 'r1', title: '九月差旅', occurredAt: _ms(2026, 9, 20)),
+      ],
+      groupByMonth: true,
+    );
+
+    for (final String label in <String>['记一笔', '报销收入']) {
+      final Finder button = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(InkWell),
+      );
+      expect(button, findsOneWidget, reason: '$label 按钮应存在');
+      expect(
+        find.descendant(of: button, matching: find.byType(Ink)),
+        findsNothing,
+        reason: '$label 不得再用 Ink 画装饰（会被不透明 Container 遮盖）',
+      );
+    }
+    // 主按钮的鼠尾草渐变必须挂在 Container 自绘装饰上。
+    final Finder mainBtn = find.ancestor(
+      of: find.text('报销收入'),
+      matching: find.byType(InkWell),
+    );
+    expect(
+      find.descendant(
+        of: mainBtn,
+        matching: find.byWidgetPredicate((Widget w) {
+          if (w is! Container) return false;
+          final Decoration? d = w.decoration;
+          return d is BoxDecoration && d.gradient != null;
+        }),
+      ),
+      findsOneWidget,
+      reason: '主按钮渐变应由 Container 自绘',
+    );
   });
 }

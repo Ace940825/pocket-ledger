@@ -1865,10 +1865,14 @@ class _PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 第 41 批：渐变/底色/描边必须由 Container 自绘，不能用 Ink——
+    // Ink 装饰画在最近 Material 的 ink 层，会被 _bottomBar 的不透明
+    // Container(color: surface) 整体遮盖（真机事故：按钮隐形但可点）。
+    // 本页空态按钮（_NoAccountEmpty.action）同款 Container 自绘正常。
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(999),
-      child: Ink(
+      child: Container(
         decoration: BoxDecoration(
           color: backgroundColor,
           gradient: gradient,

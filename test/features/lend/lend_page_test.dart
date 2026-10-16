@@ -86,4 +86,80 @@ void main() {
     expect(find.text('记一笔借还'), findsOneWidget);
     expect(find.text('去账户页新建'), findsOneWidget);
   });
+
+  // ── 第 41 批回归锁 ──────────────────────────────────────
+  //
+  // 真机事故：底栏按钮整只隐形但可点。根因是按钮装饰用了 Ink——Ink 装饰
+  // 画在最近 Material 的 ink 层，而 _bottomBar 的 Container(color: surface)
+  // 是不透明后代，绘制顺序在 ink 层之上，把渐变/描边/底色整体遮盖。
+  // （Scaffold 自带的背景 Material 在底栏子树之下；GoRouter 路由树上方的
+  // MaterialApp 不包裹路由内容，没有更近的 Material 可抬升 ink 层。）
+  // 修法：装饰改由 Container 自绘（报销页空态按钮同款，渲染正常）。
+  //
+  // 本测试锁死两个不变量，防止回归：
+  // 1. 按钮子树内不得再出现 Ink 装饰；
+  // 2. 渐变确实挂在 Container 自绘装饰上（不是丢了）。
+  testWidgets('底栏按钮装饰由 Container 自绘（ Ink 遮盖事故回归锁）',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(wrap());
+    await tester.pumpAndSettle();
+
+    for (final String label in <String>['记一笔借还', '去账户页新建']) {
+      final Finder button = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(InkWell),
+      );
+      expect(button, findsOneWidget, reason: '$label 按钮应存在');
+      expect(
+        find.descendant(of: button, matching: find.byType(Ink)),
+        findsNothing,
+        reason: '$label 不得再用 Ink 画装饰（会被不透明 Container 遮盖）',
+      );
+    }
+    // 主按钮的鼠尾草渐变必须挂在 Container 自绘装饰上。
+    final Finder mainBtn = find.ancestor(
+      of: find.text('记一笔借还'),
+      matching: find.byType(InkWell),
+    );
+    expect(
+      find.descendant(
+        of: mainBtn,
+        matching: find.byWidgetPredicate((Widget w) {
+          if (w is! Container) return false;
+          final Decoration? d = w.decoration;
+          return d is BoxDecoration && d.gradient != null;
+        }),
+      ),
+      findsOneWidget,
+      reason: '主按钮渐变应由 Container 自绘',
+    );
+  });
+
+  testWidgets('空态整体垂直居中（第 41 批：原为顶格）', (WidgetTester tester) async {
+    await tester.pumpWidget(wrap());
+    await tester.pumpAndSettle();
+
+    // 页面唯一的 Column 即空态列（底栏是 Row，AppBar 无 Column）。
+    final Finder emptyCol = find.ancestor(
+      of: find.text('还没有借还记录'),
+      matching: find.byType(Column),
+    );
+    expect(emptyCol, findsOneWidget);
+
+    final Rect colRect = tester.getRect(emptyCol);
+    final Rect appBarRect = tester.getRect(find.byType(AppBar));
+    // 底栏 SafeArea 用按钮文本锚定（框架层另有一个 SafeArea，byType 会歧义）。
+    final Rect bottomBarRect = tester.getRect(
+      find.ancestor(
+        of: find.text('记一笔借还'),
+        matching: find.byType(SafeArea),
+      ),
+    );
+    final double bodyCenterY = (appBarRect.bottom + bottomBarRect.top) / 2;
+    expect(
+      (colRect.center.dy - bodyCenterY).abs(),
+      lessThan(2),
+      reason: '空态应垂直居中于 body 区（AppBar 与底栏之间）',
+    );
+  });
 }

@@ -127,10 +127,11 @@ class HomePage extends ConsumerWidget {
 /// 「N月预算」月视图同口径）；年/季度预算在预算页年视图查看。
 ///
 /// 第 33 批：四张卡**循环滑动**——PageView 到边界即停，用户从最后一张
-/// 左滑想回第一张必须滑回四页。做法：children 尾部复制一份（8 页 =
-/// 4 张卡 + 4 张副本），initialPage 仍在原位；滑进副本区（i ≥ 4）时
-/// jumpToPage 无动画跳回 i − 4——副本与原型视觉完全相同，用户无感，
-/// 实现无限循环。指示点取 i % 4 映射回真实页。
+/// 左滑想回第一张必须滑回四页。第 41 批升级：头尾**双向**复制——
+/// children 为 [第4张副本, 卡0..3, 第1张副本]（6 页），initialPage 仍在
+/// 原位；滑到头部副本(0)无动画跳回真实最后一页(4)，滑到尾部副本(5)无动画
+/// 跳到真实第一页(1)——副本与原型视觉完全相同，用户无感，两个方向都能循环。
+/// 指示点取 (i − 1) % 4 映射回真实页（Dart 取模恒非负，i=0 时得 3）。
 class _SwipeCards extends ConsumerStatefulWidget {
   const _SwipeCards();
 
@@ -141,12 +142,17 @@ class _SwipeCards extends ConsumerStatefulWidget {
 class _SwipeCardsState extends ConsumerState<_SwipeCards> {
   static const double _cardHeight = 184;
 
-  /// 真实卡片数（指示点数）。PageView children 长度 = 2 倍——尾部复制
-  /// 一份用于循环，见类文档。
+  /// 真实卡片数（指示点数）。PageView children 长度 = 真实数 + 2——头尾各
+  /// 复制一份用于双向循环，见类文档。
   static const int _pageCount = 4;
 
+  /// 头副本下标 / 尾副本下标（真实页分别落在 1..4）。
+  static const int _headCopy = 0;
+  static const int _tailCopy = _pageCount + 1;
+
   // 默认停在「本月收支」卡（children 顺序：0 支出预算 / 1 收入目标 / 2 收支 / 3 资产）。
-  final PageController _pageController = PageController(initialPage: 2);
+  // 头部多了一份副本，原位 = 真实下标 + 1。
+  final PageController _pageController = PageController(initialPage: 3);
   int _currentPage = 2;
 
   @override
@@ -186,29 +192,19 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
           child: PageView(
             controller: _pageController,
             onPageChanged: (int i) {
-              // 循环滑动：滑进尾部副本区时无动画跳回对应原位。
-              // jumpToPage 自身会再触发一次 onPageChanged（目标页 < 4），
-              // 此时不会二次跳转，仅重复 setState 相同值，安全。
-              if (i >= _pageCount) {
-                _pageController.jumpToPage(i - _pageCount);
+              // 双向循环：滑到头部/尾部副本区时无动画跳回对应真实页。
+              // jumpToPage 自身会再触发一次 onPageChanged（目标页在 1..4），
+              // 此时不满足两个跳转条件，仅重复 setState 相同值，安全。
+              if (i == _headCopy) {
+                _pageController.jumpToPage(_pageCount);
+              } else if (i == _tailCopy) {
+                _pageController.jumpToPage(1);
               }
-              setState(() => _currentPage = i % _pageCount);
+              setState(() => _currentPage = (i - 1) % _pageCount);
             },
-            // 尾部复制一份实现循环；原型与副本视觉相同，跳回时用户无感。
+            // 头尾各复制一份实现双向循环；副本与原型视觉相同，跳回时用户无感。
+            // 下标：0=第4张副本 / 1..4=真实四卡 / 5=第1张副本。
             children: <Widget>[
-              _BudgetCard(
-                summary: expenseBudget,
-                onTap: () => context.push(Routes.budget),
-              ),
-              _IncomeTargetCard(
-                summary: incomeTarget,
-                onTap: () => context.push(Routes.budget),
-              ),
-              _IncomeExpenseCard(
-                income: income,
-                expense: expense,
-                onTap: () => context.push(Routes.ledger),
-              ),
               _AssetsCard(
                 totalAssets: assetsMinor,
                 totalLiabilities: liabilitiesMinor,
@@ -233,6 +229,10 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
                 totalLiabilities: liabilitiesMinor,
                 netAssets: netMinor - borrowInOngoing,
                 onTap: () => context.push(Routes.accounts),
+              ),
+              _BudgetCard(
+                summary: expenseBudget,
+                onTap: () => context.push(Routes.budget),
               ),
             ],
           ),
