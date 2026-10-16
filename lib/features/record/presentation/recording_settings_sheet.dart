@@ -547,6 +547,10 @@ class _SimpleSettingsSheet extends StatelessWidget {
       context,
       isScrollControlled: true,
       bodyPadding: EdgeInsets.zero,
+      // 第 39 批修复：_SimpleSettingsSheet 的 body 是 Column + Expanded
+      // （与第 38 批排序弹层同款），constrainHeight 默认 false 时 body
+      // 拿无界高度，Expanded 撞 SDK 断言直接崩。
+      constrainHeight: true,
       body: _SimpleSettingsSheet(title: title),
     );
   }
@@ -613,9 +617,15 @@ class _KeyboardThemeSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.84,
+    // 第 39 批修复（用户反馈「滑到底部不要留太多空白」）：原 SizedBox
+    // 硬钉 84% 屏高，内容少时 Expanded 把剩余空白全吃掉，滚到底后
+    // 设置项与底部键盘预览之间隔一大片白。改 ConstrainedBox 仅设上限：
+    // 内容自适应收缩，超过 84% 才触顶、由内部滚动接管。
+    final double maxSheetH = MediaQuery.of(context).size.height * 0.84;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxSheetH),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -642,7 +652,9 @@ class _KeyboardThemeSheet extends ConsumerWidget {
             ),
           ),
           Divider(height: 1, color: Theme.of(context).colorScheme.outline),
-          Expanded(
+          // loose flex：内容矮时收缩贴内容（不留白），内容超高时在
+          // ConstrainedBox 的 84% 上限内盒内滚动。
+          Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -657,7 +669,6 @@ class _KeyboardThemeSheet extends ConsumerWidget {
                   _buildSectionTitle(context, '高级设置'),
                   _buildSubModeTabs(context, ref),
                   _buildAdvancedRows(ref),
-                  const SizedBox(height: 120),
                 ],
               ),
             ),
