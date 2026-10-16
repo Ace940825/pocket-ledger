@@ -1080,10 +1080,96 @@ class _KeyboardPreview extends ConsumerWidget {
   }
 
   Widget _buildAmountArea(BuildContext context, RecordingSettings settings) {
-    final bool isFull = settings.amountPosition == '左';
+    final bool amountLeft = settings.amountPosition == '左';
+    final bool oneLine = settings.topAreaRows == '1行';
     final bool simpleDatePlain = settings.subMode == KeyboardSubMode.simple;
 
-    if (isFull) {
+    const TextStyle amountStyle = TextStyle(
+      fontSize: 28,
+      fontWeight: FontWeight.w800,
+      color: AppPalette.expense,
+    );
+    const Widget amountText = Text('¥0.00', style: amountStyle);
+
+    // 日期胶囊（两种行数共用）：日历图标 + 日期，浅底圆角。
+    final Widget dateChip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppPalette.neutralSoft,
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          LineGlyph(
+            Icons.calendar_today_outlined,
+            size: 13,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '9月20日',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: simpleDatePlain ? FontWeight.normal : FontWeight.w600,
+              color: simpleDatePlain
+                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  : AppPalette.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // 第 40 批：一行形式（用户参考图：备注 + 日期 + 金额同行，
+    // 金额在左/在右由「金额位置」控制；两行形态见图1，走下方分支）。
+    if (oneLine) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: amountLeft
+              // 金额在左：¥金额 · 备注 · 日期 · 收起箭头（参考图3）。
+              ? <Widget>[
+                  amountText,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '请输入备注信息（最多150字）',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  dateChip,
+                  _ArrowBox(),
+                ]
+              // 金额在右：备注 · 日期 · ¥金额（参考图2，末端即金额）。
+              : <Widget>[
+                  Expanded(
+                    child: Text(
+                      '请输入备注信息（最多150字）',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  dateChip,
+                  const SizedBox(width: 10),
+                  amountText,
+                ],
+        ),
+      );
+    }
+
+    if (amountLeft) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Column(
@@ -1091,14 +1177,7 @@ class _KeyboardPreview extends ConsumerWidget {
           children: <Widget>[
             Row(
               children: <Widget>[
-                Text(
-                  '¥0.00',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
+                const Text('¥0.00', style: amountStyle),
                 const Spacer(),
                 _ArrowBox(),
               ],
@@ -1134,7 +1213,7 @@ class _KeyboardPreview extends ConsumerWidget {
       );
     }
 
-    // 金额在右：简约/紧凑共用紧凑布局
+    // 金额在右（两行）：简约/紧凑共用紧凑布局
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Column(
@@ -1144,14 +1223,7 @@ class _KeyboardPreview extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               _ArrowBox(),
-              Text(
-                '¥0.00',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
+              const Text('¥0.00', style: amountStyle),
             ],
           ),
           Row(
@@ -1164,28 +1236,7 @@ class _KeyboardPreview extends ConsumerWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  LineGlyph(
-                    Icons.calendar_today_outlined,
-                    size: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '9月20日',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight:
-                          simpleDatePlain ? FontWeight.normal : FontWeight.w600,
-                      color: simpleDatePlain
-                          ? Theme.of(context).colorScheme.onSurfaceVariant
-                          : AppPalette.primary,
-                    ),
-                  ),
-                ],
-              ),
+              dateChip,
             ],
           ),
         ],
