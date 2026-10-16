@@ -142,7 +142,11 @@ final Map<IconData, LineIconKind> materialLineKindMap =
   Icons.local_atm_outlined: LineIconKind.wallet,
 
   // ── 账户/往来语义（有专用线稿，复用而非新造）──
-  Icons.handshake_outlined: LineIconKind.handshake,
+  // 第 47 批：handshake_outlined 全站仅承载「借还」语义（我的页宫格 /
+  // RecordTab.lend / 模板页借还 Tab），映射从泛化 handshake（双菱形）收敛到
+  // 借还专属语义字形 lend（人形箭头），与借还页头/空态、账户类型 jiebei 一致。
+  // handshake 字形本身保留，仍服务退款（assignment_return_outlined）。
+  Icons.handshake_outlined: LineIconKind.lend,
   Icons.assignment_return_outlined: LineIconKind.handshake,
   Icons.swap_horiz: LineIconKind.swapHorizontal,
   Icons.swap_horiz_outlined: LineIconKind.swapHorizontal,
