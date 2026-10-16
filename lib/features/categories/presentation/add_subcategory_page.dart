@@ -56,13 +56,6 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('添加子分类'),
-        actions: <Widget>[
-          TextButton.icon(
-            onPressed: () => context.push('/categories'),
-            icon: const LineGlyph(Icons.auto_fix_high_outlined),
-            label: const Text('自定义'),
-          ),
-        ],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,

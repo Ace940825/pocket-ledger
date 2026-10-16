@@ -152,4 +152,34 @@ void main() {
     );
     expect(tester.widget<ActionRow>(deleteRow).danger, isTrue);
   });
+
+  testWidgets('排序键：点顶部右侧排序钮打开「分类排序」弹层（第 38 批）', (
+    WidgetTester tester,
+  ) async {
+    final List<Category> categories = <Category>[
+      fakeCategory(id: 'p1', name: '餐饮'),
+      fakeCategory(id: 'p2', name: '购物'),
+    ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          allCategoriesProvider.overrideWith(
+            (Ref ref) => Stream<List<Category>>.value(categories),
+          ),
+        ],
+        child: const MaterialApp(home: CategoryManagePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 顶部右侧排序钮（tooltip=分类排序）→ 弹层标题 + 支出/收入分段切换。
+    await tester.tap(find.byTooltip('分类排序'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('分类排序'), findsOneWidget);
+    expect(find.text('支出分类'), findsWidgets); // 页头 Tab + 弹层分段
+    expect(find.text('收入分类'), findsWidgets);
+    // 弹层内是可拖拽的一级分类列表（餐饮在页面行 + 弹层行各出现一次）。
+    expect(find.text('餐饮'), findsNWidgets(2));
+  });
 }

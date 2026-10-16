@@ -583,7 +583,13 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         await showAppModalSheet<SavingsRollingPlan>(
       context,
       title: '计划调整',
+      // 第 38 批修复：RollingAdjustSheet 的 body 是 Column(max) +
+      // Expanded(SingleChildScrollView)，constrainHeight 默认 false 时
+      // 外壳 Column(min) 给 body 无界高度，mainAxisSize.max + flex 直接撞
+      // SDK 断言崩。isScrollControlled 只解锁路由 9/16 上限，必须配
+      // constrainHeight=true 让 body 填满有界剩余空间（内部滚动）。
       isScrollControlled: true,
+      constrainHeight: true,
       body: RollingAdjustSheet(initial: plan),
     );
     if (updated == null || !mounted) return;

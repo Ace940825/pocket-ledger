@@ -99,7 +99,9 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           ),
           IconButton(
             onPressed: () => _showSortSheet(context, ref, _type),
-            icon: const LineGlyph(Icons.sort_outlined),
+            // 字号与返回箭头对齐（20）；字形 2026-10-16 第 38 批重绘为
+            // ↓↑ 双箭头（旧 ‹+↓+底线 读作漏斗，用户反馈「排序键有问题」）。
+            icon: const LineGlyph(Icons.sort_outlined, size: 20),
             tooltip: '分类排序',
           ),
         ],
@@ -726,7 +728,14 @@ Future<void> _showSortSheet(
       onPressed: () => Navigator.of(context).pop(),
       icon: const LineGlyph(Icons.close),
     ),
+    // 第 38 批修复：body 是 Column + Expanded(ReorderableListView)，
+    // 而 AppModalSheet 默认 constrainHeight=false（外壳 Column 为 min，
+    // body 拿无界高度）→ Expanded 撞 SDK 断言
+    // 「non-zero flex but incoming height constraints are unbounded」
+    // 直接崩。isScrollControlled 只放行底层路由突破 9/16，不改外壳约束，
+    // 必须 constrainHeight=true 让 body 填满有界剩余空间。
     isScrollControlled: true,
+    constrainHeight: true,
     body: StatefulBuilder(
       builder: (BuildContext ctx, StateSetter setSheetState) {
         // 当前段的一级分类（与 segments 里的实例同一引用，拖拽后原地更新）。
@@ -971,7 +980,9 @@ Future<void> _showChildSortSheet(
       onPressed: () => Navigator.of(context).pop(),
       icon: const LineGlyph(Icons.close),
     ),
+    // 同「分类排序」：body 内纵向 Expanded 必须有界，否则无界高度断言崩。
     isScrollControlled: true,
+    constrainHeight: true,
     body: StatefulBuilder(
       builder: (BuildContext ctx, StateSetter setSheetState) {
         return Column(

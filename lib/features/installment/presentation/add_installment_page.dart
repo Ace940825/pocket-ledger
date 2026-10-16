@@ -942,7 +942,14 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                 ),
               ),
               const Divider(height: 1),
-              Flexible(
+              // 第 38 批修复：原 Flexible(ListView(shrinkWrap)) 依赖
+              // isScrollControlled 给的无界高度——分类少时自适应、多时
+              // 整个弹层撑破屏幕被 Align 裁掉上半。改显式 9/16 屏高上限：
+              // 内容少时 shrinkWrap 自适应，内容多时盒内滚动。
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(ctx).height * 9 / 16,
+                ),
                 child: ListView.builder(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,

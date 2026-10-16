@@ -55,13 +55,6 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('添加分类'),
-        actions: <Widget>[
-          TextButton.icon(
-            onPressed: () => context.push('/categories'),
-            icon: const LineGlyph(Icons.auto_fix_high_outlined),
-            label: const Text('自定义'),
-          ),
-        ],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -183,23 +176,26 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
           ),
         ),
         const SizedBox(height: AppDimens.sm),
-        Wrap(
-          spacing: AppDimens.sm,
-          runSpacing: AppDimens.sm,
-          children: <Widget>[
-            ColorChip(
-              selected: _selectedColorValue == null,
-              color: theme.colorScheme.onSurfaceVariant,
-              onTap: () => setState(() => _selectedColorValue = null),
-              isDefault: true,
-            ),
-            for (final int value in _palette)
+        // 横向一排、可左滑（第 38 批）：20 色一屏放不下，改横向滚动；
+        // ColorChip 自带 6px 透明 padding，相邻圆点天然 12px 间距。
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: <Widget>[
               ColorChip(
-                selected: _selectedColorValue == value,
-                color: Color(value),
-                onTap: () => setState(() => _selectedColorValue = value),
+                selected: _selectedColorValue == null,
+                color: theme.colorScheme.onSurfaceVariant,
+                onTap: () => setState(() => _selectedColorValue = null),
+                isDefault: true,
               ),
-          ],
+              for (final int value in _palette)
+                ColorChip(
+                  selected: _selectedColorValue == value,
+                  color: Color(value),
+                  onTap: () => setState(() => _selectedColorValue = value),
+                ),
+            ],
+          ),
         ),
       ],
     );
@@ -292,18 +288,40 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
   }
 }
 
-/// 预设分类配色。
+/// 预设分类配色（ForestSage 调和色板，与 bootstrap 种子同源）。
+///
+/// 2026-10-16 第 38 批：12 → 24 色并改按色相环排列（中性→暖→红粉→
+/// 紫→蓝→青绿），便于横向滑动时顺色找色。原 12 色 + bootstrap 种子色
+/// （蜜金/苔绿/黛蓝/深青，旧色板漏收——编辑默认分类时选不回自己的色）
+/// 全部保留，colorValue 存色值本身，存量分类零影响；新增选择器专用
+/// 8 色（正红/暖橙/明黄/薄荷/天蓝/浅紫/蓝灰/深粉）。仅选择器选项。
 const List<int> _palette = <int>[
-  0xFFD96F52,
-  0xFF5C82B8,
-  0xFFB86A9E,
-  0xFF8F6FBF,
-  0xFF4A96A6,
-  0xFF6470C2,
-  0xFF4C9E74,
-  0xFFCE6478,
-  0xFFA97742,
-  0xFFC7A24A,
-  0xFF8E8A7E,
-  0xFF45936A,
+  // 中性 / 大地
+  0xFF8E8A7E, // 暖灰
+  0xFF7A8B99, // 蓝灰
+  0xFFA97742, // 驼棕
+  0xFFC7A24A, // 赭金
+  0xFFD69E3C, // 蜜金（种子色）
+  // 暖 → 红粉
+  0xFFE0C56A, // 明黄
+  0xFFE8873F, // 暖橙
+  0xFFD96F52, // 赤陶
+  0xFFD9584E, // 正红
+  0xFFCE6478, // 玫瑰
+  0xFFC94F6E, // 深粉
+  // 紫 → 蓝
+  0xFFB86A9E, // 藕紫
+  0xFF9B7BC8, // 浅紫
+  0xFF8F6FBF, // 紫罗兰
+  0xFF6470C2, // 靛蓝
+  0xFF5C82B8, // 雾蓝
+  0xFF6FA8DC, // 天蓝
+  0xFF4E93A6, // 黛蓝（种子色）
+  // 青 → 绿
+  0xFF4A96A6, // 青
+  0xFF3E8E8E, // 深青（种子色）
+  0xFF5FB8A8, // 薄荷
+  0xFF7E9B6B, // 苔绿（种子色）
+  0xFF4C9E74, // 草绿
+  0xFF45936A, // 松绿
 ];
