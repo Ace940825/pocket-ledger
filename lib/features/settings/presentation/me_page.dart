@@ -53,8 +53,9 @@ final AutoDisposeStreamProvider<int> recordingDaysProvider =
 
 /// 「我的」Tab：小青账式个人中心布局。
 ///
-/// 绿色渐变头部（问候 + 记账天数 + 右侧功能胶囊 + 记一笔横幅）
-/// + 双卡（云同步 / 关于）+ 分组宫格（常用功能 / 管理工具 / 偏好）。
+/// 绿色渐变头部（问候 + 记账天数 + 记一笔横幅；第 34 批移除右侧三个
+/// 功能胶囊——云同步 / 全部功能 / 关于）
+/// + 双卡（云同步 / 帮助中心）+ 分组宫格（常用功能 / 管理工具 / 偏好）。
 class MePage extends ConsumerWidget {
   const MePage({super.key});
 
@@ -174,21 +175,9 @@ class MePage extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              // 右侧三个功能胶囊。
-              Column(
-                children: <Widget>[
-                  _headerPill(
-                    context,
-                    '云同步',
-                    () => context.push(Routes.settings),
-                  ),
-                  const SizedBox(height: 6),
-                  _headerPill(context, '全部功能', () => context.push(Routes.more)),
-                  const SizedBox(height: 6),
-                  _headerPill(context, '关于', () => _showAbout(context)),
-                ],
-              ),
+              // 第 34 批：移除右侧三个功能胶囊（云同步 / 全部功能 / 关于）——
+              // 用户要求。入口并未消失：云同步与设置走左上角齿轮（Routes.settings），
+              // 全部功能入口在下方宫格分组（常用/管理工具/偏好），关于随设置页。
             ],
           ),
           const SizedBox(height: 14),
@@ -240,29 +229,7 @@ class MePage extends ConsumerWidget {
     );
   }
 
-  Widget _headerPill(BuildContext context, String label, VoidCallback onTap) {
-    return Material(
-      color: AppPalette.white.withValues(alpha: 0.92),
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── 双卡（云同步 / 关于） ──
+  // ── 双卡（云同步 / 帮助中心） ──
 
   Widget _buildTwoCards(BuildContext context, WidgetRef ref) {
     return Padding(

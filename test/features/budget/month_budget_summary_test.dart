@@ -30,6 +30,23 @@ void main() {
 
   tearDown(() => db.close());
 
+  /// 自建一个现金账户并返回其 id。
+  /// 第 34 批起 bootstrap 不再预置账户（用户要求「不预置账户」），
+  /// 需要账户的测试自建。
+  Future<String> newAccount() async {
+    const String id = 'acc-cash';
+    await db.accountsDao.insertAccount(
+      const AccountsCompanion(
+        id: Value<String>(id),
+        bookId: Value<String>('default'),
+        name: Value<String>('现金'),
+        type: Value<AccountType>(AccountType.cash),
+        updatedAt: Value<int>(0),
+      ),
+    );
+    return id;
+  }
+
   /// 建容器并等依赖流（预算行/分类/已用）首发完成，再读同步汇总值。
   ///
   /// monthBudgetSummaryProvider 是同步 Provider，watch 的三个流都是异步
@@ -75,7 +92,7 @@ void main() {
     final Category incomeCat = cats.firstWhere(
       (Category c) => c.type == CategoryType.income && !c.deleted,
     );
-    final String accountId = (await db.select(db.accounts).get()).first.id;
+    final String accountId = await newAccount();
 
     final DateTime now = DateTime.now();
     final int year = now.year;
@@ -191,7 +208,7 @@ void main() {
   });
 
   test('overall 行走支出口径：已用=当月全部支出，收入流水不计入', () async {
-    final String accountId = (await db.select(db.accounts).get()).first.id;
+    final String accountId = await newAccount();
     final DateTime now = DateTime.now();
     final int year = now.year;
     final int month = now.month;

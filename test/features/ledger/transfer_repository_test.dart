@@ -47,11 +47,10 @@ void main() {
     return id;
   }
 
-  Future<String> cashAccountId() async {
-    final List<Account> accounts =
-        await db.accountsDao.watchByBook('default').first;
-    return accounts.firstWhere((Account a) => a.name == '现金').id;
-  }
+  /// 补建现金账户并返回其 id。
+  /// 第 34 批起 bootstrap 不再预置账户（用户要求「不预置账户」），
+  /// 测试自建。
+  Future<String> cashAccountId() async => addAccount('现金', AccountType.cash);
 
   test('一笔转账只写一条流水（不再写成对的两条腿）', () async {
     final String from = await cashAccountId();
@@ -154,10 +153,16 @@ void main() {
     final Account fromAcc = accounts.firstWhere((Account a) => a.id == from);
     final Account toAcc = accounts.firstWhere((Account a) => a.id == to);
 
-    expect(fromAcc.balanceMinor, -100300,
-        reason: '转出方应扣款 1000 + 5 - 2 = 1003 元',);
-    expect(toAcc.balanceMinor, 100000,
-        reason: '转入方到账金额仍为 1000 元',);
+    expect(
+      fromAcc.balanceMinor,
+      -100300,
+      reason: '转出方应扣款 1000 + 5 - 2 = 1003 元',
+    );
+    expect(
+      toAcc.balanceMinor,
+      100000,
+      reason: '转入方到账金额仍为 1000 元',
+    );
     expect(
       await db.accountsDao.watchNetAssets('default').first,
       -300,
@@ -212,10 +217,16 @@ void main() {
     final Account fromAcc = accounts.firstWhere((Account a) => a.id == from);
     final Account toAcc = accounts.firstWhere((Account a) => a.id == to);
 
-    expect(fromAcc.balanceMinor, -100300,
-        reason: '编辑后转出方仍应按 1003 元扣款',);
-    expect(toAcc.balanceMinor, 100000,
-        reason: '编辑后转入方到账金额仍为 1000 元',);
+    expect(
+      fromAcc.balanceMinor,
+      -100300,
+      reason: '编辑后转出方仍应按 1003 元扣款',
+    );
+    expect(
+      toAcc.balanceMinor,
+      100000,
+      reason: '编辑后转入方到账金额仍为 1000 元',
+    );
   });
 
   test('转出与转入是同一账户时抛校验错误', () async {

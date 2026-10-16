@@ -32,10 +32,21 @@ void main() {
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });
 
+  /// 补建现金账户并返回其 id。
+  /// 第 34 批起 bootstrap 不再预置账户（用户要求「不预置账户」），
+  /// 测试自建。
   Future<String> cashAccountId() async {
-    final List<Account> accounts =
-        await db.accountsDao.watchByBook('default').first;
-    return accounts.firstWhere((Account a) => a.name == '现金').id;
+    const String id = 'acc-cash';
+    await db.accountsDao.insertAccount(
+      const AccountsCompanion(
+        id: Value<String>(id),
+        bookId: Value<String>('default'),
+        name: Value<String>('现金'),
+        type: Value<AccountType>(AccountType.cash),
+        updatedAt: Value<int>(0),
+      ),
+    );
+    return id;
   }
 
   Future<String> addWallet() async {

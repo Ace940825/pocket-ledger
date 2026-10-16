@@ -36,12 +36,6 @@ void main() {
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });
 
-  Future<String> cashAccountId() async {
-    final List<Account> accounts =
-        await db.accountsDao.watchByBook('default').first;
-    return accounts.firstWhere((Account a) => a.name == '现金').id;
-  }
-
   Future<String> addAccount(String name, AccountType type) async {
     final String id = 'acc-$name';
     await db.accountsDao.insertAccount(
@@ -55,6 +49,11 @@ void main() {
     );
     return id;
   }
+
+  /// 补建现金账户并返回其 id。
+  /// 第 34 批起 bootstrap 不再预置账户（用户要求「不预置账户」），
+  /// 测试自建。
+  Future<String> cashAccountId() async => addAccount('现金', AccountType.cash);
 
   Future<Transaction> reload(String id) async {
     final Transaction? t = await db.transactionsDao.getById(id);

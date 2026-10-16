@@ -1122,7 +1122,11 @@ Future<void> _reconcileSavingsCurrentMinor(AppDatabase db) async {
   }
 }
 
-/// 写入默认账本、账户与一级分类。
+/// 写入默认账本与一级分类。
+///
+/// 第 34 批：不再预置「现金」账户（用户要求「不预置账户」）——账户由
+/// 用户在「账户」页自建。记一笔的账户选择器有空态兜底（提示先到账户页
+/// 添加），账户页空态由 EmptyState 承接，无崩溃路径。
 Future<void> _seedDefaults(AppDatabase db) async {
   const String bookId = 'default';
   final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -1134,16 +1138,6 @@ Future<void> _seedDefaults(AppDatabase db) async {
         id: const Value<String>(bookId),
         name: const Value<String>('日常账本'),
         createdAt: Value<int>(now),
-        updatedAt: Value<int>(now),
-      ),
-    );
-
-    await db.accountsDao.insertAccount(
-      AccountsCompanion(
-        id: Value<String>(uuid.v7()),
-        bookId: const Value<String>(bookId),
-        name: const Value<String>('现金'),
-        type: const Value<AccountType>(AccountType.cash),
         updatedAt: Value<int>(now),
       ),
     );
