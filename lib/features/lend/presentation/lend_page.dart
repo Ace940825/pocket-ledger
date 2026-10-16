@@ -165,7 +165,10 @@ class _LendPageState extends ConsumerState<LendPage> {
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
         child: Row(
           children: <Widget>[
+            // 第 44 批：次级必须显式 flex:100——此前默认 flex:1 对主按钮
+            // flex:135，被压成 ~2.5px 细条（真机只见一条竖线描边）。
             Expanded(
+              flex: 100,
               child: _LendPillButton(
                 onPressed: () => context.push(Routes.accounts),
                 backgroundColor: ghostBg,

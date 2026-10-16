@@ -693,10 +693,15 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
       ),
       body: CustomScrollView(
         slivers: <Widget>[
-          const SliverToBoxAdapter(child: SectionHeader(title: '报销账户')),
+          // 第 44 批：无账户空态对齐借还页布局——整页居中（圆牌图标 +
+          // 主文案 + 说明），不再显示「报销账户」分区头。
           if (reimbAccounts.isEmpty)
-            const SliverToBoxAdapter(child: _NoAccountEmpty())
-          else
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: _NoAccountEmpty()),
+            )
+          else ...<Widget>[
+            const SliverToBoxAdapter(child: SectionHeader(title: '报销账户')),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
               sliver: SliverList(
@@ -717,6 +722,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
                 ),
               ),
             ),
+          ],
         ],
       ),
       bottomNavigationBar: _bottomBar(context, isDark),
@@ -1102,7 +1108,10 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
         child: Row(
           children: <Widget>[
+            // 第 44 批：次级必须显式 flex:100——此前默认 flex:1 对主按钮
+            // flex:135，被压成 ~2.5px 细条（借还页真机事故同款，一并修复）。
             Expanded(
+              flex: 100,
               child: _PillButton(
                 onPressed: () => openRecordSheet(context),
                 backgroundColor: ghostBg,
@@ -2565,35 +2574,83 @@ class _ReimbAccountCard extends StatelessWidget {
       );
 }
 
-// ── 总览：无报销账户空态（统一走共享 EmptyState，线稿图标） ──
+// ── 总览：无报销账户空态（第 44 批对齐借还页：圆牌线稿 + 居中文案） ──
 
 class _NoAccountEmpty extends StatelessWidget {
   const _NoAccountEmpty();
 
   @override
   Widget build(BuildContext context) {
-    return EmptyState(
-      icon: Icons.receipt_long_outlined,
-      message: '还没有报销账户',
-      subMessage: '到账户页新建报销类型账户后，这里会显示对应卡片',
-      action: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: () => context.push(Routes.accounts),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
-          decoration: BoxDecoration(
-            gradient: ForestGradients.button,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            '去账户页新建',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onPrimary,
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      // 垂直居中由外层 SliverFillRemaining + Center 负责（借还页同款），
+      // 这里仅留水平呼吸边距。
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 84,
+            height: 84,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? ForestGreen.deep.withValues(alpha: 0.18)
+                  : ForestGreen.soft,
+              border: Border.all(
+                color: isDark
+                    ? ForestGreen.deep.withValues(alpha: 0.30)
+                    : ForestGreen.softBorder,
+              ),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: LineIcon(
+              LineIconKind.reimbursement,
+              size: 34,
+              color: isDark ? ForestGreen.brand : ForestGreen.label,
             ),
           ),
-        ),
+          const SizedBox(height: 14),
+          Text(
+            '还没有报销账户',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '到账户页新建报销类型账户后，\n这里会显示对应卡片',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 18),
+          // 借还页的「去账户页新建」在底栏幽灵键；报销页底栏是记一笔/
+          // 报销收入，账户创建入口仅此处，故保留胶囊按钮。
+          InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () => context.push(Routes.accounts),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+              decoration: BoxDecoration(
+                gradient: ForestGradients.button,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '去账户页新建',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

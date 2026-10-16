@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
@@ -9,6 +10,7 @@ import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
+import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
@@ -66,7 +68,17 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('分期')),
+      // 第 44 批：右下角 FAB 已移除，新增入口收敛到右上角「+」。
+      appBar: AppBar(
+        title: const Text('分期'),
+        actions: <Widget>[
+          IconButton(
+            icon: const LineGlyph(Icons.add),
+            tooltip: '新增分期',
+            onPressed: () => context.push(Routes.installmentAdd),
+          ),
+        ],
+      ),
       body: plans.when(
         data: (List<InstallmentPlan> list) {
           // 账本级期次一次订阅：汇总各计划的待入账金额与逾期态。
@@ -96,8 +108,9 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
               Expanded(
                 child: filtered.isEmpty
                     ? Center(
-                        child:
-                            Text(_showFinished ? '暂无已结束的分期' : '还没有分期计划，点右下角新增'),
+                        child: Text(
+                          _showFinished ? '暂无已结束的分期' : '还没有分期计划，点右上角「+」新增',
+                        ),
                       )
                     : TxnSlidableGroup(
                         child: ListView.separated(
