@@ -6,15 +6,17 @@ import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../routing/app_router.dart';
+import '../../../shared/widgets/action_group.dart';
+import '../../../shared/widgets/action_row.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/category_widgets.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
-import '../../../shared/widgets/menu_item.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../providers/categories_providers.dart';
@@ -327,6 +329,16 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
     );
   }
 
+  /// 三点键 → 分类操作弹层（与账户详情页「账户操作」/报销页「更多」同款
+  /// ActionGroup 风格，2026-10-16 第 37 批：此前用 MenuItem 设置行样式
+  /// ——圆底图标 + 平铺分隔线 + 自绘标题栏（黏土砖 + 关闭钮），与全应用
+  /// 操作弹层族割裂，用户截图反馈「跟其他弹窗风格不一致」）。
+  ///
+  /// 三组：编辑/改级/排序、数据（迁移/封存）、危险（删除）。
+  /// 条目多（父 6 行 / 子 6 行），小屏/大字体下可能超出弹层高度上限——
+  /// 用 ConstrainedBox 给出确定上限（Column(min) 传无界高度，裸
+  /// SingleChildScrollView 不会滚、仍会溢出），内容矮时收缩包裹、超限时
+  /// 弹层内滚动（同账户页注释）。
   Future<void> _showCategoryMenu(
     BuildContext context,
     WidgetRef ref,
@@ -338,116 +350,133 @@ class _ParentCategoryTileState extends State<_ParentCategoryTile> {
     final bool isParent = category.parentId == null;
     final String name = category.name;
     final String parentName = widget.category.name;
-    final Color color = category.colorValue != null
-        ? Color(category.colorValue!)
-        : AppPalette.primary;
 
     final String? action = await showAppModalSheet<String>(
       context,
-      titleWidget: Row(
-        children: <Widget>[
-          ClayIconTile(
-            size: 40,
-            color: color,
-            child: CategoryGlyph(
-              category.iconKey,
-              color: Color.lerp(
-                color,
-                Theme.of(context).colorScheme.onSurface,
-                0.22,
-              )!,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: AppDimens.md),
-          Expanded(
-            child: Text(
-              category.name,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+      title: '分类操作',
+      // 条目多（最多 6 行）可能超过半屏：开 isScrollControlled 解除 9/16
+      // 上限，由内部 ConstrainedBox(0.45) + SingleChildScrollView 管高度
+      // （否则矮屏 + 标题 chrome 会溢出 1~2px，真机可见黄色条纹）。
+      isScrollControlled: true,
+      body: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.45,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ActionGroup(
+                children: <Widget>[
+                  ActionRow(
+                    icon: const LineIcon(
+                      LineIconKind.pencil,
+                      size: 17,
+                      color: ForestGreen.deep,
+                    ),
+                    title: isParent ? '编辑分类' : '编辑子分类',
+                    subtitle: isParent
+                        ? '修改「$name」分类'
+                        : '修改「$name」子分类',
+                    onTap: () => Navigator.of(context).pop('edit'),
                   ),
-            ),
+                  if (isParent) ...<Widget>[
+                    ActionRow(
+                      icon: const LineIcon(
+                        LineIconKind.sortDesc,
+                        size: 17,
+                        color: ForestGreen.deep,
+                      ),
+                      title: '分类排序',
+                      subtitle: '为主分类排序',
+                      onTap: () => Navigator.of(context).pop('sort'),
+                    ),
+                    ActionRow(
+                      icon: const LineIcon(
+                        LineIconKind.arrowRight,
+                        size: 17,
+                        color: ForestGreen.deep,
+                      ),
+                      title: '改为子分类',
+                      subtitle: '将「$name」归入其他主分类',
+                      onTap: () => Navigator.of(context).pop('toSub'),
+                    ),
+                  ] else ...<Widget>[
+                    ActionRow(
+                      icon: const LineIcon(
+                        LineIconKind.moveUp,
+                        size: 17,
+                        color: ForestGreen.deep,
+                      ),
+                      title: '改为主分类',
+                      subtitle: '将「$name」变为主分类',
+                      onTap: () => Navigator.of(context).pop('toParent'),
+                    ),
+                    ActionRow(
+                      icon: const LineIcon(
+                        LineIconKind.sortDesc,
+                        size: 17,
+                        color: ForestGreen.deep,
+                      ),
+                      title: '子分类排序',
+                      subtitle: '为「$parentName」下的子分类排序',
+                      onTap: () => Navigator.of(context).pop('childSort'),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              ActionGroup(
+                children: <Widget>[
+                  ActionRow(
+                    icon: const LineIcon(
+                      LineIconKind.swapHorizontal,
+                      size: 17,
+                      color: ForestGreen.deep,
+                    ),
+                    title: '账单迁移',
+                    subtitle: '仅迁移「$name」分类下的账单',
+                    onTap: () => Navigator.of(context).pop('migrate'),
+                  ),
+                  ActionRow(
+                    icon: const LineIcon(
+                      LineIconKind.archiveBox,
+                      size: 17,
+                      color: ForestGreen.deep,
+                    ),
+                    title: category.isArchived
+                        ? (isParent ? '取消封存分类' : '取消封存子分类')
+                        : (isParent ? '封存分类' : '封存子分类'),
+                    subtitle: category.isArchived
+                        ? '将「$name」解封并恢复显示'
+                        : '将「$name」封存，简化分类列表',
+                    onTap: () => Navigator.of(context).pop(
+                      category.isArchived ? 'unarchive' : 'archive',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ActionGroup(
+                children: <Widget>[
+                  ActionRow(
+                    icon: const LineIcon(
+                      LineIconKind.trash,
+                      size: 17,
+                      color: ForestSemantic.expense,
+                    ),
+                    title: isParent ? '删除分类' : '删除子分类',
+                    subtitle: isParent
+                        ? '迁移账单后删除，或直接删除分类'
+                        : '迁移账单后删除，或直接删除子分类',
+                    danger: true,
+                    onTap: () => Navigator.of(context).pop('delete'),
+                  ),
+                ],
+              ),
+            ],
           ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const LineGlyph(Icons.close),
-          ),
-        ],
-      ),
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          MenuItem(
-            icon: Icons.edit_outlined,
-            title: isParent ? '编辑分类' : '编辑子分类',
-            subtitle: isParent ? '修改「$name」分类' : '修改「$name」子分类',
-            trailing: const SizedBox.shrink(),
-            onTap: () => Navigator.of(context).pop('edit'),
-          ),
-          if (isParent) ...<Widget>[
-            MenuItem(
-              icon: Icons.sort_outlined,
-              title: '分类排序',
-              subtitle: '为主分类排序',
-              trailing: const SizedBox.shrink(),
-              onTap: () => Navigator.of(context).pop('sort'),
-            ),
-            MenuItem(
-              icon: Icons.subdirectory_arrow_right_outlined,
-              title: '改为子分类',
-              subtitle: '将「$name」归入其他主分类',
-              trailing: const SizedBox.shrink(),
-              onTap: () => Navigator.of(context).pop('toSub'),
-            ),
-          ] else ...<Widget>[
-            MenuItem(
-              icon: Icons.vertical_align_top_outlined,
-              title: '改为主分类',
-              subtitle: '将「$name」变为主分类',
-              trailing: const SizedBox.shrink(),
-              onTap: () => Navigator.of(context).pop('toParent'),
-            ),
-            MenuItem(
-              icon: Icons.sort_outlined,
-              title: '子分类排序',
-              subtitle: '为「$parentName」下的子分类排序',
-              trailing: const SizedBox.shrink(),
-              onTap: () => Navigator.of(context).pop('childSort'),
-            ),
-          ],
-          MenuItem(
-            icon: Icons.swap_horiz_outlined,
-            title: '账单迁移',
-            subtitle: '仅迁移「$name」分类下的账单',
-            trailing: const SizedBox.shrink(),
-            onTap: () => Navigator.of(context).pop('migrate'),
-          ),
-          MenuItem(
-            icon: category.isArchived
-                ? Icons.unarchive_outlined
-                : Icons.archive_outlined,
-            title: category.isArchived
-                ? (isParent ? '取消封存分类' : '取消封存子分类')
-                : (isParent ? '封存分类' : '封存子分类'),
-            subtitle:
-                category.isArchived ? '将「$name」解封并恢复显示' : '将「$name」封存，简化分类列表',
-            trailing: const SizedBox.shrink(),
-            onTap: () => Navigator.of(context).pop(
-              category.isArchived ? 'unarchive' : 'archive',
-            ),
-          ),
-          const Divider(height: 1, indent: 56),
-          MenuItem(
-            icon: Icons.delete_outline,
-            iconColor: AppPalette.expense,
-            titleColor: AppPalette.expense,
-            title: isParent ? '删除分类' : '删除子分类',
-            subtitle: isParent ? '迁移账单后删除，或直接删除分类' : '迁移账单后删除，或直接删除子分类',
-            trailing: const SizedBox.shrink(),
-            onTap: () => Navigator.of(context).pop('delete'),
-          ),
-          const SizedBox(height: AppDimens.md),
-        ],
+        ),
       ),
     );
 
