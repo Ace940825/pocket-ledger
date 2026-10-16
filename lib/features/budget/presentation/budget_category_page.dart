@@ -638,9 +638,10 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
     if (_yearly) {
       avgSpentLabel = _isExpense ? '本年月均消费' : '本年月均收入';
       avgBudgetLabel = _isExpense ? '月均预算' : '月均目标';
-      // 第 29 批：「剩余每月可收入金额」→「剩余每月需收入」——
+      // 第 29 批：「剩余每月可收入金额」→「剩余每月需收入」；第 31 批
+      // →「剩余月均需收入」，与同行「月均预算/月均目标」措辞对齐——
       // 口径 = (目标−已得)/剩余月数，即每月需再收入多少才达成。
-      avgRemainLabel = _isExpense ? '剩余每月可消费金额' : '剩余每月需收入';
+      avgRemainLabel = _isExpense ? '剩余每月可消费金额' : '剩余月均需收入';
     } else {
       avgSpentLabel = _isExpense ? '本月日均消费' : '本月日均收入';
       avgBudgetLabel = _isExpense ? '日均预算' : '日均目标';
@@ -1217,8 +1218,12 @@ class _BudgetGroupData {
   /// 一级行生效预算额（第 29 批总闸制）：设了自身预算（总闸）时取
   /// 自身；否则 = Σ二级预算。二者**不叠加**——旧口径 own+Σ二级，
   /// 一级二级同设时同一笔额度双计。
+  ///
+  /// 第 31 批补 0 回退：自身金额为 0 的行是「自动汇总」占位（添加一级
+  /// 分类时允许不填金额），同样回退为 Σ二级——只有正数自身预算才算
+  /// 总闸。这样「填了金额=总闸、不填=自动汇总」两种意图可并存。
   int get effectiveMinor {
-    if (own != null) return own!.$1.amountMinor;
+    if (own != null && own!.$1.amountMinor > 0) return own!.$1.amountMinor;
     return children.fold<int>(
       0,
       (int s, (Budget, Category) r) => s + r.$1.amountMinor,

@@ -209,7 +209,11 @@ class BudgetRepository {
     required String? categoryId,
     required int alertThreshold,
   }) {
-    if (amountMinor <= 0) throw const ValidationFailure('预算额度必须大于 0');
+    // 0 金额合法（第 31 批）：一级分类「自动汇总」占位行——添加一级
+    // 分类时允许不填金额，展示按 Σ二级 合计（见 _BudgetGroupData
+    // .effectiveMinor 的 0 回退）。负值仍拒绝；二级分类行由编辑器强制
+    // 填正数（budget_editor 的 amountOptional 只对一级新增放行）。
+    if (amountMinor < 0) throw const ValidationFailure('预算额度不能为负');
     if (scope == BudgetScope.category &&
         (categoryId == null || categoryId.isEmpty)) {
       throw const ValidationFailure('分类预算必须选择分类');

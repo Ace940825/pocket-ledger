@@ -201,6 +201,10 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
   /// - 收入·结转超额 = 目标合计 − 超额（差额 < 0 才抵减；未达不动）；
   /// - 收入·结转缺口 = 目标合计 + 缺口（差额 > 0 才累加；超额不动）。
   int _copyDraftMinor(int srcBudgetMinor, int srcBalanceMinor) {
+    // 第 31 批：0 金额一级行 = 「自动汇总」占位（添加一级分类时允许不填
+    // 金额），任何复制模式下都保持 0——否则结转逻辑会把结余加成真实
+    // 额度，占位行变成总闸，违背「一级=Σ二级」口径。
+    if (srcBudgetMinor == 0) return 0;
     switch (_copyMode) {
       case _CopyMode.none:
         return srcBudgetMinor;

@@ -31,8 +31,8 @@ final AutoDisposeStreamProvider<List<Book>> _booksProvider =
 /// - 顶部月份头卡：黏土方糖币种图标 + 「N月预算」标题。
 /// - AppBar 右上两枚黏土方糖按钮：¥ 进「设置月预算」、📅 选周期
 ///   （月预算模式选月份、年预算模式选年份）。
-/// - 操作胶囊行：「购物清单 · N」（展开本地清单，点项可预填金额/备注快速记账）
-///   与「预算设置」（进设置页）。
+/// - 操作胶囊行：「购物清单 · N」（展开本地清单，点项可预填金额/备注快速记账）。
+///   「预算设置」胶囊第 31 批移除：与 AppBar ¥ 图标、「我的」页入口三处重复。
 /// - 「支出预算」「收入目标」两张分组卡：金额总和 + 双列**账本**
 ///   项卡网格（黏土方糖钱包 + 账本名 + 预算/目标金额或未设置）；
 ///   点账本卡进该账本该方向的「预算分类」页（[BudgetCategoryPage]）。
@@ -185,7 +185,9 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
             children: <Widget>[
               _HeaderCard(periodLabel: periodLabel),
               const SizedBox(height: 12),
-              // 操作胶囊行：购物清单（展开/收起 + 待购数）/ 预算设置。
+              // 操作胶囊行：购物清单（展开/收起 + 待购数）。
+              // 「预算设置」胶囊第 31 批移除：与 AppBar ¥ 设置图标、
+              // 「我的」页入口三处重复跳转，保留前两处即可。
               Row(
                 children: <Widget>[
                   _ActionPill(
@@ -194,18 +196,6 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
                     badge: shoppingPending > 0 ? '$shoppingPending' : null,
                     active: _showShopping,
                     onTap: () => setState(() => _showShopping = !_showShopping),
-                  ),
-                  const SizedBox(width: 8),
-                  _ActionPill(
-                    icon: Icons.settings_outlined,
-                    label: '预算设置',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => BudgetSetupPage(
-                          initialTargetMonth: DateTime(_year, _month),
-                        ),
-                      ),
-                    ),
                   ),
                 ],
               ),

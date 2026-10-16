@@ -66,6 +66,15 @@ Future<void> showBudgetEditor(
   final bool isIncome = categoryType == CategoryType.income;
   final bool isOverall = (budget?.scope ?? seed?.scope) == BudgetScope.overall;
 
+  // 第 31 批：一级分类（通用入口，parentCategory == null）新增时金额可以
+  // 不填——一级分类金额 = Σ名下二级分类（总闸制）。留空即建 0 金额占位行：
+  // 分组立即可见、可进内添加二级目标，金额按二级合计自动汇总（见
+  // _BudgetGroupData.effectiveMinor 的 0 回退）。不建行会让分组根本不出现
+  // （分组从预算行派生），用户将失去分组内「添加二级目标」入口。
+  // 二级分类（分组内入口）/ 总预算 / 编辑既有行仍必须填正数金额。
+  final bool amountOptional =
+      parentCategory == null && !isOverall && budget == null;
+
   // 候选分类（第 21 批口径）：通用入口只列一级分类；传 parentCategory 时
   // 只列该一级名下的二级分类。编辑历史数据若是候选外的分类（如已删挂靠），
   // 补进候选以正确回显。
@@ -237,7 +246,9 @@ Future<void> showBudgetEditor(
             const FormGap(),
             AmountField(
               controller: amountController,
-              label: isIncome ? '目标额度' : '预算额度',
+              label: amountOptional
+                  ? (isIncome ? '目标额度（选填）' : '预算额度（选填）')
+                  : (isIncome ? '目标额度' : '预算额度'),
             ),
           ],
         ),
@@ -253,8 +264,11 @@ Future<void> showBudgetEditor(
       InkWell(
         borderRadius: BorderRadius.circular(AppDimens.radiusChip),
         onTap: () {
-          final double? amount = double.tryParse(amountController.text.trim());
-          if (amount == null || amount <= 0) {
+          final String raw = amountController.text.trim();
+          final double? amount = double.tryParse(raw);
+          // 一级分类新增：留空合法（0 金额占位行，按二级合计自动汇总）。
+          if (!(amountOptional && raw.isEmpty) &&
+              (amount == null || amount <= 0)) {
             showToast(
               context,
               isIncome ? '目标额度必须大于 0' : '预算额度必须大于 0',
@@ -284,11 +298,16 @@ Future<void> showBudgetEditor(
 
   if (saved != true || !context.mounted) return;
 
-  final double? amount = double.tryParse(amountController.text.trim());
-  if (amount == null || amount <= 0) {
+  final String rawAmount = amountController.text.trim();
+  final double? amount = double.tryParse(rawAmount);
+  // 一级分类新增且留空 → 0 金额占位行；其余情形仍必须为正数。
+  if (!(amountOptional && rawAmount.isEmpty) &&
+      (amount == null || amount <= 0)) {
     showToast(context, isIncome ? '目标额度必须大于 0' : '预算额度必须大于 0');
     return;
   }
+  // amount 为 null 只可能出现在「一级分类新增 + 留空」分支，此时记 0。
+  final int amountMinor = amount == null ? 0 : Money.fromDecimal(amount).minor;
 
   // 周期/年份不再有 UI：编辑沿用原值；新增用入口 seed（= 当前查看的月/年），
   // seed 缺省时回落当前周期。提醒参数编辑沿用原值、新增用默认。
@@ -337,7 +356,7 @@ Future<void> showBudgetEditor(
         bookId: bookId ?? ref.read(currentBookIdProvider),
         scope: scope,
         period: period,
-        amountMinor: Money.fromDecimal(amount).minor,
+        amountMinor: amountMinor,
         year: year,
         periodIndex: periodIndex,
         categoryId: categoryId,
@@ -349,7 +368,7 @@ Future<void> showBudgetEditor(
         id: budget.id,
         scope: scope,
         period: period,
-        amountMinor: Money.fromDecimal(amount).minor,
+        amountMinor: amountMinor,
         year: year,
         periodIndex: periodIndex,
         categoryId: categoryId,
