@@ -125,6 +125,12 @@ class HomePage extends ConsumerWidget {
 /// 且收入方向无处展示。现拆为「支出预算 / 收入目标」两张卡，数据走
 /// [monthBudgetSummaryProvider] 按方向取**当月月度**预算（与预算主页
 /// 「N月预算」月视图同口径）；年/季度预算在预算页年视图查看。
+///
+/// 第 33 批：四张卡**循环滑动**——PageView 到边界即停，用户从最后一张
+/// 左滑想回第一张必须滑回四页。做法：children 尾部复制一份（8 页 =
+/// 4 张卡 + 4 张副本），initialPage 仍在原位；滑进副本区（i ≥ 4）时
+/// jumpToPage 无动画跳回 i − 4——副本与原型视觉完全相同，用户无感，
+/// 实现无限循环。指示点取 i % 4 映射回真实页。
 class _SwipeCards extends ConsumerStatefulWidget {
   const _SwipeCards();
 
@@ -134,6 +140,9 @@ class _SwipeCards extends ConsumerStatefulWidget {
 
 class _SwipeCardsState extends ConsumerState<_SwipeCards> {
   static const double _cardHeight = 184;
+
+  /// 真实卡片数（指示点数）。PageView children 长度 = 2 倍——尾部复制
+  /// 一份用于循环，见类文档。
   static const int _pageCount = 4;
 
   // 默认停在「本月收支」卡（children 顺序：0 支出预算 / 1 收入目标 / 2 收支 / 3 资产）。
@@ -176,8 +185,36 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
           height: _cardHeight,
           child: PageView(
             controller: _pageController,
-            onPageChanged: (int i) => setState(() => _currentPage = i),
+            onPageChanged: (int i) {
+              // 循环滑动：滑进尾部副本区时无动画跳回对应原位。
+              // jumpToPage 自身会再触发一次 onPageChanged（目标页 < 4），
+              // 此时不会二次跳转，仅重复 setState 相同值，安全。
+              if (i >= _pageCount) {
+                _pageController.jumpToPage(i - _pageCount);
+              }
+              setState(() => _currentPage = i % _pageCount);
+            },
+            // 尾部复制一份实现循环；原型与副本视觉相同，跳回时用户无感。
             children: <Widget>[
+              _BudgetCard(
+                summary: expenseBudget,
+                onTap: () => context.push(Routes.budget),
+              ),
+              _IncomeTargetCard(
+                summary: incomeTarget,
+                onTap: () => context.push(Routes.budget),
+              ),
+              _IncomeExpenseCard(
+                income: income,
+                expense: expense,
+                onTap: () => context.push(Routes.ledger),
+              ),
+              _AssetsCard(
+                totalAssets: assetsMinor,
+                totalLiabilities: liabilitiesMinor,
+                netAssets: netMinor - borrowInOngoing,
+                onTap: () => context.push(Routes.accounts),
+              ),
               _BudgetCard(
                 summary: expenseBudget,
                 onTap: () => context.push(Routes.budget),
