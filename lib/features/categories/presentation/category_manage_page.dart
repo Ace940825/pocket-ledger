@@ -598,24 +598,29 @@ class _SubcategoryChip extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            isAdd
-                ? Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppPalette.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                    ),
-                    child: const LineGlyph(
-                      Icons.add_circle_outline,
-                      color: AppPalette.primary,
+            // 第 36 批：添加瓦片改用与兄弟项同一套 [ClayIconTile] 黏土砖。
+            // 此前是扁平奶油底 Container（无渐变/描边/投影/高光），混在周围
+            // 渐变砖里明显割裂——用户截图反馈「跟其他图标风格不一致」。
+            // 取色走全站特殊瓦片惯例（记一笔网格「设置」瓦片同款）：中性
+            // onSurfaceVariant，渐变白→灰，与分类彩砖区隔「这是动作不是
+            // 分类」；线稿加号与兄弟项同为 1.7 描边（字形本就是线稿，
+            // 割裂的只是底砖）。
+            ClayIconTile(
+              size: 48,
+              color: isAdd
+                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  : color,
+              child: isAdd
+                  ? LineIcon(
+                      LineIconKind.add,
                       size: 24,
-                    ),
-                  )
-                : ClayIconTile(
-                    size: 48,
-                    color: color,
-                    child: CategoryGlyph(
+                      color: Color.lerp(
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                        Theme.of(context).colorScheme.onSurface,
+                        0.22,
+                      )!,
+                    )
+                  : CategoryGlyph(
                       category!.iconKey,
                       color: Color.lerp(
                         color,
@@ -624,7 +629,7 @@ class _SubcategoryChip extends StatelessWidget {
                       )!,
                       size: 24,
                     ),
-                  ),
+            ),
             const SizedBox(height: 6),
             Text(
               isAdd ? '添加子分类' : category!.name,
