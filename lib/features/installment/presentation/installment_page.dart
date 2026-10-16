@@ -22,6 +22,7 @@ import '../../ledger/presentation/widgets/txn_slidable.dart';
 import '../domain/fee_utils.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
+import '../../record/record_tab.dart';
 import 'installment_detail_page.dart';
 
 /// 分期页：进行中 / 已结束双 Tab + 计划卡片（对照有钱记账分期文档布局）。
@@ -150,7 +151,8 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
   // ---------------------------------------------------------------- 视图
 
   /// 底部主操作条：第 45 批从右上角「+」收敛到此处，与借还 / 报销底栏口径
-  /// 一致——单个深绿渐变胶囊「+ 记一笔分期」，直达新建分期页。
+  /// 一致——单个深绿渐变胶囊「+ 记一笔分期」；第 46 批改跳记一笔的分期
+  /// Tab（与报销 / 借还主按钮同口径，直达记一笔页）。
   Widget _bottomBar(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return SafeArea(
@@ -162,7 +164,8 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
           height: 46,
           child: InkWell(
             borderRadius: BorderRadius.circular(999),
-            onTap: () => context.push(Routes.installmentAdd),
+            onTap: () =>
+                context.push(Routes.record, extra: RecordTab.installment),
             child: Container(
               decoration: BoxDecoration(
                 gradient: ForestGradients.button,

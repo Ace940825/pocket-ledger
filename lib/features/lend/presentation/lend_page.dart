@@ -33,7 +33,8 @@ import '../providers/lend_providers.dart';
 /// 预置账户，页面直接沦为死空态。现对齐报销页范式加底部常驻双按钮栏：
 /// 主按钮「记一笔借还」直开记一笔的借还 Tab（不建账户也能记——填对方
 /// 名即可，落「未指定账户」区；选了借出/借入类型账户则自动归户）；
-/// 幽灵按钮保留「去账户页新建」的进阶归户引导。空态去掉自有按钮
+/// 幽灵按钮「新建账户」直达账户页（第 46 批改名，建借出/借入类型账户
+/// 后自动归户）。空态去掉自有按钮
 /// （动作入口唯一，避免双按钮重复），只留图标 + 说明文案。
 class LendPage extends ConsumerStatefulWidget {
   const LendPage({super.key});
@@ -150,7 +151,7 @@ class _LendPageState extends ConsumerState<LendPage> {
 
   /// 底部双按钮栏：主「记一笔借还」直开记一笔借还 Tab（不建账户也能记，
   /// 填对方名落「未指定账户」区；选借出/借入类型账户则自动归户）；
-  /// 次级「去账户页新建」保留进阶归户引导。
+  /// 次级「新建账户」直达账户页（第 46 批改名，原「去账户页新建」）。
   Widget _bottomBar(BuildContext context, bool isDark) {
     final Color ghostBg =
         isDark ? Theme.of(context).colorScheme.surface : context.colors.surface;
@@ -176,7 +177,7 @@ class _LendPageState extends ConsumerState<LendPage> {
                 textColor: isDark
                     ? Theme.of(context).colorScheme.onSurface
                     : Theme.of(context).colorScheme.onSurface,
-                label: '去账户页新建',
+                label: '新建账户',
               ),
             ),
             const SizedBox(width: 10),
@@ -508,8 +509,10 @@ class _LendEmptyHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
+      // 第 46 批：语义随底栏改名对齐——幽灵键已是「新建账户」，次行
+      // 不再写「到账户页」，直接引用底栏按钮名。
       '点下方「记一笔借还」即可开始；\n'
-      '也可以到账户页新建借出 / 借入类型账户，之后自动归户',
+      '也可以点「新建账户」建立借出 / 借入类型账户，之后自动归户',
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 12,

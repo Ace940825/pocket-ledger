@@ -23,7 +23,7 @@ import '../../record/record_tab.dart';
 ///
 /// 罗列当前账本下全部退款流水（sourceModule = refund），按天分组、时间倒序；
 /// 头部「周期筛选行」（周/月/年/自定义，默认全部）+ 合计笔数与金额，
-/// 右上「记退款」直达记一笔退款 Tab；
+/// 底部「+ 记一笔退款」直达记一笔退款 Tab；
 /// 行复用 [TransactionTile]（左滑迁移/编辑/删除/复制），点击进流水明细。
 class RefundPage extends ConsumerStatefulWidget {
   const RefundPage({super.key});
@@ -95,7 +95,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
               child: list.isEmpty
                   ? EmptyState(
                       message: _period == null
-                          ? '暂无退款记录\n记一笔 → 退款 可新增'
+                          ? '暂无退款记录\n点下方「记一笔退款」可新增'
                           : '当前周期暂无退款记录',
                       icon: Icons.assignment_return_outlined,
                     )
@@ -104,6 +104,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
           ],
         ),
       ),
+      bottomNavigationBar: _bottomBar(context),
     );
   }
 
@@ -114,32 +115,18 @@ class _RefundPageState extends ConsumerState<RefundPage> {
       child: Stack(
         alignment: Alignment.center,
         children: <Widget>[
+          // 第 46 批：返回键去掉白圆底悬浮样式，改为全站自定义头部统一的
+          // 裸 IconButton + 线稿返回箭头（账单清理页同款）。
           Positioned(
-            left: 14,
-            child: GestureDetector(
-              onTap: () => context.pop(),
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  shape: BoxShape.circle,
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .shadow
-                          .withValues(alpha: 0.078),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: LineGlyph(
-                  Icons.arrow_back_ios_new,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
+            left: 8,
+            top: 0,
+            bottom: 0,
+            child: IconButton(
+              onPressed: () => context.pop(),
+              icon: LineGlyph(
+                Icons.arrow_back_ios_new,
+                size: 19,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -156,7 +143,8 @@ class _RefundPageState extends ConsumerState<RefundPage> {
     );
   }
 
-  // ── 操作行：「全部/周期标签 ˅」居左 + 排序切换、「记退款」居右 ──
+  // ── 操作行：「全部/周期标签 ˅」居左 + 排序切换居右（第 46 批：「记退款」
+  // 移到底部主操作条，顶部保留左时间右排序） ─────────────────────────
   Widget _buildPeriodRow(BuildContext context) {
     final bool filtered = _period != null;
     return Padding(
@@ -238,33 +226,49 @@ class _RefundPageState extends ConsumerState<RefundPage> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          GestureDetector(
+        ],
+      ),
+    );
+  }
+
+  /// 底部主操作条：第 46 批从顶部行收敛到此处，与分期 / 借还 / 报销底栏
+  /// 口径一致——单个深绿渐变胶囊「+ 记一笔退款」，直达记一笔退款 Tab。
+  Widget _bottomBar(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Container(
+        color: scheme.surface,
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+        child: SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
             onTap: () => context.push(Routes.record, extra: RecordTab.refund),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: ForestGreen.soft,
+                gradient: ForestGradients.button,
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: const Row(
+              alignment: Alignment.center,
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  LineGlyph(Icons.add, size: 14, color: ForestGreen.deep),
-                  SizedBox(width: 3),
+                  LineGlyph(Icons.add, size: 18, color: scheme.onPrimary),
+                  const SizedBox(width: 4),
                   Text(
-                    '记退款',
+                    '记一笔退款',
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: ForestGreen.deep,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onPrimary,
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

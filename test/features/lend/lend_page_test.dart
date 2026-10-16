@@ -11,8 +11,8 @@ import 'package:pocket_ledger/features/lend/providers/lend_providers.dart';
 ///
 /// 背景：第 34 批起不再预置账户，借还页原先只能看不能记（唯一动作是
 /// 空态里的「去账户页新建」），直接沦为死空态。修复：底部常驻双按钮栏
-/// （主「记一笔借还」+ 幽灵「去账户页新建」），空态去掉自有按钮、
-/// 动作入口唯一。本测试锁死：
+/// （主「记一笔借还」+ 幽灵「新建账户」，第 46 批由「去账户页新建」改名），
+/// 空态去掉自有按钮、动作入口唯一。本测试锁死：
 /// 1. 空态时动作入口仍然可见（页面不死）；
 /// 2. 有记录时底部栏常驻。
 ///
@@ -68,7 +68,7 @@ void main() {
     expect(find.text('还没有借还记录'), findsOneWidget);
     // 动作入口唯一且在空态可见：主按钮 + 幽灵按钮。
     expect(find.text('记一笔借还'), findsOneWidget);
-    expect(find.text('去账户页新建'), findsOneWidget);
+    expect(find.text('新建账户'), findsOneWidget);
     // 空态自身不再放按钮（避免与底部栏双按钮重复）。
     expect(find.text('还没有借还账户'), findsNothing);
   });
@@ -84,7 +84,7 @@ void main() {
     expect(find.text('张三'), findsOneWidget);
     // 底部栏常驻：有数据时也能记一笔。
     expect(find.text('记一笔借还'), findsOneWidget);
-    expect(find.text('去账户页新建'), findsOneWidget);
+    expect(find.text('新建账户'), findsOneWidget);
   });
 
   // ── 第 41 批回归锁 ──────────────────────────────────────
@@ -104,7 +104,7 @@ void main() {
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
-    for (final String label in <String>['记一笔借还', '去账户页新建']) {
+    for (final String label in <String>['记一笔借还', '新建账户']) {
       final Finder button = find.ancestor(
         of: find.text(label),
         matching: find.byType(InkWell),

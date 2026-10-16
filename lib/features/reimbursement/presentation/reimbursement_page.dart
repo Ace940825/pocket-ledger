@@ -30,6 +30,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/providers/ledger_providers.dart';
 import '../../record/presentation/record_sheet.dart';
+import '../../record/record_tab.dart';
 import '../data/reimbursement_repository.dart';
 import '../providers/reimbursement_providers.dart';
 import 'reimbursement_grouping.dart';
@@ -1111,7 +1112,9 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
             Expanded(
               flex: 100,
               child: _PillButton(
-                onPressed: () => openRecordSheet(context),
+                // 第 46 批：「新建账户」直达账户页（此前误跳记一笔弹层），
+                // 与借还页幽灵键口径一致。
+                onPressed: () => context.push(Routes.accounts),
                 backgroundColor: ghostBg,
                 border: Border.all(color: ghostBorder),
                 textColor: isDark
@@ -1124,7 +1127,12 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
             Expanded(
               flex: 135,
               child: _PillButton(
-                onPressed: () => _showEditor(),
+                // 第 46 批：主按钮直达记一笔的报销 Tab（此前开报销收入编辑器，
+                // 与「记一笔报销」语义不符；列表行编辑仍走 _showEditor）。
+                onPressed: () => openRecordSheet(
+                  context,
+                  initialTab: RecordTab.reimbursement,
+                ),
                 gradient: ForestGradients.button,
                 textColor: Theme.of(context).colorScheme.onPrimary,
                 icon: LineGlyph(
@@ -2626,28 +2634,8 @@ class _NoAccountEmpty extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 18),
-          // 第 45 批：底部栏已有「新建账户」幽灵键，空态胶囊同步改名
-          // 「新建账户」（不再写「去账户页新建」），入口语义与底栏一致。
-          InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: () => context.push(Routes.accounts),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
-              decoration: BoxDecoration(
-                gradient: ForestGradients.button,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '新建账户',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-            ),
-          ),
+          // 第 46 批：空态中心的「新建账户」胶囊移除——底栏幽灵键已承载
+          // 同一入口，中心区只留图标 + 文案（借还页空态同款结构）。
         ],
       ),
     );
