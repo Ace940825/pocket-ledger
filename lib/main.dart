@@ -25,23 +25,40 @@ Future<void> main() async {
     pickerImpl.useAndroidPhotoPicker = true;
   }
 
-  // 1. 获取或生成数据库密钥。密钥存 iOS Keychain / Android Keystore，
-  //    绝不硬编码在代码中，也不随备份文件外泄。
-  const FlutterSecureStorage storage = FlutterSecureStorage();
-  String? dbKey = await storage.read(key: Env.databaseKeyStorageKey);
+  // 1. 预加载 SharedPreferences：既是数据库密钥的备份位，也是记账设置页的
+  //    持久化底座，必须先于安全存储逻辑完成初始化。
+  appPrefs = await SharedPreferences.getInstance();
+
+  // 2. 获取或生成数据库密钥。主位存 iOS Keychain / Android Keystore，
+  //    绝不硬编码在代码中，也不随备份文件外泄。部分 Android 模拟器镜像上
+  //    Keystore 的 keygen 会永久挂起（写操作不再返回，主线程空转、界面
+  //    卡在启动页），因此读写一律加超时兜底，并在 Keystore 不可用时把
+  //    密钥落到 SharedPreferences 备份位——保证同一设备每次启动都用
+  //    同一把密钥，否则旧的 SQLCipher 数据库将无法打开。
+  String? dbKey = await _readSecureStorage(Env.databaseKeyStorageKey);
+  if (dbKey != null &&
+      dbKey.isNotEmpty &&
+      appPrefs.containsKey(Env.databaseKeyStorageKey)) {
+    // 主位已恢复：清掉备份位，避免日后两份密钥混淆。
+    await appPrefs.remove(Env.databaseKeyStorageKey);
+  }
+  dbKey ??= appPrefs.getString(Env.databaseKeyStorageKey);
   if (dbKey == null || dbKey.isEmpty) {
     dbKey = const Uuid().v4();
-    await storage.write(key: Env.databaseKeyStorageKey, value: dbKey);
+    final bool backedUp = await _writeSecureStorage(
+      Env.databaseKeyStorageKey,
+      dbKey,
+    );
+    if (!backedUp) {
+      await appPrefs.setString(Env.databaseKeyStorageKey, dbKey);
+    }
   }
 
-  // 2. 打开本地加密数据库（SQLCipher）
+  // 3. 打开本地加密数据库（SQLCipher）
   final AppDatabase database = AppDatabase.open(password: dbKey);
 
-  // 3. 首次启动写入默认账本、账户与分类
+  // 4. 首次启动写入默认账本、账户与分类
   await bootstrapData(database);
-
-  // 4. 预加载 SharedPreferences（记账页面设置统一持久化，弹窗重开/重启不丢）
-  appPrefs = await SharedPreferences.getInstance();
 
   runApp(
     ProviderScope(
@@ -51,4 +68,29 @@ Future<void> main() async {
       child: const App(),
     ),
   );
+}
+
+/// 读取安全存储。Keystore 读异常或挂起时返回 null，由调用方回落
+/// SharedPreferences 备份位——绝不让 main() 卡死在启动页。
+Future<String?> _readSecureStorage(String key) async {
+  try {
+    return await const FlutterSecureStorage()
+        .read(key: key)
+        .timeout(const Duration(seconds: 6));
+  } on Exception {
+    return null;
+  }
+}
+
+/// 写入安全存储，返回是否成功。部分 Android 模拟器镜像上 Keystore keygen
+/// 会永久挂起（线程卡死不再返回），必须靠超时把启动流程拉回来。
+Future<bool> _writeSecureStorage(String key, String value) async {
+  try {
+    await const FlutterSecureStorage()
+        .write(key: key, value: value)
+        .timeout(const Duration(seconds: 6));
+    return true;
+  } on Exception {
+    return false;
+  }
 }
