@@ -29,12 +29,17 @@ class BudgetRepository {
         .watch();
   }
 
-  /// 指定区间内的支出合计（分）。[categoryId] 为 null 时统计全部支出。
+  /// 指定区间内某类型流水合计（分）。[categoryId] 为 null 时统计全部。
+  ///
+  /// [type] 默认支出（预算已用口径）；第 32 批首页「收入目标」卡复用同一
+  /// 查询查收入（已得口径）——收入侧 discount 恒 0，实付口径不受影响。
+  /// 口径 = 实付（amount − discount）+ 不计预算的流水排除（excludeFromBudget）。
   Stream<int> watchSpent({
     required String bookId,
     required int startAt,
     required int endAt,
     String? categoryId,
+    TxnType type = TxnType.expense,
   }) {
     final $TransactionsTable t = _db.transactions;
     // 实付口径（与收支统计一致）：amount 存优惠前原价，优惠部分不计入支出
@@ -43,7 +48,7 @@ class BudgetRepository {
     Expression<bool> predicate = t.bookId.equals(bookId) &
         t.deleted.equals(false) &
         t.excludeFromBudget.equals(false) &
-        t.type.equals(TxnType.expense.index) &
+        t.type.equals(type.index) &
         t.occurredAt.isBiggerOrEqualValue(startAt) &
         t.occurredAt.isSmallerThanValue(endAt);
     if (categoryId != null) {

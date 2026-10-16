@@ -6,6 +6,7 @@ import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../database/app_database.dart';
+import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
@@ -24,7 +25,8 @@ import '../../ledger/providers/ledger_providers.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../record/presentation/record_sheet.dart';
 
-/// 首页总览：顶部三张可横向滑动卡片（资产 / 预算 / 本月收支）+ 快捷入口 + 最近流水。
+/// 首页总览：顶部四张可横向滑动卡片（支出预算 / 收入目标 / 本月收支 / 资产）
+/// + 快捷入口 + 最近流水。
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
@@ -113,10 +115,16 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-/// 顶部三张横向卡片：资产总览 / 本月预算 / 本月收支。
+/// 顶部四张横向卡片：本月支出预算 / 本月收入目标 / 本月收支 / 资产总览。
 ///
 /// 用 [PageView] 让用户左右滑动浏览；下面接 [_PageDots] 指示当前页。
 /// 把 PageController 放在 StatefulWidget 里，否则 setState 不会触发指示点更新。
+///
+/// 第 32 批：原三张卡（预算/收支/资产）的预算卡把全部预算行不分月/年、
+/// 不分支出/收入累计求和（10 月支出 10,000 + 年收入目标 1,000 = 11,000），
+/// 且收入方向无处展示。现拆为「支出预算 / 收入目标」两张卡，数据走
+/// [monthBudgetSummaryProvider] 按方向取**当月月度**预算（与预算主页
+/// 「N月预算」月视图同口径）；年/季度预算在预算页年视图查看。
 class _SwipeCards extends ConsumerStatefulWidget {
   const _SwipeCards();
 
@@ -126,11 +134,11 @@ class _SwipeCards extends ConsumerStatefulWidget {
 
 class _SwipeCardsState extends ConsumerState<_SwipeCards> {
   static const double _cardHeight = 184;
-  static const int _pageCount = 3;
+  static const int _pageCount = 4;
 
-  // 默认停在「本月收支」卡（children 顺序：0 预算 / 1 收支 / 2 资产）。
-  final PageController _pageController = PageController(initialPage: 1);
-  int _currentPage = 1;
+  // 默认停在「本月收支」卡（children 顺序：0 支出预算 / 1 收入目标 / 2 收支 / 3 资产）。
+  final PageController _pageController = PageController(initialPage: 2);
+  int _currentPage = 2;
 
   @override
   void dispose() {
@@ -154,7 +162,11 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
     final int borrowInOngoing =
         ref.watch(borrowInOngoingProvider).valueOrNull ?? 0;
     final int liabilitiesMinor = accountLiabilities + borrowInOngoing;
-    final BudgetSummary budget = ref.watch(currentMonthBudgetSummaryProvider);
+    // 第 32 批：预算模块按方向取当月月度预算（旧口径 Σ 全部行，月年累计）。
+    final BudgetSummary expenseBudget =
+        ref.watch(monthBudgetSummaryProvider(CategoryType.expense));
+    final BudgetSummary incomeTarget =
+        ref.watch(monthBudgetSummaryProvider(CategoryType.income));
     final int income = ref.watch(monthIncomeProvider).valueOrNull ?? 0;
     final int expense = ref.watch(monthExpenseProvider).valueOrNull ?? 0;
 
@@ -167,7 +179,11 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
             onPageChanged: (int i) => setState(() => _currentPage = i),
             children: <Widget>[
               _BudgetCard(
-                summary: budget,
+                summary: expenseBudget,
+                onTap: () => context.push(Routes.budget),
+              ),
+              _IncomeTargetCard(
+                summary: incomeTarget,
                 onTap: () => context.push(Routes.budget),
               ),
               _IncomeExpenseCard(
@@ -195,7 +211,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
   }
 }
 
-/// 卡片1：资产总览（深绿底）。
+/// 卡片4：资产总览（深绿底）。
 class _AssetsCard extends StatelessWidget {
   const _AssetsCard({
     required this.totalAssets,
@@ -262,7 +278,11 @@ class _AssetsCard extends StatelessWidget {
   }
 }
 
-/// 卡片2：本月预算（森林绿渐变底）。
+/// 卡片1：本月支出预算（森林绿渐变底）。
+///
+/// 第 32 批：数据改走 [monthBudgetSummaryProvider] 的支出方向——只统计
+/// **当月月度**预算行（overall + 支出分类），与预算主页「N月预算」月视图
+/// 同口径；旧卡 Σ 全部预算行（含年/季度、收入目标）导致月年累计。
 class _BudgetCard extends StatelessWidget {
   const _BudgetCard({required this.summary, required this.onTap});
 
@@ -284,7 +304,7 @@ class _BudgetCard extends StatelessWidget {
                   horizontal: AppDimens.lg,
                 ),
                 child: Text(
-                  '暂未设置预算，点此去设置',
+                  '本月未设置预算，点此去设置',
                   style: theme.textTheme.bodyLarge
                       ?.copyWith(color: ForestAssetText.primary),
                   textAlign: TextAlign.center,
@@ -331,6 +351,93 @@ class _BudgetCard extends StatelessWidget {
                         labelColor:
                             ForestAssetText.primary.withValues(alpha: 0.85),
                         valueColor: ForestAssetAccent.amberText,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+/// 卡片2：本月收入目标（森林绿渐变底，第 32 批新增）。
+///
+/// 与卡片1（支出预算）对偶：大数字 = 还需收入（目标−已得）；超额达成时
+/// 翻正显示「超额达成」。底部两枚统计 = 目标金额 / 已得。
+/// 数据只取**当月月度**收入分类目标行（与预算主页「N月预算」月视图的
+/// 「收入目标」同口径）——年收入目标（如 2026 年 ¥1,000）不在月度卡
+/// 累计，在预算页年视图查看。
+class _IncomeTargetCard extends StatelessWidget {
+  const _IncomeTargetCard({required this.summary, required this.onTap});
+
+  final BudgetSummary summary;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final bool empty = summary.total == 0;
+    // 收入方向「剩余」语义与支出相反：为负 = 超额达成（好事），翻正展示。
+    final bool exceeded = summary.remaining < 0;
+    final String bigLabel = exceeded ? '超额达成' : '还需收入';
+    final int bigValue = exceeded ? -summary.remaining : summary.remaining;
+    return _TappableSurface(
+      onTap: onTap,
+      background: ForestAssetBg.deep,
+      gradient: ForestAssetBg.card,
+      child: empty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.lg,
+                ),
+                child: Text(
+                  '本月未设置收入目标，点此去设置',
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(color: ForestAssetText.primary),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  bigLabel,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: ForestAssetText.primary.withValues(alpha: 0.85),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                AnimatedMoneyText(
+                  Money.fromMinor(bigValue),
+                  color: ForestAssetText.emphasis,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    color: ForestAssetText.emphasis,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _MiniStat(
+                        label: '目标金额',
+                        valueMinor: summary.total,
+                        labelColor:
+                            ForestAssetText.primary.withValues(alpha: 0.85),
+                        valueColor: ForestAssetText.emphasis,
+                      ),
+                    ),
+                    const SizedBox(width: AppDimens.md),
+                    Expanded(
+                      child: _MiniStat(
+                        label: '已得',
+                        valueMinor: summary.spent,
+                        labelColor:
+                            ForestAssetText.primary.withValues(alpha: 0.85),
+                        valueColor: ForestAssetSemantic.income,
                       ),
                     ),
                   ],
