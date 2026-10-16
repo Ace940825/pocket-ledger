@@ -140,22 +140,28 @@ void main() {
       groupByMonth: true,
     );
 
-    for (final String label in <String>['记一笔', '报销收入']) {
+    for (final String label in <String>['新建账户', '记一笔报销']) {
+      // 第 45 批：空态胶囊与底栏幽灵键都显示「新建账户」，用底栏 SafeArea
+      // 作用域排除空态胶囊，只锁底栏按钮的装饰自绘。
       final Finder button = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(SafeArea),
+      );
+      expect(button, findsOneWidget, reason: '$label 底栏按钮应存在');
+      final Finder inkWell = find.ancestor(
         of: find.text(label),
         matching: find.byType(InkWell),
       );
-      expect(button, findsOneWidget, reason: '$label 按钮应存在');
       expect(
-        find.descendant(of: button, matching: find.byType(Ink)),
+        find.descendant(of: inkWell, matching: find.byType(Ink)),
         findsNothing,
         reason: '$label 不得再用 Ink 画装饰（会被不透明 Container 遮盖）',
       );
     }
     // 主按钮的鼠尾草渐变必须挂在 Container 自绘装饰上。
     final Finder mainBtn = find.ancestor(
-      of: find.text('报销收入'),
-      matching: find.byType(InkWell),
+      of: find.text('记一笔报销'),
+      matching: find.byType(SafeArea),
     );
     expect(
       find.descendant(

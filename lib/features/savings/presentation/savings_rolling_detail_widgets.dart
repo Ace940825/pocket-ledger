@@ -605,28 +605,29 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
     // 单行语义：只显示「当前生效」的一条调整（列表按起始期升序，取最后
     // 一条），不罗列历史；新调整保存后整体替换（引擎 rateFor/baseAtPeriod
     // 均取「起始期 ≤ 当期的最后一条」，单条即可表达「某期起一直生效」）。
+    // 第 45 批：利率 / 金额调整行改为「固定显示」——默认各保有一条空行
+    // （有生效调整时预填该条），移除「添加」按钮，避免空态无入口。
     final List<RollingRateOverride> rateOverrides =
         widget.initial.rateOverrides;
-    if (rateOverrides.isNotEmpty) {
-      final RollingRateOverride o = rateOverrides.last;
-      _rateRows.add(
-        _AdjustRow(
-          from: o.fromPeriod,
-          value: (o.rateBp / 100).toStringAsFixed(2),
-        ),
-      );
-    }
+    _rateRows.add(
+      _AdjustRow(
+        from: rateOverrides.isNotEmpty ? rateOverrides.last.fromPeriod : null,
+        value: rateOverrides.isNotEmpty
+            ? (rateOverrides.last.rateBp / 100).toStringAsFixed(2)
+            : null,
+      ),
+    );
     final List<RollingAmountOverride> amountOverrides =
         widget.initial.amountOverrides;
-    if (amountOverrides.isNotEmpty) {
-      final RollingAmountOverride o = amountOverrides.last;
-      _amountRows.add(
-        _AdjustRow(
-          from: o.fromPeriod,
-          value: (o.amountMinor / 100).toStringAsFixed(2),
-        ),
-      );
-    }
+    _amountRows.add(
+      _AdjustRow(
+        from:
+            amountOverrides.isNotEmpty ? amountOverrides.last.fromPeriod : null,
+        value: amountOverrides.isNotEmpty
+            ? (amountOverrides.last.amountMinor / 100).toStringAsFixed(2)
+            : null,
+      ),
+    );
   }
 
   @override
@@ -749,11 +750,6 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                   valueLabel: '新利率（%）',
                   valueHint: '2.00',
                   valuePrefix: '%',
-                  onAdd: () {
-                    if (_rateRows.isEmpty) {
-                      setState(() => _rateRows.add(_AdjustRow()));
-                    }
-                  },
                   emptyText: '暂无利率调整，全部存入按基础年利率',
                 ),
                 const SizedBox(height: 16),
@@ -764,11 +760,6 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                   valueLabel: '每月存入（元）',
                   valueHint: '2000',
                   valuePrefix: '¥',
-                  onAdd: () {
-                    if (_amountRows.isEmpty) {
-                      setState(() => _amountRows.add(_AdjustRow()));
-                    }
-                  },
                   emptyText: '暂无金额调整，全部按每月存入本金',
                 ),
                 const SizedBox(height: 20),
@@ -962,7 +953,6 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
     required String valueLabel,
     required String valueHint,
     required String valuePrefix,
-    required VoidCallback onAdd,
     required String emptyText,
   }) {
     return Container(
@@ -1036,6 +1026,9 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                         setState(() {
                           rows[i].dispose();
                           rows.removeAt(i);
+                          // 第 45 批：行固定显示——删到最后一条时补回一条空行，
+                          // 避免空态无入口（与 initState 默认一条空行一致）。
+                          if (rows.isEmpty) rows.add(_AdjustRow());
                         });
                       },
                     ),
@@ -1043,15 +1036,6 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                 ),
               ),
           ],
-          TextButton.icon(
-            onPressed: onAdd,
-            style: TextButton.styleFrom(
-              foregroundColor: AppPalette.deepGreen,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-            ),
-            icon: const LineGlyph(Icons.add, size: 18),
-            label: Text('添加$title'),
-          ),
         ],
       ),
     );

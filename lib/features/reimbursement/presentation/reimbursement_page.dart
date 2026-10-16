@@ -24,7 +24,6 @@ import '../../../shared/widgets/form_dialog.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
-import '../../../shared/widgets/section_header.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
 import '../../accounts/providers/accounts_providers.dart';
@@ -701,7 +700,6 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
               child: Center(child: _NoAccountEmpty()),
             )
           else ...<Widget>[
-            const SliverToBoxAdapter(child: SectionHeader(title: '报销账户')),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
               sliver: SliverList(
@@ -1119,7 +1117,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
                 textColor: isDark
                     ? Theme.of(context).colorScheme.onSurface
                     : Theme.of(context).colorScheme.onSurface,
-                label: '记一笔',
+                label: '新建账户',
               ),
             ),
             const SizedBox(width: 10),
@@ -1134,7 +1132,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
                   size: 18,
                   color: Theme.of(context).colorScheme.onPrimary,
                 ),
-                label: '报销收入',
+                label: '记一笔报销',
               ),
             ),
           ],
@@ -2629,8 +2627,8 @@ class _NoAccountEmpty extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          // 借还页的「去账户页新建」在底栏幽灵键；报销页底栏是记一笔/
-          // 报销收入，账户创建入口仅此处，故保留胶囊按钮。
+          // 第 45 批：底部栏已有「新建账户」幽灵键，空态胶囊同步改名
+          // 「新建账户」（不再写「去账户页新建」），入口语义与底栏一致。
           InkWell(
             borderRadius: BorderRadius.circular(999),
             onTap: () => context.push(Routes.accounts),
@@ -2641,7 +2639,7 @@ class _NoAccountEmpty extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
-                '去账户页新建',
+                '新建账户',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

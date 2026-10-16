@@ -9,6 +9,7 @@ import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
 import '../../../core/errors/failures.dart';
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
@@ -68,16 +69,10 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
 
     return Scaffold(
-      // 第 44 批：右下角 FAB 已移除，新增入口收敛到右上角「+」。
+      // 第 45 批：右上角「+」移除，新增入口收敛到底部「+ 记一笔分期」胶囊，
+      // 与其他模块（借还 / 报销）底栏主按钮口径一致。
       appBar: AppBar(
         title: const Text('分期'),
-        actions: <Widget>[
-          IconButton(
-            icon: const LineGlyph(Icons.add),
-            tooltip: '新增分期',
-            onPressed: () => context.push(Routes.installmentAdd),
-          ),
-        ],
       ),
       body: plans.when(
         data: (List<InstallmentPlan> list) {
@@ -109,7 +104,7 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
                 child: filtered.isEmpty
                     ? Center(
                         child: Text(
-                          _showFinished ? '暂无已结束的分期' : '还没有分期计划，点右上角「+」新增',
+                          _showFinished ? '暂无已结束的分期' : '还没有分期计划，点下方「+ 记一笔分期」新增',
                         ),
                       )
                     : TxnSlidableGroup(
@@ -148,10 +143,57 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
         loading: () => const LoadingState(),
         error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
       ),
+      bottomNavigationBar: _bottomBar(context),
     );
   }
 
   // ---------------------------------------------------------------- 视图
+
+  /// 底部主操作条：第 45 批从右上角「+」收敛到此处，与借还 / 报销底栏口径
+  /// 一致——单个深绿渐变胶囊「+ 记一笔分期」，直达新建分期页。
+  Widget _bottomBar(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Container(
+        color: scheme.surface,
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+        child: SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () => context.push(Routes.installmentAdd),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: ForestGradients.button,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  LineGlyph(
+                    Icons.add,
+                    size: 18,
+                    color: scheme.onPrimary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '记一笔分期',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildSegmented() {
     return Container(
