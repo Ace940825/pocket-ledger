@@ -581,19 +581,17 @@ class TransactionRepository {
         }
       }
 
-      // 级联恢复被这笔借还冲销流水（还债/收债/债务消减/坏账计提）抵掉的
-      // 债务：按冲销台账（lend_flow_offsets）逐条反向恢复各借还记录的
-      // repaidMinor（已结清 → 重新进行中），涉及借还账户余额随之重算。
-      // 与上面「报销收入反向抵扣」同模式——否则用户删掉还债流水想撤销
-      // 还款时，债务仍停留在已结清、账户未还本金不变（数据不一致）。
-      // 本金流水（借入/借出）不受影响：无台账且备注非冲销动词，直接跳过。
-      await restoreLendOffsetOnFlowRemoved(_db, txn);
-
       // 级联软删「借入/借出本金流水」对应的借还记录：在账户页删本金流水
       // 即视为撤销这笔债务，记录随之软删、指定账户余额重算，避免「删流水
       // 后借还记录仍驱动余额」的孤儿余额。还债/收债/债务消减/坏账计提流水
-      // 已在上面反向恢复 repaid，不在此删记录。区分依据：本金流水从不写
-      // lend_flow_offsets 台账，冲销流水一定会写。
+      // 不在此删记录（下面 restoreLendOffsetOnFlowRemoved 反向恢复 repaid）。
+      // 区分依据：本金流水从不写 lend_flow_offsets 台账、备注也无冲销动词；
+      // 冲销流水必有其一（新流水有台账；历史无台账流水备注以动词开头）。
+      // ⚠️ 顺序：本段必须先于下面的恢复调用执行——恢复流程会清掉本笔流水
+      // 的 lend_flow_offsets 台账，事后单查「有无台账」会把新冲销流水误判
+      // 成本金流水而错删债务记录（2026-10-16 测试 D/D2 实证：删还债流水后
+      // 记录被软删、借入账户余额清零，而 status/repaid 断言已先通过，
+      // 极具迷惑性）。
       if (txn.sourceModule == SourceModule.lend &&
           txn.relatedId != null &&
           txn.type != TxnType.transfer) {
@@ -602,7 +600,9 @@ class TransactionRepository {
           variables: <Variable<Object>>[Variable<Object>(txn.id)],
         ).get())
             .isNotEmpty;
-        if (!hasOffsets) {
+        // 冲销流水判定须与恢复判定同口径：有台账，或备注以冲销动词开头。
+        final bool isOffsetFlow = hasOffsets || isLendOffsetNote(txn.note);
+        if (!isOffsetFlow) {
           final LendRecord? rec = await (_db.select(_db.lendRecords)
                 ..where(
                   (LendRecords t) =>
@@ -630,6 +630,16 @@ class TransactionRepository {
           }
         }
       }
+
+      // 级联恢复被这笔借还冲销流水（还债/收债/债务消减/坏账计提）抵掉的
+      // 债务：按冲销台账（lend_flow_offsets）逐条反向恢复各借还记录的
+      // repaidMinor（已结清 → 重新进行中），涉及借还账户余额随之重算。
+      // 与上面「报销收入反向抵扣」同模式——否则用户删掉还债流水想撤销
+      // 还款时，债务仍停留在已结清、账户未还本金不变（数据不一致）。
+      // 本金流水（借入/借出）不受影响：无台账且备注非冲销动词，直接跳过。
+      // 必须排在上面本金流水分支之后：恢复流程会清掉本笔流水台账，本金
+      // 分支的「有无台账」判定要靠清账前的状态区分冲销/本金流水。
+      await restoreLendOffsetOnFlowRemoved(_db, txn);
     });
 
     // 投资买卖流水被通用删除（明细弹窗 / 滑动删除 / 批量清理都经此）：

@@ -156,6 +156,16 @@ const List<String> _kOffsetNoteVerbs = <String>[
   '坏账计提-',
 ];
 
+/// 判定流水备注是否为冲销动词开头（还债/收债/债务消减/坏账计提）。
+///
+/// 历史无台账数据靠它识别冲销流水；新流水一律带 `lend_flow_offsets`
+/// 台账、备注只落用户手填内容（见 [LendRepository.repay]）。两者取并集
+/// 才是完整的「冲销流水」判定——[TransactionRepository.remove] 的
+/// 本金/冲销分流与 [restoreLendOffsetOnFlowRemoved] 的恢复判定必须
+/// 同口径，否则会误删债务记录（2026-10-16 测试 D/D2 实证）。
+bool isLendOffsetNote(String? note) =>
+    _kOffsetNoteVerbs.any((String v) => (note ?? '').startsWith(v));
+
 /// 删除借还冲销流水（还债/收债/债务消减/坏账计提）时，反向恢复被它
 /// 冲掉的债务并重建涉及账户的余额不变量。在 [TransactionRepository.remove]
 /// 的事务内调用（与报销收入删除的反向抵扣同模式）。
@@ -205,9 +215,7 @@ Future<void> restoreLendOffsetOnFlowRemoved(
     await deleteLendOffsets(db, txn.id);
   } else {
     // 2) 历史无台账兜底：备注动词判定为冲销流水才恢复（本金流水跳过）。
-    final String note = txn.note ?? '';
-    final bool isOffsetFlow =
-        _kOffsetNoteVerbs.any((String v) => note.startsWith(v));
+    final bool isOffsetFlow = isLendOffsetNote(txn.note);
     if (!isOffsetFlow) return;
     final LendRecord? record = await (db.select(db.lendRecords)
           ..where(
