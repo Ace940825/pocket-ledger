@@ -144,11 +144,18 @@ ParseResult parseInput(String content) {
 }
 
 ParseResult _parseCsv(String content) {
+  // 模板系统（bill_template.dart）：以 # 开头的行是填写说明，导入时忽略，
+  // 用户无需手动删除模板里的注释行。
+  final String filtered = content
+      .replaceAll('\r', '')
+      .split('\n')
+      .where((String line) => !line.trimLeft().startsWith('#'))
+      .join('\n');
   final List<BillRow> rows = <BillRow>[];
   final List<String> errors = <String>[];
   final List<List<dynamic>> table =
       const CsvToListConverter(eol: '\n', shouldParseNumbers: false)
-          .convert(content.replaceAll('\r', ''));
+          .convert(filtered);
   if (table.isEmpty) return const ParseResult(<BillRow>[], <String>[]);
 
   // 表头 → 列索引（按中文表头定位，缺列时回退到 -1 表示无此列）。
@@ -215,7 +222,11 @@ ParseResult _parseJson(String content) {
   final List<String> errors = <String>[];
   try {
     final dynamic decoded = jsonDecode(content);
-    final List<dynamic> list = decoded is List ? decoded : <dynamic>[decoded];
+    // 模板系统：本 App 生成的空白模板是 {_template:…, bills:[…]} 结构，
+    // 账单数据在 bills 键下；兼容旧格式（裸数组或单对象）。
+    final dynamic bills =
+        decoded is Map && decoded['bills'] is List ? decoded['bills'] : decoded;
+    final List<dynamic> list = bills is List ? bills : <dynamic>[bills];
     for (int i = 0; i < list.length; i++) {
       final dynamic item = list[i];
       if (item is! Map) {

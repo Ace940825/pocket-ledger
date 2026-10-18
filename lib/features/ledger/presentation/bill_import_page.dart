@@ -17,6 +17,7 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../../categories/data/category_repository.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../data/bill_io.dart';
+import '../data/bill_template.dart';
 import '../data/transaction_repository.dart';
 import '../providers/ledger_providers.dart';
 
@@ -42,6 +43,9 @@ class BillImportPage extends ConsumerStatefulWidget {
 class _BillImportPageState extends ConsumerState<BillImportPage> {
   final TextEditingController _text = TextEditingController();
   ParseResult? _parsed;
+
+  /// 模板系统（2026-10-18）：解析成功后的匹配校验与三维归集报告。
+  TemplateCheckResult? _check;
   bool _importing = false;
   String? _resultMsg;
 
@@ -69,13 +73,40 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
       return;
     }
     _text.text = await File(filePath).readAsString();
-    _parse();
+    await _parse();
     if (mounted) showAppToast(context, '已读取文件内容');
   }
 
-  void _parse() {
+  Future<void> _parse() async {
+    final ParseResult parsed = parseInput(_text.text);
+    TemplateCheckResult? check;
+    if (parsed.rows.isNotEmpty) {
+      // 与当前账本的账户 / 分类做匹配校验（模板系统：不再静默自动创建，
+      // 未知项在报告中显式列出）。
+      final List<Account> accounts = await ref.read(accountsProvider.future);
+      final List<Category> categories =
+          await ref.read(allCategoriesProvider.future);
+      final List<Set<String>> catNames = <Set<String>>[
+        <String>{}, // income（与 CategoryType 顺序对齐）
+        <String>{}, // expense
+        <String>{}, // transfer
+      ];
+      for (final Category c in categories) {
+        if (c.type.index < catNames.length) {
+          catNames[c.type.index].add(c.name.trim().toLowerCase());
+        }
+      }
+      check = checkRows(
+        parsed.rows,
+        accountNames: <String>{
+          for (final Account a in accounts) a.name.trim().toLowerCase(),
+        },
+        categoryNamesByType: catNames,
+      );
+    }
     setState(() {
-      _parsed = parseInput(_text.text);
+      _parsed = parsed;
+      _check = check;
       _resultMsg = null;
     });
   }
@@ -259,8 +290,9 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                     padding: const EdgeInsets.all(AppDimens.md),
                     child: Text(
                       '粘贴本 App 导出的 CSV / JSON 内容，或点「选择文件」从本地任选 '
-                      '.csv / .json。账户 / 分类按名称归户，'
-                      '缺失项会自动创建（账户默认现金类）。',
+                      '.csv / .json；空白填写模板可在「账单导出」页下载。解析后按 '
+                      '分类 / 时间 / 账户自动匹配校验并给出核对归集报告：'
+                      '账户 / 分类缺失项将自动创建（账户默认现金类）。',
                       style: TextStyle(
                         fontSize: 12.5,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -293,8 +325,10 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _pickFile,
-                          icon: const LineGlyph(Icons.folder_open_outlined,
-                              size: 18),
+                          icon: const LineGlyph(
+                            Icons.folder_open_outlined,
+                            size: 18,
+                          ),
                           label: const Text('选择文件'),
                           style: _outlineStyle(),
                         ),
@@ -302,7 +336,8 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                       const SizedBox(width: AppDimens.sm),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: _text.text.trim().isEmpty ? null : _parse,
+                          onPressed:
+                              _text.text.trim().isEmpty ? null : () => _parse(),
                           icon:
                               const LineGlyph(Icons.preview_outlined, size: 18),
                           label: const Text('解析预览'),
@@ -400,7 +435,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
             if (p.hasErrors) ...<Widget>[
               const Divider(height: 16, color: AppPalette.divider),
               const Text(
-                '以下问题行将被跳过：',
+                '以下问题行将被跳过（解析错误）：',
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -420,10 +455,166 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                   ),
                 ),
             ],
+            if (_check != null) ..._checkSection(_check!),
           ],
         ),
       ),
     ];
+  }
+
+  // ── 模板系统：匹配校验 + 核对归集报告 ──────────────────────────
+
+  String _fmtDate(DateTime dt) =>
+      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
+      '${dt.day.toString().padLeft(2, '0')}';
+
+  /// 归集金额文本：收 / 支 / 转非零项分列（净额对账户维度有歧义）。
+  String _aggAmountText(TemplateAgg a) {
+    final List<String> parts = <String>[
+      if (a.incomeMinor > 0) '收 ${aggAmount(a.incomeMinor)}',
+      if (a.expenseMinor > 0) '支 ${aggAmount(a.expenseMinor)}',
+      if (a.transferMinor > 0) '转 ${aggAmount(a.transferMinor)}',
+    ];
+    return parts.isEmpty ? '—' : parts.join(' · ');
+  }
+
+  /// 匹配校验与核对归集卡片：三维汇总（分类/账户/月）+ 将自动创建项
+  /// + 校验错误明细。空数据行已被 [checkRows] 过滤。
+  List<Widget> _checkSection(TemplateCheckResult c) {
+    final TextStyle hint = TextStyle(
+      fontSize: 12,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      height: 1.5,
+    );
+    final bool allMatched = c.newAccounts.isEmpty && c.newCategories.isEmpty;
+    return <Widget>[
+      const Divider(height: 16, color: AppPalette.divider),
+      Row(
+        children: <Widget>[
+          const Expanded(
+            child: Text(
+              '匹配校验与核对归集',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppPalette.ctaGreen,
+              ),
+            ),
+          ),
+          Text(
+            c.spanStart != null
+                ? '${_fmtDate(c.spanStart!)} ~ ${_fmtDate(c.spanEnd!)}'
+                : '',
+            style: hint,
+          ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      _aggBlock('按分类', c.byCategory, 6),
+      _aggBlock('按账户', c.byAccount, 6),
+      _aggBlock('按月', c.byMonth, 4),
+      const SizedBox(height: 6),
+      Text(
+        allMatched
+            ? '✅ 账户与分类全部匹配现有数据，导入不会新建。'
+            : '⚠️ 以下项不在现有数据中，导入时将自动创建：\n'
+                '· 账户：${c.newAccounts.join('、')}\n'
+                '· 分类：${c.newCategories.join('、')}',
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.5,
+          color: allMatched
+              ? AppPalette.ctaGreen
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+      if (c.hasErrors) ...<Widget>[
+        const SizedBox(height: 6),
+        const Text(
+          '以下问题行将被跳过（校验错误）：',
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: AppPalette.expense,
+          ),
+        ),
+        const SizedBox(height: 4),
+        for (final String e in c.errors.take(10))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text('· $e', style: hint),
+          ),
+      ],
+      if (c.warnings.isNotEmpty) ...<Widget>[
+        const SizedBox(height: 6),
+        for (final String w in c.warnings.take(6))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text('· $w', style: hint),
+          ),
+      ],
+    ];
+  }
+
+  /// 单个归集块：标题 + 前 [max] 行聚合明细（key / 笔数 / 金额）。
+  Widget _aggBlock(String title, Map<String, TemplateAgg> agg, int max) {
+    if (agg.isEmpty) return const SizedBox.shrink();
+    final List<MapEntry<String, TemplateAgg>> entries = agg.entries.toList()
+      ..sort(
+          (MapEntry<String, TemplateAgg> a, MapEntry<String, TemplateAgg> b) =>
+              b.value.count - a.value.count,
+          );
+    final int shownTotal = entries.length > max ? max : entries.length;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '$title（${agg.length} 项）',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 2),
+          for (final MapEntry<String, TemplateAgg> e in entries.take(max))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 1),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      e.key,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${e.value.count} 笔 · ${_aggAmountText(e.value)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (entries.length > shownTotal)
+            Text(
+              '… 其余 ${entries.length - shownTotal} 项略',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _previewRow(BillRow r) {

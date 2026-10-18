@@ -13,6 +13,7 @@ import '../../../shared/widgets/line_icon_map.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../data/bill_io.dart';
+import '../data/bill_template.dart';
 import '../providers/ledger_providers.dart';
 
 /// 「账单管理 → 账单导出」页。
@@ -33,6 +34,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
   String? _content;
   String? _path;
   int _count = 0;
+
+  /// 当前 [_content] 是否为空白模板（影响结果卡徽标文案）。
+  bool _isTemplate = false;
 
   Future<void> _export() async {
     if (_busy) return;
@@ -92,6 +96,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
         _content = content;
         _path = outPath;
         _count = rows.length;
+        _isTemplate = false;
       });
       if (mounted) showAppToast(context, '已保存到文件');
     } catch (e) {
@@ -105,6 +110,32 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
     final DateTime now = DateTime.now();
     String p(int n) => n.toString().padLeft(2, '0');
     return '${now.year}${p(now.month)}${p(now.day)}_${p(now.hour)}${p(now.minute)}${p(now.second)}';
+  }
+
+  /// 下载空白填写模板：含字段说明注释行 + 表头，格式跟随上方选择
+  /// （CSV / JSON）。模板系统（2026-10-18）：导出与导入共用同一套字段规范。
+  Future<void> _downloadTemplate() async {
+    final String content = _asJson ? buildTemplateJson() : buildTemplateCsv();
+    final String ext = _asJson ? 'json' : 'csv';
+    final String? picked = await FilePicker.platform.saveFile(
+      dialogTitle: '保存账单导入模板',
+      fileName: '账单导入模板.$ext',
+      allowedExtensions: <String>[ext],
+    );
+    if (picked == null) {
+      if (mounted) showAppToast(context, '已取消保存');
+      return;
+    }
+    final String outPath =
+        picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
+    await File(outPath).writeAsString(content);
+    setState(() {
+      _content = content;
+      _path = outPath;
+      _count = 0;
+      _isTemplate = true;
+    });
+    if (mounted) showAppToast(context, '模板已保存，按说明填写后可导入');
   }
 
   Future<void> _copy() async {
@@ -133,6 +164,24 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               ),
               children: <Widget>[
                 _formatCard(),
+                const SizedBox(height: AppDimens.sm),
+                // 模板系统（2026-10-18）：提供统一空白模板供用户填写，
+                // 与导出字段结构一致，导入时按分类/账户/时间自动匹配校验。
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : _downloadTemplate,
+                    icon: const LineGlyph(Icons.download_outlined, size: 18),
+                    label: const Text('下载空白填写模板（含字段说明）'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppPalette.ctaGreen,
+                      side: const BorderSide(color: AppPalette.ctaGreen),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: AppDimens.md),
                 Container(
                   decoration: BoxDecoration(
@@ -290,7 +339,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '已导出 $_count 笔',
+                  _isTemplate ? '空白模板' : '已导出 $_count 笔',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
