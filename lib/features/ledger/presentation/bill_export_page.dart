@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -77,20 +78,26 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       final String stamp = _timeStamp();
       final String ext = _asJson ? 'json' : 'csv';
       // 弹系统「存储到文件」面板：用户自选本地路径与文件名，直接落盘。
+      // file_picker 8.x：Android/iOS 的 saveFile 必须直接传 bytes（由系统
+      // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
+      final bool isMobile = Platform.isAndroid || Platform.isIOS;
       final String? picked = await FilePicker.platform.saveFile(
         dialogTitle: '保存账单导出',
         fileName: '账单导出_$stamp.$ext',
-        allowedExtensions: <String>[ext],
+        allowedExtensions: isMobile ? null : <String>[ext],
+        bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
       );
       if (picked == null) {
         if (mounted) showAppToast(context, '已取消保存');
         return;
       }
-      // iOS 保存面板不强制扩展名，缺失时补足，避免存成无后缀文件。
-      final String outPath =
-          picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
-      final File file = File(outPath);
-      await file.writeAsString(content);
+      String outPath = picked;
+      if (!isMobile) {
+        // 桌面保存面板不强制扩展名，缺失时补足，避免存成无后缀文件。
+        outPath =
+            picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
+        await File(outPath).writeAsString(content);
+      }
 
       setState(() {
         _content = content;
@@ -115,27 +122,43 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
   /// 下载空白填写模板：含字段说明注释行 + 表头，格式跟随上方选择
   /// （CSV / JSON）。模板系统（2026-10-18）：导出与导入共用同一套字段规范。
   Future<void> _downloadTemplate() async {
-    final String content = _asJson ? buildTemplateJson() : buildTemplateCsv();
-    final String ext = _asJson ? 'json' : 'csv';
-    final String? picked = await FilePicker.platform.saveFile(
-      dialogTitle: '保存账单导入模板',
-      fileName: '账单导入模板.$ext',
-      allowedExtensions: <String>[ext],
-    );
-    if (picked == null) {
-      if (mounted) showAppToast(context, '已取消保存');
-      return;
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final String content = _asJson ? buildTemplateJson() : buildTemplateCsv();
+      final String ext = _asJson ? 'json' : 'csv';
+      // file_picker 8.x：Android/iOS 的 saveFile 必须直接传 bytes（由系统
+      // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
+      final bool isMobile = Platform.isAndroid || Platform.isIOS;
+      final String? picked = await FilePicker.platform.saveFile(
+        dialogTitle: '保存账单导入模板',
+        fileName: '账单导入模板.$ext',
+        allowedExtensions: isMobile ? null : <String>[ext],
+        bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
+      );
+      if (picked == null) {
+        if (mounted) showAppToast(context, '已取消保存');
+        return;
+      }
+      String outPath = picked;
+      if (!isMobile) {
+        // 桌面保存面板不强制扩展名，缺失时补足，避免存成无后缀文件。
+        outPath =
+            picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
+        await File(outPath).writeAsString(content);
+      }
+      setState(() {
+        _content = content;
+        _path = outPath;
+        _count = 0;
+        _isTemplate = true;
+      });
+      if (mounted) showAppToast(context, '模板已保存，按说明填写后可导入');
+    } catch (e) {
+      if (mounted) showAppToast(context, '模板保存失败：$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    final String outPath =
-        picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
-    await File(outPath).writeAsString(content);
-    setState(() {
-      _content = content;
-      _path = outPath;
-      _count = 0;
-      _isTemplate = true;
-    });
-    if (mounted) showAppToast(context, '模板已保存，按说明填写后可导入');
   }
 
   Future<void> _copy() async {
