@@ -8,12 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../database/app_database.dart';
+import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../lend/providers/lend_providers.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
 import '../providers/ledger_providers.dart';
@@ -77,6 +79,18 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
         }
       }
 
+      // 借还流水（sourceModule=lend）的「对方」来自关联的借还记录——建
+      // relatedId → counterparty 映射，使导出 → 再导入能无损往返落到借还台账。
+      final Map<String, String> lendCounterparty =
+          <String, String>{};
+      if (txns.any((Transaction t) => t.sourceModule == SourceModule.lend)) {
+        final List<LendRecord> lendRecords =
+            await ref.read(lendRepositoryProvider).watch(currentBookId).first;
+        for (final LendRecord r in lendRecords) {
+          lendCounterparty[r.id] = r.counterparty;
+        }
+      }
+
       final List<BillRow> rows = <BillRow>[
         for (final Transaction t in txns)
           BillRow(
@@ -103,6 +117,10 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             excludeFromStats: t.excludeFromStats,
             note: t.note,
             currency: t.currency,
+            counterparty: t.sourceModule == SourceModule.lend &&
+                    t.relatedId != null
+                ? lendCounterparty[t.relatedId]
+                : null,
           ),
       ];
 

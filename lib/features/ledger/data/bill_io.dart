@@ -16,8 +16,8 @@ import '../../../shared/models/money.dart';
 /// 业务模块 [module]、标签 [tags]、账本名 [book]、优惠 [discountMinor]、
 /// 报销开关 / 报销账户 [isReimbursable] / [reimbursementAccount]、
 /// 不计预算 / 不计收支 [excludeFromBudget] / [excludeFromStats]。
-/// 借还 / 储蓄 / 分期 / 投资 / 报销等独立台账由 Phase 2 落地，Phase 1 仅把
-/// 业务模块打标落交易，不生成对应子记录（导入校验阶段会给出提示）。
+/// 借还 / 储蓄 / 分期 / 投资 / 报销等独立台账由对应阶段落地；其中借还（Phase 2）
+/// 已支持按固定分类名路由到借还台账（见 [parseLendOp]），其余模块仍仅打标落交易。
 class BillRow {
   const BillRow({
     required this.occurredAt,
@@ -37,6 +37,7 @@ class BillRow {
     this.note,
     this.currency = 'CNY',
     this.confidence,
+    this.counterparty,
   });
 
   /// 发生时间（本地时区）。
@@ -73,6 +74,11 @@ class BillRow {
   /// 是否不计入收支统计。
   final bool excludeFromStats;
 
+  /// 借还「对方」（借款人 / 出借人 / 债务方名）。仅 [module]=借还 且分类为
+  /// 6 类固定名（借入/借出/还债/收债/债务消减/坏账计提）时用于路由到借还台账，
+  /// 对应 [LendRepository] 强制要求的 counterparty；其余模块恒为 null。
+  final String? counterparty;
+
   final String? note;
   final String currency;
 
@@ -92,6 +98,7 @@ const List<String> _kCsvHeader = <String>[
   '金额',
   '账户',
   '转入账户',
+  '对方',
   '优惠',
   '分类',
   '标签',
@@ -189,6 +196,7 @@ String buildCsv(List<BillRow> rows) {
         _amountLabel(r.amountMinor, r.currency),
         r.accountName,
         r.toAccountName ?? '',
+        r.counterparty ?? '',
         _amountLabel(r.discountMinor, r.currency),
         r.categoryName ?? '',
         r.tags.join(','),
@@ -214,6 +222,7 @@ String buildJson(List<BillRow> rows) {
         'amount': Money.fromMinor(r.amountMinor, currency: r.currency).decimal,
         'account': r.accountName,
         'toAccount': r.toAccountName ?? '',
+        'counterparty': r.counterparty ?? '',
         'discount':
             Money.fromMinor(r.discountMinor, currency: r.currency).decimal,
         'category': r.categoryName ?? '',
@@ -280,6 +289,7 @@ ParseResult _parseCsv(String content) {
   final int iAmount = col('金额');
   final int iAccount = col('账户');
   final int iTo = col('转入账户');
+  final int iCounterparty = col('对方');
   final int iDiscount = col('优惠');
   final int iCat = col('分类');
   final int iTags = col('标签');
@@ -323,11 +333,19 @@ ParseResult _parseCsv(String content) {
     }
     final SourceModule module = _parseModule(cell(iModule)) ?? SourceModule.ledger;
     final int amount = Money.tryParse(cell(iAmount)).minor;
+    final String catTrim = _nullIfEmpty(cell(iCat));
+    final String? categoryName = catTrim.isEmpty ? null : catTrim;
+    // 借还路由行：债务消减/坏账计提无需真实资产账户，账户可空；其余行账户必填。
+    final LendOp? lendOp =
+        module == SourceModule.lend ? parseLendOp(categoryName) : null;
     final String account = cell(iAccount);
-    if (account.isEmpty) {
+    final bool accountRequired = lendOp == null || lendOpNeedsAccount(lendOp);
+    if (account.isEmpty && accountRequired) {
       errors.add('$lineNo：账户为空');
       continue;
     }
+    final String cpRaw = cell(iCounterparty);
+    final String? counterparty = cpRaw.isEmpty ? null : cpRaw;
     final String toRaw = cell(iTo);
     final String? toAccount = toRaw.isEmpty ? null : toRaw;
     if (type == TxnType.transfer && toAccount == null) {
@@ -335,8 +353,6 @@ ParseResult _parseCsv(String content) {
       continue;
     }
     final int discount = _parseDiscount(cell(iDiscount));
-    final String catTrim = _nullIfEmpty(cell(iCat));
-    final String? categoryName = catTrim.isEmpty ? null : catTrim;
     final List<String> tags = _parseTags(cell(iTags));
     final String bookTrim = _nullIfEmpty(cell(iBook));
     final String? book = bookTrim.isEmpty ? null : bookTrim;
@@ -366,6 +382,7 @@ ParseResult _parseCsv(String content) {
         excludeFromStats: excludeFromStats,
         note: note,
         currency: 'CNY',
+        counterparty: counterparty,
       ),
     );
   }
@@ -403,11 +420,19 @@ ParseResult _parseJson(String content) {
       final SourceModule module =
           _parseModule((m['module'] ?? '').toString()) ?? SourceModule.ledger;
       final int amount = Money.tryParse((m['amount'] ?? '').toString()).minor;
+      final String catRaw = _nullIfEmpty((m['category'] ?? '').toString());
+      final String? categoryName = catRaw.isEmpty ? null : catRaw;
+      // 借还路由行：债务消减/坏账计提无需真实资产账户，账户可空；其余行账户必填。
+      final LendOp? lendOp =
+          module == SourceModule.lend ? parseLendOp(categoryName) : null;
       final String account = (m['account'] ?? '').toString().trim();
-      if (account.isEmpty) {
+      final bool accountRequired = lendOp == null || lendOpNeedsAccount(lendOp);
+      if (account.isEmpty && accountRequired) {
         errors.add('$lineNo：账户为空');
         continue;
       }
+      final String cpRaw = (m['counterparty'] ?? '').toString().trim();
+      final String? counterparty = cpRaw.isEmpty ? null : cpRaw;
       final String toRaw = (m['toAccount'] ?? '').toString().trim();
       final String? toAccount = toRaw.isEmpty ? null : toRaw;
       if (type == TxnType.transfer && toAccount == null) {
@@ -415,8 +440,6 @@ ParseResult _parseJson(String content) {
         continue;
       }
       final int discount = _parseDiscount((m['discount'] ?? '').toString());
-      final String catRaw = _nullIfEmpty((m['category'] ?? '').toString());
-      final String? categoryName = catRaw.isEmpty ? null : catRaw;
       final List<String> tags = _parseJsonTags(m['tags']);
       final String bookRaw = _nullIfEmpty((m['book'] ?? '').toString());
       final String? book = bookRaw.isEmpty ? null : bookRaw;
@@ -451,6 +474,7 @@ ParseResult _parseJson(String content) {
           excludeFromStats: excludeFromStats,
           note: note,
           currency: (m['currency'] ?? 'CNY').toString(),
+          counterparty: counterparty,
         ),
       );
     }
@@ -459,3 +483,61 @@ ParseResult _parseJson(String content) {
   }
   return ParseResult(rows, errors);
 }
+
+// ───────────────────── 借还路由（Phase 2） ─────────────────────
+
+/// 借还 6 子类操作：由 [categoryName]（固定分类名）解析得到，再路由到
+/// [LendRepository] 的对应方法，而非只打标记落普通交易。
+///
+/// 组合 = 方向(借入 borrowIn / 借出 lendOut) × 操作(本金 add / 还款 repay /
+/// 冲减备忘 debtReduction)：
+/// - 借入 / 借出 → [LendRepository.add]（建本金记录 + 资金流水）；
+/// - 还债 / 收债 → [LendRepository.repay]（冲销未结清债务 + 可选资金流水）；
+/// - 债务消减 / 坏账计提 → [LendRepository.debtReduction]（记账备忘冲减）。
+enum LendOp {
+  borrowAdd, // 借入
+  lendAdd, // 借出
+  borrowRepay, // 还债
+  lendCollect, // 收债
+  borrowReduce, // 债务消减
+  lendBadDebt, // 坏账计提
+}
+
+/// 固定分类名 → 借还操作（与 [LendRepository] 内部 `_flowCategoryId` 的系统
+/// 类目名一一对应）。非 6 类固定名返回 null。
+const Map<String, LendOp> _kLendOpByName = <String, LendOp>{
+  '借入': LendOp.borrowAdd,
+  '借出': LendOp.lendAdd,
+  '还债': LendOp.borrowRepay,
+  '收债': LendOp.lendCollect,
+  '债务消减': LendOp.borrowReduce,
+  '坏账计提': LendOp.lendBadDebt,
+};
+
+/// 把分类名解析为借还操作；非 6 类固定名 / 空返回 null。
+LendOp? parseLendOp(String? name) {
+  if (name == null) return null;
+  return _kLendOpByName[name.trim()];
+}
+
+/// 借还操作对应的借贷方向。
+LendDirection lendOpDirection(LendOp op) {
+  switch (op) {
+    case LendOp.borrowAdd:
+    case LendOp.borrowRepay:
+    case LendOp.borrowReduce:
+      return LendDirection.borrowIn;
+    case LendOp.lendAdd:
+    case LendOp.lendCollect:
+    case LendOp.lendBadDebt:
+      return LendDirection.lendOut;
+  }
+}
+
+/// 该借还操作是否需要真实资产账户（落资金流水）：
+/// 借入/借出/还债/收债需要；债务消减/坏账计提无需（仅记账备忘）。
+bool lendOpNeedsAccount(LendOp op) =>
+    op == LendOp.borrowAdd ||
+    op == LendOp.lendAdd ||
+    op == LendOp.borrowRepay ||
+    op == LendOp.lendCollect;

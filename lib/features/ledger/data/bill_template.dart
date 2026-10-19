@@ -67,8 +67,8 @@ const List<BillTemplateField> kBillTemplateFields = <BillTemplateField>[
     desc: '业务来源：日常记账 / 转账 / 借还 / 报销 / 储蓄 / 分期 / 投资 / 物品 / '
         '退款；留空默认「日常记账」。报销的「支出侧」不用本列——垫付请记一笔普通'
         '支出并填「可报销=Y + 报销账户」；本列「报销」仅用于报销到账的收入。'
-        '借还/储蓄/分期/投资在 Phase 1 仅作标记、不生成子台账（借还需 Phase 2 才能'
-        '落到借还台账，因其强制需要「对方」字段）',
+        '借还（Phase 2 已支持）按分类名（借入/借出/还债/收债/债务消减/坏账计提）'
+        '路由到借还台账，并需填「对方」列；储蓄/分期/投资仍仅作标记、不生成子台账',
   ),
   BillTemplateField(
     header: '类型',
@@ -97,6 +97,15 @@ const List<BillTemplateField> kBillTemplateFields = <BillTemplateField>[
     typeLabel: '文本',
     required: false,
     desc: '仅「转账」必填：转入方账户名称',
+  ),
+  BillTemplateField(
+    header: '对方',
+    jsonKey: 'counterparty',
+    typeLabel: '文本',
+    required: false,
+    desc: '仅「借还」模块且分类为借入/借出/还债/收债/债务消减/坏账计提之一时必填：'
+        '借款人 / 出借人 / 债务方名。借还按固定分类名路由到借还台账，对方即其 counterparty；'
+        '其余模块留空',
   ),
   BillTemplateField(
     header: '优惠',
@@ -163,39 +172,39 @@ const List<BillTemplateField> kBillTemplateFields = <BillTemplateField>[
   ),
 ];
 
-/// 示例数据（与表头严格 15 列对齐，经 [ListToCsvConverter] 生成，避免手写错位）。
+/// 示例数据（与表头严格 16 列对齐，经 [ListToCsvConverter] 生成，避免手写错位）。
 ///
-/// 顺序：日期,模块,类型,金额,账户,转入账户,优惠,分类,标签,账本,可报销,
+/// 顺序：日期,模块,类型,金额,账户,转入账户,对方,优惠,分类,标签,账本,可报销,
 /// 报销账户,不计预算,不计收支,备注。
 const List<List<String>> _sampleRows = <List<String>>[
   <String>[
     '2026-10-18 12:30', '日常记账', '支出', '25.50', '微信',
-    '', '', '餐饮', '午饭', '',
+    '', '', '', '餐饮', '午饭', '',
     'N', '', 'N', 'N', '午饭',
   ],
   <String>[
     '2026-10-18 09:00', '退款', '收入', '25.50', '微信',
-    '', '', '', '旅游,2026', '',
+    '', '', '', '', '旅游,2026', '',
     'N', '', 'N', 'N', '退货退款',
   ],
   <String>[
-    '2026-10-18 15:00', '借还', '支出', '1000', '借出(小米)',
-    '', '', '', '', '',
+    '2026-10-18 15:00', '借还', '支出', '1000', '微信',
+    '', '小米', '', '借出', '', '',
     'N', '', 'N', 'N', '借给小米',
   ],
   <String>[
     '2026-10-18 18:00', '储蓄', '转账', '500', '招商银行',
-    '定期存款', '', '', '', '',
+    '定期存款', '', '', '', '', '',
     'N', '', 'N', 'N', '每月定存',
   ],
   <String>[
     '2026-10-18 20:00', '日常记账', '支出', '200', '微信',
-    '', '', '餐饮', '', '',
+    '', '', '', '餐饮', '', '',
     'Y', '公司报销', 'N', 'N', '出差午饭（垫付，待报销）',
   ],
   <String>[
     '2026-10-25 10:00', '报销', '收入', '200', '公司报销',
-    '', '', '', '', '',
+    '', '', '', '', '', '',
     'N', '公司报销', 'N', 'N', '报销到账',
   ],
 ];
@@ -324,13 +333,13 @@ class TemplateAgg {
   }
 }
 
-/// Phase 1 仅作标记、不生成子记录的模块（借还/报销/储蓄/分期/投资）。
+/// 仅作标记、不生成子记录的模块（报销/储蓄/分期/投资）。
 ///
-/// 这些业务有独立台账（Phase 2 落地）。Phase 1 导入会把它们落为普通交易并打上
-/// 模块标记，但不会生成对应的借还记录 / 报销应收 / 储蓄台账 / 分期计划 / 投资持仓，
-/// 因此相关派生余额不会被驱动——导入校验阶段显式提示用户。
+/// 借还（lend）已在 Phase 2 落地：按固定分类名路由到借还台账，不再仅作标记。
+/// 其余业务有独立台账待后续阶段落地；当前导入会把它们落为普通交易并打上模块标记，
+/// 但不会生成对应的报销应收 / 储蓄台账 / 分期计划 / 投资持仓，因此相关派生余额
+/// 不会被驱动——导入校验阶段显式提示用户。
 const Set<SourceModule> _kPhase2Modules = <SourceModule>{
-  SourceModule.lend,
   SourceModule.reimbursement,
   SourceModule.savings,
   SourceModule.installment,
@@ -435,12 +444,36 @@ TemplateCheckResult checkRows(
       warnings.add('$lineNo：备注超过 200 字，已接受但建议精简');
     }
 
-    // 模块：Phase 2 模块仅作标记落库提示。
+    // 借还（Phase 2 已落地）：按固定分类名路由到借还台账，校验对方与账户必填。
+    if (r.module == SourceModule.lend) {
+      if (r.categoryName == null || r.categoryName!.trim().isEmpty) {
+        errors.add('$lineNo：借还模块必须指定分类'
+            '（借入/借出/还债/收债/债务消减/坏账计提）');
+        continue;
+      }
+      final LendOp? op = parseLendOp(r.categoryName);
+      if (op == null) {
+        errors.add('$lineNo：未识别的借还分类「${r.categoryName!.trim()}」，'
+            '应为 借入/借出/还债/收债/债务消减/坏账计提 之一');
+        continue;
+      }
+      final String cp = (r.counterparty ?? '').trim();
+      if (cp.isEmpty) {
+        errors.add('$lineNo：借还记录「对方」不能为空');
+        continue;
+      }
+      if (lendOpNeedsAccount(op) && r.accountName.trim().isEmpty) {
+        errors.add('$lineNo：借还（借入/借出/还债/收债）需指定账户');
+        continue;
+      }
+    }
+
+    // 模块：仅作标记落库提示（借还已在 Phase 2 落地，不再提示）。
     if (_kPhase2Modules.contains(r.module) &&
         !seenPhase2Modules.contains(r.module)) {
       seenPhase2Modules.add(r.module);
-      warnings.add('模块「${r.module.label}」在 Phase 1 仅作标记落库，不会生成对应的'
-          '借还/报销/储蓄/分期/投资子记录，相关派生余额暂不驱动，请待 Phase 2 支持');
+      warnings.add('模块「${r.module.label}」仅作标记落库，不会生成对应的'
+          '报销/储蓄/分期/投资子记录，相关派生余额暂不驱动，请待后续阶段支持');
     }
 
     // 账本校验：指定了且账本集合已知但不存在 → 提示归入当前账本。
@@ -475,8 +508,10 @@ TemplateCheckResult checkRows(
       }
     }
 
-    // 分类匹配校验（按交易类型对应分类类型）。
-    if (r.categoryName != null) {
+    // 分类匹配校验（按交易类型对应分类类型）。借还路由行的分类是 6 类固定
+    // 操作名（借入/借出/还债/收债/债务消减/坏账计提），由借还台账自建系统类目，
+    // 不应当作用户分类校验 / 创建，故跳过。
+    if (r.categoryName != null && r.module != SourceModule.lend) {
       final int typeIndex = r.type.index;
       final Set<String> known = typeIndex < categoryNamesByType.length
           ? categoryNamesByType[typeIndex]

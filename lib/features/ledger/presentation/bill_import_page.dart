@@ -16,6 +16,8 @@ import '../../accounts/data/account_repository.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../categories/data/category_repository.dart';
 import '../../categories/providers/categories_providers.dart';
+import '../../lend/data/lend_repository.dart';
+import '../../lend/providers/lend_providers.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
 import '../data/transaction_repository.dart';
@@ -132,6 +134,8 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
       final CategoryRepository catRepo = ref.read(categoryRepositoryProvider);
       final accountsDao = ref.read(accountsDaoProvider);
       final categoriesDao = ref.read(categoriesDaoProvider);
+      // Phase 2 借还路由：模块=借还 且分类为 6 类固定名时，落到借还台账而非普通交易。
+      final LendRepository lendRepo = ref.read(lendRepositoryProvider);
 
       // 账本 → 账户 / 分类列表缓存（按目标账本隔离，支持多账本路由）。
       final Map<String, List<Account>> accByBook = <String, List<Account>>{};
@@ -174,6 +178,29 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
           }
           final List<Account> accounts = await accountsOf(bookId);
           final List<Category> categories = await categoriesOf(bookId);
+
+          // ── Phase 2 借还路由 ──
+          // 模块=借还 且分类为 6 类固定名（借入/借出/还债/收债/债务消减/坏账计提）
+          // 时，落到借还台账（add/repay/debtReduction），而非普通交易。
+          if (row.module == SourceModule.lend) {
+            final LendOp? op = parseLendOp(row.categoryName);
+            if (op == null) {
+              skipped++;
+              reasons.add('借还分类「${row.categoryName ?? ''}」未识别，跳过');
+              continue;
+            }
+            await _importLend(
+              row,
+              op,
+              bookId,
+              lendRepo,
+              accounts,
+              accRepo,
+              accCache,
+            );
+            imported++;
+            continue;
+          }
 
           final String accountId = await _resolveAccount(
             row.accountName,
@@ -311,6 +338,76 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     );
     cache[key] = id;
     return id;
+  }
+
+  /// Phase 2 借还路由落库：按 [op] 把一笔借还行路由到 [LendRepository] 的对应方法。
+  ///
+  /// - 借入/借出（add）：账户列 = 真实资产账户（toAccountId），对方 = counterparty，
+  ///   借款本金落地 + 资金流水；未指定借入/借出账户时按对方名自动归户。
+  /// - 还债/收债（repay）：账户列 = 真实资产账户（accountId），冲销同名未结清债务
+  ///   + 可选资金流水。
+  /// - 债务消减/坏账计提（debtReduction）：无需资产账户，仅记账备忘冲减。
+  ///
+  /// 校验（对方必填 / 账户必填）已由 [checkRows] 把关；此处直接调用仓储，
+  /// 任何异常（如「未找到未结清债务」）冒泡到外层 try 计入 skipped。
+  Future<void> _importLend(
+    BillRow row,
+    LendOp op,
+    String bookId,
+    LendRepository lendRepo,
+    List<Account> accounts,
+    AccountRepository accRepo,
+    Map<String, String> accCache,
+  ) async {
+    final LendDirection direction = lendOpDirection(op);
+    String? assetAccountId;
+    if (lendOpNeedsAccount(op)) {
+      assetAccountId = await _resolveAccount(
+        row.accountName,
+        bookId,
+        accounts,
+        accRepo,
+        accCache,
+      );
+    }
+    final String counterparty = (row.counterparty ?? '').trim();
+    final int occurredAt = row.occurredAt.toUtc().millisecondsSinceEpoch;
+    switch (op) {
+      case LendOp.borrowAdd:
+      case LendOp.lendAdd:
+        await lendRepo.add(
+          bookId: bookId,
+          direction: direction,
+          status: LendStatus.ongoing,
+          counterparty: counterparty,
+          amountMinor: row.amountMinor,
+          occurredAt: occurredAt,
+          note: row.note,
+          toAccountId: assetAccountId,
+          discountMinor: row.discountMinor,
+        );
+      case LendOp.borrowRepay:
+      case LendOp.lendCollect:
+        await lendRepo.repay(
+          bookId: bookId,
+          direction: direction,
+          counterparty: counterparty,
+          amountMinor: row.amountMinor,
+          occurredAt: occurredAt,
+          note: row.note,
+          accountId: assetAccountId,
+        );
+      case LendOp.borrowReduce:
+      case LendOp.lendBadDebt:
+        await lendRepo.debtReduction(
+          bookId: bookId,
+          direction: direction,
+          counterparty: counterparty,
+          amountMinor: row.amountMinor,
+          occurredAt: occurredAt,
+          note: row.note,
+        );
+    }
   }
 
   String _typeLabel(TxnType t) => switch (t) {

@@ -16,6 +16,7 @@ void main() {
         '金额',
         '账户',
         '转入账户',
+        '对方',
         '优惠',
         '分类',
         '标签',
@@ -55,7 +56,7 @@ void main() {
       expect(csv, contains('口袋账本 · 账单导入模板'));
       expect(
         csv,
-        contains('日期,模块,类型,金额,账户,转入账户,优惠,分类,标签,账本,'
+        contains('日期,模块,类型,金额,账户,转入账户,对方,优惠,分类,标签,账本,'
             '可报销,报销账户,不计预算,不计收支,备注'),
       );
       // 示例文本只在 # 注释行内（带模块列），不是独立数据行。
@@ -69,15 +70,16 @@ void main() {
 
     test('模板示例与表头列数严格一致（防错位）', () {
       // 把模板正文（含 # 注释）整体当作数据解析，注释行会被忽略；
-      // 表头行 + 用户数据行的列数都应等于 15。这里直接校验渲染出的示例块。
+      // 表头行 + 用户数据行的列数都应等于 16（15 字段 + 对方）。
+      // 这里直接校验渲染出的示例块。
       final String csv = buildTemplateCsv();
       final List<String> nonComment = csv
           .split('\n')
           .where((l) => !l.trimLeft().startsWith('#'))
           .where((l) => l.trim().isNotEmpty)
           .toList();
-      // 第一行应为表头（15 列）。
-      expect(nonComment.first.split(',').length, 15);
+      // 第一行应为表头（16 列）。
+      expect(nonComment.first.split(',').length, 16);
     });
 
     test('JSON 模板含 _template 元信息与空 bills 数组', () {
@@ -86,8 +88,8 @@ void main() {
       expect(json, contains('"version"'));
       expect(json, contains('"bills": []'));
       expect(json, contains('"fields"'));
-      // 15 个字段规范。
-      expect(kBillTemplateFields.length, 15);
+      // 16 个字段规范（含「对方」）。
+      expect(kBillTemplateFields.length, 16);
     });
   });
 
@@ -122,10 +124,10 @@ void main() {
   });
 
   group('parseInput v2 全量字段', () {
-    test('15 列表头解析：模块/优惠/标签/开关/报销账户/账本', () {
+    test('16 列表头解析：模块/对方/优惠/标签/开关/报销账户/账本', () {
       const String csv = '''
-日期,模块,类型,金额,账户,转入账户,优惠,分类,标签,账本,可报销,报销账户,不计预算,不计收支,备注
-2026-10-18 12:30,报销,支出,200,微信,,45,餐饮,"旅游,2026",我的账本,Y,公司报销,N,N,出差午饭
+日期,模块,类型,金额,账户,转入账户,对方,优惠,分类,标签,账本,可报销,报销账户,不计预算,不计收支,备注
+2026-10-18 12:30,报销,支出,200,微信,,,45,餐饮,"旅游,2026",我的账本,Y,公司报销,N,N,出差午饭
 ''';
       final ParseResult r = parseInput(csv);
       expect(r.errors, isEmpty);
@@ -145,8 +147,8 @@ void main() {
 
     test('模块缺省归日常记账；布尔接受 N/否', () {
       const String csv = '''
-日期,模块,类型,金额,账户,转入账户,优惠,分类,标签,账本,可报销,报销账户,不计预算,不计收支,备注
-2026-10-18 12:30,,收入,88,工资卡,,,,,我的账本,否,,是,N,薪水
+日期,模块,类型,金额,账户,转入账户,对方,优惠,分类,标签,账本,可报销,报销账户,不计预算,不计收支,备注
+2026-10-18 12:30,,收入,88,工资卡,,,,,,我的账本,否,,是,N,薪水
 ''';
       final ParseResult r = parseInput(csv);
       expect(r.errors, isEmpty);
@@ -157,20 +159,38 @@ void main() {
       expect(row.excludeFromStats, isFalse);
     });
 
-    test('JSON 全量字段往返一致', () {
+    test('JSON 全量字段往返一致（含借还 counterparty）', () {
       const String json = '''
 [
   {"date":"2026-10-18 12:30","module":"借还","type":"支出","amount":1000,
-   "account":"借出(小米)","discount":0,"category":"","tags":[],"book":"",
-   "isReimbursable":false,"reimbursementAccount":"","excludeFromBudget":false,
-   "excludeFromStats":false,"note":"借给小米","currency":"CNY"}
+   "account":"微信","counterparty":"小米","discount":0,"category":"借出",
+   "tags":[],"book":"","isReimbursable":false,"reimbursementAccount":"",
+   "excludeFromBudget":false,"excludeFromStats":false,"note":"借给小米",
+   "currency":"CNY"}
 ]
 ''';
       final ParseResult r = parseInput(json);
       expect(r.errors, isEmpty);
       expect(r.rows.first.module, SourceModule.lend);
       expect(r.rows.first.amountMinor, 100000);
+      expect(r.rows.first.counterparty, '小米');
+      expect(r.rows.first.categoryName, '借出');
       expect(r.rows.first.book, isNull);
+    });
+
+    test('CSV 借还行解析：对方列 + 分类名路由', () {
+      const String csv = '''
+日期,模块,类型,金额,账户,转入账户,对方,优惠,分类,标签,账本,可报销,报销账户,不计预算,不计收支,备注
+2026-10-18 15:00,借还,支出,1000,微信,,小米,0,借出,,我的账本,N,,N,N,借给小米
+''';
+      final ParseResult r = parseInput(csv);
+      expect(r.errors, isEmpty);
+      expect(r.rows.length, 1);
+      final BillRow row = r.rows.first;
+      expect(row.module, SourceModule.lend);
+      expect(row.counterparty, '小米');
+      expect(row.categoryName, '借出');
+      expect(parseLendOp(row.categoryName), LendOp.lendAdd);
     });
 
     test('数据行列数超出表头被拦截', () {
@@ -292,13 +312,13 @@ void main() {
       final TemplateCheckResult c = checkRows(
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 2550, '微信', null, '餐饮', ''),
-          _row('2026-10-02 10:00', TxnType.expense, 1000, '借出(小米)', null,
-              null, '', module: SourceModule.lend,),
+          _row('2026-10-02 10:00', TxnType.expense, 1000, '微信', null, '借出',
+              '借给小米', module: SourceModule.lend, counterparty: '小米'),
         ],
-        accountNames: <String>{'微信', '借出(小米)'},
+        accountNames: <String>{'微信'},
         categoryNamesByType: <Set<String>>[
           <String>{},
-          <String>{'餐饮'},
+          <String>{'餐饮', '借出'},
           <String>{},
         ],
       );
@@ -306,23 +326,123 @@ void main() {
       expect(c.byModule['借还']!.count, 1);
     });
 
-    test('Phase 2 模块（借还/报销/储蓄/分期/投资）给出仅标记提示', () {
+    test('仅作标记模块（储蓄/分期/投资）给出提示；借还已在 Phase 2 落地不再提示', () {
       final TemplateCheckResult c = checkRows(
         <BillRow>[
-          _row('2026-10-01 10:00', TxnType.expense, 2550, '微信', null, null, '',
-              module: SourceModule.lend,),
+          _row('2026-10-01 10:00', TxnType.transfer, 500, '招商银行', '定期存款',
+              null, '', module: SourceModule.savings),
+          _row('2026-10-02 10:00', TxnType.expense, 1000, '微信', null, '借出',
+              '借给小米', module: SourceModule.lend, counterparty: '小米'),
         ],
-        accountNames: <String>{'微信'},
+        accountNames: <String>{'微信', '招商银行', '定期存款'},
         categoryNamesByType: <Set<String>>[
           <String>{},
-          <String>{},
+          <String>{'借出'},
           <String>{},
         ],
       );
       expect(
         c.warnings,
-        contains(startsWith('模块「借还」在 Phase 1 仅作标记落库')),
+        contains(startsWith('模块「储蓄」仅作标记落库')),
       );
+      // 借还（Phase 2 已支持）不应出现「仅标记」提示。
+      expect(
+        c.warnings,
+        isNot(contains(contains('借还'))),
+      );
+    });
+  });
+
+  group('借还路由（Phase 2）', () {
+    test('固定分类名 → LendOp 映射，非固定名返回 null', () {
+      expect(parseLendOp('借入'), LendOp.borrowAdd);
+      expect(parseLendOp('借出'), LendOp.lendAdd);
+      expect(parseLendOp('还债'), LendOp.borrowRepay);
+      expect(parseLendOp('收债'), LendOp.lendCollect);
+      expect(parseLendOp('债务消减'), LendOp.borrowReduce);
+      expect(parseLendOp('坏账计提'), LendOp.lendBadDebt);
+      expect(parseLendOp('餐饮'), isNull);
+      expect(parseLendOp(null), isNull);
+      expect(parseLendOp(' 借出 '), LendOp.lendAdd); // 容忍首尾空格
+    });
+
+    test('lendOpDirection 方向正确', () {
+      expect(lendOpDirection(LendOp.borrowAdd), LendDirection.borrowIn);
+      expect(lendOpDirection(LendOp.borrowRepay), LendDirection.borrowIn);
+      expect(lendOpDirection(LendOp.borrowReduce), LendDirection.borrowIn);
+      expect(lendOpDirection(LendOp.lendAdd), LendDirection.lendOut);
+      expect(lendOpDirection(LendOp.lendCollect), LendDirection.lendOut);
+      expect(lendOpDirection(LendOp.lendBadDebt), LendDirection.lendOut);
+    });
+
+    test('lendOpNeedsAccount 仅本金/还款需要真实资产账户', () {
+      expect(lendOpNeedsAccount(LendOp.borrowAdd), isTrue);
+      expect(lendOpNeedsAccount(LendOp.lendAdd), isTrue);
+      expect(lendOpNeedsAccount(LendOp.borrowRepay), isTrue);
+      expect(lendOpNeedsAccount(LendOp.lendCollect), isTrue);
+      expect(lendOpNeedsAccount(LendOp.borrowReduce), isFalse);
+      expect(lendOpNeedsAccount(LendOp.lendBadDebt), isFalse);
+    });
+
+    test('checkRows 借还行：分类/对方必填，债务消减/坏账计提无需账户', () {
+      // 缺分类 → 拦截。
+      final TemplateCheckResult c1 = checkRows(
+        <BillRow>[
+          _row('2026-10-01 10:00', TxnType.expense, 1000, '微信', null, null, '',
+              module: SourceModule.lend, counterparty: '小米'),
+        ],
+        accountNames: <String>{'微信'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c1.errors, contains(startsWith('第1行：借还模块必须指定分类')));
+
+      // 缺对方 → 拦截。
+      final TemplateCheckResult c2 = checkRows(
+        <BillRow>[
+          _row('2026-10-01 10:00', TxnType.expense, 1000, '微信', null, '借出', '',
+              module: SourceModule.lend),
+        ],
+        accountNames: <String>{'微信'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c2.errors, contains(startsWith('第1行：借还记录「对方」不能为空')));
+
+      // 债务消减：无需真实资产账户，仅对方 + 分类即可通过校验（账户空也放行）。
+      final TemplateCheckResult c3 = checkRows(
+        <BillRow>[
+          _row('2026-10-01 10:00', TxnType.expense, 1000, '', null, '债务消减',
+              '', module: SourceModule.lend, counterparty: '小米'),
+        ],
+        accountNames: <String>{},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c3.errors, isEmpty);
+      expect(c3.byModule['借还']!.count, 1);
+
+      // 借出（需账户）：账户空 → 拦截。
+      final TemplateCheckResult c4 = checkRows(
+        <BillRow>[
+          _row('2026-10-01 10:00', TxnType.expense, 1000, '', null, '借出', '',
+              module: SourceModule.lend, counterparty: '小米'),
+        ],
+        accountNames: <String>{},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c4.errors, contains(startsWith('第1行：借还（借入/借出/还债/收债）需指定账户')));
+    });
+
+    test('checkRows 借还行的分类是操作名，不触发用户分类自动创建提示', () {
+      // 借还分类「借出」不在普通分类集合里，不应被登记为「将自动创建的分类」。
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          _row('2026-10-01 10:00', TxnType.expense, 1000, '微信', null, '借出',
+              '借给小米', module: SourceModule.lend, counterparty: '小米'),
+        ],
+        accountNames: <String>{'微信'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, isEmpty);
+      expect(c.newCategories, isEmpty);
     });
   });
 }
@@ -336,6 +456,7 @@ BillRow _row(
   String? category,
   String? note, {
   SourceModule module = SourceModule.ledger,
+  String? counterparty,
 }) =>
     BillRow(
       occurredAt: DateTime.parse(date.replaceAll(' ', 'T')),
@@ -346,4 +467,5 @@ BillRow _row(
       categoryName: category,
       note: note,
       module: module,
+      counterparty: counterparty,
     );
