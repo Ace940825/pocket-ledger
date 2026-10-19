@@ -18,7 +18,9 @@ void main() {
         '转入账户',
         '对方',
         '优惠',
+        '手续费',
         '分类',
+        '子分类',
         '标签',
         '账本',
         '可报销',
@@ -56,8 +58,8 @@ void main() {
       expect(csv, contains('口袋账本 · 账单导入模板'));
       expect(
         csv,
-        contains('日期,模块,类型,金额,账户,转入账户,对方,优惠,分类,标签,账本,'
-            '可报销,报销账户,不计预算,不计收支,备注'),
+        contains('日期,模块,类型,金额,账户,转入账户,对方,优惠,手续费,分类,子分类,'
+            '标签,账本,可报销,报销账户,不计预算,不计收支,备注'),
       );
       // 示例文本只在 # 注释行内（带模块列），不是独立数据行。
       expect(csv, contains('# 示例：2026-10-18 12:30,日常记账,支出'));
@@ -78,8 +80,8 @@ void main() {
           .where((l) => !l.trimLeft().startsWith('#'))
           .where((l) => l.trim().isNotEmpty)
           .toList();
-      // 第一行应为表头（16 列）。
-      expect(nonComment.first.split(',').length, 16);
+      // 第一行应为表头（18 列：16 原字段 + 手续费 + 子分类）。
+      expect(nonComment.first.split(',').length, 18);
     });
 
     test('JSON 模板含 _template 元信息与空 bills 数组', () {
@@ -88,8 +90,8 @@ void main() {
       expect(json, contains('"version"'));
       expect(json, contains('"bills": []'));
       expect(json, contains('"fields"'));
-      // 16 个字段规范（含「对方」）。
-      expect(kBillTemplateFields.length, 16);
+      // 18 个字段规范（含「对方」、手续费、子分类）。
+      expect(kBillTemplateFields.length, 18);
     });
   });
 

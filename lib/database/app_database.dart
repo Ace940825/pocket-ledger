@@ -67,8 +67,14 @@ class AppDatabase extends _$AppDatabase {
           ),
         );
 
+  /// 当前数据库 schema 版本（用户态迁移目标版本）。
+  ///
+  /// 抽出为顶层常量，便于测试在不实例化 [AppDatabase] 的情况下引用当前版本，
+  /// 避免迁移回归测试把版本号写死导致每次升级都要手动同步。
+  static const int kSchemaVersion = 35;
+
   @override
-  int get schemaVersion => 34;
+  int get schemaVersion => kSchemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -466,6 +472,16 @@ class AppDatabase extends _$AppDatabase {
             // 老数据回填：created_at 缺失的行用业务时间 occurred_at 顶上。
             await customStatement(
               'UPDATE transactions SET created_at = occurred_at WHERE created_at IS NULL',
+            );
+          }
+
+          if (from < 35) {
+            // v35：流水表加「子分类」subcategory（自由文本，非结构化），支撑导入 /
+            // 导出模板的「子分类」列。列可空，幂等加列（见 _addColumnIfMissing）。
+            await _addColumnIfMissing(
+              m,
+              transactions,
+              transactions.subcategory,
             );
           }
 

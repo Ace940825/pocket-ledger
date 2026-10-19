@@ -2230,6 +2230,12 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
       'category_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _subcategoryMeta =
+      const VerificationMeta('subcategory');
+  @override
+  late final GeneratedColumn<String> subcategory = GeneratedColumn<String>(
+      'subcategory', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _occurredAtMeta =
       const VerificationMeta('occurredAt');
   @override
@@ -2360,6 +2366,7 @@ class $TransactionsTable extends Transactions
         accountId,
         toAccountId,
         categoryId,
+        subcategory,
         occurredAt,
         note,
         attachmentUrls,
@@ -2446,6 +2453,12 @@ class $TransactionsTable extends Transactions
           _categoryIdMeta,
           categoryId.isAcceptableOrUnknown(
               data['category_id']!, _categoryIdMeta));
+    }
+    if (data.containsKey('subcategory')) {
+      context.handle(
+          _subcategoryMeta,
+          subcategory.isAcceptableOrUnknown(
+              data['subcategory']!, _subcategoryMeta));
     }
     if (data.containsKey('occurred_at')) {
       context.handle(
@@ -2563,6 +2576,8 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.string, data['${effectivePrefix}to_account_id']),
       categoryId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category_id']),
+      subcategory: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subcategory']),
       occurredAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}occurred_at'])!,
       note: attachedDatabase.typeMapping
@@ -2633,6 +2648,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final String? toAccountId;
   final String? categoryId;
 
+  /// 子分类名称（自由文本，非结构化）。导入 / 导出模板的「子分类」列落地于此，
+  /// 与 [categoryId] 解耦：分类是结构化类目、参与统计归集，子分类只是可选项签，
+  /// 不影响任何聚合。列可空，存量库经 v35 幂等迁移补齐。
+  final String? subcategory;
+
   /// 业务发生时间（UTC 毫秒）
   final int occurredAt;
   final String? note;
@@ -2698,6 +2718,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       required this.accountId,
       this.toAccountId,
       this.categoryId,
+      this.subcategory,
       required this.occurredAt,
       this.note,
       this.attachmentUrls,
@@ -2738,6 +2759,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     }
     if (!nullToAbsent || categoryId != null) {
       map['category_id'] = Variable<String>(categoryId);
+    }
+    if (!nullToAbsent || subcategory != null) {
+      map['subcategory'] = Variable<String>(subcategory);
     }
     map['occurred_at'] = Variable<int>(occurredAt);
     if (!nullToAbsent || note != null) {
@@ -2803,6 +2827,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       categoryId: categoryId == null && nullToAbsent
           ? const Value.absent()
           : Value(categoryId),
+      subcategory: subcategory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subcategory),
       occurredAt: Value(occurredAt),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       attachmentUrls: attachmentUrls == null && nullToAbsent
@@ -2856,6 +2883,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       accountId: serializer.fromJson<String>(json['accountId']),
       toAccountId: serializer.fromJson<String?>(json['toAccountId']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
+      subcategory: serializer.fromJson<String?>(json['subcategory']),
       occurredAt: serializer.fromJson<int>(json['occurredAt']),
       note: serializer.fromJson<String?>(json['note']),
       attachmentUrls: serializer.fromJson<String?>(json['attachmentUrls']),
@@ -2894,6 +2922,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'accountId': serializer.toJson<String>(accountId),
       'toAccountId': serializer.toJson<String?>(toAccountId),
       'categoryId': serializer.toJson<String?>(categoryId),
+      'subcategory': serializer.toJson<String?>(subcategory),
       'occurredAt': serializer.toJson<int>(occurredAt),
       'note': serializer.toJson<String?>(note),
       'attachmentUrls': serializer.toJson<String?>(attachmentUrls),
@@ -2929,6 +2958,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           String? accountId,
           Value<String?> toAccountId = const Value.absent(),
           Value<String?> categoryId = const Value.absent(),
+          Value<String?> subcategory = const Value.absent(),
           int? occurredAt,
           Value<String?> note = const Value.absent(),
           Value<String?> attachmentUrls = const Value.absent(),
@@ -2959,6 +2989,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         accountId: accountId ?? this.accountId,
         toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
         categoryId: categoryId.present ? categoryId.value : this.categoryId,
+        subcategory: subcategory.present ? subcategory.value : this.subcategory,
         occurredAt: occurredAt ?? this.occurredAt,
         note: note.present ? note.value : this.note,
         attachmentUrls:
@@ -2999,6 +3030,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           data.toAccountId.present ? data.toAccountId.value : this.toAccountId,
       categoryId:
           data.categoryId.present ? data.categoryId.value : this.categoryId,
+      subcategory:
+          data.subcategory.present ? data.subcategory.value : this.subcategory,
       occurredAt:
           data.occurredAt.present ? data.occurredAt.value : this.occurredAt,
       note: data.note.present ? data.note.value : this.note,
@@ -3051,6 +3084,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('accountId: $accountId, ')
           ..write('toAccountId: $toAccountId, ')
           ..write('categoryId: $categoryId, ')
+          ..write('subcategory: $subcategory, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
@@ -3086,6 +3120,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         accountId,
         toAccountId,
         categoryId,
+        subcategory,
         occurredAt,
         note,
         attachmentUrls,
@@ -3120,6 +3155,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.accountId == this.accountId &&
           other.toAccountId == this.toAccountId &&
           other.categoryId == this.categoryId &&
+          other.subcategory == this.subcategory &&
           other.occurredAt == this.occurredAt &&
           other.note == this.note &&
           other.attachmentUrls == this.attachmentUrls &&
@@ -3152,6 +3188,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String> accountId;
   final Value<String?> toAccountId;
   final Value<String?> categoryId;
+  final Value<String?> subcategory;
   final Value<int> occurredAt;
   final Value<String?> note;
   final Value<String?> attachmentUrls;
@@ -3183,6 +3220,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.accountId = const Value.absent(),
     this.toAccountId = const Value.absent(),
     this.categoryId = const Value.absent(),
+    this.subcategory = const Value.absent(),
     this.occurredAt = const Value.absent(),
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
@@ -3215,6 +3253,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     required String accountId,
     this.toAccountId = const Value.absent(),
     this.categoryId = const Value.absent(),
+    this.subcategory = const Value.absent(),
     required int occurredAt,
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
@@ -3254,6 +3293,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? accountId,
     Expression<String>? toAccountId,
     Expression<String>? categoryId,
+    Expression<String>? subcategory,
     Expression<int>? occurredAt,
     Expression<String>? note,
     Expression<String>? attachmentUrls,
@@ -3286,6 +3326,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (accountId != null) 'account_id': accountId,
       if (toAccountId != null) 'to_account_id': toAccountId,
       if (categoryId != null) 'category_id': categoryId,
+      if (subcategory != null) 'subcategory': subcategory,
       if (occurredAt != null) 'occurred_at': occurredAt,
       if (note != null) 'note': note,
       if (attachmentUrls != null) 'attachment_urls': attachmentUrls,
@@ -3321,6 +3362,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<String>? accountId,
       Value<String?>? toAccountId,
       Value<String?>? categoryId,
+      Value<String?>? subcategory,
       Value<int>? occurredAt,
       Value<String?>? note,
       Value<String?>? attachmentUrls,
@@ -3352,6 +3394,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       accountId: accountId ?? this.accountId,
       toAccountId: toAccountId ?? this.toAccountId,
       categoryId: categoryId ?? this.categoryId,
+      subcategory: subcategory ?? this.subcategory,
       occurredAt: occurredAt ?? this.occurredAt,
       note: note ?? this.note,
       attachmentUrls: attachmentUrls ?? this.attachmentUrls,
@@ -3413,6 +3456,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     }
     if (categoryId.present) {
       map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (subcategory.present) {
+      map['subcategory'] = Variable<String>(subcategory.value);
     }
     if (occurredAt.present) {
       map['occurred_at'] = Variable<int>(occurredAt.value);
@@ -3488,6 +3534,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('accountId: $accountId, ')
           ..write('toAccountId: $toAccountId, ')
           ..write('categoryId: $categoryId, ')
+          ..write('subcategory: $subcategory, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
@@ -14079,6 +14126,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   required String accountId,
   Value<String?> toAccountId,
   Value<String?> categoryId,
+  Value<String?> subcategory,
   required int occurredAt,
   Value<String?> note,
   Value<String?> attachmentUrls,
@@ -14112,6 +14160,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<String> accountId,
   Value<String?> toAccountId,
   Value<String?> categoryId,
+  Value<String?> subcategory,
   Value<int> occurredAt,
   Value<String?> note,
   Value<String?> attachmentUrls,
@@ -14178,6 +14227,9 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get categoryId => $composableBuilder(
       column: $table.categoryId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subcategory => $composableBuilder(
+      column: $table.subcategory, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get occurredAt => $composableBuilder(
       column: $table.occurredAt, builder: (column) => ColumnFilters(column));
@@ -14284,6 +14336,9 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get categoryId => $composableBuilder(
       column: $table.categoryId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get subcategory => $composableBuilder(
+      column: $table.subcategory, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get occurredAt => $composableBuilder(
       column: $table.occurredAt, builder: (column) => ColumnOrderings(column));
 
@@ -14389,6 +14444,9 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<String> get categoryId => $composableBuilder(
       column: $table.categoryId, builder: (column) => column);
 
+  GeneratedColumn<String> get subcategory => $composableBuilder(
+      column: $table.subcategory, builder: (column) => column);
+
   GeneratedColumn<int> get occurredAt => $composableBuilder(
       column: $table.occurredAt, builder: (column) => column);
 
@@ -14480,6 +14538,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String> accountId = const Value.absent(),
             Value<String?> toAccountId = const Value.absent(),
             Value<String?> categoryId = const Value.absent(),
+            Value<String?> subcategory = const Value.absent(),
             Value<int> occurredAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<String?> attachmentUrls = const Value.absent(),
@@ -14512,6 +14571,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             accountId: accountId,
             toAccountId: toAccountId,
             categoryId: categoryId,
+            subcategory: subcategory,
             occurredAt: occurredAt,
             note: note,
             attachmentUrls: attachmentUrls,
@@ -14544,6 +14604,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             required String accountId,
             Value<String?> toAccountId = const Value.absent(),
             Value<String?> categoryId = const Value.absent(),
+            Value<String?> subcategory = const Value.absent(),
             required int occurredAt,
             Value<String?> note = const Value.absent(),
             Value<String?> attachmentUrls = const Value.absent(),
@@ -14576,6 +14637,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             accountId: accountId,
             toAccountId: toAccountId,
             categoryId: categoryId,
+            subcategory: subcategory,
             occurredAt: occurredAt,
             note: note,
             attachmentUrls: attachmentUrls,

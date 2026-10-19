@@ -116,6 +116,11 @@ class Transactions extends Table with SyncColumns {
 
   TextColumn get categoryId => text().nullable()();
 
+  /// 子分类名称（自由文本，非结构化）。导入 / 导出模板的「子分类」列落地于此，
+  /// 与 [categoryId] 解耦：分类是结构化类目、参与统计归集，子分类只是可选项签，
+  /// 不影响任何聚合。列可空，存量库经 v35 幂等迁移补齐。
+  TextColumn get subcategory => text().nullable()();
+
   /// 业务发生时间（UTC 毫秒）
   IntColumn get occurredAt => integer()();
 

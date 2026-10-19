@@ -199,6 +199,7 @@ abstract final class RecordCodec {
         currency: Value<String>((p['currency'] as String?) ?? 'CNY'),
         toAccountId: Value<String?>(p['toAccountId'] as String?),
         categoryId: Value<String?>(p['categoryId'] as String?),
+        subcategory: Value<String?>(p['subcategory'] as String?),
         note: Value<String?>(p['note'] as String?),
         attachmentUrls: Value<String?>(p['attachmentUrls'] as String?),
         tags: Value<String?>(p['tags'] as String?),

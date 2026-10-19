@@ -160,6 +160,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 ? null
                 : accountNames[t.toAccountId] ?? '未知账户',
             discountMinor: t.discountMinor,
+            feeMinor: t.feeMinor,
+            subcategoryName: t.subcategory,
             categoryName:
                 t.categoryId == null ? null : catMap[t.categoryId]?.name,
             tags: _decodeTags(t.tags),
@@ -356,8 +358,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       // 买卖流水 relatedId = 持仓 id、sourceModule = investment；备注含
       // `买入-名称\n份额 · 单价 · 手续费 [用户备注]`（与 [_InvestNote] 同源）。导出回写：
       // 模块=投资、类型=支出(买入)/收入(卖出)、对方=证券代码、分类=品种类型(label)、
-      // 备注=`名称@单价`(+ 用户备注)、优惠=手续费；金额还原为「成交净金额」
-      // （买入流水额含费 → 减费；卖出流水额已扣费 → 加费），使再导入份额精确还原。
+      // 备注=`名称@单价`(+ 用户备注)、手续费=feeMinor（独立于优惠列，避免混写）；金额
+      // 还原为「成交净金额」（买入流水额含费 → 减费；卖出流水额已扣费 → 加费），
+      // 使再导入份额精确还原。
       if (txns.any((Transaction t) => t.sourceModule == SourceModule.investment)) {
         final InvestmentRepository investRepo =
             ref.read(investmentRepositoryProvider);
@@ -395,7 +398,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 amountMinor: amountMinor,
                 accountName: accountNames[f.accountId] ?? '未知账户',
                 toAccountName: null,
-                discountMinor: fee,
+                feeMinor: fee,
                 categoryName: h.type.label,
                 tags: const <String>[],
                 book: currentBookName,

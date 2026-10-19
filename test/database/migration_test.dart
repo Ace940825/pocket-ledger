@@ -101,7 +101,8 @@ void main() {
     await expectLater(db.booksDao.watchAll().first, completes);
     await db.close();
 
-    expect(userVersion(), 15, reason: '迁移成功后 user_version 必须推进到 15');
+    expect(userVersion(), AppDatabase.kSchemaVersion,
+        reason: '迁移成功后 user_version 必须推进到当前 schemaVersion');
   });
 
   test('升级路径也必须补齐索引（且幂等）', () async {
@@ -147,7 +148,8 @@ void main() {
     expect(transactionColumns(), contains('exclude_from_stats'));
     expect(transactionColumns(), contains('exclude_from_budget'));
     expect(transactionColumns(), contains('is_reimbursable'));
-    expect(userVersion(), 15, reason: 'v6→v15 升级后 user_version 必须推进到 15');
+    expect(userVersion(), AppDatabase.kSchemaVersion,
+        reason: 'v6→当前版本 升级后 user_version 必须推进到当前 schemaVersion');
     // v8 迁移同时补齐本地模板表。
     expect(tableExists('record_templates'), isTrue);
   });
@@ -157,7 +159,7 @@ void main() {
     await db.booksDao.watchAll().first;
     await db.close();
 
-    expect(userVersion(), 15);
+    expect(userVersion(), AppDatabase.kSchemaVersion);
     expect(reimbursementColumns(), contains('exclude_from_stats'));
     expect(transactionColumns(), contains('exclude_from_stats'));
     expect(transactionColumns(), contains('exclude_from_budget'));
@@ -186,7 +188,7 @@ void main() {
     await db.booksDao.watchAll().first; // 走 v8→v9 onUpgrade
     await db.close();
 
-    expect(userVersion(), 15);
+    expect(userVersion(), AppDatabase.kSchemaVersion);
     expect(
       columnsOf('installment_plans'),
       contains('fee_by_period_minor'),
@@ -215,7 +217,7 @@ void main() {
     await db.booksDao.watchAll().first; // 走 v9→v10 onUpgrade
     await db.close();
 
-    expect(userVersion(), 15);
+    expect(userVersion(), AppDatabase.kSchemaVersion);
     expect(
       columnsOf('installment_plans'),
       contains('repeat_rule'),
@@ -233,7 +235,7 @@ void main() {
       rawDb.execute(
         'INSERT INTO reimbursements '
         '(id, book_id, title, status, amount_minor, payer, occurred_at, updated_at) '
-        "VALUES ('r$st', 'bk', 't$st', $st, 100, 'me', 0, 0)",
+        "VALUES ('$st', 'bk', 't$st', $st, 100, 'me', 0, 0)",
       );
     }
     rawDb.dispose();
@@ -251,7 +253,7 @@ void main() {
     };
     rawDb2.dispose();
 
-    expect(userVersion(), 15);
+    expect(userVersion(), AppDatabase.kSchemaVersion);
     expect(byId[0], 0, reason: '旧待报销保持待报销');
     expect(byId[1], 0, reason: '旧已提交归为待报销');
     expect(byId[2], 1, reason: '旧已报销保持已报销');

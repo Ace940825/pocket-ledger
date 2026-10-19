@@ -14,6 +14,7 @@ import '../../../shared/models/money.dart';
 ///
 /// 字段与 [kBillTemplateFields] 一一对应（顺序除外）。交易级全量字段（Phase 1）：
 /// 业务模块 [module]、标签 [tags]、账本名 [book]、优惠 [discountMinor]、
+/// 手续费 [feeMinor]、子分类 [subcategoryName]、
 /// 报销开关 / 报销账户 [isReimbursable] / [reimbursementAccount]、
 /// 不计预算 / 不计收支 [excludeFromBudget] / [excludeFromStats]。
 /// 借还 / 储蓄 / 分期 / 投资 / 报销等独立台账由对应阶段落地；其中借还（Phase 2）
@@ -28,7 +29,9 @@ class BillRow {
     this.toAccountName,
     this.module = SourceModule.ledger,
     this.categoryName,
+    this.subcategoryName,
     this.discountMinor = 0,
+    this.feeMinor = 0,
     this.tags = const <String>[],
     this.book,
     this.isReimbursable = false,
@@ -56,6 +59,14 @@ class BillRow {
 
   /// 优惠金额（分）。实付 = 金额 − 优惠。
   final int discountMinor;
+
+  /// 手续费（分）。如银行 / 第三方转账手续费；一般场景为 0。仅作记录项签，
+  /// 不参与余额扣减（转账实付已在记一笔侧用 fromAmount 表达）。
+  final int feeMinor;
+
+  /// 子分类名称（自由文本，非结构化）。与 [categoryName] 解耦：分类是结构化类目、
+  /// 参与统计归集，子分类只是可选项签，不影响任何聚合。
+  final String? subcategoryName;
 
   /// 标签列表（导出逗号拼接，导入按逗号拆分）。
   final List<String> tags;
@@ -101,7 +112,9 @@ const List<String> _kCsvHeader = <String>[
   '转入账户',
   '对方',
   '优惠',
+  '手续费',
   '分类',
+  '子分类',
   '标签',
   '账本',
   '可报销',
@@ -116,10 +129,34 @@ String _formatDate(DateTime dt) => DateFormat('yyyy-MM-dd HH:mm').format(dt);
 DateTime? _parseDate(String raw) {
   final String s = raw.trim();
   if (s.isEmpty) return null;
-  // CSV 里通常是 "yyyy-MM-dd HH:mm"，DateTime.tryParse 只认 'T' 分隔，先归一化。
-  final DateTime? withT = DateTime.tryParse(s.replaceAll(' ', 'T'));
-  if (withT != null) return withT;
-  return DateTime.tryParse(s);
+  // 统一走自写的宽松解析：同时兼容严格格式（yyyy-MM-dd HH:mm，正则本就匹配）
+  // 与微信等导出的宽松写法（斜杠分隔、月/日/时/分不补零，如 2026-9-29 17:31）。
+  // 不走 DateTime.tryParse 兜底——它会对非法日期（如 2/30）静默回滚到 3 月，
+  // 导致脏数据被静默接受（详见 _parseLooseDate 的二次校验）。
+  return _parseLooseDate(s);
+}
+
+/// 解析「年-月-日 时:分[:秒]」的宽松变体：允许 `-` 与 `/` 混用、月/日/时/分/秒
+/// 不补零，且秒可省略。归一化为严格格式再校验，拒绝非法日期（含回滚，如 2 月 30 日）。
+DateTime? _parseLooseDate(String raw) {
+  final RegExp re = RegExp(
+    r'^(\d{4})[-/](\d{1,2})[-/](\d{1,2})'
+    r'(?:[ Tt](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$',
+  );
+  final Match? m = re.firstMatch(raw);
+  if (m == null) return null;
+  final int y = int.parse(m.group(1)!);
+  final int mo = int.parse(m.group(2)!);
+  final int d = int.parse(m.group(3)!);
+  final int hh = m.group(4) == null ? 0 : int.parse(m.group(4)!);
+  final int mm = m.group(5) == null ? 0 : int.parse(m.group(5)!);
+  final int ss = m.group(6) == null ? 0 : int.parse(m.group(6)!);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  if (hh > 23 || mm > 59 || ss > 59) return null;
+  final DateTime dt = DateTime(y, mo, d, hh, mm, ss);
+  // 二次校验，拒绝回滚（如 2026-02-30 被 Dart 解析成 3 月）。
+  if (dt.year != y || dt.month != mo || dt.day != d) return null;
+  return dt;
 }
 
 TxnType? _parseType(String raw) {
@@ -148,6 +185,12 @@ String _amountLabel(int minor, String currency) =>
 String _boolLabel(bool v) => v ? 'Y' : 'N';
 
 int _parseDiscount(String raw) {
+  final String s = raw.trim();
+  if (s.isEmpty) return 0;
+  return Money.tryParse(s).minor;
+}
+
+int _parseFee(String raw) {
   final String s = raw.trim();
   if (s.isEmpty) return 0;
   return Money.tryParse(s).minor;
@@ -199,7 +242,9 @@ String buildCsv(List<BillRow> rows) {
         r.toAccountName ?? '',
         r.counterparty ?? '',
         _amountLabel(r.discountMinor, r.currency),
+        _amountLabel(r.feeMinor, r.currency),
         r.categoryName ?? '',
+        r.subcategoryName ?? '',
         r.tags.join(','),
         r.book ?? '',
         _boolLabel(r.isReimbursable),
@@ -226,7 +271,9 @@ String buildJson(List<BillRow> rows) {
         'counterparty': r.counterparty ?? '',
         'discount':
             Money.fromMinor(r.discountMinor, currency: r.currency).decimal,
+        'fee': Money.fromMinor(r.feeMinor, currency: r.currency).decimal,
         'category': r.categoryName ?? '',
+        'subcategory': r.subcategoryName ?? '',
         'tags': r.tags,
         'book': r.book ?? '',
         'isReimbursable': r.isReimbursable,
@@ -292,7 +339,9 @@ ParseResult _parseCsv(String content) {
   final int iTo = col('转入账户');
   final int iCounterparty = col('对方');
   final int iDiscount = col('优惠');
+  final int iFee = col('手续费');
   final int iCat = col('分类');
+  final int iSubcat = col('子分类');
   final int iTags = col('标签');
   final int iBook = col('账本');
   final int iReimb = col('可报销');
@@ -336,6 +385,8 @@ ParseResult _parseCsv(String content) {
     final int amount = Money.tryParse(cell(iAmount)).minor;
     final String catTrim = _nullIfEmpty(cell(iCat));
     final String? categoryName = catTrim.isEmpty ? null : catTrim;
+    final String subcatTrim = _nullIfEmpty(cell(iSubcat));
+    final String? subcategoryName = subcatTrim.isEmpty ? null : subcatTrim;
     // 借还路由行：债务消减/坏账计提无需真实资产账户，账户可空；其余行账户必填。
     final LendOp? lendOp =
         module == SourceModule.lend ? parseLendOp(categoryName) : null;
@@ -355,6 +406,7 @@ ParseResult _parseCsv(String content) {
       continue;
     }
     final int discount = _parseDiscount(cell(iDiscount));
+    final int fee = _parseFee(cell(iFee));
     final List<String> tags = _parseTags(cell(iTags));
     final String bookTrim = _nullIfEmpty(cell(iBook));
     final String? book = bookTrim.isEmpty ? null : bookTrim;
@@ -375,7 +427,9 @@ ParseResult _parseCsv(String content) {
         accountName: account,
         toAccountName: toAccount,
         categoryName: categoryName,
+        subcategoryName: subcategoryName,
         discountMinor: discount,
+        feeMinor: fee,
         tags: tags,
         book: book,
         isReimbursable: isReimbursable,
@@ -445,7 +499,10 @@ ParseResult _parseJson(String content) {
         continue;
       }
       final int discount = _parseDiscount((m['discount'] ?? '').toString());
+      final int fee = _parseFee((m['fee'] ?? '').toString());
       final List<String> tags = _parseJsonTags(m['tags']);
+      final String subcatRaw = _nullIfEmpty((m['subcategory'] ?? '').toString());
+      final String? subcategoryName = subcatRaw.isEmpty ? null : subcatRaw;
       final String bookRaw = _nullIfEmpty((m['book'] ?? '').toString());
       final String? book = bookRaw.isEmpty ? null : bookRaw;
       final bool isReimbursable =
@@ -470,7 +527,9 @@ ParseResult _parseJson(String content) {
           accountName: account,
           toAccountName: toAccount,
           categoryName: categoryName,
+          subcategoryName: subcategoryName,
           discountMinor: discount,
+          feeMinor: fee,
           tags: tags,
           book: book,
           isReimbursable: isReimbursable,
