@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../database/app_database.dart';
+import '../../../providers/app_providers.dart';
 
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/line_icon_map.dart';
@@ -16,6 +17,18 @@ import '../../accounts/providers/accounts_providers.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
 import '../providers/ledger_providers.dart';
+
+/// 把存储的标签 JSON 字符串解码回标签列表（容错：非列表 / 空串 / 异常返回空）。
+List<String> _decodeTags(String? json) {
+  if (json == null || json.isEmpty) return const <String>[];
+  try {
+    final Object? decoded = jsonDecode(json);
+    if (decoded is List) return decoded.cast<String>();
+  } catch (_) {
+    // 历史脏数据不应让导出中断。
+  }
+  return const <String>[];
+}
 
 /// 「账单管理 → 账单导出」页。
 ///
@@ -48,10 +61,20 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       final List<Account> accounts = await ref.read(accountsProvider.future);
       final Map<String, Category> catMap =
           await ref.read(categoryMapProvider.future);
+      final List<Book> books = await ref.read(booksListProvider.future);
 
       final Map<String, String> accountNames = <String, String>{};
       for (final Account a in accounts) {
         accountNames[a.id] = a.name;
+      }
+      // 导出为当前账本的数据，账本列填当前账本名，便于再次导入时归户一致。
+      final String currentBookId = ref.read(currentBookIdProvider);
+      String? currentBookName;
+      for (final Book b in books) {
+        if (b.id == currentBookId) {
+          currentBookName = b.name;
+          break;
+        }
       }
 
       final List<BillRow> rows = <BillRow>[
@@ -60,14 +83,24 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             occurredAt:
                 DateTime.fromMillisecondsSinceEpoch(t.occurredAt, isUtc: true)
                     .toLocal(),
+            module: t.sourceModule,
             type: t.type,
             amountMinor: t.amountMinor,
             accountName: accountNames[t.accountId] ?? '未知账户',
             toAccountName: t.toAccountId == null
                 ? null
                 : accountNames[t.toAccountId] ?? '未知账户',
+            discountMinor: t.discountMinor,
             categoryName:
                 t.categoryId == null ? null : catMap[t.categoryId]?.name,
+            tags: _decodeTags(t.tags),
+            book: currentBookName,
+            isReimbursable: t.isReimbursable,
+            reimbursementAccount: t.reimbursementAccountId == null
+                ? null
+                : accountNames[t.reimbursementAccountId],
+            excludeFromBudget: t.excludeFromBudget,
+            excludeFromStats: t.excludeFromStats,
             note: t.note,
             currency: t.currency,
           ),

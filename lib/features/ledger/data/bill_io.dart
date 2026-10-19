@@ -11,6 +11,13 @@ import '../../../shared/models/money.dart';
 /// 导入侧把 CSV / JSON 解析成 [BillRow]，导出侧把库内流水投影成 [BillRow]，
 /// 二者共用同一套字段，保证「导出 → 导入」可无损往返（账户 / 分类按名称
 /// 重新归户，见 bill_import_page）。
+///
+/// 字段与 [kBillTemplateFields] 一一对应（顺序除外）。交易级全量字段（Phase 1）：
+/// 业务模块 [module]、标签 [tags]、账本名 [book]、优惠 [discountMinor]、
+/// 报销开关 / 报销账户 [isReimbursable] / [reimbursementAccount]、
+/// 不计预算 / 不计收支 [excludeFromBudget] / [excludeFromStats]。
+/// 借还 / 储蓄 / 分期 / 投资 / 报销等独立台账由 Phase 2 落地，Phase 1 仅把
+/// 业务模块打标落交易，不生成对应子记录（导入校验阶段会给出提示）。
 class BillRow {
   const BillRow({
     required this.occurredAt,
@@ -18,7 +25,15 @@ class BillRow {
     required this.amountMinor,
     required this.accountName,
     this.toAccountName,
+    this.module = SourceModule.ledger,
     this.categoryName,
+    this.discountMinor = 0,
+    this.tags = const <String>[],
+    this.book,
+    this.isReimbursable = false,
+    this.reimbursementAccount,
+    this.excludeFromBudget = false,
+    this.excludeFromStats = false,
     this.note,
     this.currency = 'CNY',
     this.confidence,
@@ -32,26 +47,59 @@ class BillRow {
   final int amountMinor;
   final String accountName;
   final String? toAccountName;
+
+  /// 业务来源模块（见 [SourceModule]）。默认 [SourceModule.ledger]，即日常记账。
+  final SourceModule module;
   final String? categoryName;
+
+  /// 优惠金额（分）。实付 = 金额 − 优惠。
+  final int discountMinor;
+
+  /// 标签列表（导出逗号拼接，导入按逗号拆分）。
+  final List<String> tags;
+
+  /// 账本名称（按名称归户到对应账本；为空归当前账本）。
+  final String? book;
+
+  /// 是否可报销（挂账到报销账户）。
+  final bool isReimbursable;
+
+  /// 报销账户名称（[isReimbursable]=true 时有效）。
+  final String? reimbursementAccount;
+
+  /// 是否不计入预算。
+  final bool excludeFromBudget;
+
+  /// 是否不计入收支统计。
+  final bool excludeFromStats;
+
   final String? note;
   final String currency;
 
   /// 识别置信度（0~1），仅截图 / OCR 识别来源填充；CSV / JSON 导入为 null。
-  /// 低于 [_kLowConfidence] 的字段在确认页标「需复核」。
+  /// 低于 [kLowConfidence] 的字段在确认页标「需复核」。
   final double? confidence;
 }
 
 /// 低于该置信度的字段在确认页高亮提示用户复核。
 const double kLowConfidence = 0.6;
 
-/// CSV 表头（导出与解析都据此定位列）。
+/// CSV 表头（导出与解析都据此定位列）。顺序与 [kBillTemplateFields] 一致。
 const List<String> _kCsvHeader = <String>[
   '日期',
+  '模块',
   '类型',
   '金额',
   '账户',
   '转入账户',
+  '优惠',
   '分类',
+  '标签',
+  '账本',
+  '可报销',
+  '报销账户',
+  '不计预算',
+  '不计收支',
   '备注',
 ];
 
@@ -76,14 +124,58 @@ TxnType? _parseType(String raw) {
   return null;
 }
 
-String _typeLabel(TxnType t) => switch (t) {
-      TxnType.income => '收入',
-      TxnType.expense => '支出',
-      TxnType.transfer => '转账',
-    };
+SourceModule? _parseModule(String raw) {
+  final String s = raw.trim();
+  if (s.isEmpty) return null;
+  final String lower = s.toLowerCase();
+  for (final SourceModule m in SourceModule.values) {
+    if (m.name.toLowerCase() == lower || m.label == s) return m;
+  }
+  return null;
+}
 
 String _amountLabel(int minor, String currency) =>
     Money.fromMinor(minor, currency: currency).format(showSymbol: false);
+
+String _boolLabel(bool v) => v ? 'Y' : 'N';
+
+int _parseDiscount(String raw) {
+  final String s = raw.trim();
+  if (s.isEmpty) return 0;
+  return Money.tryParse(s).minor;
+}
+
+bool _parseBool(String raw) {
+  final String s = raw.trim().toLowerCase();
+  return s == 'y' || s == 'true' || s == '是' || s == '1';
+}
+
+List<String> _parseTags(String raw) {
+  final String s = raw.trim();
+  if (s.isEmpty) return const <String>[];
+  return s
+      .split(',')
+      .map((String e) => e.trim())
+      .where((String e) => e.isNotEmpty)
+      .toList();
+}
+
+List<String> _parseJsonTags(dynamic v) {
+  if (v == null) return const <String>[];
+  if (v is List) {
+    return v
+        .map((dynamic e) => e.toString().trim())
+        .where((String e) => e.isNotEmpty)
+        .toList();
+  }
+  if (v is String) return _parseTags(v);
+  return const <String>[];
+}
+
+String _nullIfEmpty(String s) {
+  final String t = s.trim();
+  return t.isEmpty ? '' : t;
+}
 
 /// 导出为 CSV 文本（含表头）。备注里的逗号 / 换行由 [ListToCsvConverter] 自动转义。
 String buildCsv(List<BillRow> rows) {
@@ -92,28 +184,45 @@ String buildCsv(List<BillRow> rows) {
     for (final BillRow r in rows)
       <dynamic>[
         _formatDate(r.occurredAt),
-        _typeLabel(r.type),
+        r.module.label,
+        r.type.label,
         _amountLabel(r.amountMinor, r.currency),
         r.accountName,
         r.toAccountName ?? '',
+        _amountLabel(r.discountMinor, r.currency),
         r.categoryName ?? '',
+        r.tags.join(','),
+        r.book ?? '',
+        _boolLabel(r.isReimbursable),
+        r.reimbursementAccount ?? '',
+        _boolLabel(r.excludeFromBudget),
+        _boolLabel(r.excludeFromStats),
         r.note ?? '',
       ],
   ];
   return const ListToCsvConverter(eol: '\n').convert(table);
 }
 
-/// 导出为 JSON 文本（账单数组，元素键与 CSV 表头一一对应）。
+/// 导出为 JSON 文本（账单数组，元素键与 [_kJsonKeys] 一一对应）。
 String buildJson(List<BillRow> rows) {
   final List<Map<String, dynamic>> list = <Map<String, dynamic>>[
     for (final BillRow r in rows)
       <String, dynamic>{
         'date': _formatDate(r.occurredAt),
-        'type': _typeLabel(r.type),
+        'module': r.module.label,
+        'type': r.type.label,
         'amount': Money.fromMinor(r.amountMinor, currency: r.currency).decimal,
         'account': r.accountName,
         'toAccount': r.toAccountName ?? '',
+        'discount':
+            Money.fromMinor(r.discountMinor, currency: r.currency).decimal,
         'category': r.categoryName ?? '',
+        'tags': r.tags,
+        'book': r.book ?? '',
+        'isReimbursable': r.isReimbursable,
+        'reimbursementAccount': r.reimbursementAccount ?? '',
+        'excludeFromBudget': r.excludeFromBudget,
+        'excludeFromStats': r.excludeFromStats,
         'note': r.note ?? '',
         'currency': r.currency,
       },
@@ -166,18 +275,42 @@ ParseResult _parseCsv(String content) {
   }
   int col(String name) => idx[name] ?? -1;
   final int iDate = col('日期');
+  final int iModule = col('模块');
   final int iType = col('类型');
   final int iAmount = col('金额');
   final int iAccount = col('账户');
   final int iTo = col('转入账户');
+  final int iDiscount = col('优惠');
   final int iCat = col('分类');
+  final int iTags = col('标签');
+  final int iBook = col('账本');
+  final int iReimb = col('可报销');
+  final int iReimbAcc = col('报销账户');
+  final int iExclBudget = col('不计预算');
+  final int iExclStats = col('不计收支');
   final int iNote = col('备注');
 
+  // 列数守门：表头长度即合法列数。数据行若多出列（多半是某字段漏写引号 /
+  // 多出逗号），会导致后续字段整体串位 → 直接报错，避免静默错读。
+  // 少于表头长度（行尾缺列）则补空，不影响已填字段。
+  final int headerLen = header.length;
+
   for (int r = 1; r < table.length; r++) {
-    final List<dynamic> line = table[r];
+    final List<dynamic> raw = table[r];
     final String lineNo = '第$r行';
+    if (raw.length > headerLen) {
+      errors.add('$lineNo：列数（${raw.length}）超出表头（$headerLen），'
+          '请检查是否有多余的逗号或漏写引号');
+      continue;
+    }
+    // 补齐到表头长度，避免行尾缺列时越界或串读。
+    final List<dynamic> line = List<dynamic>.filled(headerLen, '');
+    for (int i = 0; i < raw.length; i++) {
+      line[i] = raw[i];
+    }
     String cell(int i) =>
         i < 0 || i >= line.length ? '' : line[i].toString().trim();
+
     final DateTime? dt = _parseDate(cell(iDate));
     if (dt == null) {
       errors.add('$lineNo：日期无法识别');
@@ -188,6 +321,7 @@ ParseResult _parseCsv(String content) {
       errors.add('$lineNo：类型无法识别（应为 收入 / 支出 / 转账）');
       continue;
     }
+    final SourceModule module = _parseModule(cell(iModule)) ?? SourceModule.ledger;
     final int amount = Money.tryParse(cell(iAmount)).minor;
     final String account = cell(iAccount);
     if (account.isEmpty) {
@@ -200,17 +334,38 @@ ParseResult _parseCsv(String content) {
       errors.add('$lineNo：转账缺少转入账户');
       continue;
     }
-    final String catRaw = cell(iCat);
-    final String noteRaw = cell(iNote);
+    final int discount = _parseDiscount(cell(iDiscount));
+    final String catTrim = _nullIfEmpty(cell(iCat));
+    final String? categoryName = catTrim.isEmpty ? null : catTrim;
+    final List<String> tags = _parseTags(cell(iTags));
+    final String bookTrim = _nullIfEmpty(cell(iBook));
+    final String? book = bookTrim.isEmpty ? null : bookTrim;
+    final bool isReimbursable = _parseBool(cell(iReimb));
+    final String reimbAccTrim = _nullIfEmpty(cell(iReimbAcc));
+    final String? reimbursementAccount = reimbAccTrim.isEmpty ? null : reimbAccTrim;
+    final bool excludeFromBudget = _parseBool(cell(iExclBudget));
+    final bool excludeFromStats = _parseBool(cell(iExclStats));
+    final String noteTrim = _nullIfEmpty(cell(iNote));
+    final String? note = noteTrim.isEmpty ? null : noteTrim;
+
     rows.add(
       BillRow(
         occurredAt: dt,
+        module: module,
         type: type,
         amountMinor: amount,
         accountName: account,
         toAccountName: toAccount,
-        categoryName: catRaw.isEmpty ? null : catRaw,
-        note: noteRaw.isEmpty ? null : noteRaw,
+        categoryName: categoryName,
+        discountMinor: discount,
+        tags: tags,
+        book: book,
+        isReimbursable: isReimbursable,
+        reimbursementAccount: reimbursementAccount,
+        excludeFromBudget: excludeFromBudget,
+        excludeFromStats: excludeFromStats,
+        note: note,
+        currency: 'CNY',
       ),
     );
   }
@@ -245,6 +400,8 @@ ParseResult _parseJson(String content) {
         errors.add('$lineNo：类型无法识别（应为 收入 / 支出 / 转账）');
         continue;
       }
+      final SourceModule module =
+          _parseModule((m['module'] ?? '').toString()) ?? SourceModule.ledger;
       final int amount = Money.tryParse((m['amount'] ?? '').toString()).minor;
       final String account = (m['account'] ?? '').toString().trim();
       if (account.isEmpty) {
@@ -257,17 +414,42 @@ ParseResult _parseJson(String content) {
         errors.add('$lineNo：转账缺少转入账户');
         continue;
       }
-      final String catRaw = (m['category'] ?? '').toString().trim();
-      final String noteRaw = (m['note'] ?? '').toString().trim();
+      final int discount = _parseDiscount((m['discount'] ?? '').toString());
+      final String catRaw = _nullIfEmpty((m['category'] ?? '').toString());
+      final String? categoryName = catRaw.isEmpty ? null : catRaw;
+      final List<String> tags = _parseJsonTags(m['tags']);
+      final String bookRaw = _nullIfEmpty((m['book'] ?? '').toString());
+      final String? book = bookRaw.isEmpty ? null : bookRaw;
+      final bool isReimbursable =
+          _parseBool((m['isReimbursable'] ?? '').toString());
+      final String reimbAccRaw =
+          _nullIfEmpty((m['reimbursementAccount'] ?? '').toString());
+      final String? reimbursementAccount =
+          reimbAccRaw.isEmpty ? null : reimbAccRaw;
+      final bool excludeFromBudget =
+          _parseBool((m['excludeFromBudget'] ?? '').toString());
+      final bool excludeFromStats =
+          _parseBool((m['excludeFromStats'] ?? '').toString());
+      final String noteRaw = _nullIfEmpty((m['note'] ?? '').toString());
+      final String? note = noteRaw.isEmpty ? null : noteRaw;
+
       rows.add(
         BillRow(
           occurredAt: dt,
+          module: module,
           type: type,
           amountMinor: amount,
           accountName: account,
           toAccountName: toAccount,
-          categoryName: catRaw.isEmpty ? null : catRaw,
-          note: noteRaw.isEmpty ? null : noteRaw,
+          categoryName: categoryName,
+          discountMinor: discount,
+          tags: tags,
+          book: book,
+          isReimbursable: isReimbursable,
+          reimbursementAccount: reimbursementAccount,
+          excludeFromBudget: excludeFromBudget,
+          excludeFromStats: excludeFromStats,
+          note: note,
           currency: (m['currency'] ?? 'CNY').toString(),
         ),
       );

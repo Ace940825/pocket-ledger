@@ -81,11 +81,12 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     final ParseResult parsed = parseInput(_text.text);
     TemplateCheckResult? check;
     if (parsed.rows.isNotEmpty) {
-      // 与当前账本的账户 / 分类做匹配校验（模板系统：不再静默自动创建，
+      // 与当前账本的账户 / 分类 / 账本做匹配校验（模板系统：不再静默自动创建，
       // 未知项在报告中显式列出）。
       final List<Account> accounts = await ref.read(accountsProvider.future);
       final List<Category> categories =
           await ref.read(allCategoriesProvider.future);
+      final List<Book> books = await ref.read(booksListProvider.future);
       final List<Set<String>> catNames = <Set<String>>[
         <String>{}, // income（与 CategoryType 顺序对齐）
         <String>{}, // expense
@@ -102,6 +103,9 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
           for (final Account a in accounts) a.name.trim().toLowerCase(),
         },
         categoryNamesByType: catNames,
+        bookNames: <String>{
+          for (final Book b in books) b.name.trim().toLowerCase(),
+        },
       );
     }
     setState(() {
@@ -115,17 +119,40 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     if (_importing || _parsed == null || _parsed!.rows.isEmpty) return;
     setState(() => _importing = true);
     try {
-      final String bookId = ref.read(currentBookIdProvider);
-      final List<Account> accounts = await ref.read(accountsProvider.future);
-      final List<Category> categories =
-          await ref.read(allCategoriesProvider.future);
+      final String currentBookId = ref.read(currentBookIdProvider);
+      final List<Book> books = await ref.read(booksListProvider.future);
+      final Map<String, String> bookNameToId = <String, String>{};
+      for (final Book b in books) {
+        bookNameToId[b.name.trim().toLowerCase()] = b.id;
+      }
 
       final TransactionRepository txnRepo =
           ref.read(transactionRepositoryProvider);
       final AccountRepository accRepo = ref.read(accountRepositoryProvider);
       final CategoryRepository catRepo = ref.read(categoryRepositoryProvider);
+      final accountsDao = ref.read(accountsDaoProvider);
+      final categoriesDao = ref.read(categoriesDaoProvider);
 
-      // 名称（小写）→ ID 缓存，避免重复扫描与重复建账户 / 分类。
+      // 账本 → 账户 / 分类列表缓存（按目标账本隔离，支持多账本路由）。
+      final Map<String, List<Account>> accByBook = <String, List<Account>>{};
+      final Map<String, List<Category>> catByBook = <String, List<Category>>{};
+      Future<List<Account>> accountsOf(String id) async {
+        final List<Account>? cached = accByBook[id];
+        if (cached != null) return cached;
+        final List<Account> list = await accountsDao.watchByBook(id).first;
+        accByBook[id] = list;
+        return list;
+      }
+
+      Future<List<Category>> categoriesOf(String id) async {
+        final List<Category>? cached = catByBook[id];
+        if (cached != null) return cached;
+        final List<Category> list = await categoriesDao.watchAll(id).first;
+        catByBook[id] = list;
+        return list;
+      }
+
+      // 名称（小写）→ ID 缓存（含账本维度，避免跨账本同名串扰）。
       final Map<String, String> accCache = <String, String>{};
       final Map<String, String> catCache = <String, String>{};
 
@@ -135,32 +162,59 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
 
       for (final BillRow row in _parsed!.rows) {
         try {
+          // 解析目标账本：指定且存在则用之，否则归入当前账本。
+          String bookId = currentBookId;
+          if (row.book != null && row.book!.trim().isNotEmpty) {
+            final String? found = bookNameToId[row.book!.trim().toLowerCase()];
+            if (found != null) {
+              bookId = found;
+            } else {
+              reasons.add('账本「${row.book!.trim()}」不存在，已归入当前账本');
+            }
+          }
+          final List<Account> accounts = await accountsOf(bookId);
+          final List<Category> categories = await categoriesOf(bookId);
+
           final String accountId = await _resolveAccount(
             row.accountName,
-            accCache,
+            bookId,
             accounts,
             accRepo,
-            bookId,
+            accCache,
           );
           final String? toAccountId = row.toAccountName == null
               ? null
               : await _resolveAccount(
                   row.toAccountName!,
-                  accCache,
+                  bookId,
                   accounts,
                   accRepo,
-                  bookId,
+                  accCache,
                 );
           final String? categoryId = row.categoryName == null
               ? null
               : await _resolveCategory(
                   row.categoryName!,
                   row.type,
-                  catCache,
+                  bookId,
                   categories,
                   catRepo,
-                  bookId,
+                  catCache,
                 );
+          // 报销账户：可报销且指定了账户名时，按名称归户；缺失则建为报销类账户。
+          String? reimbursementAccountId;
+          if (row.isReimbursable &&
+              row.reimbursementAccount != null &&
+              row.reimbursementAccount!.trim().isNotEmpty) {
+            reimbursementAccountId = await _resolveAccount(
+              row.reimbursementAccount!,
+              bookId,
+              accounts,
+              accRepo,
+              accCache,
+              createType: AccountType.reimbursement,
+            );
+          }
 
           await txnRepo.add(
             bookId: bookId,
@@ -172,6 +226,13 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
             occurredAt: row.occurredAt.toUtc().millisecondsSinceEpoch,
             note: row.note,
             currency: row.currency,
+            sourceModule: row.module,
+            tags: row.tags.isEmpty ? null : row.tags,
+            discountMinor: row.discountMinor,
+            excludeFromBudget: row.excludeFromBudget,
+            excludeFromStats: row.excludeFromStats,
+            isReimbursable: row.isReimbursable,
+            reimbursementAccountId: reimbursementAccountId,
           );
           imported++;
         } catch (e) {
@@ -186,6 +247,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
             ? '成功导入 $imported 笔账单'
             : '导入 $imported 笔，跳过 $skipped 笔';
       });
+      // reasons 仅用于开发期排查，不展示给用户（避免 UI 噪声）。
     } catch (e) {
       if (mounted) showAppToast(context, '导入失败：$e');
     } finally {
@@ -195,16 +257,17 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
 
   Future<String> _resolveAccount(
     String name,
-    Map<String, String> cache,
+    String bookId,
     List<Account> accounts,
     AccountRepository repo,
-    String bookId,
-  ) async {
-    final String key = name.trim().toLowerCase();
+    Map<String, String> cache, {
+    AccountType createType = AccountType.cash,
+  }) async {
+    final String key = '$bookId|${name.trim().toLowerCase()}';
     final String? cached = cache[key];
     if (cached != null) return cached;
     for (final Account a in accounts) {
-      if (a.name.trim().toLowerCase() == key) {
+      if (a.name.trim().toLowerCase() == name.trim().toLowerCase()) {
         cache[key] = a.id;
         return a.id;
       }
@@ -212,7 +275,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     final String id = await repo.add(
       bookId: bookId,
       name: name.trim(),
-      type: AccountType.cash,
+      type: createType,
     );
     cache[key] = id;
     return id;
@@ -221,12 +284,12 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
   Future<String> _resolveCategory(
     String name,
     TxnType type,
-    Map<String, String> cache,
+    String bookId,
     List<Category> categories,
     CategoryRepository repo,
-    String bookId,
+    Map<String, String> cache,
   ) async {
-    final String key = '${type.index}:${name.trim().toLowerCase()}';
+    final String key = '$bookId|${type.index}:${name.trim().toLowerCase()}';
     final String? cached = cache[key];
     if (cached != null) return cached;
     // TxnType 与 CategoryType 枚举顺序一致（income/expense/transfer），
@@ -513,6 +576,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
       _aggBlock('按分类', c.byCategory, 6),
       _aggBlock('按账户', c.byAccount, 6),
       _aggBlock('按月', c.byMonth, 4),
+      _aggBlock('按模块', c.byModule, 6),
       const SizedBox(height: 6),
       Text(
         allMatched
