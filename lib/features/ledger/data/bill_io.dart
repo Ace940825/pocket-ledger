@@ -17,7 +17,8 @@ import '../../../shared/models/money.dart';
 /// 报销开关 / 报销账户 [isReimbursable] / [reimbursementAccount]、
 /// 不计预算 / 不计收支 [excludeFromBudget] / [excludeFromStats]。
 /// 借还 / 储蓄 / 分期 / 投资 / 报销等独立台账由对应阶段落地；其中借还（Phase 2）
-/// 已支持按固定分类名路由到借还台账（见 [parseLendOp]），其余模块仍仅打标落交易。
+/// 已支持按固定分类名路由到借还台账（见 [parseLendOp]），储蓄（Phase 2）已支持按
+/// 「转入账户」= 计划名路由到储蓄台账（建/匹配目标 + 逐期存入），其余模块仍仅打标落交易。
 class BillRow {
   const BillRow({
     required this.occurredAt,
@@ -340,7 +341,8 @@ ParseResult _parseCsv(String content) {
         module == SourceModule.lend ? parseLendOp(categoryName) : null;
     final String account = cell(iAccount);
     final bool accountRequired = lendOp == null || lendOpNeedsAccount(lendOp);
-    if (account.isEmpty && accountRequired) {
+    // 储蓄模块账户可空（= 灵活存入，无联动流水）；其余行账户必填。
+    if (account.isEmpty && accountRequired && module != SourceModule.savings) {
       errors.add('$lineNo：账户为空');
       continue;
     }
@@ -427,7 +429,10 @@ ParseResult _parseJson(String content) {
           module == SourceModule.lend ? parseLendOp(categoryName) : null;
       final String account = (m['account'] ?? '').toString().trim();
       final bool accountRequired = lendOp == null || lendOpNeedsAccount(lendOp);
-      if (account.isEmpty && accountRequired) {
+      // 储蓄模块账户可空（= 灵活存入，无联动流水）；其余行账户必填。
+      if (account.isEmpty &&
+          accountRequired &&
+          module != SourceModule.savings) {
         errors.add('$lineNo：账户为空');
         continue;
       }

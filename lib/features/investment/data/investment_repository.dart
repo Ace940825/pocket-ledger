@@ -538,6 +538,24 @@ class InvestmentRepository {
         .getSingleOrNull();
   }
 
+  /// 取某持仓的全部「未删」买卖流水（按时间升序），供导出遍历无损还原。
+  ///
+  /// 仅取未软删流水：编辑交易（[updateTrade]）会软删旧流水，若不过滤会把已
+  /// 移除的成交在导出→再导入时被重新建出，导致份额/成本失真。
+  Future<List<Transaction>> getFlows(String holdingId) {
+    return (_db.select(_db.transactions)
+          ..where(
+            (Transactions t) =>
+                t.relatedId.equals(holdingId) &
+                t.sourceModule.equals(SourceModule.investment.index) &
+                t.deleted.equals(false),
+          )
+          ..orderBy(<OrderClauseGenerator<Transactions>>[
+            (Transactions t) => OrderingTerm.asc(t.occurredAt),
+          ]))
+        .get();
+  }
+
   /// 记录卖出：减仓（份额 = 金额 ÷ 单价 × 1e6，不超过持仓），并记资金流水
   /// （收入，不计入收支统计）。清仓后份额归 0，保留持仓记录（便于查看历史）。
   Future<void> recordSell({

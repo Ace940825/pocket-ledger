@@ -64,11 +64,25 @@ const List<BillTemplateField> kBillTemplateFields = <BillTemplateField>[
     jsonKey: 'module',
     typeLabel: '枚举',
     required: false,
-    desc: '业务来源：日常记账 / 转账 / 借还 / 报销 / 储蓄 / 分期 / 投资 / 物品 / '
+    desc:         '业务来源：日常记账 / 转账 / 借还 / 报销 / 储蓄 / 分期 / 投资 / 物品 / '
         '退款；留空默认「日常记账」。报销的「支出侧」不用本列——垫付请记一笔普通'
-        '支出并填「可报销=Y + 报销账户」；本列「报销」仅用于报销到账的收入。'
+        '支出并填「可报销=Y + 报销账户」（走通用路径自动挂报销账户应收）；本列'
+        '「报销」（Phase 2 已支持）仅用于报销到账的收入：类型须「收入」、报销账户'
+        '必填、「账户」列填实际收款账户（如微信/银行卡），导入即建报销收入流水 + '
+        '待报销记录并全额抵扣翻「已报销」+ 核销报销账户挂账，维持「报销账户余额 = '
+        '待收垫付」不变量，导出→再导入无损往返。'
         '借还（Phase 2 已支持）按分类名（借入/借出/还债/收债/债务消减/坏账计提）'
-        '路由到借还台账，并需填「对方」列；储蓄/分期/投资仍仅作标记、不生成子台账',
+        '路由到借还台账，并需填「对方」列。储蓄（Phase 2 已支持）按「转入账户」列'
+        '= 储蓄计划名路由到储蓄台账：建/匹配目标 + 逐期存入；账户列=扣款账户'
+        '（可空 = 灵活存入，无联动流水）。分期（Phase 2 已支持）按「备注」= 计划名'
+        '（如 iPhone 分期）+ 「转入账户」= 负债付款账户（花呗/信用卡）路由分期'
+        '计划：类型须「转账」，导入即建/匹配计划并逐期生成「分期订单」、还款自动'
+        '对账标记已还。投资（Phase 2 已支持）按「对方」= 证券代码 + 「分类」= 品种类型'
+        '（股票/基金/债券/期货/期权/外汇/贵金属/加密货币/其他）+ 「备注」= 名称@单价 路由'
+        '投资持仓台账：类型须「支出」（买入）或「收入」（卖出），导入即生成持仓与资金流水。'
+        '报销（Phase 2 已支持）按「账户」= 实际收款账户 + 「报销账户」= 报销类账户路由：'
+        '建报销收入流水（进收款账户）+ 建待报销记录并全额抵扣翻「已报销」+ 核销报销账户'
+        '挂账，维持「报销账户余额 = 待收垫付」不变量；导出→再导入无损往返。',
   ),
   BillTemplateField(
     header: '类型',
@@ -193,9 +207,34 @@ const List<List<String>> _sampleRows = <List<String>>[
     'N', '', 'N', 'N', '借给小米',
   ],
   <String>[
-    '2026-10-18 18:00', '储蓄', '转账', '500', '招商银行',
+    '2026-10-18 18:00', '储蓄', '支出', '500', '招商银行',
     '定期存款', '', '', '', '', '',
-    'N', '', 'N', 'N', '每月定存',
+    'N', '', 'N', 'N', '每月定存（第1期）',
+  ],
+  <String>[
+    '2026-10-19 18:00', '储蓄', '支出', '500', '招商银行',
+    '定期存款', '', '', '', '', '',
+    'N', '', 'N', 'N', '每月定存（第2期）',
+  ],
+  <String>[
+    '2026-11-01 09:00', '分期', '转账', '2000', '招商银行',
+    '花呗', '', '', '', '', '',
+    'N', '', 'N', 'N', 'iPhone 分期',
+  ],
+  <String>[
+    '2026-12-01 09:00', '分期', '转账', '2000', '招商银行',
+    '花呗', '', '', '', '', '',
+    'N', '', 'N', 'N', 'iPhone 分期',
+  ],
+  <String>[
+    '2026-10-20 09:30', '投资', '支出', '1000', '招商银行',
+    '', '000300', '0', '基金', '', '',
+    'N', '', 'N', 'N', '沪深300ETF@1.2300',
+  ],
+  <String>[
+    '2026-11-20 09:30', '投资', '收入', '800', '招商银行',
+    '', '000300', '0', '基金', '', '',
+    'N', '', 'N', 'N', '沪深300ETF@1.3500 部分止盈',
   ],
   <String>[
     '2026-10-18 20:00', '日常记账', '支出', '200', '微信',
@@ -203,9 +242,9 @@ const List<List<String>> _sampleRows = <List<String>>[
     'Y', '公司报销', 'N', 'N', '出差午饭（垫付，待报销）',
   ],
   <String>[
-    '2026-10-25 10:00', '报销', '收入', '200', '公司报销',
+    '2026-10-25 10:00', '报销', '收入', '200', '微信',
     '', '', '', '', '', '',
-    'N', '公司报销', 'N', 'N', '报销到账',
+    'N', '公司报销', 'N', 'N', '报销到账（退回垫付，收款账户=微信）',
   ],
 ];
 
@@ -283,6 +322,17 @@ String buildTemplateJson() {
   return _prettyJson(spec);
 }
 
+/// 示例账单行（[BillRow] 列表）：由 [_sampleRows] 经标准 CSV 往返解析得到，作为
+/// 导出示例文件 / 应用内预览的单一数据源。含投资等 Phase 2 模块的合法样例，列数由
+/// [_verifySampleColumns] 守门，杜绝手写示例错位。
+List<BillRow> sampleBillRows() {
+  final String csv = const ListToCsvConverter(eol: '\n').convert(<List<dynamic>>[
+    <String>[for (final BillTemplateField f in kBillTemplateFields) f.header],
+    for (final List<String> r in _sampleRows) r,
+  ]);
+  return parseInput(csv).rows;
+}
+
 /// 极简两空格缩进 JSON（避免引入 dart:convert 之外的依赖；jsonEncode 原生
 /// 输出单行不利于用户阅读）。
 String _prettyJson(Object? o, {int indent = 0}) {
@@ -333,18 +383,59 @@ class TemplateAgg {
   }
 }
 
-/// 仅作标记、不生成子记录的模块（报销/储蓄/分期/投资）。
+/// 仅作标记、不生成子记录的模块（当前为空：借还 / 储蓄 / 分期 / 投资 / 报销 均已
+/// 在 Phase 2 落地并生成对应的台账子记录——借还→借还台账、储蓄→储蓄台账、
+/// 分期→分期计划、投资→投资持仓、报销→报销记录 + 应收核销）。
 ///
-/// 借还（lend）已在 Phase 2 落地：按固定分类名路由到借还台账，不再仅作标记。
-/// 其余业务有独立台账待后续阶段落地；当前导入会把它们落为普通交易并打上模块标记，
-/// 但不会生成对应的报销应收 / 储蓄台账 / 分期计划 / 投资持仓，因此相关派生余额
-/// 不会被驱动——导入校验阶段显式提示用户。
-const Set<SourceModule> _kPhase2Modules = <SourceModule>{
-  SourceModule.reimbursement,
-  SourceModule.savings,
-  SourceModule.installment,
-  SourceModule.investment,
-};
+/// 保留空集合 + 下方提示逻辑作为未来扩展占位，避免误删（新增仅标记模块时只需把
+/// 对应 [SourceModule] 加入此集合即可触发「仅作标记落库」提示）。
+const Set<SourceModule> _kPhase2Modules = <SourceModule>{};
+
+/// 投资行备注约定：`证券名称@单价[ 用户备注]`，如 `沪深300ETF@1.23`、
+/// `沪深300ETF@1.23 每月定投`。单价以「元」计、至多两位小数（与持仓单价同精度，分）。
+/// 返回 (name, priceMinor, userNote)；priceMinor 为 null 表示缺单价（非法）。
+(String, int?, String?) parseInvestmentNote(String? note) {
+  final String raw = (note ?? '').trim();
+  if (raw.isEmpty) return ('', null, null);
+  final int at = raw.indexOf('@');
+  if (at < 0) return (raw, null, null);
+  final String name = raw.substring(0, at).trim();
+  final String rest = raw.substring(at + 1).trim();
+  final List<String> parts = rest.split(RegExp(r'\s+'));
+  final double? price = double.tryParse(parts.first.replaceAll(',', ''));
+  final int? priceMinor = price == null ? null : (price * 100).round();
+  final String? userNote =
+      parts.length > 1 ? parts.skip(1).join(' ').trim() : null;
+  return (name, priceMinor, userNote);
+}
+
+/// 投资品种类型（[InvestmentType]）从「分类」列文本解析；无法识别返回 null，
+/// 调用方按证券代码兜底（股票代码 → 股票，其余 → 基金）。
+InvestmentType? investmentTypeFromLabel(String? label) {
+  final String s = (label ?? '').trim();
+  if (s.isEmpty) return null;
+  for (final InvestmentType t in InvestmentType.values) {
+    if (t.label == s) return t;
+  }
+  return null;
+}
+
+/// 解析投资品种类型，未知/缺省时按证券代码兜底（股票代码 → 股票，其余 → 基金）。
+InvestmentType resolveInvestmentType(String? label, String symbol) {
+  final InvestmentType? direct = investmentTypeFromLabel(label);
+  if (direct != null) return direct;
+  final String s = symbol.trim().toUpperCase();
+  // 纯数字 6 位 / .SH/.SZ/.BJ/.HK → 股票；纯字母 → 美股，均归股票。
+  if (RegExp(r'^\d{6}$').hasMatch(s) ||
+      s.endsWith('.SH') ||
+      s.endsWith('.SZ') ||
+      s.endsWith('.BJ') ||
+      s.endsWith('.HK') ||
+      RegExp(r'^[A-Z]+$').hasMatch(s)) {
+    return InvestmentType.stock;
+  }
+  return InvestmentType.fund;
+}
 
 /// 模板校验结果：阻断错误（不导入）/ 提示（自动创建）/ 四维归集汇总。
 class TemplateCheckResult {
@@ -436,7 +527,11 @@ TemplateCheckResult checkRows(
       errors.add('$lineNo：金额必须大于 0');
       continue;
     }
-    if (r.type == TxnType.transfer && r.toAccountName == null) {
+    // 投资模块的「转账」类型由下方投资块单独拦截（给出更精确的提示），此处跳过，
+    // 避免先触发通用的「转账缺少转入账户」而掩盖投资专属错误。
+    if (r.type == TxnType.transfer &&
+        r.toAccountName == null &&
+        r.module != SourceModule.investment) {
       errors.add('$lineNo：转账缺少转入账户');
       continue;
     }
@@ -468,12 +563,101 @@ TemplateCheckResult checkRows(
       }
     }
 
-    // 模块：仅作标记落库提示（借还已在 Phase 2 落地，不再提示）。
+    // 储蓄（Phase 2 已支持）：「转入账户」列 = 储蓄计划名，必填；账户列 = 扣款账户
+    // （可空 = 灵活存入，无联动流水）。未指定计划名无法路由到储蓄台账，拦截。
+    if (r.module == SourceModule.savings) {
+      if (r.toAccountName == null || r.toAccountName!.trim().isEmpty) {
+        errors.add('$lineNo：储蓄模块必须指定「转入账户」= 储蓄计划名');
+        continue;
+      }
+    }
+
+    // 分期（Phase 2 已支持）：类型须「转账」（账户=扣款账户、转入账户=负债付款
+    // 账户），「备注」= 计划名（如 iPhone 分期）。按计划名忽略大小写建/匹配分期计划，
+    // 逐期生成「分期订单」并还款自动对账标记已还；缺任一要素无法路由，拦截。
+    if (r.module == SourceModule.installment) {
+      if (r.type != TxnType.transfer) {
+        errors.add('$lineNo：分期模块类型必须为「转账」（账户=扣款账户，'
+            '转入账户=负债付款账户）');
+        continue;
+      }
+      if (r.accountName.trim().isEmpty) {
+        errors.add('$lineNo：分期模块必须指定「账户」（扣款账户）');
+        continue;
+      }
+      if (r.toAccountName == null || r.toAccountName!.trim().isEmpty) {
+        errors.add('$lineNo：分期模块必须指定「转入账户」= 负债付款账户（如花呗/信用卡）');
+        continue;
+      }
+      if ((r.note ?? '').trim().isEmpty) {
+        errors.add('$lineNo：分期模块「备注」必须填计划名（如 iPhone 分期），'
+            '用于匹配/创建分期计划');
+        continue;
+      }
+    }
+
+    // 投资（Phase 2 已支持）：类型须「支出」（买入）或「收入」（卖出），账户列 =
+    // 资金账户（必填），「对方」列 = 证券代码（必填），「备注」= 名称@单价（单价必填，
+    // 用于推算份额）；「分类」列 = 品种类型（股票/基金/…，缺省按代码兜底）。缺任一要素
+    // 无法路由到持仓台账，拦截。
+    if (r.module == SourceModule.investment) {
+      if (r.type == TxnType.transfer) {
+        errors.add('$lineNo：投资模块类型须为「支出」（买入）或「收入」（卖出），不能是转账');
+        continue;
+      }
+      if (r.accountName.trim().isEmpty) {
+        errors.add('$lineNo：投资模块必须指定「账户」（资金账户，买款来源/卖款去向）');
+        continue;
+      }
+      final String invSymbol = (r.counterparty ?? '').trim();
+      if (invSymbol.isEmpty) {
+        errors.add('$lineNo：投资模块必须指定「对方」= 证券代码（如 000300 / AAPL / BTC）');
+        continue;
+      }
+      final (String invName, int? invPrice, String? invNote) =
+          parseInvestmentNote(r.note);
+      if (invName.isEmpty) {
+        errors.add('$lineNo：投资模块「备注」须含证券名称，格式：名称@单价'
+            '（如 沪深300ETF@1.2300）');
+        continue;
+      }
+      if (invPrice == null || invPrice <= 0) {
+        errors.add('$lineNo：投资模块「备注」须含有效单价，格式：名称@单价'
+            '（如 沪深300ETF@1.2300），用于推算份额');
+        continue;
+      }
+    }
+
+    // 报销（Phase 2 已支持）：模块=报销 + 收入 + 报销账户，路由到报销台账
+    // （建收入流水 + 待报销记录 + 全额抵扣翻「已报销」+ 核销垫付）。支出侧的垫付
+    // 走通用路径（可报销=Y + 报销账户），此处只校验「报销到账」行。
+    if (r.module == SourceModule.reimbursement) {
+      if (r.type != TxnType.income) {
+        errors.add('$lineNo：报销模块（报销到账）类型必须为「收入」');
+        continue;
+      }
+      final String reimbAcct = (r.reimbursementAccount ?? '').trim();
+      if (reimbAcct.isEmpty) {
+        errors.add('$lineNo：报销模块必须指定「报销账户」');
+        continue;
+      }
+      // 收款账户应与报销账户不同：否则收入进报销账户后再核销会重复扣减，
+      // 报销账户余额失真；此处仅提示，不让整行失败。
+      final String recvAcct = r.accountName.trim();
+      if (recvAcct.isNotEmpty &&
+          recvAcct.toLowerCase() == reimbAcct.toLowerCase()) {
+        warnings.add('$lineNo：报销到账的「账户」与「报销账户」相同，'
+            '收入将进报销账户、不再单独核销，报销账户余额可能失真；'
+            '建议「账户」填实际收款账户（如微信/银行卡）');
+      }
+    }
+
+    // 模块：仅作标记落库提示（借还/储蓄/分期/投资已在 Phase 2 落地，不再提示）。
     if (_kPhase2Modules.contains(r.module) &&
         !seenPhase2Modules.contains(r.module)) {
       seenPhase2Modules.add(r.module);
       warnings.add('模块「${r.module.label}」仅作标记落库，不会生成对应的'
-          '报销/储蓄/分期/投资子记录，相关派生余额暂不驱动，请待后续阶段支持');
+          '报销子记录，相关派生余额暂不驱动，请待后续阶段支持');
     }
 
     // 账本校验：指定了且账本集合已知但不存在 → 提示归入当前账本。
@@ -492,26 +676,39 @@ TemplateCheckResult checkRows(
       warnings.add('$lineNo：标记「可报销」但未指定报销账户，将仅记为可报销、不挂账报销应收');
     }
 
-    // 账户匹配校验（支出/收入主账户 + 转账双方）。
+    // 账户匹配校验（支出/收入主账户 + 转账双方）。储蓄行的「转入账户」列是
+    // 储蓄计划名（非账户），不得当作账户登记自动创建，故排除。
     final List<String> involved = <String>[
       r.accountName,
-      if (r.toAccountName != null) r.toAccountName!,
+      if (r.toAccountName != null && r.module != SourceModule.savings)
+        r.toAccountName!,
       if (r.isReimbursable && r.reimbursementAccount != null)
         r.reimbursementAccount!,
     ];
     for (final String name in involved) {
+      if (name.trim().isEmpty) continue; // 空账户名（储蓄灵活存入等）跳过
       if (!accountNames.contains(norm(name)) &&
           !seenNewAccounts.contains(norm(name))) {
         seenNewAccounts.add(norm(name));
         newAccounts.add(name.trim());
-        warnings.add('账户「${name.trim()}」不存在，导入时将自动创建（现金类；报销账户建为报销类）');
+        // 分期的「转入账户」是负债付款账户，缺失时应建为负债类而非现金类。
+        final bool isInstallmentTo = r.module == SourceModule.installment &&
+            r.toAccountName != null &&
+            r.toAccountName!.trim().toLowerCase() == name.trim().toLowerCase();
+        warnings.add(isInstallmentTo
+            ? '账户「${name.trim()}」不存在，导入时将自动创建为负债类账户（分期付款账户）'
+            : '账户「${name.trim()}」不存在，导入时将自动创建（现金类；报销账户建为报销类）');
       }
     }
 
     // 分类匹配校验（按交易类型对应分类类型）。借还路由行的分类是 6 类固定
     // 操作名（借入/借出/还债/收债/债务消减/坏账计提），由借还台账自建系统类目，
-    // 不应当作用户分类校验 / 创建，故跳过。
-    if (r.categoryName != null && r.module != SourceModule.lend) {
+    // 不应当作用户分类校验 / 创建，故跳过。储蓄行的分类（若有）归系统「存款」
+    // 类目，同样跳过用户分类校验。
+    if (r.categoryName != null &&
+        r.module != SourceModule.lend &&
+        r.module != SourceModule.savings &&
+        r.module != SourceModule.investment) {
       final int typeIndex = r.type.index;
       final Set<String> known = typeIndex < categoryNamesByType.length
           ? categoryNamesByType[typeIndex]

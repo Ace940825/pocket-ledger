@@ -18,6 +18,14 @@ import '../../categories/data/category_repository.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../../lend/data/lend_repository.dart';
 import '../../lend/providers/lend_providers.dart';
+import '../../savings/data/savings_repository.dart';
+import '../../savings/providers/savings_providers.dart';
+import '../../installment/data/installment_repository.dart';
+import '../../installment/providers/installment_providers.dart';
+import '../../investment/data/investment_repository.dart';
+import '../../investment/providers/investment_providers.dart';
+import '../../reimbursement/data/reimbursement_repository.dart';
+import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
 import '../data/transaction_repository.dart';
@@ -137,6 +145,72 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
       final categoriesDao = ref.read(categoriesDaoProvider);
       // Phase 2 借还路由：模块=借还 且分类为 6 类固定名时，落到借还台账而非普通交易。
       final LendRepository lendRepo = ref.read(lendRepositoryProvider);
+      // Phase 2 储蓄路由：模块=储蓄 且「转入账户」= 计划名时，建/匹配储蓄目标并
+      // 逐期存入台账；账户列 = 扣款账户（可空 = 灵活存入，无联动流水）。
+      final SavingsRepository savingsRepo = ref.read(savingsRepositoryProvider);
+      // 分期路由（Phase 2）：模块=分期且类型=转账、备注=计划名、转入账户=负债付款
+      // 账户时，建/匹配分期计划并逐期生成「分期订单」、还款自动对账标记已还。
+      final InstallmentRepository instRepo =
+          ref.read(installmentRepositoryProvider);
+      // 投资路由（Phase 2）：模块=投资且类型=支出/收入（买入/卖出）、对方=证券代码、
+      // 分类=品种类型、备注=名称@单价时，路由到投资持仓台账（买入建/增资持仓 + 支出
+      // 流水，卖出减仓 + 收入流水），账户列 = 资金账户（买款来源/卖款去向）。
+      final InvestmentRepository investRepo =
+          ref.read(investmentRepositoryProvider);
+      // 报销路由（Phase 2）：模块=报销且类型=收入、报销账户必填时，建报销收入
+      // 流水（账户列=实际收款账户）+ 建待报销记录 + 全额抵扣翻「已报销」+
+      // 核销报销账户挂账，维持「报销账户余额 = 待收垫付」不变量（垫付侧在通用路径
+      // 对报销账户 +实付挂账）。
+      final ReimbursementRepository reimbRepo =
+          ref.read(reimbursementRepositoryProvider);
+      // 预汇总每个计划（按 账本#计划名）的合计金额，作为新建目标的 targetMinor。
+      final Map<String, int> planTotals = <String, int>{};
+      for (final BillRow row in _parsed!.rows) {
+        if (row.module != SourceModule.savings) continue;
+        final String? plan = row.toAccountName?.trim();
+        if (plan == null || plan.isEmpty) continue;
+        String pid = currentBookId;
+        if (row.book != null && row.book!.trim().isNotEmpty) {
+          final String? found = bookNameToId[row.book!.trim().toLowerCase()];
+          if (found != null) pid = found;
+        }
+        planTotals['$pid#$plan'] =
+            (planTotals['$pid#$plan'] ?? 0) + row.amountMinor;
+      }
+      final Map<String, String> planGoalId = <String, String>{};
+      final Map<String, int> planDayIndex = <String, int>{};
+      final Map<String, List<SavingsGoal>> savingsGoalsByBook =
+          <String, List<SavingsGoal>>{};
+
+      // 分期预聚合：按「账本#计划名」归集本批分期行（备注=计划名），计算合计金额、
+      // 最早日期与行清单（按日期升序用于逐期映射）。建/匹配计划只需一次。
+      final Map<String, List<BillRow>> instPlanRows =
+          <String, List<BillRow>>{};
+      final Map<String, int> instPlanTotals = <String, int>{};
+      final Map<String, int> instPlanFirstDue = <String, int>{};
+      for (final BillRow row in _parsed!.rows) {
+        if (row.module != SourceModule.installment) continue;
+        final String plan = (row.note ?? '').trim();
+        if (plan.isEmpty) continue;
+        String pid = currentBookId;
+        if (row.book != null && row.book!.trim().isNotEmpty) {
+          final String? found = bookNameToId[row.book!.trim().toLowerCase()];
+          if (found != null) pid = found;
+        }
+        final String key = '$pid#$plan';
+        (instPlanRows[key] ??= <BillRow>[]).add(row);
+        instPlanTotals[key] = (instPlanTotals[key] ?? 0) + row.amountMinor;
+        final int due = row.occurredAt.toUtc().millisecondsSinceEpoch;
+        final int cur = instPlanFirstDue[key] ?? due;
+        instPlanFirstDue[key] = due < cur ? due : cur;
+      }
+      for (final List<BillRow> list in instPlanRows.values) {
+        list.sort((BillRow a, BillRow b) => a.occurredAt.compareTo(b.occurredAt));
+      }
+      final Map<String, String> instPlanId = <String, String>{};
+      final Set<String> instPlanDone = <String>{};
+      // 投资：同 账本#代码#品种 归户到同一持仓（首笔买入建仓并缓存持仓 id）。
+      final Map<String, String> investHoldingId = <String, String>{};
 
       // 账本 → 账户 / 分类列表缓存（按目标账本隔离，支持多账本路由）。
       final Map<String, List<Account>> accByBook = <String, List<Account>>{};
@@ -197,6 +271,99 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
               lendRepo,
               accounts,
               accRepo,
+              accCache,
+            );
+            imported++;
+            continue;
+          }
+
+          // ── Phase 2 储蓄路由 ──
+          // 模块=储蓄 且「转入账户」= 计划名时，建/匹配储蓄目标并逐期存入台账，
+          // 联动真实账本「存款」流水（扣除款账户），与 in-app _syncPeriodTxn 同口径。
+          if (row.module == SourceModule.savings) {
+            await _importSavings(
+              row,
+              bookId,
+              savingsRepo,
+              accounts,
+              accRepo,
+              catRepo,
+              txnRepo,
+              accCache,
+              planTotals,
+              planGoalId,
+              planDayIndex,
+              savingsGoalsByBook,
+            );
+            imported++;
+            continue;
+          }
+
+          // ── Phase 2 分期路由 ──
+          // 模块=分期 且类型=转账、备注=计划名、转入账户=负债付款账户时，建/匹配
+          // 分期计划（addPlan 末尾自动 postDuePeriods 在负债账户生成「分期订单」），
+          // 逐期导入还款转账（relatedId='${period.id}#repay'）并标记已还。整组只处理一次。
+          if (row.module == SourceModule.installment) {
+            final String plan = (row.note ?? '').trim();
+            String pid = currentBookId;
+            if (row.book != null && row.book!.trim().isNotEmpty) {
+              final String? found = bookNameToId[row.book!.trim().toLowerCase()];
+              if (found != null) pid = found;
+            }
+            final String planKey = '$pid#$plan';
+            if (!instPlanDone.contains(planKey)) {
+              await _importInstallmentPlan(
+                planKey,
+                pid,
+                instRepo,
+                accounts,
+                accRepo,
+                txnRepo,
+                accCache,
+                instPlanRows,
+                instPlanTotals,
+                instPlanFirstDue,
+                instPlanId,
+              );
+              instPlanDone.add(planKey);
+            }
+            imported++;
+            continue;
+          }
+
+          // ── Phase 2 投资路由 ──
+          // 模块=投资 且类型=支出/收入（买入/卖出）、对方=证券代码、分类=品种类型、
+          // 备注=名称@单价时，路由到投资持仓台账：买入建/增资持仓 + 支出流水，卖出
+          // 减仓 + 收入流水；账户列 = 资金账户（买款来源/卖款去向）。同证券同品种
+          // 多次买入累加到同一持仓（按 账本#代码#品种 归户）。卖出前该证券须已有买入。
+          if (row.module == SourceModule.investment) {
+            await _importInvestment(
+              row,
+              bookId,
+              investRepo,
+              accounts,
+              accRepo,
+              accCache,
+              investHoldingId,
+            );
+            imported++;
+            continue;
+          }
+
+          // ── Phase 2 报销路由 ──
+          // 模块=报销 + 收入 + 报销账户：建「报销收入」流水（账户列=实际收款账户，
+          // 报销账户写回流水保证导出往返）+ 建待报销记录 + 全额抵扣翻「已报销」
+          // （写回收入流水 ID 到抵扣台账，删除收入可逆向恢复）+ 核销报销账户挂账。
+          // 与 in-app _saveReimbursementIncome 同口径，维持「余额 = 待收垫付」。
+          if (row.module == SourceModule.reimbursement) {
+            await _importReimbursement(
+              row,
+              bookId,
+              reimbRepo,
+              catRepo,
+              accRepo,
+              txnRepo,
+              accounts,
               accCache,
             );
             imported++;
@@ -416,6 +583,396 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
         TxnType.expense => '支出',
         TxnType.transfer => '转账',
       };
+
+  /// Phase 2 储蓄路由落库：按 [row.toAccountName]（= 储蓄计划名）建或匹配
+  /// [SavingsGoal]，逐期存入台账，并联动真实账本「存款」支出流水。
+  ///
+  /// - 计划名 = [row.toAccountName]；账户列 = 扣款账户（可空 = 灵活存入，无联动流水）。
+  /// - 目标额：新建目标时取本计划在本次导入中的合计（[planTotals]），模式=定额。
+  /// - 逐期 dayIndex 按该计划在本批导入中的出现序号 1-based 分配；[updateDeposit]
+  ///   幂等（同 dayIndex 已存在则更新金额），保证导出→再导入无损。
+  /// - 联动流水：扣款账户非空时建/更新一笔 `sourceModule=savings`、relatedId=
+  ///   `goalId#dayIndex` 的「存款」支出流水，与 in-app [_syncPeriodTxn] 同口径。
+  Future<void> _importSavings(
+    BillRow row,
+    String bookId,
+    SavingsRepository savingsRepo,
+    List<Account> accounts,
+    AccountRepository accRepo,
+    CategoryRepository catRepo,
+    TransactionRepository txnRepo,
+    Map<String, String> accCache,
+    Map<String, int> planTotals,
+    Map<String, String> planGoalId,
+    Map<String, int> planDayIndex,
+    Map<String, List<SavingsGoal>> savingsGoalsByBook,
+  ) async {
+    final String plan = row.toAccountName!.trim();
+    final String cacheKey = '$bookId#$plan';
+
+    // 建/匹配目标（按名称，忽略大小写）。
+    String? goalId = planGoalId[cacheKey];
+    if (goalId == null) {
+      List<SavingsGoal>? goals = savingsGoalsByBook[bookId];
+      if (goals == null) {
+        goals = await savingsRepo.watch(bookId).first;
+        savingsGoalsByBook[bookId] = goals;
+      }
+      SavingsGoal? existing;
+      for (final SavingsGoal g in goals) {
+        if (g.name.trim().toLowerCase() == plan.toLowerCase()) {
+          existing = g;
+          break;
+        }
+      }
+      goalId = existing?.id ??
+          await savingsRepo.add(
+            bookId: bookId,
+            name: plan,
+            targetMinor: planTotals[cacheKey] ?? row.amountMinor,
+            mode: 'fixed',
+          );
+      planGoalId[cacheKey] = goalId;
+    }
+
+    // 逐期存入：dayIndex 按本计划在本次导入中的出现序号 1-based 分配。
+    final int dayIndex = (planDayIndex[cacheKey] ?? 0) + 1;
+    planDayIndex[cacheKey] = dayIndex;
+
+    // 落逐期台账（updateDeposit 幂等：已存在同 dayIndex 则更新金额）。
+    await savingsRepo.updateDeposit(
+      goalId: goalId,
+      dayIndex: dayIndex,
+      amountMinor: row.amountMinor,
+      note: row.note,
+    );
+
+    // 联动真实账本流水：扣款账户非空时建/更新一笔「存款」支出流水；
+    // 账户为空的灵活存入不生成联动流水（纯台账记录）。
+    final String acct = row.accountName.trim();
+    if (acct.isNotEmpty) {
+      final String sourceAccountId = await _resolveAccount(
+        acct,
+        bookId,
+        accounts,
+        accRepo,
+        accCache,
+      );
+      final String savingsCategoryId = await catRepo.ensureNamed(
+        bookId: bookId,
+        name: '存款',
+        type: CategoryType.expense,
+        iconKey: 'deposit_in',
+        isSystem: true,
+      );
+      final String relatedId = '$goalId#$dayIndex';
+      final String note = '$plan第$dayIndex期';
+      final Transaction? existingTxn = await txnRepo.getByRelatedId(relatedId);
+      if (existingTxn == null) {
+        await txnRepo.add(
+          bookId: bookId,
+          type: TxnType.expense,
+          amountMinor: row.amountMinor,
+          accountId: sourceAccountId,
+          categoryId: savingsCategoryId,
+          occurredAt: row.occurredAt.toUtc().millisecondsSinceEpoch,
+          note: note,
+          sourceModule: SourceModule.savings,
+          relatedId: relatedId,
+          discountMinor: row.discountMinor,
+          tags: row.tags.isEmpty ? null : row.tags,
+          excludeFromBudget: row.excludeFromBudget,
+          excludeFromStats: row.excludeFromStats,
+        );
+      } else {
+        await txnRepo.updateTransaction(
+          original: existingTxn,
+          type: TxnType.expense,
+          amountMinor: row.amountMinor,
+          accountId: sourceAccountId,
+          categoryId: savingsCategoryId,
+          note: note,
+          occurredAt: row.occurredAt.toUtc().millisecondsSinceEpoch,
+          sourceModule: SourceModule.savings,
+          discountMinor: row.discountMinor,
+          tags: row.tags.isEmpty ? null : row.tags,
+          excludeFromBudget: row.excludeFromBudget,
+          excludeFromStats: row.excludeFromStats,
+        );
+      }
+    }
+  }
+
+  /// Phase 2 分期路由落库：按 [planKey]（账本#计划名）建或匹配 [InstallmentPlan]，
+  /// 逐期导入还款转账并标记已还。
+  ///
+  /// - 计划名 = [BillRow.note]；转入账户 = 负债付款账户（缺失则建为负债类
+  ///   [AccountType.otherDebt]，保证 [InstallmentRepository.postDuePeriods] 与
+  ///   reconcile 都能正确在负债账户内记账）。账户列 = 扣款账户。
+  /// - [addPlan] 末尾自动 [postDuePeriods]：到期期次在负债账户生成「分期订单」支出
+  ///   流水（relatedId=period.id、sourceModule=installment）；随后逐行导入还款转账
+  ///   （账户→负债账户、type=transfer、sourceModule=installment、
+  ///   relatedId='${period.id}#repay'）并 [togglePeriodPaid] 标记已还（幂等）。
+  /// - 行清单按日期升序，与期次 periodIndex 升序一一对应；重复导入（已存在还款转账
+  ///   或已标记）自动跳过，保证导出→再导入无损往返。
+  Future<void> _importInstallmentPlan(
+    String planKey,
+    String bookId,
+    InstallmentRepository instRepo,
+    List<Account> accounts,
+    AccountRepository accRepo,
+    TransactionRepository txnRepo,
+    Map<String, String> accCache,
+    Map<String, List<BillRow>> instPlanRows,
+    Map<String, int> instPlanTotals,
+    Map<String, int> instPlanFirstDue,
+    Map<String, String> instPlanId,
+  ) async {
+    final List<BillRow> rows = instPlanRows[planKey]!;
+    final String planName = (rows.first.note ?? '').trim();
+    final String liabilityName = (rows.first.toAccountName ?? '').trim();
+    if (liabilityName.isEmpty) {
+      throw Exception('分期行缺少转入账户（负债付款账户）');
+    }
+    // 负债付款账户：缺失时建为负债类，确保 postDuePeriods 能在负债账户内记账。
+    final String liabilityAccountId = await _resolveAccount(
+      liabilityName,
+      bookId,
+      accounts,
+      accRepo,
+      accCache,
+      createType: AccountType.otherDebt,
+    );
+
+    // 建/匹配计划（按标题忽略大小写）。全批仅一次。
+    String? planId = instPlanId[planKey];
+    if (planId == null) {
+      final List<InstallmentPlan> existing =
+          await instRepo.watchPlans(bookId).first;
+      InstallmentPlan? matched;
+      for (final InstallmentPlan p in existing) {
+        if (p.title.trim().toLowerCase() == planName.toLowerCase()) {
+          matched = p;
+          break;
+        }
+      }
+      planId = matched?.id ??
+          await instRepo.addPlan(
+            bookId: bookId,
+            title: planName,
+            totalMinor: instPlanTotals[planKey]!,
+            totalPeriods: rows.length,
+            firstDueAt: instPlanFirstDue[planKey]!,
+            accountId: liabilityAccountId,
+          );
+      instPlanId[planKey] = planId;
+    }
+
+    // 逐期导入还款转账 + 标记已还（幂等）。期次按 periodIndex 升序，与按日期升序的
+    // 行清单一一对应。
+    final List<InstallmentPeriod> periods =
+        await instRepo.watchPeriods(planId).first;
+    for (int i = 0; i < rows.length && i < periods.length; i++) {
+      final BillRow r = rows[i];
+      final InstallmentPeriod period = periods[i];
+      final String sourceAccountId = await _resolveAccount(
+        r.accountName,
+        bookId,
+        accounts,
+        accRepo,
+        accCache,
+      );
+      final String relatedId = '${period.id}#repay';
+      final Transaction? existingRepay = await txnRepo.getByRelatedId(relatedId);
+      if (existingRepay == null) {
+        await txnRepo.add(
+          bookId: bookId,
+          type: TxnType.transfer,
+          amountMinor: r.amountMinor,
+          accountId: sourceAccountId,
+          toAccountId: liabilityAccountId,
+          categoryId: null,
+          occurredAt: r.occurredAt.toUtc().millisecondsSinceEpoch,
+          note: '$planName第${i + 1}期还款',
+          currency: r.currency,
+          sourceModule: SourceModule.installment,
+          relatedId: relatedId,
+          tags: r.tags.isEmpty ? null : r.tags,
+          discountMinor: r.discountMinor,
+          excludeFromBudget: r.excludeFromBudget,
+          excludeFromStats: r.excludeFromStats,
+        );
+      }
+      await instRepo.togglePeriodPaid(period.id, paid: true);
+    }
+  }
+
+  /// Phase 2 投资路由落库：把一笔投资行路由到 [InvestmentRepository] 的买入/卖出。
+  ///
+  /// - 类型=支出 → 买入（[InvestmentRepository.recordBuy]）：建或增资持仓 + 支出流水
+  ///   （账户扣款 = 金额 + 费，不计收支/预算）；类型=收入 → 卖出
+  ///   （[InvestmentRepository.recordSell]）：减仓 + 收入流水（到账 = 金额 − 费）。
+  /// - 对方 = 证券代码；分类 = 品种类型（缺省按代码兜底）；备注 = 名称@单价（单价推算份额）。
+  /// - 同 账本#代码#品种 归户到同一持仓：首笔买入建仓并缓存持仓 id，后续买/卖复用。
+  /// - 卖出前该证券须已有买入（持仓 id 已缓存），否则报错计入 skipped。
+  /// 校验（账户/代码/名称/单价/类型）已由 [checkRows] 把关；此处直接调用仓储，任何异常
+  /// 冒泡到外层 try 计入 skipped。
+  Future<void> _importInvestment(
+    BillRow row,
+    String bookId,
+    InvestmentRepository investRepo,
+    List<Account> accounts,
+    AccountRepository accRepo,
+    Map<String, String> accCache,
+    Map<String, String> holdingIdByKey,
+  ) async {
+    final String symbol = (row.counterparty ?? '').trim();
+    final (String name, int? priceMinor, String? userNote) =
+        parseInvestmentNote(row.note);
+    if (priceMinor == null || priceMinor <= 0) {
+      throw Exception('投资行缺少有效单价（备注格式 名称@单价）');
+    }
+    final InvestmentType type =
+        resolveInvestmentType(row.categoryName, symbol);
+    final bool isBuy = row.type == TxnType.expense;
+    final String accountId = await _resolveAccount(
+      row.accountName,
+      bookId,
+      accounts,
+      accRepo,
+      accCache,
+    );
+    final int occurredAt = row.occurredAt.toUtc().millisecondsSinceEpoch;
+    final String key = '$bookId#${symbol.toUpperCase()}#${type.index}';
+    if (isBuy) {
+      final String hid = await investRepo.recordBuy(
+        bookId: bookId,
+        holdingId: holdingIdByKey[key],
+        symbol: symbol,
+        name: name,
+        type: type,
+        amountMinor: row.amountMinor,
+        priceMinor: priceMinor,
+        feeMinor: row.discountMinor,
+        accountId: accountId,
+        note: userNote,
+        occurredAt: occurredAt,
+      );
+      holdingIdByKey[key] = hid;
+    } else {
+      final String? hid = holdingIdByKey[key];
+      if (hid == null) {
+        throw Exception('卖出前需先导入证券「$symbol」的买入');
+      }
+      await investRepo.recordSell(
+        bookId: bookId,
+        holdingId: hid,
+        amountMinor: row.amountMinor,
+        priceMinor: priceMinor,
+        feeMinor: row.discountMinor,
+        accountId: accountId,
+        note: userNote,
+        occurredAt: occurredAt,
+      );
+    }
+  }
+
+  /// Phase 2 报销路由落库：把一笔「报销到账」行路由到报销台账。
+  ///
+  /// - 账户列 = 实际收款账户（缺省按报销账户自身兜底），报销账户写回收入流水
+  ///   [reimbursementAccountId] 保证导出 → 再导入还原 module=报销 + 报销账户；
+  ///   类目固定「报销收入」（无则自动创建）、恒不计入预算。
+  /// - 建一条待报销记录（独立到账、无关联垫付流水）+ 全额抵扣翻「已报销」（写回
+  ///   收入流水 ID 到抵扣台账），与 in-app 抵扣链路同口径——删除收入流水时
+  ///   按台账反向恢复，保证可逆。
+  /// - 核销报销账户垫付挂账（writeOffReceivable），维持「报销账户余额 = 待收垫付」
+  ///   不变量（垫付侧已在通用路径对报销账户 +实付挂账）。仅当收款账户与报销账户
+  ///   不同才核销：否则收入已进报销账户、再核销会重复扣减致余额失真。
+  /// 校验（类型=收入 / 报销账户必填）已由 [checkRows] 把关；此处直接调用仓储，任何
+  /// 异常冒泡到外层 try 计入 skipped。
+  Future<void> _importReimbursement(
+    BillRow row,
+    String bookId,
+    ReimbursementRepository reimbRepo,
+    CategoryRepository catRepo,
+    AccountRepository accRepo,
+    TransactionRepository txnRepo,
+    List<Account> accounts,
+    Map<String, String> accCache,
+  ) async {
+    final int occurredAt = row.occurredAt.toUtc().millisecondsSinceEpoch;
+    // 报销账户：必须指定（checkRows 已把关）；缺失按名建为报销类账户。
+    final String reimbAccountId = await _resolveAccount(
+      row.reimbursementAccount!,
+      bookId,
+      accounts,
+      accRepo,
+      accCache,
+      createType: AccountType.reimbursement,
+    );
+    // 收款账户：账户列解析；缺省按报销账户自身兜底（此时不单独核销，见下方）。
+    final String receiveAccountId = row.accountName.trim().isEmpty
+        ? reimbAccountId
+        : await _resolveAccount(
+            row.accountName,
+            bookId,
+            accounts,
+            accRepo,
+            accCache,
+          );
+
+    // 1. 资金落账：报销收入进收款账户（导出往返时 module=报销 + 报销账户还原）。
+    final String reimbCategoryId = await catRepo.ensureNamed(
+      bookId: bookId,
+      name: '报销收入',
+      type: CategoryType.income,
+      iconKey: 'reimburse_income',
+      colorValue: 0xFF45936A,
+      isSystem: true,
+    );
+    final String incomeTxnId = await txnRepo.add(
+      bookId: bookId,
+      type: TxnType.income,
+      amountMinor: row.amountMinor,
+      accountId: receiveAccountId,
+      categoryId: reimbCategoryId,
+      occurredAt: occurredAt,
+      note: row.note?.isNotEmpty == true ? row.note : '报销到账',
+      currency: row.currency,
+      sourceModule: SourceModule.reimbursement,
+      excludeFromBudget: true,
+      excludeFromStats: row.excludeFromStats,
+      reimbursementAccountId: reimbAccountId,
+      tags: row.tags.isEmpty ? null : row.tags,
+      discountMinor: row.discountMinor,
+    );
+
+    // 2. 建待报销记录（独立到账，无关联垫付流水）→ 全额抵扣翻「已报销」。
+    final String recordId = await reimbRepo.add(
+      bookId: bookId,
+      title: row.note?.isNotEmpty == true ? row.note! : '报销到账',
+      status: ReimbursementStatus.pending,
+      amountMinor: row.amountMinor,
+      payer: '本人',
+      occurredAt: occurredAt,
+      accountId: reimbAccountId,
+      note: row.note,
+      excludeFromStats: row.excludeFromStats,
+    );
+
+    // 3. 全额抵扣并写回收入流水 ID（删除收入时按台账反向恢复，保证可逆）。
+    await reimbRepo.deduct(
+      recordId,
+      row.amountMinor,
+      incomeTransactionId: incomeTxnId,
+    );
+
+    // 4. 核销报销账户垫付挂账（余额 = 待收垫付，归零）。仅当收款账户与报销账户
+    //    不同时才核销——否则收入已进报销账户、再核销会重复扣减导致余额失真。
+    if (receiveAccountId != reimbAccountId) {
+      await reimbRepo.writeOffReceivable(reimbAccountId, row.amountMinor);
+    }
+  }
 
   @override
   void dispose() {

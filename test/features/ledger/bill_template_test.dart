@@ -326,13 +326,16 @@ void main() {
       expect(c.byModule['借还']!.count, 1);
     });
 
-    test('仅作标记模块（储蓄/分期/投资）给出提示；借还已在 Phase 2 落地不再提示', () {
+    test('分期（Phase 2 已支持）按转账/账户/转入账户/备注校验；不再给「仅标记」提示', () {
       final TemplateCheckResult c = checkRows(
         <BillRow>[
-          _row('2026-10-01 10:00', TxnType.transfer, 500, '招商银行', '定期存款',
+          _row('2026-10-01 10:00', TxnType.expense, 500, '招商银行', '定期存款',
               null, '', module: SourceModule.savings),
           _row('2026-10-02 10:00', TxnType.expense, 1000, '微信', null, '借出',
               '借给小米', module: SourceModule.lend, counterparty: '小米'),
+          // 分期行：类型非转账、缺转入账户、缺备注 → 应被校验拦截。
+          _row('2026-10-03 10:00', TxnType.expense, 2000, '微信', null, null,
+              '', module: SourceModule.installment),
         ],
         accountNames: <String>{'微信', '招商银行', '定期存款'},
         categoryNamesByType: <Set<String>>[
@@ -341,15 +344,73 @@ void main() {
           <String>{},
         ],
       );
+      // 储蓄已支持（Phase 2）：不应出现「仅标记」提示。
       expect(
         c.warnings,
-        contains(startsWith('模块「储蓄」仅作标记落库')),
+        isNot(contains(contains('储蓄'))),
       );
-      // 借还（Phase 2 已支持）不应出现「仅标记」提示。
+      // 分期（Phase 2 已支持）：不应出现「仅标记」提示。
+      expect(
+        c.warnings,
+        isNot(contains(contains('分期'))),
+      );
+      // 借还（Phase 2 已支持）：不应出现「仅标记」提示。
       expect(
         c.warnings,
         isNot(contains(contains('借还'))),
       );
+      // 分期行被校验拦截：类型非转账。
+      expect(
+        c.errors,
+        contains(startsWith('第3行：分期模块类型必须为')),
+      );
+    });
+
+    test('分期行（合法转账+转入账户+备注）通过校验并归集到「分期」模块', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          _row('2026-11-01 09:00', TxnType.transfer, 200000, '招商银行', '花呗',
+              null, 'iPhone 分期', module: SourceModule.installment),
+        ],
+        accountNames: <String>{'招商银行', '花呗'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, isEmpty);
+      expect(c.byModule['分期']!.count, 1);
+    });
+
+    test('储蓄行：必须指定「转入账户」=计划名，且不把计划名当作账户创建', () {
+      // 缺「转入账户」→ 拦截。
+      final TemplateCheckResult c1 = checkRows(
+        <BillRow>[
+          _row('2026-10-01 10:00', TxnType.expense, 500, '招商银行', null, null,
+              '', module: SourceModule.savings),
+        ],
+        accountNames: <String>{'招商银行'},
+        categoryNamesByType: <Set<String>>[
+          <String>{},
+          <String>{},
+          <String>{},
+        ],
+      );
+      expect(c1.errors, contains(startsWith('第1行：储蓄模块必须指定')));
+
+      // 有「转入账户」=计划名，且计划名不应被当作账户登记自动创建。
+      final TemplateCheckResult c2 = checkRows(
+        <BillRow>[
+          _row('2026-10-01 10:00', TxnType.expense, 500, '招商银行', '定期存款',
+              null, '', module: SourceModule.savings),
+        ],
+        accountNames: <String>{'招商银行'},
+        categoryNamesByType: <Set<String>>[
+          <String>{},
+          <String>{},
+          <String>{},
+        ],
+      );
+      expect(c2.errors, isEmpty);
+      expect(c2.newAccounts, isEmpty); // 「定期存款」是计划名，不建账户
+      expect(c2.byModule['储蓄']!.count, 1);
     });
   });
 
@@ -443,6 +504,202 @@ void main() {
       );
       expect(c.errors, isEmpty);
       expect(c.newCategories, isEmpty);
+    });
+  });
+
+  group('投资路由（Phase 2）', () {
+    test('parseInvestmentNote 解析 名称@单价[ 用户备注]', () {
+      final (String n1, int? p1, String? u1) =
+          parseInvestmentNote('沪深300ETF@1.2300');
+      expect(n1, '沪深300ETF');
+      expect(p1, 123);
+      expect(u1, isNull);
+
+      final (String n2, int? p2, String? u2) =
+          parseInvestmentNote('沪深300ETF@1.2300 部分止盈');
+      expect(n2, '沪深300ETF');
+      expect(p2, 123);
+      expect(u2, '部分止盈');
+
+      final (String n3, int? p3, String? u3) = parseInvestmentNote('无单价');
+      expect(n3, '无单价');
+      expect(p3, isNull);
+      expect(u3, isNull);
+    });
+
+    test('resolveInvestmentType 分类优先，缺省按代码兜底', () {
+      expect(resolveInvestmentType('基金', '000300'), InvestmentType.fund);
+      expect(resolveInvestmentType('股票', 'AAPL'), InvestmentType.stock);
+      // 缺省按代码：纯数字 6 位 / 纯字母 → 股票；含点字母代码 → 基金。
+      expect(resolveInvestmentType(null, '600519'), InvestmentType.stock);
+      expect(resolveInvestmentType(null, 'AAPL'), InvestmentType.stock);
+      expect(resolveInvestmentType(null, 'CSI300'), InvestmentType.fund);
+    });
+
+    test('checkRows 投资行：类型=转账被拦截', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          _row('2026-10-20 09:30', TxnType.transfer, 100000, '招商银行', null,
+              '基金', '沪深300ETF@1.2300',
+              module: SourceModule.investment, counterparty: '000300'),
+        ],
+        accountNames: <String>{'招商银行'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, contains(startsWith('第1行：投资模块类型须为')));
+    });
+
+    test('checkRows 投资行：缺对方(代码)被拦截', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          _row('2026-10-20 09:30', TxnType.expense, 100000, '招商银行', null,
+              '基金', '沪深300ETF@1.2300',
+              module: SourceModule.investment),
+        ],
+        accountNames: <String>{'招商银行'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, contains(startsWith('第1行：投资模块必须指定「对方」')));
+    });
+
+    test('checkRows 投资行：缺备注有效单价被拦截', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          _row('2026-10-20 09:30', TxnType.expense, 100000, '招商银行', null,
+              '基金', '沪深300ETF',
+              module: SourceModule.investment, counterparty: '000300'),
+        ],
+        accountNames: <String>{'招商银行'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, contains(startsWith('第1行：投资模块「备注」须含有效单价')));
+    });
+
+    test('checkRows 投资行：缺账户被拦截', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          _row('2026-10-20 09:30', TxnType.expense, 100000, '', null, '基金',
+              '沪深300ETF@1.2300',
+              module: SourceModule.investment, counterparty: '000300'),
+        ],
+        accountNames: <String>{},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, contains(startsWith('第1行：投资模块必须指定「账户」')));
+    });
+
+    test('合法投资行（买入/卖出）通过校验并归集到「投资」模块', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          _row('2026-10-20 09:30', TxnType.expense, 100000, '招商银行', null,
+              '基金', '沪深300ETF@1.2300',
+              module: SourceModule.investment, counterparty: '000300'),
+          _row('2026-11-20 09:30', TxnType.income, 80000, '招商银行', null,
+              '基金', '沪深300ETF@1.3500 部分止盈',
+              module: SourceModule.investment, counterparty: '000300'),
+        ],
+        accountNames: <String>{'招商银行'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, isEmpty);
+      expect(c.byModule['投资']!.count, 2);
+      // 投资分类是品种类型，不触发用户分类自动创建提示。
+      expect(c.newCategories, isEmpty);
+    });
+  });
+
+  group('报销路由（Phase 2）', () {
+    // 报销到账：模块=报销 + 收入 + 报销账户，路由到报销台账（建报销收入流水 +
+    // 待报销记录 + 全额抵扣翻「已报销」+ 核销报销账户挂账）；垫付侧（支出 + 可报销=Y
+    // + 报销账户）走通用路径，不由本模块校验拦截。
+    BillRow _reimb({
+      required TxnType type,
+      required int amountMinor,
+      String account = '微信',
+      String reimbursementAccount = '公司报销',
+      String? note,
+    }) =>
+        BillRow(
+          occurredAt: DateTime.parse('2026-10-25T10:00:00'),
+          type: type,
+          amountMinor: amountMinor,
+          accountName: account,
+          reimbursementAccount: reimbursementAccount,
+          module: SourceModule.reimbursement,
+          note: note,
+        );
+
+    test('checkRows 报销行：类型非收入被拦截', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[_reimb(type: TxnType.expense, amountMinor: 20000)],
+        accountNames: <String>{'微信'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors,
+          contains(startsWith('第1行：报销模块（报销到账）类型必须为')));
+    });
+
+    test('checkRows 报销行：缺报销账户被拦截', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          BillRow(
+            occurredAt: DateTime.parse('2026-10-25T10:00:00'),
+            type: TxnType.income,
+            amountMinor: 20000,
+            accountName: '微信',
+            reimbursementAccount: null,
+            module: SourceModule.reimbursement,
+          ),
+        ],
+        accountNames: <String>{'微信'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, contains(startsWith('第1行：报销模块必须指定「报销账户」')));
+    });
+
+    test('checkRows 报销行：金额<=0 被拦截（通用金额校验优先于模块校验）', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[_reimb(type: TxnType.income, amountMinor: 0)],
+        accountNames: <String>{'微信'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, contains(startsWith('第1行：金额必须大于 0')));
+    });
+
+    test('checkRows 报销合法到账行（收入 + 报销账户）通过校验并归集到「报销」模块', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          _reimb(
+            type: TxnType.income,
+            amountMinor: 20000,
+            account: '微信',
+            reimbursementAccount: '公司报销',
+            note: '报销到账',
+          ),
+        ],
+        accountNames: <String>{'微信', '公司报销'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, isEmpty);
+      expect(c.byModule['报销']!.count, 1);
+    });
+
+    test('checkRows 报销行：账户=报销账户给出失真提示但不拦截', () {
+      final TemplateCheckResult c = checkRows(
+        <BillRow>[
+          _reimb(
+            type: TxnType.income,
+            amountMinor: 20000,
+            account: '公司报销',
+            reimbursementAccount: '公司报销',
+          ),
+        ],
+        accountNames: <String>{'公司报销'},
+        categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
+      );
+      expect(c.errors, isEmpty);
+      expect(c.warnings,
+          contains(contains('报销到账的「账户」与「报销账户」相同')));
     });
   });
 }
