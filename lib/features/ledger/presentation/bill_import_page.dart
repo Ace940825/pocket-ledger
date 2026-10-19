@@ -22,6 +22,7 @@ import '../data/bill_io.dart';
 import '../data/bill_template.dart';
 import '../data/transaction_repository.dart';
 import '../providers/ledger_providers.dart';
+import 'bill_import_guide_page.dart';
 
 /// 「账单管理 → 账单导入」页。
 ///
@@ -429,6 +430,17 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
         title: const Text('账单导入'),
         centerTitle: true,
         leading: const BackButton(),
+        actions: <Widget>[
+          IconButton(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(
+                builder: (_) => const BillImportGuidePage(),
+              ),
+            ),
+            icon: const LineGlyph(Icons.help_outline, size: 20),
+            tooltip: '导入说明',
+          ),
+        ],
       ),
       body: Column(
         children: <Widget>[
