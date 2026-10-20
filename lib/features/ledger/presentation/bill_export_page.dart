@@ -28,7 +28,6 @@ import '../../lend/providers/lend_providers.dart';
 import '../../savings/data/savings_repository.dart';
 import '../../savings/providers/savings_providers.dart';
 import '../data/bill_io.dart';
-import '../data/bill_template.dart';
 import '../providers/ledger_providers.dart';
 
 /// 把存储的标签 JSON 字符串解码回标签列表（容错：非列表 / 空串 / 异常返回空）。
@@ -41,6 +40,35 @@ List<String> _decodeTags(String? json) {
     // 历史脏数据不应让导出中断。
   }
   return const <String>[];
+}
+
+/// 导出「分类」列名：交易挂在二级分类（parentId 非空）时出**一级**（父）名。
+///
+/// 与导入侧的「子分类」列结构化配套：二级名走子分类列，一级名走分类列，
+/// 保证「导出 → 再导入」往返不自漂移（否则二级名会被当成一级名新建）。
+String? _exportCategoryName(Map<String, Category> catMap, String? categoryId) {
+  if (categoryId == null) return null;
+  final Category? cat = catMap[categoryId];
+  if (cat == null) return null;
+  if (cat.parentId != null) {
+    return catMap[cat.parentId]?.name ?? cat.name;
+  }
+  return cat.name;
+}
+
+/// 导出「子分类」列名：二级分类交易始终还带二级名（导入侧据此挂回二级）；
+/// 原文本非空则优先保留（用户手填的自由文本标签）。
+String? _exportSubcategoryName(
+  Map<String, Category> catMap,
+  String? categoryId,
+  String? subcategory,
+) {
+  if (subcategory != null && subcategory.trim().isNotEmpty) return subcategory;
+  if (categoryId != null) {
+    final Category? cat = catMap[categoryId];
+    if (cat != null && cat.parentId != null) return cat.name;
+  }
+  return subcategory;
 }
 
 /// 从投资买卖流水备注（`买入-名称\n份额 · 单价 · 手续费 [用户备注]`）提取用户备注，
@@ -65,7 +93,7 @@ String _fmtPrice(int minor) {
 /// 对标小青账版式（2026-10-20）：头部卡（图标 + 标题，无帮助键）→ 信息条 →
 /// 「时间选择」卡（开始/结束时间，默认本月 1 日 ~ 今天，点选拉起共享组件
 /// [CalendarSheet]）→ 底部渐变按钮「选择导出方式」拉起共享弹层外壳
-/// AppModalSheet（CSV / JSON 格式选择 + 下载空白模板 + 保存为文件）。
+/// AppModalSheet（CSV / JSON 格式选择 + 保存为文件；空白模板下载在导入侧）。
 /// 导出内容 = 所选时间范围内的全部账单（含转账），仅走文件导出/导入通道，
 /// 无文本预览/复制输出框。不依赖系统分享组件，在 iOS 沙盒下也能稳定工作。
 class BillExportPage extends ConsumerStatefulWidget {
@@ -198,9 +226,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 : accountNames[t.toAccountId] ?? '未知账户',
             discountMinor: t.discountMinor,
             feeMinor: t.feeMinor,
-            subcategoryName: t.subcategory,
-            categoryName:
-                t.categoryId == null ? null : catMap[t.categoryId]?.name,
+            subcategoryName:
+                _exportSubcategoryName(catMap, t.categoryId, t.subcategory),
+            categoryName: _exportCategoryName(catMap, t.categoryId),
             tags: _decodeTags(t.tags),
             book: currentBookName,
             isReimbursable: t.isReimbursable,
@@ -505,41 +533,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
     return '${now.year}${p(now.month)}${p(now.day)}_${p(now.hour)}${p(now.minute)}${p(now.second)}';
   }
 
-  /// 下载空白填写模板：含字段说明注释行 + 表头，格式跟随上方选择
-  /// （CSV / JSON）。模板系统（2026-10-18）：导出与导入共用同一套字段规范。
-  Future<void> _downloadTemplate() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      final String content = _asJson ? buildTemplateJson() : buildTemplateCsv();
-      final String ext = _asJson ? 'json' : 'csv';
-      // file_picker 8.x：Android/iOS 的 saveFile 必须直接传 bytes（由系统
-      // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
-      final bool isMobile = Platform.isAndroid || Platform.isIOS;
-      final String? picked = await FilePicker.platform.saveFile(
-        dialogTitle: '保存账单导入模板',
-        fileName: '账单导入模板.$ext',
-        allowedExtensions: isMobile ? null : <String>[ext],
-        bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
-      );
-      if (picked == null) {
-        if (mounted) showAppToast(context, '已取消保存');
-        return;
-      }
-      String outPath = picked;
-      if (!isMobile) {
-        // 桌面保存面板不强制扩展名，缺失时补足，避免存成无后缀文件。
-        outPath =
-            picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
-        await File(outPath).writeAsString(content);
-      }
-      if (mounted) showAppToast(context, '模板已保存，按说明填写后可导入');
-    } catch (e) {
-      if (mounted) showAppToast(context, '模板保存失败：$e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+  /// 下载空白填写模板已迁至「账单导入」配置页（信息卡「模板」胶囊，
+  /// 2026-10-20 起）：模板属导入前置物料，导出页只保留数据导出本身。
 
   @override
   Widget build(BuildContext context) {
@@ -849,7 +844,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
   }
 
   /// 底部弹层（共享外壳 AppModalSheet，2026-10-20）：CSV / JSON 格式选择 +
-  /// 下载空白模板 + 保存为文件。格式选择用 [StatefulBuilder] 即时刷新选中态。
+  /// 保存为文件。格式选择用 [StatefulBuilder] 即时刷新选中态。
   Future<void> _showExportSheet() async {
     await showAppModalSheet<void>(
       context,
@@ -881,14 +876,6 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 },
               ),
               const SizedBox(height: AppDimens.md),
-              _sheetActionRow(
-                icon: Icons.cloud_download_outlined,
-                label: '下载空白填写模板（含字段说明）',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _downloadTemplate();
-                },
-              ),
               _sheetActionRow(
                 icon: Icons.save_outlined,
                 label: '保存为文件',
