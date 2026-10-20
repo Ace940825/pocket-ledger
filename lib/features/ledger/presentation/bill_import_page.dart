@@ -33,6 +33,7 @@ import '../../reimbursement/data/reimbursement_repository.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../../savings/data/savings_repository.dart';
 import '../../savings/providers/savings_providers.dart';
+import '../data/bill_import_sources.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
 import '../data/transaction_repository.dart';
@@ -161,8 +162,8 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   bool _importing = false;
   String? _resultMsg;
 
-  /// 导入来源展示文案（信息性选择；CSV / JSON 均由解析器自动识别）。
-  String _sourceLabel = '本 App 导出（CSV / JSON）';
+  /// 导入来源（第三方 CSV 走专用解析器，见 bill_import_sources.dart）。
+  ImportSource _source = ImportSource.pocketLedger;
 
   /// 关联账户（资产）：选择后通用路径所有行强制归入该账户；未选择则按
   /// 表格「账户」列自动获取（缺失自动创建，原行为）。
@@ -192,13 +193,23 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       if (mounted) showAppToast(context, '无法读取该文件');
       return;
     }
-    _rawContent = await File(filePath).readAsString();
+    // 字节级解码：UTF-8 优先，失败回退 GBK（支付宝 / 云闪付导出）。
+    _rawContent = decodeBillFileBytes(await File(filePath).readAsBytes());
+    // 本 App / 空白模板选择下自动嗅探第三方表头，命中即切换来源并回显。
+    if (_source == ImportSource.pocketLedger ||
+        _source == ImportSource.blankTemplate) {
+      final ImportSource? detected = detectSource(_rawContent);
+      if (detected != null && mounted) {
+        setState(() => _source = detected);
+        showAppToast(context, '已识别为${_source.label}账单');
+      }
+    }
     await _parse();
     if (mounted) showAppToast(context, '已解析文件，请核对下方预览');
   }
 
   Future<void> _parse() async {
-    final ParseResult parsed = parseInput(_rawContent);
+    final ParseResult parsed = parseSource(_source, _rawContent);
     TemplateCheckResult? check;
     if (parsed.rows.isNotEmpty) {
       // 与当前账本的账户 / 分类 / 账本做匹配校验（模板系统：不再静默自动创建，
@@ -235,8 +246,8 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     });
   }
 
-  /// 选择导入来源（对标小青账「导入来源」行）：信息性选择，CSV / JSON
-  /// 均由解析器按内容自动识别，来源仅用于提示填写口径。
+  /// 选择导入来源（对标小青账「导入来源」行）：第三方来源走专用解析器
+  /// （支付宝 / 微信 / 云闪付，见 bill_import_sources.dart）。
   Future<void> _pickSource() async {
     await showAppModalSheet<void>(
       context,
@@ -244,25 +255,19 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       body: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          _sourceRow(
-            title: '本 App 导出',
-            subtitle: '「账单导出」页生成的 CSV / JSON 文件',
-            selected: _sourceLabel.startsWith('本 App'),
-            onTap: () {
-              setState(() => _sourceLabel = '本 App 导出（CSV / JSON）');
-              Navigator.pop(context);
-            },
-          ),
-          const Divider(height: 1, color: AppPalette.divider),
-          _sourceRow(
-            title: '空白模板填写',
-            subtitle: '按「模板」字段说明手动整理的 CSV / JSON 文件',
-            selected: _sourceLabel.startsWith('空白模板'),
-            onTap: () {
-              setState(() => _sourceLabel = '空白模板填写（CSV / JSON）');
-              Navigator.pop(context);
-            },
-          ),
+          for (final ImportSource s in ImportSource.values) ...<Widget>[
+            if (s != ImportSource.values.first)
+              const Divider(height: 1, color: AppPalette.divider),
+            _sourceRow(
+              title: s.label,
+              subtitle: s.subtitle,
+              selected: _source == s,
+              onTap: () {
+                setState(() => _source = s);
+                Navigator.pop(context);
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -372,9 +377,9 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     });
   }
 
-  /// 下载空白填写模板（与导出页模板同源）：含字段说明注释行 + 表头（CSV）。
+  /// 下载空白填写模板（跟随所选来源：第三方来源为对应字段说明模板）。
   Future<void> _downloadTemplate() async {
-    final String content = buildTemplateCsv();
+    final String content = buildSourceTemplate(_source);
     const String ext = 'csv';
     // file_picker 8.x：Android/iOS 的 saveFile 必须直接传 bytes（由系统
     // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
@@ -1351,7 +1356,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                     ),
                     _configRow(
                       title: '导入来源',
-                      subtitle: '$_sourceLabel（来自哪个APP）',
+                      subtitle: '${_source.label}（来自哪个APP）',
                       onTap: _pickSource,
                     ),
                   ],
@@ -1396,7 +1401,8 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
             '分析账单，正是记账本身的乐趣与意义所在。\n'
             '与其耗费时间转换旧账目，不如放下历史记录，轻装上阵，即刻开始全新'
             '的记账体验！\n'
-            '需导入本 App 导出的 CSV / JSON 或空白模板；解析后按分类 / 时间 / '
+            '需导入本 App 导出的 CSV / JSON、空白模板，或支付宝 / 微信 / '
+            '云闪付导出的账单 CSV（编码自动识别）；解析后按分类 / 时间 / '
             '账户自动匹配校验并给出核对归集报告。',
             style: TextStyle(
               fontSize: 12.5,

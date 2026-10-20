@@ -126,6 +126,10 @@ const List<String> _kCsvHeader = <String>[
 
 String _formatDate(DateTime dt) => DateFormat('yyyy-MM-dd HH:mm').format(dt);
 
+/// 公开版宽松日期解析（供第三方账单解析复用）：兼容 `-` / `/` 分隔、
+/// 月/日/时/分不补零、秒可省略；拒绝非法日期（如 2 月 30 日回滚）。
+DateTime? parseBillDateLoose(String raw) => _parseDate(raw);
+
 DateTime? _parseDate(String raw) {
   final String s = raw.trim();
   if (s.isEmpty) return null;

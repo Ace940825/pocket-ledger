@@ -65,6 +65,8 @@ dependencies:
   csv: ^6.0.0
   # 导入 / 导出走系统文件选择器（导出 saveFile 落本地、导入 pickFiles 选文件）
   file_picker: ^8.0.0
+  # 第三方账单 CSV 解码：支付宝 / 云闪付导出为 GBK 编码（UTF-8 解码失败时回退）
+  fast_gbk: ^1.0.0
 
   # 图片附件：从相册/相机选取票据与物品照片
   image_picker: ^1.1.2
