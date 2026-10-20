@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:csv/csv.dart';
 import 'package:fast_gbk/fast_gbk.dart';
 
+import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import 'bill_io.dart';
@@ -54,7 +55,7 @@ extension ImportSourceX on ImportSource {
       case ImportSource.wechat:
         return '微信「下载账单」导出的 CSV（自动跳过说明行）';
       case ImportSource.unionpay:
-        return '云闪付 App「账单导出」的 CSV（银行卡尾号自动建户）';
+        return '云闪付 App「账单导出」的 CSV（按卡号末四位优先匹配现有账户）';
     }
   }
 }
@@ -134,7 +135,7 @@ String buildSourceTemplate(ImportSource source) {
       return <String>[
         '# 云闪付账单导入模板（可直接导入云闪付导出的原始 CSV，本模板供手动整理用）',
         '# 获取路径：云闪付 App「首页-账单-导出」',
-        '# 卡号后四位将自动创建「银行卡尾号XXXX」账户归户；无卡号列时按关联账户设置',
+        '# 卡号后四位优先匹配现有账户（名称含卡号或账户卡号末四位一致），无匹配再自动创建「银行卡尾号XXXX」归户；无卡号列时按关联账户设置',
         '交易日期,交易类型,交易金额,收/支,卡号后四位,交易描述',
         '2026-10-01 12:00:00,消费,58.00,支出,1234,超市购物',
       ].join('\n');
@@ -301,6 +302,44 @@ ParseResult _parseThirdParty(
     );
   }
   return ParseResult(rows, errors);
+}
+
+// ───────────────────── 卡号末四位账户匹配 ─────────────────────
+
+/// 从云闪付自动账户名「银行卡尾号XXXX」中提取卡号末四位；非此类返回 null。
+///
+/// 仅用于识别本模块生成的自动账户名，便于导入时优先匹配现有账户而非盲目建户。
+String? extractCardLast4(String accountName) {
+  final RegExpMatch? m =
+      RegExp(r'银行卡尾号(\d{4})$').firstMatch(accountName.trim());
+  return m?.group(1);
+}
+
+/// 按卡号末四位匹配现有账户（只读，不创建）：
+/// - 账户名包含该卡号（如「招商银行储蓄卡1234」），或
+/// - 账户存储的 [Account.cardNumber]（去非数字）末四位一致。
+///
+/// 多命中时优先银行类账户（bankCard / creditCard），其次首个命中；
+/// 已归档（隐藏）账户不参与匹配，避免意外写回。无命中返回 null。
+String? matchAccountByCardLast4(String last4, List<Account> accounts) {
+  final String digits = last4.replaceAll(RegExp(r'\D'), '');
+  if (digits.length < 4) return null;
+  Account? bankHit;
+  Account? anyHit;
+  for (final Account a in accounts) {
+    if (a.isArchived) continue;
+    final bool nameHit = a.name.contains(digits);
+    final String? card = a.cardNumber;
+    final bool cardHit =
+        card != null && card.replaceAll(RegExp(r'\D'), '').endsWith(digits);
+    if (nameHit || cardHit) {
+      if (a.type == AccountType.bankCard || a.type == AccountType.creditCard) {
+        bankHit ??= a;
+      }
+      anyHit ??= a;
+    }
+  }
+  return (bankHit ?? anyHit)?.id;
 }
 
 // ───────────────────── 各来源解析器 ─────────────────────

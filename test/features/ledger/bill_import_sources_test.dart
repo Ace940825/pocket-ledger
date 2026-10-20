@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pocket_ledger/database/app_database.dart';
 import 'package:pocket_ledger/domain/enums.dart';
 import 'package:pocket_ledger/features/ledger/data/bill_import_sources.dart';
 import 'package:pocket_ledger/features/ledger/data/bill_io.dart';
@@ -127,6 +128,78 @@ void main() {
           expect(r.rows.length, 1, reason: '${s.label} 模板示例行应入库');
         }
       }
+    });
+  });
+
+  group('extractCardLast4', () {
+    test('云闪付自动账户名提取末四位', () {
+      expect(extractCardLast4('银行卡尾号1234'), '1234');
+    });
+    test('非云闪付账户名返回 null', () {
+      expect(extractCardLast4('招商银行储蓄卡'), isNull);
+      expect(extractCardLast4('零钱'), isNull);
+    });
+  });
+
+  group('matchAccountByCardLast4', () {
+    Account acc(
+      String id,
+      String name, {
+      String? cardNumber,
+      AccountType type = AccountType.bankCard,
+      bool archived = false,
+    }) =>
+        Account(
+          updatedAt: 0,
+          deleted: false,
+          dirty: false,
+          id: id,
+          bookId: 'b1',
+          name: name,
+          type: type,
+          balanceMinor: 0,
+          currency: 'CNY',
+          status: archived ? AccountStatus.hidden : AccountStatus.active,
+          includeInTotal: true,
+          isArchived: archived,
+          sortOrder: 0,
+          cardNumber: cardNumber,
+        );
+
+    test('账户名含卡号即匹配', () {
+      final List<Account> accounts = <Account>[
+        acc('a1', '招商银行储蓄卡1234'),
+        acc('a2', '零钱'),
+      ];
+      expect(matchAccountByCardLast4('1234', accounts), 'a1');
+    });
+
+    test('账户名不含卡号时按 cardNumber 末四位匹配', () {
+      final List<Account> accounts = <Account>[
+        acc('a1', '招商银行储蓄卡', cardNumber: '6225 8801 2345 6789 1234'),
+        acc('a2', '零钱'),
+      ];
+      expect(matchAccountByCardLast4('1234', accounts), 'a1');
+    });
+
+    test('多命中优先银行类账户', () {
+      final List<Account> accounts = <Account>[
+        acc('cash', '钱包1234', type: AccountType.cash),
+        acc('bank', '招行尾号', cardNumber: '1234'),
+      ];
+      expect(matchAccountByCardLast4('1234', accounts), 'bank');
+    });
+
+    test('无匹配返回 null', () {
+      final List<Account> accounts = <Account>[acc('a1', '零钱')];
+      expect(matchAccountByCardLast4('9999', accounts), isNull);
+    });
+
+    test('归档账户不参与匹配', () {
+      final List<Account> accounts = <Account>[
+        acc('a1', '招行卡', cardNumber: '1234', archived: true),
+      ];
+      expect(matchAccountByCardLast4('1234', accounts), isNull);
     });
   });
 }
