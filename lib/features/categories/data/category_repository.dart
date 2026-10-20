@@ -53,6 +53,42 @@ class CategoryRepository {
     );
   }
 
+  /// 在指定父分类下按名查找/创建二级分类，返回二级分类 ID。
+  ///
+  /// 供账单导入的「子分类」列结构化使用：命中（同账本同类型同父同名）即复用，
+  /// 未命中则创建带 [parentId] 的二级分类。二级 colorValue 传 0 = 继承父分类
+  /// 配色（与 `bootstrap.dart` 种子中子类的语义一致）。
+  ///
+  /// 与 [ensureNamed] 的区别：匹配必须带 parentId，避免同名一级/二级互相串扰。
+  Future<String> ensureChild({
+    required String bookId,
+    required String parentId,
+    required String name,
+    required CategoryType type,
+    String? iconKey,
+  }) async {
+    final String trimmed = name.trim();
+    final List<Category> all = await (_db.select(_db.categories)
+          ..where(
+            ($CategoriesTable tbl) =>
+                tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
+          ))
+        .get();
+    for (final Category c in all) {
+      if (c.type == type && c.parentId == parentId && c.name == trimmed) {
+        return c.id;
+      }
+    }
+    return add(
+      bookId: bookId,
+      name: trimmed,
+      type: type,
+      parentId: parentId,
+      iconKey: iconKey,
+      colorValue: 0, // 0 = 继承父分类配色
+    );
+  }
+
   /// 新增分类。返回新记录 ID。
   Future<String> add({
     required String bookId,

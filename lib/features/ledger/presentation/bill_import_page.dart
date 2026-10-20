@@ -1,64 +1,173 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icon_map.dart';
+import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/data/account_repository.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../categories/data/category_repository.dart';
 import '../../categories/providers/categories_providers.dart';
-import '../../lend/data/lend_repository.dart';
-import '../../lend/providers/lend_providers.dart';
-import '../../savings/data/savings_repository.dart';
-import '../../savings/providers/savings_providers.dart';
 import '../../installment/data/installment_repository.dart';
 import '../../installment/providers/installment_providers.dart';
 import '../../investment/data/investment_repository.dart';
 import '../../investment/providers/investment_providers.dart';
+import '../../lend/data/lend_repository.dart';
+import '../../lend/providers/lend_providers.dart';
+import '../../record/presentation/account_picker_sheet.dart';
 import '../../reimbursement/data/reimbursement_repository.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
+import '../../savings/data/savings_repository.dart';
+import '../../savings/providers/savings_providers.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
 import '../data/transaction_repository.dart';
 import '../providers/ledger_providers.dart';
 import 'bill_import_guide_page.dart';
 
-/// 「账单管理 → 账单导入」页。
-///
-/// 支持两种来源：直接粘贴本 App 导出的 CSV / JSON 内容，或从应用 Documents
-/// 目录读取 `import.csv` / `import.json`。解析后预览，确认再写入——
+/// 「账单管理 → 账单导入」入口页（对标小青账，2026-10-20）：头部卡（云上传
+/// 图标 + 标题 + 帮助）→ 信息条 → 空态 → 底部渐变按钮「导入账单」进入配置页。
+/// 配置页 [BillImportConfigPage]（点击「导入账单」后）：数据（导入账单 /
+/// 导入来源）+ 其他（关联账户资产）+ 开始导入。解析后预览，确认再写入——
 /// 账户 / 分类按名称归户，缺失项自动创建（账户默认现金类）。
-class BillImportPage extends ConsumerStatefulWidget {
+class BillImportPage extends StatelessWidget {
   const BillImportPage({super.key, this.initialDraft});
 
-  /// 从截图识别等外部来源直接进入确认页时传入已解析结果，
-  /// 跳过粘贴 / 文件读取输入区，直接展示预览与确认栏。
+  /// 从截图识别等外部来源直接进入配置确认页时传入已解析结果，
+  /// 跳过入口页，直接展示预览与确认栏。
   final ParseResult? initialDraft;
 
   const BillImportPage.fromDraft(ParseResult draft, {super.key})
       : initialDraft = draft;
 
   @override
-  ConsumerState<BillImportPage> createState() => _BillImportPageState();
+  Widget build(BuildContext context) {
+    final ParseResult? draft = initialDraft;
+    if (draft != null) {
+      return BillImportConfigPage(initialDraft: draft);
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('账单导入'),
+        centerTitle: true,
+        leading: const BackButton(),
+      ),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppDimens.lg,
+                AppDimens.md,
+                AppDimens.lg,
+                AppDimens.lg,
+              ),
+              children: <Widget>[
+                _ImportHeaderCard(onHelp: () => _openGuide(context)),
+                const SizedBox(height: AppDimens.sm),
+                _entryInfoStrip(context),
+                const SizedBox(height: AppDimens.sm),
+                const Expanded(
+                  child: EmptyState(
+                    message: '没有发现导入记录哦',
+                    iconWidget: LineIcon(
+                      LineIconKind.receipt,
+                      size: 56,
+                      color: AppPalette.sageRibbon,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _ImportGradientCta(
+            label: '导入账单',
+            onTap: () => Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(
+                builder: (_) => const BillImportConfigPage(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 入口页信息条（对标小青账文案口径，结合本 App 能力改写）。
+  Widget _entryInfoStrip(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppPalette.softGreen,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+      ),
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Text(
+        '系统差异可能导致导入账单需手动调整，请勿过度依赖此功能。仔细核对、'
+        '分析账单，正是记账本身的乐趣与意义所在。\n'
+        '与其耗费时间转换旧账目，不如放下历史记录，轻装上阵，即刻开始全新的'
+        '记账体验！',
+        style: TextStyle(
+          fontSize: 12.5,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          height: 1.5,
+        ),
+      ),
+    );
+  }
 }
 
-class _BillImportPageState extends ConsumerState<BillImportPage> {
-  final TextEditingController _text = TextEditingController();
+/// 打开导入说明页（入口页 / 配置页「帮助」共用）。
+void _openGuide(BuildContext context) {
+  Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(builder: (_) => const BillImportGuidePage()),
+  );
+}
+
+/// 「账单导入」配置页（入口页点「导入账单」后，对标小青账第二屏）：
+/// 数据（导入账单 / 导入来源）+ 其他（关联账户资产）+ 开始导入。
+class BillImportConfigPage extends ConsumerStatefulWidget {
+  const BillImportConfigPage({super.key, this.initialDraft});
+
+  /// 从截图识别等外部来源直接进入确认页时传入已解析结果，
+  /// 跳过文件读取输入区，直接展示预览与确认栏。
+  final ParseResult? initialDraft;
+
+  @override
+  ConsumerState<BillImportConfigPage> createState() =>
+      _BillImportConfigPageState();
+}
+
+class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
+  /// 已读取的文件文本内容（无粘贴框，仅文件通道；CSV / JSON 由解析器自动识别）。
+  String _rawContent = '';
   ParseResult? _parsed;
 
   /// 模板系统（2026-10-18）：解析成功后的匹配校验与三维归集报告。
   TemplateCheckResult? _check;
   bool _importing = false;
   String? _resultMsg;
+
+  /// 导入来源展示文案（信息性选择；CSV / JSON 均由解析器自动识别）。
+  String _sourceLabel = '本 App 导出（CSV / JSON）';
+
+  /// 关联账户（资产）：选择后通用路径所有行强制归入该账户；未选择则按
+  /// 表格「账户」列自动获取（缺失自动创建，原行为）。
+  String? _linkedAccountId;
+  String _linkedAccountName = '';
 
   @override
   void initState() {
@@ -83,13 +192,13 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
       if (mounted) showAppToast(context, '无法读取该文件');
       return;
     }
-    _text.text = await File(filePath).readAsString();
+    _rawContent = await File(filePath).readAsString();
     await _parse();
-    if (mounted) showAppToast(context, '已读取文件内容');
+    if (mounted) showAppToast(context, '已解析文件，请核对下方预览');
   }
 
   Future<void> _parse() async {
-    final ParseResult parsed = parseInput(_text.text);
+    final ParseResult parsed = parseInput(_rawContent);
     TemplateCheckResult? check;
     if (parsed.rows.isNotEmpty) {
       // 与当前账本的账户 / 分类 / 账本做匹配校验（模板系统：不再静默自动创建，
@@ -124,6 +233,170 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
       _check = check;
       _resultMsg = null;
     });
+  }
+
+  /// 选择导入来源（对标小青账「导入来源」行）：信息性选择，CSV / JSON
+  /// 均由解析器按内容自动识别，来源仅用于提示填写口径。
+  Future<void> _pickSource() async {
+    await showAppModalSheet<void>(
+      context,
+      title: '导入来源',
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _sourceRow(
+            title: '本 App 导出',
+            subtitle: '「账单导出」页生成的 CSV / JSON 文件',
+            selected: _sourceLabel.startsWith('本 App'),
+            onTap: () {
+              setState(() => _sourceLabel = '本 App 导出（CSV / JSON）');
+              Navigator.pop(context);
+            },
+          ),
+          const Divider(height: 1, color: AppPalette.divider),
+          _sourceRow(
+            title: '空白模板填写',
+            subtitle: '按「模板」字段说明手动整理的 CSV / JSON 文件',
+            selected: _sourceLabel.startsWith('空白模板'),
+            onTap: () {
+              setState(() => _sourceLabel = '空白模板填写（CSV / JSON）');
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 来源单选行（与导出页格式单选同款：标题 + 副标题 + 右侧圆点选中态）。
+  Widget _sourceRow({
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? AppPalette.ctaGreen : AppPalette.divider,
+                  width: 2,
+                ),
+              ),
+              child: selected
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppPalette.ctaGreen,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 选择关联账户（资产）：可不选（将按表格「账户」列自动获取）。
+  Future<void> _pickLinkedAccount() async {
+    final String? result = await showAppModalSheet<String>(
+      context,
+      isScrollControlled: true,
+      bodyPadding: EdgeInsets.zero,
+      useRootNavigator: true,
+      body: AccountPickerSheet(
+        selectedId: _linkedAccountId,
+        title: '选择导入资产',
+        // 允许「不选择」：未选择将从表格「账户」列自动获取。
+        showNoneRow: true,
+        onConfirm: (Account? acc) =>
+            Navigator.of(context, rootNavigator: true).pop(acc?.id ?? ''),
+      ),
+    );
+    if (result == null || !mounted) return;
+    if (result.isEmpty) {
+      // 「不选择具体账户」（空串）：清除已选关联账户。
+      setState(() {
+        _linkedAccountId = null;
+        _linkedAccountName = '';
+      });
+      return;
+    }
+    final List<Account> accounts = await ref.read(accountsProvider.future);
+    String name = '';
+    for (final Account a in accounts) {
+      if (a.id == result) {
+        name = a.name;
+        break;
+      }
+    }
+    setState(() {
+      _linkedAccountId = result;
+      _linkedAccountName = name;
+    });
+  }
+
+  /// 下载空白填写模板（与导出页模板同源）：含字段说明注释行 + 表头（CSV）。
+  Future<void> _downloadTemplate() async {
+    final String content = buildTemplateCsv();
+    const String ext = 'csv';
+    // file_picker 8.x：Android/iOS 的 saveFile 必须直接传 bytes（由系统
+    // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
+    final bool isMobile = Platform.isAndroid || Platform.isIOS;
+    final String? picked = await FilePicker.platform.saveFile(
+      dialogTitle: '保存账单导入模板',
+      fileName: '账单导入模板.$ext',
+      allowedExtensions: isMobile ? null : const <String>[ext],
+      bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
+    );
+    if (picked == null) {
+      if (mounted) showAppToast(context, '已取消保存');
+      return;
+    }
+    String outPath = picked;
+    if (!isMobile) {
+      // 桌面保存面板不强制扩展名，缺失时补足，避免存成无后缀文件。
+      outPath =
+          picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
+      await File(outPath).writeAsString(content);
+    }
+    if (mounted) showAppToast(context, '模板已保存，按说明填写后可导入');
   }
 
   Future<void> _import() async {
@@ -234,6 +507,8 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
       // 名称（小写）→ ID 缓存（含账本维度，避免跨账本同名串扰）。
       final Map<String, String> accCache = <String, String>{};
       final Map<String, String> catCache = <String, String>{};
+      // 二级分类缓存：key 带 parentId，避免不同一级下的同名子分类互相串扰。
+      final Map<String, String> subCatCache = <String, String>{};
 
       int imported = 0;
       int skipped = 0;
@@ -370,13 +645,16 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
             continue;
           }
 
-          final String accountId = await _resolveAccount(
-            row.accountName,
-            bookId,
-            accounts,
-            accRepo,
-            accCache,
-          );
+          // 关联账户（资产）：用户指定时通用路径强制归入该账户；未选择则按
+          // 表格「账户」列自动获取（缺失自动创建）。
+          final String accountId = _linkedAccountId ??
+              await _resolveAccount(
+                row.accountName,
+                bookId,
+                accounts,
+                accRepo,
+                accCache,
+              );
           final String? toAccountId = row.toAccountName == null
               ? null
               : await _resolveAccount(
@@ -396,6 +674,22 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                   catRepo,
                   catCache,
                 );
+          // 「子分类」列结构化：非空时在该一级分类下按名找/建二级分类，
+          // categoryId 改指二级（二级带 parentId，报表按 parentId 归集到一级，
+          // 二级因此真正参与统计归集）；子分类文本仍落 Transactions.subcategory。
+          String? txnCategoryId = categoryId;
+          final String subTrim = row.subcategoryName?.trim() ?? '';
+          if (categoryId != null && subTrim.isNotEmpty) {
+            txnCategoryId = await _resolveSubCategory(
+              subTrim,
+              row.type,
+              categoryId,
+              bookId,
+              categories,
+              catRepo,
+              subCatCache,
+            );
+          }
           // 报销账户：可报销且指定了账户名时，按名称归户；缺失则建为报销类账户。
           String? reimbursementAccountId;
           if (row.isReimbursable &&
@@ -417,7 +711,7 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
             amountMinor: row.amountMinor,
             accountId: accountId,
             toAccountId: toAccountId,
-            categoryId: categoryId,
+            categoryId: txnCategoryId,
             occurredAt: row.occurredAt.toUtc().millisecondsSinceEpoch,
             note: row.note,
             currency: row.currency,
@@ -439,11 +733,11 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
         }
       }
 
-      setState(() {
-        _resultMsg = skipped == 0
-            ? '成功导入 $imported 笔账单'
-            : '导入 $imported 笔，跳过 $skipped 笔';
-      });
+      final String msg = skipped == 0
+          ? '成功导入 $imported 笔账单'
+          : '导入 $imported 笔，跳过 $skipped 笔';
+      setState(() => _resultMsg = msg);
+      if (mounted) showAppToast(context, msg);
       // reasons 仅用于开发期排查，不展示给用户（避免 UI 噪声）。
     } catch (e) {
       if (mounted) showAppToast(context, '导入失败：$e');
@@ -502,6 +796,43 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     }
     final String id = await repo.ensureNamed(
       bookId: bookId,
+      name: name.trim(),
+      type: catType,
+      iconKey: null,
+    );
+    cache[key] = id;
+    return id;
+  }
+
+  /// 在指定一级分类（[parentId]）下按名解析二级分类，返回二级分类 ID。
+  ///
+  /// 与 [_resolveCategory] 同构，但匹配/创建都带 parentId：
+  /// 命中（同账本同类型同父同名）即复用；未命中则 [CategoryRepository.ensureChild]
+  /// 创建二级分类（colorValue=0 继承父配色）。
+  Future<String> _resolveSubCategory(
+    String name,
+    TxnType type,
+    String parentId,
+    String bookId,
+    List<Category> categories,
+    CategoryRepository repo,
+    Map<String, String> cache,
+  ) async {
+    final String key = '$bookId|$parentId:${name.trim().toLowerCase()}';
+    final String? cached = cache[key];
+    if (cached != null) return cached;
+    final CategoryType catType = CategoryType.values[type.index];
+    for (final Category c in categories) {
+      if (c.type == catType &&
+          c.parentId == parentId &&
+          c.name.trim().toLowerCase() == name.trim().toLowerCase()) {
+        cache[key] = c.id;
+        return c.id;
+      }
+    }
+    final String id = await repo.ensureChild(
+      bookId: bookId,
+      parentId: parentId,
       name: name.trim(),
       type: catType,
       iconKey: null,
@@ -983,29 +1314,12 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
   }
 
   @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('账单导入'),
         centerTitle: true,
         leading: const BackButton(),
-        actions: <Widget>[
-          IconButton(
-            onPressed: () => Navigator.of(context).push<void>(
-              MaterialPageRoute<void>(
-                builder: (_) => const BillImportGuidePage(),
-              ),
-            ),
-            icon: const LineGlyph(Icons.help_outline, size: 20),
-            tooltip: '导入说明',
-          ),
-        ],
       ),
       body: Column(
         children: <Widget>[
@@ -1018,72 +1332,43 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
                 AppDimens.lg,
               ),
               children: <Widget>[
-                if (widget.initialDraft == null) ...<Widget>[
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppPalette.softGreen,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+                _ImportHeaderCard(onHelp: () => _openGuide(context)),
+                const SizedBox(height: AppDimens.sm),
+                _configInfoCard(),
+                const SizedBox(height: AppDimens.sm),
+                _sectionCard(
+                  label: '数据',
+                  children: <Widget>[
+                    _configRow(
+                      title: '导入账单',
+                      subtitle: '选择文件开始导入',
+                      onTap: _pickFile,
                     ),
-                    padding: const EdgeInsets.all(AppDimens.md),
-                    child: Text(
-                      '粘贴本 App 导出的 CSV / JSON 内容，或点「选择文件」从本地任选 '
-                      '.csv / .json；空白填写模板可在「账单导出」页下载。解析后按 '
-                      '分类 / 时间 / 账户自动匹配校验并给出核对归集报告：'
-                      '账户 / 分类缺失项将自动创建（账户默认现金类）。',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        height: 1.5,
-                      ),
+                    const Divider(
+                      height: 1,
+                      indent: 16,
+                      color: AppPalette.divider,
                     ),
-                  ),
-                  const SizedBox(height: AppDimens.md),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppPalette.white,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+                    _configRow(
+                      title: '导入来源',
+                      subtitle: '$_sourceLabel（来自哪个APP）',
+                      onTap: _pickSource,
                     ),
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                    child: TextField(
-                      controller: _text,
-                      maxLines: 8,
-                      minLines: 5,
-                      decoration: const InputDecoration(
-                        hintText: '在此粘贴 CSV 或 JSON 内容…',
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(fontSize: 13),
-                      ),
-                      style: const TextStyle(fontSize: 13, height: 1.5),
+                  ],
+                ),
+                const SizedBox(height: AppDimens.sm),
+                _sectionCard(
+                  label: '其他',
+                  children: <Widget>[
+                    _configRow(
+                      title: '关联账户(资产)',
+                      subtitle: _linkedAccountName.isEmpty
+                          ? '选择导入资产(未选择将从表格会自动获取)'
+                          : _linkedAccountName,
+                      onTap: _pickLinkedAccount,
                     ),
-                  ),
-                  const SizedBox(height: AppDimens.sm),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _pickFile,
-                          icon: const LineGlyph(
-                            Icons.folder_open_outlined,
-                            size: 18,
-                          ),
-                          label: const Text('选择文件'),
-                          style: _outlineStyle(),
-                        ),
-                      ),
-                      const SizedBox(width: AppDimens.sm),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed:
-                              _text.text.trim().isEmpty ? null : () => _parse(),
-                          icon:
-                              const LineGlyph(Icons.preview_outlined, size: 18),
-                          label: const Text('解析预览'),
-                          style: _outlineStyle(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
                 if (_parsed != null) ..._previewSection(),
               ],
             ),
@@ -1095,13 +1380,140 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
     );
   }
 
-  ButtonStyle _outlineStyle() => OutlinedButton.styleFrom(
-        foregroundColor: AppPalette.ctaGreen,
-        side: const BorderSide(color: AppPalette.ctaGreen),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+  /// 信息卡（对标小青账）：说明文案 + 右下「模板」胶囊（下载空白填写模板）。
+  Widget _configInfoCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppPalette.softGreen,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+      ),
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '系统差异可能导致导入账单需手动调整，请勿过度依赖此功能。仔细核对、'
+            '分析账单，正是记账本身的乐趣与意义所在。\n'
+            '与其耗费时间转换旧账目，不如放下历史记录，轻装上阵，即刻开始全新'
+            '的记账体验！\n'
+            '需导入本 App 导出的 CSV / JSON 或空白模板；解析后按分类 / 时间 / '
+            '账户自动匹配校验并给出核对归集报告。',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: AppDimens.sm),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton(
+              onPressed: _downloadTemplate,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppPalette.ctaGreen,
+                side: const BorderSide(color: AppPalette.ctaGreen),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+                ),
+                minimumSize: Size.zero,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('模板', style: TextStyle(fontSize: 13)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 配置分组卡（对标小青账「数据 / 其他」）：鼠尾草竖条标题 + 行列表。
+  Widget _sectionCard({
+    required String label,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 4,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: AppPalette.sage500,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  /// 配置行（标题 + 副标题 + 右箭头），对标小青账配置项。
+  Widget _configRow({
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const LineGlyph(Icons.chevron_right, size: 18),
+          ],
         ),
-      );
+      ),
+    );
+  }
 
   List<Widget> _previewSection() {
     final ParseResult p = _parsed!;
@@ -1421,6 +1833,108 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
   }
 
   Widget _importBar() {
+    return Column(
+      children: <Widget>[
+        if (_resultMsg != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.lg,
+              0,
+              AppDimens.lg,
+              AppDimens.sm,
+            ),
+            child: Text(
+              _resultMsg!,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+        _ImportGradientCta(label: '开始导入', onTap: _import, busy: _importing),
+      ],
+    );
+  }
+}
+
+/// 头部卡（入口页 / 配置页共用，对标小青账）：灰底云上传图标 + 标题 + 帮助胶囊。
+class _ImportHeaderCard extends StatelessWidget {
+  const _ImportHeaderCard({required this.onHelp});
+
+  final VoidCallback onHelp;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+      ),
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppPalette.graySurface,
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            ),
+            child: const Center(
+              child: LineIcon(
+                LineIconKind.cloudUp,
+                size: 24,
+                color: AppPalette.sageRibbon,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppDimens.md),
+          Expanded(
+            child: Text(
+              '账单导入',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+          OutlinedButton(
+            onPressed: onHelp,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              side: const BorderSide(color: AppPalette.divider),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+              ),
+              minimumSize: Size.zero,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('帮助', style: TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 底部渐变主按钮（入口页「导入账单」/ 配置页「开始导入」共用），自带外边距。
+class _ImportGradientCta extends StatelessWidget {
+  const _ImportGradientCta({
+    required this.label,
+    required this.onTap,
+    this.busy = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.lg,
@@ -1428,45 +1942,43 @@ class _BillImportPageState extends ConsumerState<BillImportPage> {
         AppDimens.lg,
         AppDimens.lg,
       ),
-      child: Column(
-        children: <Widget>[
-          if (_resultMsg != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppDimens.sm),
-              child: Text(
-                _resultMsg!,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: _importing ? null : _import,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppPalette.ctaGreen,
-                foregroundColor: AppPalette.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                ),
-              ),
-              child: _importing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppPalette.white,
+      child: SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: ForestGradients.button,
+            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            boxShadow: ForestElevation.float,
+          ),
+          child: Material(
+            color: Colors.transparent, // ignore: no_raw_colors
+            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              onTap: busy ? null : onTap,
+              child: Center(
+                child: busy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppPalette.white,
+                        ),
+                      )
+                    : Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppPalette.white,
+                        ),
                       ),
-                    )
-                  : Text('确认导入 ${_parsed!.rows.length} 笔'),
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
