@@ -6,6 +6,18 @@ import '../../../core/config/secrets.dart';
 import '../../../providers/app_providers.dart';
 import '../data/sync_settings.dart';
 
+/// 内置同步凭据：优先取编译期 --dart-define（CI 云端分发注入），
+/// 取不到时回退到 gitignored 的 [builtInSyncBaseUrl] / [builtInSyncToken]
+/// （本地构建用）。二者任一为空即视为未配置，云同步默认不开启。
+const String kSyncBaseUrlBuiltIn = String.fromEnvironment(
+  'SYNC_BASE_URL',
+  defaultValue: builtInSyncBaseUrl,
+);
+const String kSyncTokenBuiltIn = String.fromEnvironment(
+  'SYNC_TOKEN',
+  defaultValue: builtInSyncToken,
+);
+
 /// 云同步设置。
 ///
 /// 端点与令牌属于凭据，一律存 Keychain / Keystore，不进数据库也不进 SharedPreferences。
@@ -31,12 +43,12 @@ class SyncSettingsController extends AsyncNotifier<SyncSettings> {
     final String? tokenStored =
         await storage.read(key: Env.syncTokenStorageKey);
 
-    // 内置凭据（gitignored 的 secrets.dart）作为默认值：用户未在设置页手动填时，
-    // 直接用内置端点 + 令牌，云同步开箱可用，无需手动填任何 key。
+    // 内置凭据作为默认值：优先编译期注入（CI --dart-define），其次 gitignored
+    // 的 secrets.dart（本地构建）。用户未在设置页手动填时，云同步开箱可用。
     final String baseUrl =
-        (baseUrlStored?.isNotEmpty == true) ? baseUrlStored! : builtInSyncBaseUrl;
+        (baseUrlStored?.isNotEmpty == true) ? baseUrlStored! : kSyncBaseUrlBuiltIn;
     final String token =
-        (tokenStored?.isNotEmpty == true) ? tokenStored! : builtInSyncToken;
+        (tokenStored?.isNotEmpty == true) ? tokenStored! : kSyncTokenBuiltIn;
 
     // 未显式关闭（stored=='false'）时：若内置凭据齐全则默认开启云同步；
     // 用户已在设置页显式开启/关闭则以存储值为准。
