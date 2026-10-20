@@ -510,27 +510,34 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
 
   /// 选择导入来源（对标小青账「导入来源」行）：第三方来源走专用解析器
   /// （支付宝 / 微信 / 云闪付，见 bill_import_sources.dart）。
+  ///
+  /// 6 个来源项每项带两行副标题，总高度可能超过弹层最大高度（2026-10-20
+  /// 真机溢出 66px）：isScrollControlled 突破半屏上限 + SingleChildScrollView
+  /// 兜底滚动——内容短时弹层仍按内容自适应，超长时可滚动不溢出。
   Future<void> _pickSource() async {
     await showAppModalSheet<void>(
       context,
       title: '导入来源',
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          for (final ImportSource s in ImportSource.values) ...<Widget>[
-            if (s != ImportSource.values.first)
-              const Divider(height: 1, color: AppPalette.divider),
-            _sourceRow(
-              title: s.label,
-              subtitle: s.subtitle,
-              selected: _source == s,
-              onTap: () {
-                setState(() => _source = s);
-                Navigator.pop(context);
-              },
-            ),
+      isScrollControlled: true,
+      body: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (final ImportSource s in ImportSource.values) ...<Widget>[
+              if (s != ImportSource.values.first)
+                const Divider(height: 1, color: AppPalette.divider),
+              _sourceRow(
+                title: s.label,
+                subtitle: s.subtitle,
+                selected: _source == s,
+                onTap: () {
+                  setState(() => _source = s);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
