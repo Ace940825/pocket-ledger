@@ -41,13 +41,16 @@ import '../data/bill_template.dart';
 import '../data/import_record_repository.dart';
 import '../data/transaction_repository.dart';
 import '../providers/ledger_providers.dart';
+import 'bill_import_preview_page.dart';
 import 'widgets/txn_slidable.dart';
 
 /// 「账单管理 → 账单导入」入口页（对标小青账，2026-10-20）：头部卡（云上传
 /// 图标 + 标题）→ 信息条 → 空态 → 底部渐变按钮「导入账单」进入配置页。
 /// 配置页 [BillImportConfigPage]（点击「导入账单」后）：数据（导入账单 /
-/// 导入来源）+ 其他（关联账户资产）+ 开始导入。解析后预览，确认再写入——
-/// 账户 / 分类按名称归户，缺失项自动创建（账户默认现金类）。
+/// 导入来源）+ 其他（关联账户资产）+ 底部常显「开始导入」→ 跳转预览页
+/// [BillImportPreviewPage]（总览 + 提示 + 账单列表 + 确认导入账单）。
+/// 确认后回本页执行真实导入——账户 / 分类按名称归户，缺失项自动创建
+/// （账户默认现金类）。
 class BillImportPage extends StatelessWidget {
   const BillImportPage({super.key, this.initialDraft});
 
@@ -389,12 +392,13 @@ class BillImportPage extends StatelessWidget {
 }
 
 /// 「账单导入」配置页（入口页点「导入账单」后，对标小青账第二屏）：
-/// 数据（导入账单 / 导入来源）+ 其他（关联账户资产）+ 开始导入。
+/// 数据（导入账单 / 导入来源）+ 其他（关联账户资产）+ 底部常显「开始导入」
+/// （点击跳转 [BillImportPreviewPage] 预览页）。
 class BillImportConfigPage extends ConsumerStatefulWidget {
   const BillImportConfigPage({super.key, this.initialDraft});
 
   /// 从截图识别等外部来源直接进入确认页时传入已解析结果，
-  /// 跳过文件读取输入区，直接展示预览与确认栏。
+  /// 跳过文件读取输入区，点「开始导入」直达预览页。
   final ParseResult? initialDraft;
 
   @override
@@ -459,7 +463,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       }
     }
     await _parse();
-    if (mounted) showAppToast(context, '已解析文件，请核对下方预览');
+    if (mounted) showAppToast(context, '已解析文件，点击「开始导入」预览');
   }
 
   Future<void> _parse() async {
@@ -665,28 +669,26 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     if (mounted) showAppToast(context, '模板已保存，按说明填写后可导入');
   }
 
+  /// 底部「开始导入」：跳转预览页（对标小青账），确认后回本页执行真实导入。
+  Future<void> _startImport() async {
+    if (_importing) return;
+    if (_parsed == null || _parsed!.rows.isEmpty) {
+      showAppToast(context, '请先选择账单文件');
+      return;
+    }
+    final bool? confirmed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => BillImportPreviewPage(parsed: _parsed!, check: _check),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _import();
+  }
+
+  /// 执行真实导入。调用前必经 [BillImportPreviewPage] 预览页「确认导入账单」
+  /// ——预览页即写入前确认环节（2026-10-20 起，替代原 showConfirm 弹窗）。
   Future<void> _import() async {
     if (_importing || _parsed == null || _parsed!.rows.isEmpty) return;
-    // 写入前二次确认（共享组件 showConfirm）：告知笔数及将自动新建的账户 / 分类数。
-    final int newAcc = _check?.newAccounts.length ?? 0;
-    final int newCat = _check?.newCategories.length ?? 0;
-    final StringBuffer confirmContent = StringBuffer(
-      '将导入 ${_parsed!.rows.length} 笔账单',
-    );
-    if (newAcc > 0 || newCat > 0) {
-      confirmContent.write('，并将自动新建');
-      if (newAcc > 0) confirmContent.write(' $newAcc 个账户');
-      if (newCat > 0) {
-        confirmContent.write('${newAcc > 0 ? '、' : ' '}$newCat 个分类');
-      }
-    }
-    confirmContent.write('。');
-    final bool? confirmed = await showConfirm(
-      context,
-      title: '确认导入',
-      content: confirmContent.toString(),
-    );
-    if (confirmed != true) return;
     setState(() => _importing = true);
     try {
       final String currentBookId = ref.read(currentBookIdProvider);
@@ -1701,11 +1703,10 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                     ),
                   ],
                 ),
-                if (_parsed != null) ..._previewSection(),
               ],
             ),
           ),
-          if (_parsed != null && _parsed!.rows.isNotEmpty) _importBar(),
+          _importBar(),
         ],
       ),
     );
@@ -1847,323 +1848,6 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     );
   }
 
-  List<Widget> _previewSection() {
-    final ParseResult p = _parsed!;
-    return <Widget>[
-      const SizedBox(height: AppDimens.lg),
-      Container(
-        decoration: BoxDecoration(
-          color: AppPalette.white,
-          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-        ),
-        padding: const EdgeInsets.all(AppDimens.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppPalette.softGreen,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '可导入 ${p.rows.length} 笔',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppPalette.ctaGreen,
-                    ),
-                  ),
-                ),
-                if (p.hasErrors) ...<Widget>[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppPalette.redSoftBg,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '跳过 ${p.errors.length} 笔',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppPalette.expense,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: AppDimens.sm),
-            for (int i = 0; i < p.rows.length && i < 20; i++)
-              _previewRow(p.rows[i]),
-            if (p.rows.length > 20)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  '… 仅预览前 20 笔',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            if (p.hasErrors) ...<Widget>[
-              const Divider(height: 16, color: AppPalette.divider),
-              const Text(
-                '以下问题行将被跳过（解析错误）：',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppPalette.expense,
-                ),
-              ),
-              const SizedBox(height: 4),
-              for (final String e in p.errors.take(10))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Text(
-                    '· $e',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-            ],
-            if (_check != null) ..._checkSection(_check!),
-          ],
-        ),
-      ),
-    ];
-  }
-
-  // ── 模板系统：匹配校验 + 核对归集报告 ──────────────────────────
-
-  String _fmtDate(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')}';
-
-  /// 归集金额文本：收 / 支 / 转非零项分列（净额对账户维度有歧义）。
-  String _aggAmountText(TemplateAgg a) {
-    final List<String> parts = <String>[
-      if (a.incomeMinor > 0) '收 ${aggAmount(a.incomeMinor)}',
-      if (a.expenseMinor > 0) '支 ${aggAmount(a.expenseMinor)}',
-      if (a.transferMinor > 0) '转 ${aggAmount(a.transferMinor)}',
-    ];
-    return parts.isEmpty ? '—' : parts.join(' · ');
-  }
-
-  /// 匹配校验与核对归集卡片：三维汇总（分类/账户/月）+ 将自动创建项
-  /// + 校验错误明细。空数据行已被 [checkRows] 过滤。
-  List<Widget> _checkSection(TemplateCheckResult c) {
-    final TextStyle hint = TextStyle(
-      fontSize: 12,
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-      height: 1.5,
-    );
-    final bool allMatched = c.newAccounts.isEmpty && c.newCategories.isEmpty;
-    return <Widget>[
-      const Divider(height: 16, color: AppPalette.divider),
-      Row(
-        children: <Widget>[
-          const Expanded(
-            child: Text(
-              '匹配校验与核对归集',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppPalette.ctaGreen,
-              ),
-            ),
-          ),
-          Text(
-            c.spanStart != null
-                ? '${_fmtDate(c.spanStart!)} ~ ${_fmtDate(c.spanEnd!)}'
-                : '',
-            style: hint,
-          ),
-        ],
-      ),
-      const SizedBox(height: 6),
-      _aggBlock('按分类', c.byCategory, 6),
-      _aggBlock('按账户', c.byAccount, 6),
-      _aggBlock('按月', c.byMonth, 4),
-      _aggBlock('按模块', c.byModule, 6),
-      const SizedBox(height: 6),
-      Text(
-        allMatched
-            ? '✅ 账户与分类全部匹配现有数据，导入不会新建。'
-            : '⚠️ 以下项不在现有数据中，导入时将自动创建：\n'
-                '· 账户：${c.newAccounts.join('、')}\n'
-                '· 分类：${c.newCategories.join('、')}',
-        style: TextStyle(
-          fontSize: 12,
-          height: 1.5,
-          color: allMatched
-              ? AppPalette.ctaGreen
-              : Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-      if (c.hasErrors) ...<Widget>[
-        const SizedBox(height: 6),
-        const Text(
-          '以下问题行将被跳过（校验错误）：',
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.expense,
-          ),
-        ),
-        const SizedBox(height: 4),
-        for (final String e in c.errors.take(10))
-          Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: Text('· $e', style: hint),
-          ),
-      ],
-      if (c.warnings.isNotEmpty) ...<Widget>[
-        const SizedBox(height: 6),
-        for (final String w in c.warnings.take(6))
-          Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: Text('· $w', style: hint),
-          ),
-      ],
-    ];
-  }
-
-  /// 单个归集块：标题 + 前 [max] 行聚合明细（key / 笔数 / 金额）。
-  Widget _aggBlock(String title, Map<String, TemplateAgg> agg, int max) {
-    if (agg.isEmpty) return const SizedBox.shrink();
-    final List<MapEntry<String, TemplateAgg>> entries = agg.entries.toList()
-      ..sort(
-          (MapEntry<String, TemplateAgg> a, MapEntry<String, TemplateAgg> b) =>
-              b.value.count - a.value.count,
-          );
-    final int shownTotal = entries.length > max ? max : entries.length;
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            '$title（${agg.length} 项）',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 2),
-          for (final MapEntry<String, TemplateAgg> e in entries.take(max))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 1),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      e.key,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${e.value.count} 笔 · ${_aggAmountText(e.value)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (entries.length > shownTotal)
-            Text(
-              '… 其余 ${entries.length - shownTotal} 项略',
-              style: TextStyle(
-                fontSize: 11.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _previewRow(BillRow r) {
-    final Color typeColor = switch (r.type) {
-      TxnType.income => AppPalette.income,
-      TxnType.expense => AppPalette.expense,
-      TxnType.transfer => AppPalette.transferBlueGray,
-    };
-    final String accountLine = r.toAccountName == null
-        ? r.accountName
-        : '${r.accountName} → ${r.toAccountName}';
-    // 截图识别置信度偏低时高亮，提示用户核对金额 / 分类。
-    final bool lowConf = r.confidence != null && r.confidence! < kLowConfidence;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(
-              color: typeColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              _typeLabel(r.type),
-              style: TextStyle(fontSize: 11, color: typeColor),
-            ),
-          ),
-          if (lowConf)
-            Padding(
-              padding: const EdgeInsets.only(left: 6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppPalette.redSoftBg,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  '需复核',
-                  style: TextStyle(fontSize: 10, color: AppPalette.expense),
-                ),
-              ),
-            ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              accountLine,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Text(
-            Money.fromMinor(r.amountMinor, currency: r.currency).format(),
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: typeColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _importBar() {
     if (_importing) {
       return _ImportGradientCta(label: '开始导入', onTap: () {}, busy: true);
@@ -2198,7 +1882,8 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
         ),
       );
     }
-    return _ImportGradientCta(label: '开始导入', onTap: _import, busy: false);
+    // 对标小青账：底部「开始导入」常显（未选文件时点击提示），点击跳预览页。
+    return _ImportGradientCta(label: '开始导入', onTap: _startImport);
   }
 
   /// 弹出导入问题明细（被跳过 / 失败的逐行原因），供用户核对修正后重新导入。
