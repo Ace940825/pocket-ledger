@@ -114,6 +114,37 @@ void main() {
     });
   });
 
+  group('parseSource(bank)', () {
+    const String csv = '交易日期,摘要,借方发生额,贷方发生额,卡号后四位,交易对手\n'
+        '2026-10-01 12:00:00,超市购物,58.00,,1234,某超市\n'
+        '2026-10-02 09:00:00,工资入账,,5000.00,1234,某单位\n';
+    test('借方/贷方发生额双列解析 + 卡号建户', () {
+      final ParseResult r = parseSource(ImportSource.bank, csv);
+      expect(r.errors, isEmpty);
+      expect(r.rows.length, 2);
+      // 借方=支出
+      expect(r.rows[0].type, TxnType.expense);
+      expect(r.rows[0].amountMinor, 5800);
+      // 贷方=收入
+      expect(r.rows[1].type, TxnType.income);
+      expect(r.rows[1].amountMinor, 500000);
+      // 卡号列规整末四位建户
+      expect(r.rows[0].accountName, '银行卡尾号1234');
+      expect(r.rows[1].accountName, '银行卡尾号1234');
+    });
+
+    test('单行列（收/支 或 借贷标志）也能正确映射方向', () {
+      const String t = '交易日期,交易摘要,借贷标志,交易金额,卡号后四位\n'
+          '2026-10-03 10:00:00,餐饮,借,30.00,5678\n';
+      final ParseResult r = parseSource(ImportSource.bank, t);
+      expect(r.errors, isEmpty);
+      expect(r.rows.length, 1);
+      expect(r.rows[0].type, TxnType.expense);
+      expect(r.rows[0].amountMinor, 3000);
+      expect(r.rows[0].accountName, '银行卡尾号5678');
+    });
+  });
+
   group('buildSourceTemplate', () {
     test('各来源模板表头可被自家解析器识别', () {
       for (final ImportSource s in ImportSource.values) {

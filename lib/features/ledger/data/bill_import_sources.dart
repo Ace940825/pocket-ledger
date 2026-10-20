@@ -25,6 +25,10 @@ enum ImportSource {
 
   /// 云闪付 App「账单导出」CSV（GBK）。
   unionpay,
+
+  /// 银行类（非云闪付）账单：各银行 App / 网银导出的 CSV（表头差异较大，
+  /// 自动嗅探易误判，故由用户在来源弹层手动选择）。
+  bank,
 }
 
 /// 来源的展示文案（导入来源弹层 / 副标题）。
@@ -41,6 +45,8 @@ extension ImportSourceX on ImportSource {
         return '微信支付';
       case ImportSource.unionpay:
         return '云闪付';
+      case ImportSource.bank:
+        return '银行账单';
     }
   }
 
@@ -56,6 +62,8 @@ extension ImportSourceX on ImportSource {
         return '微信「下载账单」导出的 CSV（自动跳过说明行，银行卡账户按卡号末四位自动匹配现有账户）';
       case ImportSource.unionpay:
         return '云闪付 App「账单导出」的 CSV（按卡号末四位优先匹配现有账户）';
+      case ImportSource.bank:
+        return '各银行 App / 网银导出的 CSV（按卡号末四位自动匹配现有账户；各银行表头差异大，选此来源手动适配）';
     }
   }
 }
@@ -104,6 +112,8 @@ ParseResult parseSource(ImportSource source, String content) {
       return _parseWechat(content);
     case ImportSource.unionpay:
       return _parseUnionpay(content);
+    case ImportSource.bank:
+      return _parseBank(content);
   }
 }
 
@@ -140,6 +150,16 @@ String buildSourceTemplate(ImportSource source) {
         '# 卡号后四位优先匹配现有账户（名称含卡号或账户卡号末四位一致），无匹配再自动创建「银行卡尾号XXXX」归户；无卡号列时按关联账户设置',
         '交易日期,交易类型,交易金额,收/支,卡号后四位,交易描述',
         '2026-10-01 12:00:00,消费,58.00,支出,1234,超市购物',
+      ].join('\n');
+    case ImportSource.bank:
+      return <String>[
+        '# 银行账单导入模板（各家银行 App / 网银导出的 CSV 表头差异较大，'
+            '本模板为通用列，可据实调整列名）',
+        '# 卡号列（卡号 / 卡号后四位）按卡号末四位自动匹配现有账户；无卡号列时按关联账户设置',
+        '# 金额方向：优先取「借方发生额 / 贷方发生额」两列（借=支出、贷=收入）；'
+            '仅有「收/支」或「借贷标志」列时据其值判断',
+        '交易日期,交易摘要,收/支,交易金额,卡号后四位,交易对手,备注',
+        '2026-10-01 12:00:00,超市购物,支出,58.00,1234,某超市,',
       ].join('\n');
   }
 }
@@ -202,6 +222,25 @@ bool _statusSkip(String s) {
   return (t.contains('收') ? TxnType.income : TxnType.expense, false);
 }
 
+/// 银行账单方向列（「收/支」「借贷标志」等混用）通用映射：
+/// 收 / 贷 / 入 / 增 → 收入；支 / 借 / 出 / 减 → 支出；其余（空 / 异常）按支出处理。
+TxnType _bankDirection(String raw) {
+  final String s = raw.trim();
+  if (s.contains('收') ||
+      s.contains('贷') ||
+      s.contains('入') ||
+      s.contains('增')) {
+    return TxnType.income;
+  }
+  if (s.contains('支') ||
+      s.contains('借') ||
+      s.contains('出') ||
+      s.contains('减')) {
+    return TxnType.expense;
+  }
+  return TxnType.expense;
+}
+
 /// 第三方 CSV 通用解析：表头定位 + 列名多别名匹配 + 行级守门。
 /// [cols] 键 → 候选列名（按序取第一个命中）。
 ParseResult _parseThirdParty(
@@ -209,6 +248,9 @@ ParseResult _parseThirdParty(
   required List<String> headerMustHave,
   required Map<String, List<String>> cols,
   required String sourceLabel,
+  String? debitKey,
+  String? creditKey,
+  bool ioIsDebitCredit = false,
 }) {
   final List<List<dynamic>>? table = _tableFromHeader(content, headerMustHave);
   if (table == null) {
@@ -243,6 +285,8 @@ ParseResult _parseThirdParty(
   final int iRemark = col('remark');
   final int iStatus = col('status');
   final int iFee = col('fee');
+  final int iDebit = debitKey != null ? col(debitKey) : -1;
+  final int iCredit = creditKey != null ? col(creditKey) : -1;
 
   for (int r = 1; r < table.length; r++) {
     final List<dynamic> raw = table[r];
@@ -267,7 +311,36 @@ ParseResult _parseThirdParty(
             status.contains('已到账'));
     if (!isRefund && _statusSkip(status)) continue;
 
-    final (TxnType type, bool neutral) = _thirdPartyType(cell(iType));
+    // 收支方向：银行账单常见「借方发生额 / 贷方发生额」两列，或「借贷标志」
+    // 列（借=支出、贷=收入）；其余按收/支列。
+    TxnType type;
+    bool neutral = false;
+    int amountMinor;
+    if (iDebit >= 0 || iCredit >= 0) {
+      // 银行借贷发生额模式：借方=支出、贷方=收入，只一列非零。
+      final int debit = _toMinor(cell(iDebit));
+      final int credit = _toMinor(cell(iCredit));
+      if (debit > 0 && credit == 0) {
+        type = TxnType.expense;
+        amountMinor = debit;
+      } else if (credit > 0 && debit == 0) {
+        type = TxnType.income;
+        amountMinor = credit;
+      } else if (debit == 0 && credit == 0) {
+        continue; // 无发生额，跳过。
+      } else {
+        type = TxnType.expense; // 两列均非零异常：借方优先。
+        amountMinor = debit;
+      }
+    } else if (ioIsDebitCredit) {
+      type = _bankDirection(cell(iType));
+      amountMinor = _toMinor(cell(iAmount));
+    } else {
+      final (TxnType t, bool n) = _thirdPartyType(cell(iType));
+      type = t;
+      neutral = n;
+      amountMinor = _toMinor(cell(iAmount));
+    }
     final String catTrim = cell(iCategory);
     final String cpTrim = cell(iCounterparty);
     final String noteCommodity = cell(iNote);
@@ -275,7 +348,14 @@ ParseResult _parseThirdParty(
     String account = cell(iAccount);
     if (account.isEmpty && iCard >= 0) {
       final String card = cell(iCard);
-      if (card.isNotEmpty) account = '银行卡尾号$card';
+      if (card.isNotEmpty) {
+        // 卡号列可能是「后四位」或完整卡号，统一规整为末四位，
+        // 便于 extractCardLast4 识别并触发现有账户卡号匹配。
+        final String digits = card.replaceAll(RegExp(r'\D'), '');
+        final String last4 =
+            digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
+        account = '银行卡尾号$last4';
+      }
     }
     final String note = [
       if (noteCommodity.isNotEmpty) noteCommodity,
@@ -288,7 +368,7 @@ ParseResult _parseThirdParty(
         module: SourceModule.ledger,
         // 退款行固定为收入（收/支 列对退款行常为「/」中性）。
         type: isRefund ? TxnType.income : type,
-        amountMinor: _toMinor(cell(iAmount)),
+        amountMinor: amountMinor,
         accountName: account,
         categoryName: catTrim.isEmpty ? null : catTrim,
         tags: isRefund ? const <String>['退款'] : const <String>[],
@@ -417,5 +497,47 @@ ParseResult _parseUnionpay(String content) {
       'status': <String>['交易状态'],
     },
     sourceLabel: '云闪付',
+  );
+}
+
+/// 银行类（非云闪付）账单：各银行 App / 网银导出的 CSV。各家表头差异较大，
+/// 这里以通用列名做多别名匹配，并支持两种银行常见方向表达：
+/// - 「借方发生额 / 贷方发生额」两列（借=支出、贷=收入，优先采用）；
+/// - 「收/支」「借贷标志」等单列（[ioIsDebitCredit] 一并兼容）。
+/// 卡号列（后四位或完整卡号）统一规整为末四位（见 _parseThirdParty），
+/// 复用 extractCardLast4 触发现有账户卡号匹配；detactSource 不自动嗅探本来源，
+/// 由用户在来源弹层手动选择，避免与其它来源误判。
+ParseResult _parseBank(String content) {
+  return _parseThirdParty(
+    content,
+    headerMustHave: const <String>['日期'],
+    cols: const <String, List<String>>{
+      'date': <String>[
+        '交易日期', '记账日期', '日期', '交易时间', '发生日期', '账期',
+      ],
+      'io': <String>[
+        '收/支', '借贷标志', '借贷方向', '发生额方向', '交易类型',
+      ],
+      'amount': <String>[
+        '交易金额', '金额', '发生额', '交易额', '交易金额(元)',
+      ],
+      'debit': <String>['借方发生额', '借方金额', '支出金额', '借方'],
+      'credit': <String>['贷方发生额', '贷方金额', '收入金额', '贷方'],
+      'account': <String>['账户名称', '账户'],
+      'card': <String>[
+        '卡号', '卡号后四位', '账号后四位', '卡末四位', '卡号末四位',
+      ],
+      'counterparty': <String>[
+        '交易对手', '对方户名', '商户名称', '交易地点', '对方账号',
+      ],
+      'category': <String>['交易摘要', '摘要', '交易类型', '用途', '业务类型'],
+      'note': <String>['备注', '附言', '注释'],
+      'remark': <String>['备注', '附言'],
+      'status': <String>['交易状态', '状态', '记账状态'],
+    },
+    sourceLabel: '银行账单',
+    debitKey: 'debit',
+    creditKey: 'credit',
+    ioIsDebitCredit: true,
   );
 }
