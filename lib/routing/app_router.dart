@@ -92,8 +92,14 @@ abstract final class Routes {
   static const String record = '/record';
 }
 
+/// 根导航器 Key：全局悬浮层（快捷指令截图识别通知条等）插 Overlay、
+/// 从任意层级直接开弹窗时使用。
+final GlobalKey<NavigatorState> rootNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'rootNavigator');
+
 final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: Routes.home,
     debugLogDiagnostics: false,
     routes: <RouteBase>[
