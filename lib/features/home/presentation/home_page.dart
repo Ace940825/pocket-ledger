@@ -11,6 +11,7 @@ import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/animated_money_text.dart';
+import '../../../shared/widgets/day_group_header.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/fade_slide_in.dart';
 import '../../../shared/widgets/line_icon_map.dart';
@@ -81,22 +82,52 @@ class HomePage extends ConsumerWidget {
                     child: EmptyState(message: '还没有记账记录，点下方按钮记一笔'),
                   );
                 }
+                // 按自然日分组（对齐账单明细页样式）：每组前插「M月d日
+                // （今天/昨天）… N笔」日头，N = 可见 5 条里该日的笔数。
+                final List<Transaction> visible =
+                    list.take(5).toList(growable: false);
+                final List<Widget> rows = <Widget>[];
+                for (int i = 0; i < visible.length; i++) {
+                  final Transaction txn = visible[i];
+                  final bool showHeader = i == 0 ||
+                      !DayGroupHeader.sameDay(
+                        visible[i - 1].occurredAt,
+                        txn.occurredAt,
+                      );
+                  if (showHeader) {
+                    int count = 1;
+                    while (i + count < visible.length &&
+                        DayGroupHeader.sameDay(
+                          visible[i].occurredAt,
+                          visible[i + count].occurredAt,
+                        )) {
+                      count++;
+                    }
+                    rows.add(
+                      DayGroupHeader(
+                        date: DayGroupHeader.localDay(txn.occurredAt),
+                        count: count,
+                        // 首页 ListView 自带水平 padding，去掉组件默认水平边距。
+                        padding: const EdgeInsets.only(
+                          top: AppDimens.xs,
+                          bottom: AppDimens.xs,
+                        ),
+                      ),
+                    );
+                  }
+                  rows.add(
+                    TxnSlidable(
+                      txn: txn,
+                      child: TransactionTile(
+                        transaction: txn,
+                        onTap: () =>
+                            TransactionDetailSheet.show(context, txn),
+                      ),
+                    ),
+                  );
+                }
                 return TxnSlidableGroup(
-                  child: Column(
-                    children: list
-                        .take(5)
-                        .map(
-                          (Transaction txn) => TxnSlidable(
-                            txn: txn,
-                            child: TransactionTile(
-                              transaction: txn,
-                              onTap: () =>
-                                  TransactionDetailSheet.show(context, txn),
-                            ),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
+                  child: Column(children: rows),
                 );
               },
               loading: () => const SizedBox(

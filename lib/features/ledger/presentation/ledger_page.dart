@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
@@ -14,6 +13,7 @@ import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
+import '../../../shared/widgets/day_group_header.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/section_header.dart';
@@ -903,58 +903,22 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
   }
 
   /// 日分组头：左侧「M月d日（今天/昨天）」，右侧「N笔」。
+  /// 视觉已抽为共享组件 [DayGroupHeader]（首页「最近流水」共用），
+  /// 此处仅保留「该日在过滤后列表中的笔数」口径后委托渲染。
   Widget _dayHeader(int timestamp, List<Transaction> list) {
     final DateTime date = DateTime.fromMillisecondsSinceEpoch(
       timestamp,
       isUtc: true,
     ).toLocal();
-    final DateTime today = DateTime.now();
-    final DateTime day = DateTime(date.year, date.month, date.day);
-    final DateTime today0 = DateTime(today.year, today.month, today.day);
-    final String relative = day == today0
-        ? '  今天'
-        : day == today0.subtract(const Duration(days: 1))
-            ? '  昨天'
-            : '';
 
     int count = 0;
     for (final Transaction t in list) {
-      final DateTime d =
-          DateTime.fromMillisecondsSinceEpoch(t.occurredAt, isUtc: true)
-              .toLocal();
-      if (d.year == date.year && d.month == date.month && d.day == date.day) {
+      if (DayGroupHeader.sameDay(t.occurredAt, timestamp)) {
         count++;
       }
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimens.lg,
-        AppDimens.md,
-        AppDimens.lg,
-        AppDimens.xs,
-      ),
-      child: Row(
-        children: <Widget>[
-          Text(
-            '${DateFormat('M月d日').format(date)}$relative',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            '$count笔',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
+    return DayGroupHeader(date: date, count: count);
   }
 
   // ──────────────────── 周期选择器（周/月/年/自定义） ────────────────────
