@@ -41,11 +41,10 @@ import '../data/bill_template.dart';
 import '../data/import_record_repository.dart';
 import '../data/transaction_repository.dart';
 import '../providers/ledger_providers.dart';
-import 'bill_import_guide_page.dart';
 import 'widgets/txn_slidable.dart';
 
 /// 「账单管理 → 账单导入」入口页（对标小青账，2026-10-20）：头部卡（云上传
-/// 图标 + 标题 + 帮助）→ 信息条 → 空态 → 底部渐变按钮「导入账单」进入配置页。
+/// 图标 + 标题）→ 信息条 → 空态 → 底部渐变按钮「导入账单」进入配置页。
 /// 配置页 [BillImportConfigPage]（点击「导入账单」后）：数据（导入账单 /
 /// 导入来源）+ 其他（关联账户资产）+ 开始导入。解析后预览，确认再写入——
 /// 账户 / 分类按名称归户，缺失项自动创建（账户默认现金类）。
@@ -86,7 +85,7 @@ class BillImportPage extends StatelessWidget {
                     AppDimens.lg,
                   ),
                   children: <Widget>[
-                    _ImportHeaderCard(onHelp: () => _openGuide(context)),
+                    const _ImportHeaderCard(),
                     const SizedBox(height: AppDimens.sm),
                     _entryInfoStrip(context),
                     const SizedBox(height: AppDimens.sm),
@@ -387,13 +386,6 @@ class BillImportPage extends StatelessWidget {
         '${dt.hour.toString().padLeft(2, '0')}:'
         '${dt.minute.toString().padLeft(2, '0')}';
   }
-}
-
-/// 打开导入说明页（入口页 / 配置页「帮助」共用）。
-void _openGuide(BuildContext context) {
-  Navigator.of(context).push<void>(
-    MaterialPageRoute<void>(builder: (_) => const BillImportGuidePage()),
-  );
 }
 
 /// 「账单导入」配置页（入口页点「导入账单」后，对标小青账第二屏）：
@@ -1672,7 +1664,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                 AppDimens.lg,
               ),
               children: <Widget>[
-                _ImportHeaderCard(onHelp: () => _openGuide(context)),
+                const _ImportHeaderCard(),
                 const SizedBox(height: AppDimens.sm),
                 _configInfoCard(),
                 const SizedBox(height: AppDimens.sm),
@@ -2244,11 +2236,9 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   }
 }
 
-/// 头部卡（入口页 / 配置页共用，对标小青账）：灰底云上传图标 + 标题 + 帮助胶囊。
+/// 头部卡（入口页 / 配置页共用，对标小青账）：灰底云上传图标 + 标题。
 class _ImportHeaderCard extends StatelessWidget {
-  const _ImportHeaderCard({required this.onHelp});
-
-  final VoidCallback onHelp;
+  const _ImportHeaderCard();
 
   @override
   Widget build(BuildContext context) {
@@ -2285,21 +2275,6 @@ class _ImportHeaderCard extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-          ),
-          OutlinedButton(
-            onPressed: onHelp,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-              side: const BorderSide(color: AppPalette.divider),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppDimens.radiusChip),
-              ),
-              minimumSize: Size.zero,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text('帮助', style: TextStyle(fontSize: 13)),
           ),
         ],
       ),
