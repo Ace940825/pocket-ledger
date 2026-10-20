@@ -7,10 +7,10 @@
 //   在启动 / 回前台时扫描标记文件完成交接：OCR 识别 → 自动落库 → 顶部
 //   通知条 → 点开账单详情。
 //
-// 接入步骤（需 Xcode，Windows 侧无法编译验证）：
-//   1. 用 Xcode 打开 ios/Runner.xcworkspace；
-//   2. 把本文件拖入 Runner target（勾选 Copy items if needed + Runner）；
-//   3. 真机重新出包安装；首次在快捷指令 App 中搜索「识别账单」授权一次。
+// 接入步骤（已通过 project.pbxproj 注册进 Runner target，无需 Xcode 手动拖拽；
+// 由 GitHub Actions 云端 macos-15 + Xcode 16 编译，下列步骤仅作说明）：
+//   1. 该文件已加入 Runner target 编译清单（见 project.pbxproj 的 PBXBuildFile/PBXFileReference/PBXSourcesBuildPhase）；
+//   2. 真机重新出包安装；首次在快捷指令 App 中搜索「识别账单」授权一次。
 //
 // 设计说明：
 //   - 无需 Share Extension / App Group（AppIntents 声明在主 App target 内），
@@ -56,14 +56,14 @@ struct RecognizeBillIntent: AppIntent {
             )
         }
 
-        let data = try await file.data()
-        try data.write(to: URL(fileURLWithPath: imgPath), options: .atomic)
+        let data = try await file.data(contentType: .image)
+        try data.write(to: URL(fileURLWithPath: imgPath), options: Data.WritingOptions.atomic)
         let meta: [String: Any] = [
             "receivedAt": Int(Date().timeIntervalSince1970 * 1000),
         ]
         let metaData = try JSONSerialization.data(withJSONObject: meta, options: [])
         // 元信息最后写：Dart 侧以它为「截图已就绪」的完成标记。
-        try metaData.write(to: URL(fileURLWithPath: metaPath), options: .atomic)
+        try metaData.write(to: URL(fileURLWithPath: metaPath), options: Data.WritingOptions.atomic)
 
         return .result(dialog: "收到截图，正在打开口袋账本识别…")
     }
