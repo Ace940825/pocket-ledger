@@ -214,6 +214,10 @@ abstract final class RecordCodec {
         isReimbursable: Value<bool>((p['isReimbursable'] as bool?) ?? false),
         reimbursementAccountId:
             Value<String?>(p['reimbursementAccountId'] as String?),
+        latitude: Value<double?>((p['latitude'] as num?)?.toDouble()),
+        longitude: Value<double?>((p['longitude'] as num?)?.toDouble()),
+        placeName: Value<String?>(p['placeName'] as String?),
+        createdAt: Value<int?>((p['createdAt'] as int?) ?? updatedAt),
         deleted: Value<bool>(deleted),
         dirty: const Value<bool>(false),
         syncedAt: Value<int>(syncedAt),
