@@ -27,7 +27,6 @@ import '../features/ledger/presentation/bill_export_page.dart';
 import '../features/ledger/presentation/bill_import_page.dart';
 import '../features/ledger/presentation/bill_list_page.dart';
 import '../features/ledger/presentation/bill_manage_page.dart';
-import '../features/ledger/presentation/bill_screenshot_page.dart';
 import '../features/ledger/presentation/category_transactions_page.dart';
 import '../features/ledger/presentation/ledger_page.dart';
 import '../features/lend/presentation/lend_page.dart';
@@ -88,7 +87,6 @@ abstract final class Routes {
   static const String billExport = '/bill-export';
   static const String billImport = '/bill-import';
   static const String billClean = '/bill-clean';
-  static const String screenshotImport = '/screenshot-import';
 
   static const String settings = '/settings';
   static const String record = '/record';
@@ -305,11 +303,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           initialDraft:
               state.extra is ParseResult ? state.extra as ParseResult : null,
         ),
-      ),
-      // 从截图导入（账单管理入口）：选图 → 云端识别 → 跳确认页。
-      GoRoute(
-        path: Routes.screenshotImport,
-        builder: (_, __) => const BillScreenshotPage(),
       ),
       // 账单清理（账单管理入口）：批量勾选删除，余额同步回退。
       GoRoute(

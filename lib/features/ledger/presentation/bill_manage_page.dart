@@ -66,14 +66,6 @@ class BillManagePage extends StatelessWidget {
                 onTap: () => context.push(Routes.billImport),
               ),
               _RowItem(
-                icon: Icons.camera_alt_outlined,
-                iconBg: AppPalette.greenTintBg,
-                iconColor: AppPalette.ctaGreen,
-                label: '从截图导入',
-                subtitle: '拍照 / 相册自动识别账单',
-                onTap: () => context.push(Routes.screenshotImport),
-              ),
-              _RowItem(
                 icon: Icons.cloud_download_outlined,
                 iconBg: AppPalette.goldSoft,
                 iconColor: AppPalette.amber,
