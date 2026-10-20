@@ -41,7 +41,6 @@ const List<_DefaultCategory> _defaultExpenseCategories = <_DefaultCategory>[
     _DefaultCategory('午餐', 'lunch', 0),
     _DefaultCategory('晚餐', 'dinner', 0),
     _DefaultCategory('饮品', 'beverage', 0),
-    _DefaultCategory('团购券', 'groupbuy', 0),
     _DefaultCategory('风味小吃', 'street_food', 0),
   ]),
   _DefaultCategory('购物', 'shopping', 0xFFB86A9E, <_DefaultCategory>[
@@ -92,6 +91,7 @@ const List<_DefaultCategory> _defaultExpenseCategories = <_DefaultCategory>[
     _DefaultCategory('送礼', 'gift', 0),
   ]),
   _DefaultCategory('宠物', 'pet', 0xFF7E9B6B, <_DefaultCategory>[
+    _DefaultCategory('宠物', 'pet', 0),
     _DefaultCategory('宠物食品', 'pet_food', 0),
     _DefaultCategory('宠物用品', 'pet_supply', 0),
     _DefaultCategory('宠物医疗', 'pet_medical', 0),
@@ -310,6 +310,37 @@ Future<void> _retireLegacyDefaultCategories(AppDatabase db) async {
     final CategoryRepository repo = CategoryRepository(db);
     for (final Category c in rows) {
       await repo.remove(c.id);
+    }
+  }
+
+  // 「团购券」二级下线（幂等，2026-10-20 口径调整）：默认分类树不再内置
+  // 「餐饮.团购券」——团购是支付渠道属性而非消费类型，改由标签「团购券」
+  // 标记（流水按实际消费类型入账）。仅软删「餐饮」一级下的同名二级
+  // （按 parentId 精确匹配，不碰用户自建的「团购券」分类）；已有流水
+  // 引用保留、分类列表不再显示。groupbuy 图标键保留注册，可按需引用。
+  final List<Category> diningRows = await (db.select(db.categories)
+        ..where(
+          (Categories t) =>
+              t.name.equals('餐饮') &
+              t.type.equals(CategoryType.expense.index) &
+              t.parentId.isNull() &
+              t.deleted.equals(false),
+        ))
+      .get();
+  if (diningRows.isNotEmpty) {
+    final CategoryRepository repo = CategoryRepository(db);
+    for (final Category dining in diningRows) {
+      final List<Category> couponRows = await (db.select(db.categories)
+            ..where(
+              (Categories t) =>
+                  t.name.equals('团购券') &
+                  t.parentId.equals(dining.id) &
+                  t.deleted.equals(false),
+            ))
+          .get();
+      for (final Category c in couponRows) {
+        await repo.remove(c.id);
+      }
     }
   }
 
@@ -1364,6 +1395,41 @@ Future<void> _rebuildExpenseCategoryTree(AppDatabase db) async {
             updatedAt: Value<int>(now),
           ),
         );
+      }
+
+      // 「宠物」分区二级重排（2026-10-20）：「宠物」提到首位，其余默认子类按
+      // 默认顺序跟随；自定义子类保持原相对顺序排在其后。对存量库幂等生效。
+      if (def.name == '宠物') {
+        final List<Category> pets = await (db.select(db.categories)
+              ..where(
+                (tbl) =>
+                    tbl.parentId.equals(parentId) & tbl.deleted.equals(false),
+              ))
+            .get();
+        const List<String> petDefaultOrder = <String>[
+          '宠物',
+          '宠物食品',
+          '宠物用品',
+          '宠物医疗',
+          '宠物服务',
+        ];
+        final List<Category> ordered = <Category>[
+          for (final String n in petDefaultOrder)
+            ...pets.where((Category c) => c.name == n),
+          ...pets.where((Category c) => !petDefaultOrder.contains(c.name)),
+        ];
+        for (int i = 0; i < ordered.length; i++) {
+          if (ordered[i].sortOrder == i) continue;
+          await (db.update(db.categories)
+                ..where((tbl) => tbl.id.equals(ordered[i].id)))
+              .write(
+            CategoriesCompanion(
+              sortOrder: Value<int>(i),
+              updatedAt: Value<int>(now),
+              dirty: const Value<bool>(true),
+            ),
+          );
+        }
       }
     }
   }

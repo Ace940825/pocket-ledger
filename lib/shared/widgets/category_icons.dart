@@ -20,6 +20,8 @@ final List<CategoryIconOption> categoryIconOptions = <CategoryIconOption>[
   const CategoryIconOption(key: 'lunch', label: '午餐'),
   const CategoryIconOption(key: 'dinner', label: '晚餐'),
   const CategoryIconOption(key: 'beverage', label: '饮品'),
+  // 注意：「团购券」默认二级分类已从分类树移除（2026-10-20，团购属支付
+  // 渠道属性，改由标签标记）；groupbuy 图标键保留注册，可按需引用。
   const CategoryIconOption(key: 'groupbuy', label: '团购券'),
   const CategoryIconOption(key: 'street_food', label: '风味小吃'),
   const CategoryIconOption(key: 'daily', label: '日常'),
@@ -129,8 +131,9 @@ final List<CategoryIconOption> categoryIconOptions = <CategoryIconOption>[
   const CategoryIconOption(key: 'knowledge', label: '知识付费'),
   const CategoryIconOption(key: 'stationery', label: '图文工具'),
 
-  // 宠物 Pet（pets/pet_food→pet 已去重）
+  // 宠物 Pet（pet=狗头 / pet_food=食碗，2026-10-20 拆分去重）
   const CategoryIconOption(key: 'pet', label: '宠物'),
+  const CategoryIconOption(key: 'pet_food', label: '宠物食品'),
   const CategoryIconOption(key: 'pet_supply', label: '宠物用品'),
   const CategoryIconOption(key: 'pet_medical', label: '宠物医疗'),
   const CategoryIconOption(key: 'pet_service', label: '宠物服务'),

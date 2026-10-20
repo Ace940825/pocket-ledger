@@ -96,7 +96,8 @@ enum LineIconKind {
   knowledge, // 知识付费
   stationery, // 图文工具
   // 宠物 Pet
-  petFood, // 宠物
+  pet, // 宠物
+  petFood, // 宠物食品
   petSupply, // 宠物用品
   petMedical, // 宠物医疗
   petService, // 宠物服务
@@ -367,7 +368,7 @@ LineIconKind? categoryLineKind(String? iconKey) {
     'social' => LineIconKind.giftRibbon,
     'red_packet' => LineIconKind.redPacket,
     // 宠物 Pet
-    'pet' || 'pets' => LineIconKind.petFood,
+    'pet' || 'pets' => LineIconKind.pet,
     'pet_food' => LineIconKind.petFood,
     'pet_supply' => LineIconKind.petSupply,
     'pet_medical' => LineIconKind.petMedical,
@@ -653,6 +654,8 @@ class _LineIconPainter extends CustomPainter {
         _knowledge(path);
       case LineIconKind.stationery:
         _stationery(path);
+      case LineIconKind.pet:
+        _pet(path);
       case LineIconKind.petFood:
         _petFood(path);
       case LineIconKind.petSupply:
@@ -1964,7 +1967,26 @@ class _LineIconPainter extends CustomPainter {
     _line(p, 8, 16.5, 10, 18.5);
   }
 
-  /// 宠物（Pet）。
+  /// 宠物（Pet）：狗头——圆脸 + 两只垂耳 + 眼鼻。
+  void _pet(Path p) {
+    // 头部圆。
+    p.addOval(Rect.fromCircle(center: const Offset(12, 14), radius: 5.5));
+    // 左垂耳。
+    p.moveTo(7.6, 10.4);
+    p.quadraticBezierTo(5.2, 5.2, 8.8, 6.2);
+    p.quadraticBezierTo(10.4, 7.2, 9.8, 9.6);
+    // 右垂耳（对称）。
+    p.moveTo(16.4, 10.4);
+    p.quadraticBezierTo(18.8, 5.2, 15.2, 6.2);
+    p.quadraticBezierTo(13.6, 7.2, 14.2, 9.6);
+    // 眼睛。
+    p.addOval(Rect.fromCircle(center: const Offset(9.9, 13), radius: 0.7));
+    p.addOval(Rect.fromCircle(center: const Offset(14.1, 13), radius: 0.7));
+    // 鼻头。
+    p.addOval(Rect.fromCircle(center: const Offset(12, 15.8), radius: 0.9));
+  }
+
+  /// 宠物食品（Pet Food）。
   void _petFood(Path p) {
     p.moveTo(5, 12);
     p.lineTo(19, 12);
