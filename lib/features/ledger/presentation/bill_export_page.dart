@@ -5,24 +5,27 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../../features/ledger/data/transaction_repository.dart';
 import '../../../providers/app_providers.dart';
-
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/line_icon_map.dart';
+import '../../../shared/widgets/line_icons.dart';
+import '../../../shared/widgets/sheet_drag_handle.dart';
 import '../../../theme/app_colors.dart';
-import '../../../features/ledger/data/transaction_repository.dart';
 import '../../accounts/providers/accounts_providers.dart';
-import '../../lend/providers/lend_providers.dart';
-import '../../savings/data/savings_repository.dart';
-import '../../savings/providers/savings_providers.dart';
 import '../../installment/data/installment_repository.dart';
 import '../../installment/providers/installment_providers.dart';
 import '../../investment/data/investment_repository.dart';
 import '../../investment/providers/investment_providers.dart';
+import '../../lend/providers/lend_providers.dart';
+import '../../savings/data/savings_repository.dart';
+import '../../savings/providers/savings_providers.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
 import '../providers/ledger_providers.dart';
@@ -58,9 +61,12 @@ String _fmtPrice(int minor) {
 
 /// 「账单管理 → 账单导出」页。
 ///
-/// 把当前账本全部账单（含转账）导出为 CSV / JSON：写入应用 Documents 目录，
-/// 并支持一键复制文本内容（用于粘贴到微信 / 备忘录等）。不依赖系统分享组件，
-/// 在 iOS 沙盒下也能稳定工作。
+/// 对标小青账版式（2026-10-20）：头部卡（图标 + 标题，无帮助键）→ 信息条 →
+/// 「时间选择」卡（开始/结束时间，默认本月 1 日 ~ 今天）→ 底部渐变按钮
+/// 「选择导出方式」拉起底部弹层（CSV / JSON 格式选择 + 下载空白模板 +
+/// 保存到文件）。导出内容 = 所选时间范围内的全部账单（含转账）。
+/// 写入应用 Documents 目录，并支持一键复制文本内容（用于粘贴到微信 /
+/// 备忘录等）。不依赖系统分享组件，在 iOS 沙盒下也能稳定工作。
 class BillExportPage extends ConsumerStatefulWidget {
   const BillExportPage({super.key});
 
@@ -77,6 +83,32 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
 
   /// 当前 [_content] 是否为空白模板（影响结果卡徽标文案）。
   bool _isTemplate = false;
+
+  /// 导出时间范围（本地日）。默认本月 1 日 ~ 今天，对标小青账「时间选择」。
+  late DateTime _start = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  late DateTime _end = DateTime.now();
+
+  /// 导入日期（showDatePicker 中文本地化），保证结束不早于开始。
+  Future<void> _pickDate({required bool isStart}) async {
+    final DateTime initial = isStart ? _start : _end;
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: isStart ? '选择开始时间' : '选择结束时间',
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isStart) {
+        _start = picked;
+        if (_end.isBefore(_start)) _end = _start;
+      } else {
+        _end = picked;
+        if (_end.isBefore(_start)) _start = _end;
+      }
+    });
+  }
 
   Future<void> _export() async {
     if (_busy) return;
@@ -105,8 +137,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
 
       // 借还流水（sourceModule=lend）的「对方」来自关联的借还记录——建
       // relatedId → counterparty 映射，使导出 → 再导入能无损往返落到借还台账。
-      final Map<String, String> lendCounterparty =
-          <String, String>{};
+      final Map<String, String> lendCounterparty = <String, String>{};
       if (txns.any((Transaction t) => t.sourceModule == SourceModule.lend)) {
         final List<LendRecord> lendRecords =
             await ref.read(lendRepositoryProvider).watch(currentBookId).first;
@@ -123,8 +154,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       final List<SavingsDeposit> savingsLedger = <SavingsDeposit>[];
       if (txns.any((Transaction t) => t.sourceModule == SourceModule.savings)) {
         final SavingsRepository sRepo = ref.read(savingsRepositoryProvider);
-        final List<SavingsGoal> goals =
-            await sRepo.watch(currentBookId).first;
+        final List<SavingsGoal> goals = await sRepo.watch(currentBookId).first;
         for (final SavingsGoal g in goals) {
           savingsGoalNameById[g.id] = g.name;
         }
@@ -174,10 +204,10 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             excludeFromStats: t.excludeFromStats,
             note: t.note,
             currency: t.currency,
-            counterparty: t.sourceModule == SourceModule.lend &&
-                    t.relatedId != null
-                ? lendCounterparty[t.relatedId]
-                : null,
+            counterparty:
+                t.sourceModule == SourceModule.lend && t.relatedId != null
+                    ? lendCounterparty[t.relatedId]
+                    : null,
           ),
         );
       }
@@ -211,8 +241,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
           currency = linked.currency;
         } else {
           // 纯台账灵活存入：无联动流水，类型默认支出、账户留空，日期取台账存入时间。
-          date = DateTime.fromMillisecondsSinceEpoch(d.depositedAt,
-                  isUtc: true)
+          date = DateTime.fromMillisecondsSinceEpoch(d.depositedAt, isUtc: true)
               .toLocal();
           type = TxnType.expense;
           accountName = '';
@@ -285,7 +314,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       // 期次还款转账 relatedId = '${period.id}#repay'；还款转账类型=转账、账户=扣款账户、
       // toAccount=负债付款账户、备注=计划名（与导入分组键一致）。「分期订单」支出由
       // 导入时 addPlan 自动 postDuePeriods 重建，此处不写。
-      if (txns.any((Transaction t) => t.sourceModule == SourceModule.installment)) {
+      if (txns
+          .any((Transaction t) => t.sourceModule == SourceModule.installment)) {
         final InstallmentRepository instRepo =
             ref.read(installmentRepositoryProvider);
         final List<InstallmentPlan> instPlans =
@@ -318,9 +348,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               currency = repay.currency;
             } else {
               // 理论不会发生：导入必建还款转账；兜底写期次本身（无扣款账户）。
-              date = DateTime.fromMillisecondsSinceEpoch(period.dueAt,
-                      isUtc: true)
-                  .toLocal();
+              date =
+                  DateTime.fromMillisecondsSinceEpoch(period.dueAt, isUtc: true)
+                      .toLocal();
               amountMinor = period.amountMinor;
               accountName = '';
               discountMinor = 0;
@@ -361,7 +391,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       // 备注=`名称@单价`(+ 用户备注)、手续费=feeMinor（独立于优惠列，避免混写）；金额
       // 还原为「成交净金额」（买入流水额含费 → 减费；卖出流水额已扣费 → 加费），
       // 使再导入份额精确还原。
-      if (txns.any((Transaction t) => t.sourceModule == SourceModule.investment)) {
+      if (txns
+          .any((Transaction t) => t.sourceModule == SourceModule.investment)) {
         final InvestmentRepository investRepo =
             ref.read(investmentRepositoryProvider);
         final List<InvestmentHolding> holdings =
@@ -413,6 +444,19 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             );
           }
         }
+      }
+
+      // 仅导出所选时间范围内的账单（本地日，含起止当天）。
+      final DateTime startDay = DateTime(_start.year, _start.month, _start.day);
+      final DateTime endDay = DateTime(_end.year, _end.month, _end.day);
+      rows.retainWhere((BillRow r) {
+        final DateTime day =
+            DateTime(r.occurredAt.year, r.occurredAt.month, r.occurredAt.day);
+        return !day.isBefore(startDay) && !day.isAfter(endDay);
+      });
+      if (rows.isEmpty) {
+        if (mounted) showAppToast(context, '所选时间范围内没有账单');
+        return;
       }
 
       final String content = _asJson ? buildJson(rows) : buildCsv(rows);
@@ -528,44 +572,13 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 AppDimens.lg,
               ),
               children: <Widget>[
-                _formatCard(),
+                _headerCard(),
                 const SizedBox(height: AppDimens.sm),
-                // 模板系统（2026-10-18）：提供统一空白模板供用户填写，
-                // 与导出字段结构一致，导入时按分类/账户/时间自动匹配校验。
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _busy ? null : _downloadTemplate,
-                    icon: const LineGlyph(Icons.download_outlined, size: 18),
-                    label: const Text('下载空白填写模板（含字段说明）'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppPalette.ctaGreen,
-                      side: const BorderSide(color: AppPalette.ctaGreen),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppDimens.md),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppPalette.softGreen,
-                    borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-                  ),
-                  padding: const EdgeInsets.all(AppDimens.md),
-                  child: Text(
-                    '导出当前账本全部账单（含转账）。点「保存到文件」选本地位置存为 '
-                    'CSV / JSON 文件；下方「复制内容」可把文本粘贴到微信 / 备忘录等作他用。',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
+                _infoStrip(),
+                const SizedBox(height: AppDimens.sm),
+                _timeRangeCard(),
                 if (_content != null) ...<Widget>[
-                  const SizedBox(height: AppDimens.lg),
+                  const SizedBox(height: AppDimens.md),
                   _resultCard(),
                 ],
               ],
@@ -577,7 +590,93 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
     );
   }
 
-  Widget _formatCard() {
+  /// 头部卡（对标小青账）：鼠尾草绿渐变 + 图标 + 标题/副标题，无帮助键。
+  Widget _headerCard() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: ForestGradients.sage,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+      ),
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppPalette.white.withValues(alpha: 0.22),
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            ),
+            child: const Center(
+              child: LineIcon(LineIconKind.send, size: 24, color: AppPalette.white),
+            ),
+          ),
+          const SizedBox(width: AppDimens.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  '账单导出',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppPalette.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '导出当前账本账单，便于备份与迁移',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppPalette.white.withValues(alpha: 0.92),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 信息条（替代原绿色解释盒）：一句话说明用途，保持极简。
+  Widget _infoStrip() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppPalette.softGreen,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.md,
+        vertical: AppDimens.sm,
+      ),
+      child: Row(
+        children: <Widget>[
+          const LineIcon(
+            LineIconKind.info,
+            size: 16,
+            color: AppPalette.sageRibbon,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '导出所选时间范围内的全部账单（含转账），支持 CSV / JSON。',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.4,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 时间选择卡（对标小青账「时间选择」）：开始 / 结束时间两行，点击拉起
+  /// 中文本地化日期选择器。默认本月 1 日 ~ 今天（见 [_start]/[_end]）。
+  Widget _timeRangeCard() {
     return Container(
       decoration: BoxDecoration(
         color: AppPalette.white,
@@ -590,7 +689,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Text(
-              '导出格式',
+              '时间范围',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -598,20 +697,61 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               ),
             ),
           ),
-          _formatRow(
-            title: 'CSV 表格',
-            subtitle: '用 Excel /  Numbers 打开，便于查看与二次编辑',
-            selected: !_asJson,
-            onTap: () => setState(() => _asJson = false),
+          _timeRow(
+            label: '开始时间',
+            date: _start,
+            onTap: () => _pickDate(isStart: true),
           ),
           const Divider(height: 1, indent: 16, color: AppPalette.divider),
-          _formatRow(
-            title: 'JSON 数据',
-            subtitle: '保留完整字段，便于与本 App 再次导入往返',
-            selected: _asJson,
-            onTap: () => setState(() => _asJson = true),
+          _timeRow(
+            label: '结束时间',
+            date: _end,
+            onTap: () => _pickDate(isStart: false),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _timeRow({
+    required String label,
+    required DateTime date,
+    required VoidCallback onTap,
+  }) {
+    final DateFormat fmt = DateFormat('yyyy年M月d日');
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    fmt.format(date),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const LineGlyph(Icons.chevron_right, size: 18),
+          ],
+        ),
       ),
     );
   }
@@ -740,22 +880,6 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               ),
             ),
           ),
-          const SizedBox(height: AppDimens.sm),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _copy,
-              icon: const LineGlyph(Icons.copy_outlined, size: 18),
-              label: const Text('复制全部内容'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppPalette.ctaGreen,
-                side: const BorderSide(color: AppPalette.ctaGreen),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -772,25 +896,160 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       child: SizedBox(
         width: double.infinity,
         height: 48,
-        child: ElevatedButton(
-          onPressed: _busy ? null : _export,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppPalette.ctaGreen,
-            foregroundColor: AppPalette.white,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: ForestGradients.button,
+            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            boxShadow: ForestElevation.float,
+          ),
+          child: Material(
+            color: Colors.transparent, // ignore: no_raw_colors
+            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              onTap: _showExportSheet,
+              child: const Center(
+                child: Text(
+                  '选择导出方式',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 底部弹层（对标小青账「导出格式」）：CSV / JSON 格式选择 + 下载空白模板 +
+  /// 保存为文件 + 复制全部内容。格式选择用 [StatefulBuilder] 即时刷新选中态。
+  Future<void> _showExportSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppPalette.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppDimens.radiusCard),
+        ),
+      ),
+      builder: (BuildContext ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext ctx, StateSetter setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimens.lg,
+                  0,
+                  AppDimens.lg,
+                  AppDimens.lg,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Center(child: SheetDragHandle()),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
+                      child: Text(
+                        '导出格式',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    _formatRow(
+                      title: 'CSV 表格',
+                      subtitle: '用 Excel / Numbers 打开，便于查看与二次编辑',
+                      selected: !_asJson,
+                      onTap: () {
+                        setState(() => _asJson = false);
+                        setSheetState(() {});
+                      },
+                    ),
+                    const Divider(height: 1, color: AppPalette.divider),
+                    _formatRow(
+                      title: 'JSON 数据',
+                      subtitle: '保留完整字段，便于与本 App 再次导入往返',
+                      selected: _asJson,
+                      onTap: () {
+                        setState(() => _asJson = true);
+                        setSheetState(() {});
+                      },
+                    ),
+                    const SizedBox(height: AppDimens.md),
+                    _sheetActionRow(
+                      icon: Icons.cloud_download_outlined,
+                      label: '下载空白填写模板（含字段说明）',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _downloadTemplate();
+                      },
+                    ),
+                    _sheetActionRow(
+                      icon: Icons.save_outlined,
+                      label: '保存为文件',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _export();
+                      },
+                      busy: _busy,
+                    ),
+                    _sheetActionRow(
+                      icon: Icons.copy_outlined,
+                      label: '复制全部内容',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _copy();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 弹层内的操作行（线稿图标 + 文字），统一描边绿胶囊按钮。
+  Widget _sheetActionRow({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool busy = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppDimens.sm),
+      child: SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: OutlinedButton.icon(
+          onPressed: busy ? null : onTap,
+          icon: busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppPalette.ctaGreen,
+                  ),
+                )
+              : LineGlyph(icon, size: 18),
+          label: Text(label),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppPalette.ctaGreen,
+            side: const BorderSide(color: AppPalette.ctaGreen),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
             ),
           ),
-          child: _busy
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppPalette.white,
-                  ),
-                )
-              : const Text('保存到文件'),
         ),
       ),
     );
