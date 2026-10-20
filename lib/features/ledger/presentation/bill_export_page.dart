@@ -83,8 +83,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
   late DateTime _start = DateTime(DateTime.now().year, DateTime.now().month, 1);
   late DateTime _end = DateTime.now();
 
-  /// 选日期：统一走共享组件 [CalendarSheet]（纯日模式：无时间拨盘、无
-  /// 自定义区间 chip），保证结束不早于开始。
+  /// 选日期：统一走共享组件 [CalendarSheet]（纯日模式：无时间拨盘；保留
+  /// 「自定义」区间 chip——选区间则同时写入开始/结束）。单选日时保证结束
+  /// 不早于开始。
   Future<void> _pickDate({required bool isStart}) async {
     final DateTime initial = isStart ? _start : _end;
     final CalendarSelection? picked = await CalendarSheet.show(
@@ -93,9 +94,16 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       initialDate: initial,
       headerTitle: isStart ? '选择开始时间' : '选择结束时间',
       showTime: false,
-      showCustomRange: false,
+      showCustomRange: true,
       weekStart: CalendarWeekStart.monday,
     );
+    if (picked is CalendarRange) {
+      setState(() {
+        _start = picked.start;
+        _end = picked.end;
+      });
+      return;
+    }
     if (picked is! CalendarDay) return;
     final DateTime day = picked.date;
     setState(() {
@@ -584,8 +592,11 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
             ),
             child: const Center(
-              child: LineIcon(LineIconKind.send,
-                  size: 24, color: AppPalette.white),
+              child: LineIcon(
+                LineIconKind.send,
+                size: 24,
+                color: AppPalette.white,
+              ),
             ),
           ),
           const SizedBox(width: AppDimens.md),
