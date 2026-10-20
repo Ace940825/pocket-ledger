@@ -51,8 +51,11 @@ app.*.map.json
 # Android Gradle 构建产物
 /android/build/
 
-# 本地密钥（百炼 API Key 等 --dart-define-from-file 注入），严禁提交
+# 本地密钥（百炼 API Key / Cloudflare 同步令牌等），严禁提交
+#   - ocr_keys.json      ：旧的 --dart-define-from-file 注入用，已废弃，可删
+#   - secrets.dart       ：现内置密钥源（截图 OCR + 云同步令牌），编译进 app 二进制
 /ocr_keys.json
+/lib/core/config/secrets.dart
 
 # 合并冲突解决时留下的备份残片（.premerge.bak 等），非源码
 *.premerge.bak

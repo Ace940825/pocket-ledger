@@ -66,6 +66,16 @@ jobs:
       - name: 安装依赖
         run: flutter pub get
 
+      # 内置密钥文件（lib/core/config/secrets.dart）被 .gitignore 忽略、不进仓库，
+      # 本地用真实值、CI 全新检出时为缺省。缺省时从已提交的 secrets.example.dart
+      # 补一个占位文件，保证 flutter analyze / 构建不因缺失该文件而失败
+      # （占位下 OCR / 云同步在 CI 包里处于未配置态，CI 产物仅供分发，不影响本地出包）。
+      - name: 确保内置密钥文件存在
+        run: |
+          if [ ! -f lib/core/config/secrets.dart ]; then
+            cp lib/core/config/secrets.example.dart lib/core/config/secrets.dart
+          fi
+
       # ---------------------------------------------------------------
       # 质量闸门：代码不健康就不往下走，避免浪费 15 分钟打出个坏包
       # ---------------------------------------------------------------

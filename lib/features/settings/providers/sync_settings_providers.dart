@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/config/env.dart';
+import '../../../core/config/secrets.dart';
 import '../../../providers/app_providers.dart';
 import '../data/sync_settings.dart';
 
@@ -23,14 +24,30 @@ class SyncSettingsController extends AsyncNotifier<SyncSettings> {
   Future<SyncSettings> build() async {
     final FlutterSecureStorage storage = ref.watch(secureStorageProvider);
 
-    final String? enabled = await storage.read(key: Env.syncEnabledStorageKey);
-    final String? baseUrl = await storage.read(key: Env.syncBaseUrlStorageKey);
-    final String? token = await storage.read(key: Env.syncTokenStorageKey);
+    final String? enabledStored =
+        await storage.read(key: Env.syncEnabledStorageKey);
+    final String? baseUrlStored =
+        await storage.read(key: Env.syncBaseUrlStorageKey);
+    final String? tokenStored =
+        await storage.read(key: Env.syncTokenStorageKey);
+
+    // 内置凭据（gitignored 的 secrets.dart）作为默认值：用户未在设置页手动填时，
+    // 直接用内置端点 + 令牌，云同步开箱可用，无需手动填任何 key。
+    final String baseUrl =
+        (baseUrlStored?.isNotEmpty == true) ? baseUrlStored! : builtInSyncBaseUrl;
+    final String token =
+        (tokenStored?.isNotEmpty == true) ? tokenStored! : builtInSyncToken;
+
+    // 未显式关闭（stored=='false'）时：若内置凭据齐全则默认开启云同步；
+    // 用户已在设置页显式开启/关闭则以存储值为准。
+    final bool enabled = enabledStored == 'false'
+        ? false
+        : (enabledStored == 'true' ? true : (baseUrl.isNotEmpty && token.isNotEmpty));
 
     return SyncSettings(
-      enabled: enabled == 'true',
-      baseUrl: baseUrl ?? '',
-      token: token ?? '',
+      enabled: enabled,
+      baseUrl: baseUrl,
+      token: token,
     );
   }
 

@@ -104,9 +104,9 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
                   ),
                   padding: const EdgeInsets.all(AppDimens.md),
                   child: const Text(
-                    '识别服务尚未配置：请在设置页填入阿里云百炼 API Key，'
-                    '或在出包时加 '
-                    '--dart-define=SCREENSHOT_OCR_API_KEY=<你的Key> 注入。',
+                    '识别服务尚未配置：内置密钥为空，请检查 '
+                    'lib/core/config/secrets.dart 中的 builtInOcrApiKey'
+                    '（或用 --dart-define=SCREENSHOT_OCR_API_KEY 覆盖）。',
                     style: TextStyle(
                       fontSize: 12.5,
                       color: AppPalette.expense,

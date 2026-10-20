@@ -3,15 +3,18 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/config/secrets.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import 'bill_io.dart';
 
 /// 截图识别后端：阿里云百炼 Qwen-VL（OpenAI 兼容视觉接口，大陆网络可达）。
 ///
-/// 三项均可经 [--dart-define] 覆盖：
+/// 端点与模型有硬编码默认值，开箱即用；API Key 内置（见 [builtInOcrApiKey]，
+/// 来自 gitignored 的 `lib/core/config/secrets.dart`，编译进 app 二进制）。
+/// 三项仍可用 [--dart-define] 覆盖（便于临时切换密钥/端点而不改源码）：
 ///   SCREENSHOT_OCR_ENDPOINT  接口地址（默认百炼兼容模式 chat/completions）
-///   SCREENSHOT_OCR_API_KEY   API Key（必填，否则视为未配置）
+///   SCREENSHOT_OCR_API_KEY   内置密钥为空时，可用此覆盖
 ///   SCREENSHOT_OCR_MODEL     视觉模型名（默认 qwen3-vl-plus）
 const String kScreenshotOcrEndpoint = String.fromEnvironment(
   'SCREENSHOT_OCR_ENDPOINT',
@@ -21,7 +24,7 @@ const String kScreenshotOcrEndpoint = String.fromEnvironment(
 
 const String kScreenshotOcrApiKey = String.fromEnvironment(
   'SCREENSHOT_OCR_API_KEY',
-  defaultValue: '',
+  defaultValue: builtInOcrApiKey,
 );
 
 const String kScreenshotOcrModel = String.fromEnvironment(
@@ -40,15 +43,15 @@ class ScreenshotOcrService {
 
   static const ScreenshotOcrService instance = ScreenshotOcrService._();
 
-  /// 是否已正确配置（API Key 为空视为未配置）。
+  /// 是否已正确配置（内置或 --dart-define 覆盖了 API Key 才视为已配置）。
   bool get isConfigured => kScreenshotOcrApiKey.isNotEmpty;
 
   /// 识别一组截图，返回与 [parseInput] 同构的 [ParseResult]。
   Future<ParseResult> recognize(List<XFile> images) async {
     if (!isConfigured) {
       return const ParseResult(<BillRow>[], <String>[
-        '识别服务未配置：请在设置页填入阿里云百炼 API Key，'
-            '或在出包时加 --dart-define=SCREENSHOT_OCR_API_KEY=<你的Key>。',
+        '识别服务未配置：内置密钥为空，请检查 lib/core/config/secrets.dart'
+            ' 中的 builtInOcrApiKey（或用 --dart-define=SCREENSHOT_OCR_API_KEY 覆盖）。',
       ]);
     }
     if (images.isEmpty) return const ParseResult(<BillRow>[], <String>[]);
