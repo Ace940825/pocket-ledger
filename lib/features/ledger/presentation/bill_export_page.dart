@@ -14,9 +14,10 @@ import '../../../domain/enums.dart';
 import '../../../features/ledger/data/transaction_repository.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
-import '../../../shared/widgets/sheet_drag_handle.dart';
+import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../installment/data/installment_repository.dart';
@@ -62,11 +63,11 @@ String _fmtPrice(int minor) {
 /// 「账单管理 → 账单导出」页。
 ///
 /// 对标小青账版式（2026-10-20）：头部卡（图标 + 标题，无帮助键）→ 信息条 →
-/// 「时间选择」卡（开始/结束时间，默认本月 1 日 ~ 今天）→ 底部渐变按钮
-/// 「选择导出方式」拉起底部弹层（CSV / JSON 格式选择 + 下载空白模板 +
-/// 保存到文件）。导出内容 = 所选时间范围内的全部账单（含转账）。
-/// 写入应用 Documents 目录，并支持一键复制文本内容（用于粘贴到微信 /
-/// 备忘录等）。不依赖系统分享组件，在 iOS 沙盒下也能稳定工作。
+/// 「时间选择」卡（开始/结束时间，默认本月 1 日 ~ 今天，点选拉起共享组件
+/// [CalendarSheet]）→ 底部渐变按钮「选择导出方式」拉起共享弹层外壳
+/// AppModalSheet（CSV / JSON 格式选择 + 下载空白模板 + 保存为文件）。
+/// 导出内容 = 所选时间范围内的全部账单（含转账），仅走文件导出/导入通道，
+/// 无文本预览/复制输出框。不依赖系统分享组件，在 iOS 沙盒下也能稳定工作。
 class BillExportPage extends ConsumerStatefulWidget {
   const BillExportPage({super.key});
 
@@ -77,34 +78,32 @@ class BillExportPage extends ConsumerStatefulWidget {
 class _BillExportPageState extends ConsumerState<BillExportPage> {
   bool _asJson = false;
   bool _busy = false;
-  String? _content;
-  String? _path;
-  int _count = 0;
-
-  /// 当前 [_content] 是否为空白模板（影响结果卡徽标文案）。
-  bool _isTemplate = false;
 
   /// 导出时间范围（本地日）。默认本月 1 日 ~ 今天，对标小青账「时间选择」。
   late DateTime _start = DateTime(DateTime.now().year, DateTime.now().month, 1);
   late DateTime _end = DateTime.now();
 
-  /// 导入日期（showDatePicker 中文本地化），保证结束不早于开始。
+  /// 选日期：统一走共享组件 [CalendarSheet]（纯日模式：无时间拨盘、无
+  /// 自定义区间 chip），保证结束不早于开始。
   Future<void> _pickDate({required bool isStart}) async {
     final DateTime initial = isStart ? _start : _end;
-    final DateTime? picked = await showDatePicker(
-      context: context,
+    final CalendarSelection? picked = await CalendarSheet.show(
+      context,
+      mode: CalendarSheetMode.day,
       initialDate: initial,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      helpText: isStart ? '选择开始时间' : '选择结束时间',
+      headerTitle: isStart ? '选择开始时间' : '选择结束时间',
+      showTime: false,
+      showCustomRange: false,
+      weekStart: CalendarWeekStart.monday,
     );
-    if (picked == null) return;
+    if (picked is! CalendarDay) return;
+    final DateTime day = picked.date;
     setState(() {
       if (isStart) {
-        _start = picked;
+        _start = day;
         if (_end.isBefore(_start)) _end = _start;
       } else {
-        _end = picked;
+        _end = day;
         if (_end.isBefore(_start)) _start = _end;
       }
     });
@@ -484,13 +483,6 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
         await File(outPath).writeAsString(content);
       }
-
-      setState(() {
-        _content = content;
-        _path = outPath;
-        _count = rows.length;
-        _isTemplate = false;
-      });
       if (mounted) showAppToast(context, '已保存到文件');
     } catch (e) {
       if (mounted) showAppToast(context, '导出失败：$e');
@@ -533,24 +525,12 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
         await File(outPath).writeAsString(content);
       }
-      setState(() {
-        _content = content;
-        _path = outPath;
-        _count = 0;
-        _isTemplate = true;
-      });
       if (mounted) showAppToast(context, '模板已保存，按说明填写后可导入');
     } catch (e) {
       if (mounted) showAppToast(context, '模板保存失败：$e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  Future<void> _copy() async {
-    if (_content == null) return;
-    await Clipboard.setData(ClipboardData(text: _content!));
-    if (mounted) showAppToast(context, '已复制全部内容');
   }
 
   @override
@@ -577,10 +557,6 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 _infoStrip(),
                 const SizedBox(height: AppDimens.sm),
                 _timeRangeCard(),
-                if (_content != null) ...<Widget>[
-                  const SizedBox(height: AppDimens.md),
-                  _resultCard(),
-                ],
               ],
             ),
           ),
@@ -608,7 +584,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
             ),
             child: const Center(
-              child: LineIcon(LineIconKind.send, size: 24, color: AppPalette.white),
+              child: LineIcon(LineIconKind.send,
+                  size: 24, color: AppPalette.white),
             ),
           ),
           const SizedBox(width: AppDimens.md),
@@ -820,71 +797,6 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
     );
   }
 
-  Widget _resultCard() {
-    final List<String> lines = _content!.split('\n');
-    final String preview = lines.length > 60
-        ? '${lines.take(60).join('\n')}\n…（共 ${lines.length} 行）'
-        : _content!;
-    return Container(
-      decoration: BoxDecoration(
-        color: AppPalette.white,
-        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-      ),
-      padding: const EdgeInsets.all(AppDimens.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppPalette.softGreen,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _isTemplate ? '空白模板' : '已导出 $_count 笔',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppPalette.ctaGreen,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppDimens.sm),
-          SelectableText(
-            _path ?? '',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppDimens.sm),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppDimens.sm),
-            decoration: BoxDecoration(
-              color: AppPalette.graySurface,
-              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-            ),
-            child: SelectableText(
-              preview,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontFamily: 'RobotoMono',
-                color: Theme.of(context).colorScheme.onSurface,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _actionBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -925,96 +837,60 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
     );
   }
 
-  /// 底部弹层（对标小青账「导出格式」）：CSV / JSON 格式选择 + 下载空白模板 +
-  /// 保存为文件 + 复制全部内容。格式选择用 [StatefulBuilder] 即时刷新选中态。
+  /// 底部弹层（共享外壳 AppModalSheet，2026-10-20）：CSV / JSON 格式选择 +
+  /// 下载空白模板 + 保存为文件。格式选择用 [StatefulBuilder] 即时刷新选中态。
   Future<void> _showExportSheet() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppPalette.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusCard),
-        ),
-      ),
-      builder: (BuildContext ctx) {
-        return StatefulBuilder(
-          builder: (BuildContext ctx, StateSetter setSheetState) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppDimens.lg,
-                  0,
-                  AppDimens.lg,
-                  AppDimens.lg,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Center(child: SheetDragHandle()),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
-                      child: Text(
-                        '导出格式',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(ctx).colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    _formatRow(
-                      title: 'CSV 表格',
-                      subtitle: '用 Excel / Numbers 打开，便于查看与二次编辑',
-                      selected: !_asJson,
-                      onTap: () {
-                        setState(() => _asJson = false);
-                        setSheetState(() {});
-                      },
-                    ),
-                    const Divider(height: 1, color: AppPalette.divider),
-                    _formatRow(
-                      title: 'JSON 数据',
-                      subtitle: '保留完整字段，便于与本 App 再次导入往返',
-                      selected: _asJson,
-                      onTap: () {
-                        setState(() => _asJson = true);
-                        setSheetState(() {});
-                      },
-                    ),
-                    const SizedBox(height: AppDimens.md),
-                    _sheetActionRow(
-                      icon: Icons.cloud_download_outlined,
-                      label: '下载空白填写模板（含字段说明）',
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _downloadTemplate();
-                      },
-                    ),
-                    _sheetActionRow(
-                      icon: Icons.save_outlined,
-                      label: '保存为文件',
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _export();
-                      },
-                      busy: _busy,
-                    ),
-                    _sheetActionRow(
-                      icon: Icons.copy_outlined,
-                      label: '复制全部内容',
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _copy();
-                      },
-                    ),
-                  ],
-                ),
+    await showAppModalSheet<void>(
+      context,
+      title: '导出格式',
+      isScrollControlled: true,
+      body: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSheetState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _formatRow(
+                title: 'CSV 表格',
+                subtitle: '用 Excel / Numbers 打开，便于查看与二次编辑',
+                selected: !_asJson,
+                onTap: () {
+                  setState(() => _asJson = false);
+                  setSheetState(() {});
+                },
               ),
-            );
-          },
-        );
-      },
+              const Divider(height: 1, color: AppPalette.divider),
+              _formatRow(
+                title: 'JSON 数据',
+                subtitle: '保留完整字段，便于与本 App 再次导入往返',
+                selected: _asJson,
+                onTap: () {
+                  setState(() => _asJson = true);
+                  setSheetState(() {});
+                },
+              ),
+              const SizedBox(height: AppDimens.md),
+              _sheetActionRow(
+                icon: Icons.cloud_download_outlined,
+                label: '下载空白填写模板（含字段说明）',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _downloadTemplate();
+                },
+              ),
+              _sheetActionRow(
+                icon: Icons.save_outlined,
+                label: '保存为文件',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _export();
+                },
+                busy: _busy,
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
