@@ -135,9 +135,21 @@ void main() {
     test('云闪付自动账户名提取末四位', () {
       expect(extractCardLast4('银行卡尾号1234'), '1234');
     });
-    test('非云闪付账户名返回 null', () {
+    test('非卡号账户名返回 null', () {
       expect(extractCardLast4('招商银行储蓄卡'), isNull);
       expect(extractCardLast4('零钱'), isNull);
+      expect(extractCardLast4('余额宝'), isNull);
+      expect(extractCardLast4('花呗'), isNull);
+    });
+    test('支付宝/微信括号卡号提取末四位（半角）', () {
+      expect(extractCardLast4('招商银行储蓄卡(1234)'), '1234');
+      expect(extractCardLast4('建设银行信用卡(5678)'), '5678');
+    });
+    test('支付宝/微信括号卡号（全角括号）', () {
+      expect(extractCardLast4('招商银行信用卡（5678）'), '5678');
+    });
+    test('多组括号取最后一组', () {
+      expect(extractCardLast4('旧卡(1111)新卡(2222)'), '2222');
     });
   });
 

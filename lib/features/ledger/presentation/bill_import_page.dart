@@ -763,7 +763,8 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     final String? cached = cache[key];
     if (cached != null) return cached;
 
-    // 云闪付「银行卡尾号XXXX」：优先按卡号末四位匹配现有账户
+    // 第三方账单卡号账户名（云闪付「银行卡尾号XXXX」、支付宝/微信
+    // 「招商银行储蓄卡(1234)」等）：优先按卡号末四位匹配现有账户
     // （账户名含卡号，或账户 cardNumber 末四位一致），避免重复建户。
     final String? last4 = extractCardLast4(name);
     if (last4 != null) {
@@ -780,7 +781,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
         return a.id;
       }
     }
-    // 云闪付自动账户写入卡号，便于日后即使改名也能按卡号匹配；
+    // 第三方卡号账户新建时写入卡号，便于日后即使改名也能按卡号匹配；
     // 类型定为银行卡（而非默认 cash）。
     final AccountType effectiveType =
         last4 != null ? AccountType.bankCard : createType;

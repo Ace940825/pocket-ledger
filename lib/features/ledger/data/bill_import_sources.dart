@@ -51,9 +51,9 @@ extension ImportSourceX on ImportSource {
       case ImportSource.blankTemplate:
         return '按「模板」字段说明手动整理的 CSV / JSON 文件';
       case ImportSource.alipay:
-        return '支付宝 App / 网页导出的账单 CSV（GBK 自动识别）';
+        return '支付宝 App / 网页导出的账单 CSV（GBK 自动识别，银行卡账户按卡号末四位自动匹配现有账户）';
       case ImportSource.wechat:
-        return '微信「下载账单」导出的 CSV（自动跳过说明行）';
+        return '微信「下载账单」导出的 CSV（自动跳过说明行，银行卡账户按卡号末四位自动匹配现有账户）';
       case ImportSource.unionpay:
         return '云闪付 App「账单导出」的 CSV（按卡号末四位优先匹配现有账户）';
     }
@@ -120,6 +120,7 @@ String buildSourceTemplate(ImportSource source) {
         '# 获取路径：支付宝 App「我的-账单-…-开具交易流水证明」或网页版导出',
         '# 收/支：收入 / 支出 / 不计收支（不计收支将标记为不计收支统计）',
         '# 退款成功的行自动转为收入并加「退款」标记；关闭/失败/等待中的行自动跳过',
+        '# 收/付款方式列含银行卡(末四位)，如「招商银行储蓄卡(1234)」，将自动匹配现有账户',
         '记账日期,交易分类,交易对方,商品说明,收/支,金额,收/付款方式,交易状态,备注',
         '2026-10-01 12:00:00,餐饮美食,老王饭店,午餐,支出,25.00,余额,交易成功,',
       ].join('\n');
@@ -128,6 +129,7 @@ String buildSourceTemplate(ImportSource source) {
         '# 微信支付账单导入模板（可直接导入微信导出的原始 CSV，本模板供手动整理用）',
         '# 获取路径：微信「服务-钱包-账单-常见问题-下载账单」（邮件获取，UTF-8）',
         '# 收/支：收入 / 支出 / 其他（「/」视为不计收支）；全额退款行自动转为收入',
+        '# 支付方式列含银行卡(末四位)，如「招商银行储蓄卡(1234)」，将自动匹配现有账户',
         '交易时间,交易类型,交易对方,商品,收/支,金额(元),支付方式,当前状态,备注',
         '2026-10-01 12:00:00,商户消费,小区便利店,早餐,支出,12.50,零钱,支付成功,',
       ].join('\n');
@@ -306,13 +308,24 @@ ParseResult _parseThirdParty(
 
 // ───────────────────── 卡号末四位账户匹配 ─────────────────────
 
-/// 从云闪付自动账户名「银行卡尾号XXXX」中提取卡号末四位；非此类返回 null。
+/// 从第三方账单的账户名中提取卡号末四位，用于导入时优先匹配现有账户
+/// 而非盲目建户：
+/// - 云闪付自动账户名「银行卡尾号XXXX」；
+/// - 支付宝 / 微信「收/付款方式」列常见形态「招商银行储蓄卡(1234)」
+///   「招商银行信用卡（5678）」（半角 / 全角括号均可，取最后一组）。
 ///
-/// 仅用于识别本模块生成的自动账户名，便于导入时优先匹配现有账户而非盲目建户。
+/// 余额 / 零钱 / 余额宝 / 花呗 等非卡号账户返回 null，交由精确名称匹配。
 String? extractCardLast4(String accountName) {
-  final RegExpMatch? m =
-      RegExp(r'银行卡尾号(\d{4})$').firstMatch(accountName.trim());
-  return m?.group(1);
+  final String s = accountName.trim();
+  if (s.isEmpty) return null;
+  // 云闪付自动账户名：银行卡尾号1234
+  final RegExpMatch? m1 = RegExp(r'银行卡尾号(\d{4})$').firstMatch(s);
+  if (m1 != null) return m1.group(1);
+  // 支付宝 / 微信「收/付款方式」列：招商银行储蓄卡(1234)、…（5678）
+  final Iterable<RegExpMatch> paren =
+      RegExp(r'[\(（](\d{4})[\)）]').allMatches(s);
+  if (paren.isNotEmpty) return paren.last.group(1);
+  return null;
 }
 
 /// 按卡号末四位匹配现有账户（只读，不创建）：
