@@ -639,6 +639,27 @@ class AppDatabase extends _$AppDatabase {
     await _ensureInstallmentAutoPaidTable();
     await _ensureSecurityMetaTable();
     await _ensureRollingPlansTable();
+    await _ensureImportRecordsTable();
+  }
+
+  /// 幂等建表：账单导入归档记录表（原生 SQL，不参与 drift 代码生成）。
+  ///
+  /// 记录每笔「导入」的来源 / 笔数 / 跳过原因 / 写入的流水 ID 清单，供入口页
+  /// 列表展示与「左滑删除 → 级联删本批流水」溯源。范式同 [_ensureSecurityMetaTable]
+  /// （避开 build_runner 代码生成）；随 [_ensureRawTables] 在 onCreate / beforeOpen
+  /// 自愈，存量库下次打开即自动建表。
+  Future<void> _ensureImportRecordsTable() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS import_records ('
+      'id TEXT NOT NULL PRIMARY KEY, '
+      'source TEXT NOT NULL, '
+      'source_label TEXT NOT NULL, '
+      'imported_count INTEGER NOT NULL, '
+      'skipped_count INTEGER NOT NULL, '
+      'fail_json TEXT, '
+      'txn_ids TEXT, '
+      'created_at INTEGER NOT NULL)',
+    );
   }
 
   /// 幂等建表：借还流水冲销台账（[LendRepository] 用于跨账户冲销反向恢复）。

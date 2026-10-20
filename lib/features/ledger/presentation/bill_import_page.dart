@@ -5,14 +5,16 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
@@ -36,9 +38,11 @@ import '../../savings/providers/savings_providers.dart';
 import '../data/bill_import_sources.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
+import '../data/import_record_repository.dart';
 import '../data/transaction_repository.dart';
 import '../providers/ledger_providers.dart';
 import 'bill_import_guide_page.dart';
+import 'widgets/txn_slidable.dart';
 
 /// 「账单管理 → 账单导入」入口页（对标小青账，2026-10-20）：头部卡（云上传
 /// 图标 + 标题 + 帮助）→ 信息条 → 空态 → 底部渐变按钮「导入账单」进入配置页。
@@ -70,29 +74,49 @@ class BillImportPage extends StatelessWidget {
       body: Column(
         children: <Widget>[
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppDimens.lg,
-                AppDimens.md,
-                AppDimens.lg,
-                AppDimens.lg,
-              ),
-              children: <Widget>[
-                _ImportHeaderCard(onHelp: () => _openGuide(context)),
-                const SizedBox(height: AppDimens.sm),
-                _entryInfoStrip(context),
-                const SizedBox(height: AppDimens.sm),
-                const Expanded(
-                  child: EmptyState(
-                    message: '没有发现导入记录哦',
-                    iconWidget: LineIcon(
-                      LineIconKind.receipt,
-                      size: 56,
-                      color: AppPalette.sageRibbon,
-                    ),
+            child: Consumer(
+              builder: (BuildContext context, WidgetRef ref, _) {
+                final AsyncValue<List<ImportRecord>> records =
+                    ref.watch(importRecordsProvider);
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppDimens.lg,
+                    AppDimens.md,
+                    AppDimens.lg,
+                    AppDimens.lg,
                   ),
-                ),
-              ],
+                  children: <Widget>[
+                    _ImportHeaderCard(onHelp: () => _openGuide(context)),
+                    const SizedBox(height: AppDimens.sm),
+                    _entryInfoStrip(context),
+                    const SizedBox(height: AppDimens.sm),
+                    records.when(
+                      data: (List<ImportRecord> list) => list.isEmpty
+                          ? _emptyRecords()
+                          : TxnSlidableGroup(
+                              child: Column(
+                                children: <Widget>[
+                                  for (final ImportRecord r in list)
+                                    _importRecordTile(context, ref, r),
+                                ],
+                              ),
+                            ),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.only(top: AppDimens.lg),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (Object e, _) => EmptyState(
+                        message: '加载导入记录失败：$e',
+                        iconWidget: LineIcon(
+                          LineIconKind.receipt,
+                          size: 48,
+                          color: AppPalette.expense,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           _ImportGradientCta(
@@ -129,6 +153,240 @@ class BillImportPage extends StatelessWidget {
       ),
     );
   }
+
+  /// 入口页空态（无导入记录时）。
+  Widget _emptyRecords() {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppDimens.lg),
+      child: EmptyState(
+        message: '没有发现导入记录哦',
+        iconWidget: LineIcon(
+          LineIconKind.receipt,
+          size: 56,
+          color: AppPalette.sageRibbon,
+        ),
+      ),
+    );
+  }
+
+  /// 单条导入记录行：左滑删除（级联删除本批账单）。
+  Widget _importRecordTile(
+    BuildContext context,
+    WidgetRef ref,
+    ImportRecord r,
+  ) {
+    return Slidable(
+      key: ValueKey<String>('import-${r.id}'),
+      groupTag: TxnSlidable.groupTag,
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.18,
+        children: <Widget>[
+          TxnSlideAction(
+            icon: Icons.delete_outline,
+            semanticLabel: '删除',
+            color: AppPalette.danger,
+            onPressed: () => _confirmDeleteImport(context, ref, r),
+          ),
+        ],
+      ),
+      child: _importRecordCard(
+        context: context,
+        record: r,
+        onTap: () => _showImportDetailSheet(context, r),
+      ),
+    );
+  }
+
+  /// 导入记录卡（来源 / 时间 / 笔数；点击查看详情与问题明细）。
+  Widget _importRecordCard({
+    required BuildContext context,
+    required ImportRecord record,
+    required VoidCallback onTap,
+  }) {
+    final DateTime dt =
+        DateTime.fromMillisecondsSinceEpoch(record.createdAt).toLocal();
+    final String time =
+        '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
+        '${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}';
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppDimens.sm),
+      decoration: BoxDecoration(
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+      ),
+      child: Material(
+        color: Colors.transparent, // ignore: no_raw_colors
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(AppDimens.md),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppPalette.graySurface,
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  ),
+                  child: const Center(
+                    child: LineIcon(
+                      LineIconKind.receipt,
+                      size: 22,
+                      color: AppPalette.sageRibbon,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppDimens.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        record.sourceLabel,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$time · 导入 ${record.importedCount} 笔'
+                        '${record.skippedCount > 0
+                            ? ' · 跳过 ${record.skippedCount} 笔'
+                            : ''}',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const LineGlyph(Icons.chevron_right, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 删除导入记录（危险确认 + 级联删除本批账单）。
+  Future<void> _confirmDeleteImport(
+    BuildContext context,
+    WidgetRef ref,
+    ImportRecord r,
+  ) async {
+    final bool? confirm = await showConfirm(
+      context,
+      title: '删除导入记录',
+      content: '删除后将同时移除本次导入的 ${r.importedCount} 笔账单'
+          '${r.skippedCount > 0 ? '（含 ${r.skippedCount} 笔跳过项）' : ''}，'
+          '此操作不可撤销。',
+      confirmText: '删除',
+      danger: true,
+    );
+    if (confirm != true || !context.mounted) return;
+    try {
+      await ref.read(importRecordRepositoryProvider).deleteCascade(
+            r.id,
+            ref.read(transactionRepositoryProvider),
+          );
+      if (context.mounted) {
+        showAppToast(context, '已删除导入记录及关联账单');
+      }
+    } catch (e) {
+      if (context.mounted) showAppToast(context, '删除失败：$e');
+    }
+  }
+
+  /// 导入记录详情弹层：来源 / 完成时间 / 成功笔数 / 跳过笔数，含问题明细。
+  void _showImportDetailSheet(BuildContext context, ImportRecord r) {
+    showAppModalSheet<void>(
+      context,
+      title: '导入记录详情',
+      body: ListView(
+        shrinkWrap: true,
+        children: <Widget>[
+          _detailRow(context, '来源', r.sourceLabel),
+          _detailRow(context, '完成时间', _fmtImportTime(r.createdAt)),
+          _detailRow(context, '成功导入', '${r.importedCount} 笔'),
+          _detailRow(context, '跳过 / 失败', '${r.skippedCount} 笔'),
+          if (r.failReasons != null && r.failReasons!.isNotEmpty) ...<Widget>[
+            const Divider(height: 16, color: AppPalette.divider),
+            const Text(
+              '问题明细',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppPalette.expense,
+              ),
+            ),
+            const SizedBox(height: 4),
+            for (final String reason in r.failReasons!)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  '· $reason',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.5,
+                    color:
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: <Widget>[
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtImportTime(int ms) {
+    final DateTime dt = DateTime.fromMillisecondsSinceEpoch(ms).toLocal();
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
+        '${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}';
+  }
 }
 
 /// 打开导入说明页（入口页 / 配置页「帮助」共用）。
@@ -161,6 +419,10 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   TemplateCheckResult? _check;
   bool _importing = false;
   String? _resultMsg;
+
+  /// 最近一次导入的「跳过 / 失败」笔数与原因清单（供结果栏「查看问题」复用）。
+  int _lastSkipped = 0;
+  List<String> _lastReasons = <String>[];
 
   /// 导入来源（第三方 CSV 走专用解析器，见 bill_import_sources.dart）。
   ImportSource _source = ImportSource.pocketLedger;
@@ -406,6 +668,26 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
 
   Future<void> _import() async {
     if (_importing || _parsed == null || _parsed!.rows.isEmpty) return;
+    // 写入前二次确认（共享组件 showConfirm）：告知笔数及将自动新建的账户 / 分类数。
+    final int newAcc = _check?.newAccounts.length ?? 0;
+    final int newCat = _check?.newCategories.length ?? 0;
+    final StringBuffer confirmContent = StringBuffer(
+      '将导入 ${_parsed!.rows.length} 笔账单',
+    );
+    if (newAcc > 0 || newCat > 0) {
+      confirmContent.write('，并将自动新建');
+      if (newAcc > 0) confirmContent.write(' $newAcc 个账户');
+      if (newCat > 0) {
+        confirmContent.write('${newAcc > 0 ? '、' : ' '}$newCat 个分类');
+      }
+    }
+    confirmContent.write('。');
+    final bool? confirmed = await showConfirm(
+      context,
+      title: '确认导入',
+      content: confirmContent.toString(),
+    );
+    if (confirmed != true) return;
     setState(() => _importing = true);
     try {
       final String currentBookId = ref.read(currentBookIdProvider);
@@ -518,6 +800,8 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       int imported = 0;
       int skipped = 0;
       final List<String> reasons = <String>[];
+      // 本次导入写入的流水 ID 清单（级联删除溯源：删除导入记录时一并软删）。
+      final List<String> txnIds = <String>[];
 
       for (final BillRow row in _parsed!.rows) {
         try {
@@ -574,6 +858,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
               planGoalId,
               planDayIndex,
               savingsGoalsByBook,
+              txnIds,
             );
             imported++;
             continue;
@@ -604,6 +889,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                 instPlanTotals,
                 instPlanFirstDue,
                 instPlanId,
+                txnIds,
               );
               instPlanDone.add(planKey);
             }
@@ -645,6 +931,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
               txnRepo,
               accounts,
               accCache,
+              txnIds,
             );
             imported++;
             continue;
@@ -710,7 +997,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
             );
           }
 
-          await txnRepo.add(
+          final String tid = await txnRepo.add(
             bookId: bookId,
             type: row.type,
             amountMinor: row.amountMinor,
@@ -730,6 +1017,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
             isReimbursable: row.isReimbursable,
             reimbursementAccountId: reimbursementAccountId,
           );
+          txnIds.add(tid);
           imported++;
         } catch (e) {
           skipped++;
@@ -741,9 +1029,25 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       final String msg = skipped == 0
           ? '成功导入 $imported 笔账单'
           : '导入 $imported 笔，跳过 $skipped 笔';
+      // 记录最近一次导入的跳过明细（结果栏「查看问题」复用）。
+      _lastSkipped = skipped;
+      _lastReasons = List<String>.from(reasons);
+      // 写入导入记录：入口页可查看 / 左滑删除级联删除本批账单。
+      final ImportRecordRepository importRepo =
+          ref.read(importRecordRepositoryProvider);
+      await importRepo.insert(ImportRecord(
+        id: const Uuid().v7(),
+        source: _source.name,
+        sourceLabel: _source.label,
+        importedCount: imported,
+        skippedCount: skipped,
+        createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+        failReasons: skipped > 0 ? List<String>.from(reasons) : null,
+        txnIds: txnIds.isNotEmpty ? List<String>.from(txnIds) : null,
+      )); // ignore: require_trailing_commas
       setState(() => _resultMsg = msg);
       if (mounted) showAppToast(context, msg);
-      // reasons 仅用于开发期排查，不展示给用户（避免 UI 噪声）。
+      // reasons 已留存至导入记录，结果栏提供「查看问题」入口。
     } catch (e) {
       if (mounted) showAppToast(context, '导入失败：$e');
     } finally {
@@ -962,6 +1266,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     Map<String, String> planGoalId,
     Map<String, int> planDayIndex,
     Map<String, List<SavingsGoal>> savingsGoalsByBook,
+    List<String> txnIds,
   ) async {
     final String plan = row.toAccountName!.trim();
     final String cacheKey = '$bookId#$plan';
@@ -1025,7 +1330,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       final String note = '$plan第$dayIndex期';
       final Transaction? existingTxn = await txnRepo.getByRelatedId(relatedId);
       if (existingTxn == null) {
-        await txnRepo.add(
+        final String sid = await txnRepo.add(
           bookId: bookId,
           type: TxnType.expense,
           amountMinor: row.amountMinor,
@@ -1042,6 +1347,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           excludeFromBudget: row.excludeFromBudget,
           excludeFromStats: row.excludeFromStats,
         );
+        txnIds.add(sid);
       } else {
         await txnRepo.updateTransaction(
           original: existingTxn,
@@ -1087,6 +1393,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     Map<String, int> instPlanTotals,
     Map<String, int> instPlanFirstDue,
     Map<String, String> instPlanId,
+    List<String> txnIds,
   ) async {
     final List<BillRow> rows = instPlanRows[planKey]!;
     final String planName = (rows.first.note ?? '').trim();
@@ -1145,7 +1452,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       final String relatedId = '${period.id}#repay';
       final Transaction? existingRepay = await txnRepo.getByRelatedId(relatedId);
       if (existingRepay == null) {
-        await txnRepo.add(
+        final String rid = await txnRepo.add(
           bookId: bookId,
           type: TxnType.transfer,
           amountMinor: r.amountMinor,
@@ -1162,6 +1469,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           excludeFromBudget: r.excludeFromBudget,
           excludeFromStats: r.excludeFromStats,
         );
+        txnIds.add(rid);
       }
       await instRepo.togglePeriodPaid(period.id, paid: true);
     }
@@ -1259,6 +1567,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     TransactionRepository txnRepo,
     List<Account> accounts,
     Map<String, String> accCache,
+    List<String> txnIds,
   ) async {
     final int occurredAt = row.occurredAt.toUtc().millisecondsSinceEpoch;
     // 报销账户：必须指定（checkRows 已把关）；缺失按名建为报销类账户。
@@ -1308,6 +1617,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       feeMinor: row.feeMinor,
       subcategory: row.subcategoryName,
     );
+    txnIds.add(incomeTxnId);
 
     // 2. 建待报销记录（独立到账，无关联垫付流水）→ 全额抵扣翻「已报销」。
     final String recordId = await reimbRepo.add(
@@ -1396,8 +1706,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
               ],
             ),
           ),
-          if (_parsed != null && _parsed!.rows.isNotEmpty && _resultMsg == null)
-            _importBar(),
+          if (_parsed != null && _parsed!.rows.isNotEmpty) _importBar(),
         ],
       ),
     );
@@ -1857,27 +2166,73 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   }
 
   Widget _importBar() {
-    return Column(
-      children: <Widget>[
-        if (_resultMsg != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppDimens.lg,
-              0,
-              AppDimens.lg,
-              AppDimens.sm,
-            ),
-            child: Text(
-              _resultMsg!,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+    if (_importing) {
+      return _ImportGradientCta(label: '开始导入', onTap: () {}, busy: true);
+    }
+    if (_resultMsg != null) {
+      // 导入完成：展示结果文案；存在被跳过 / 失败的笔数时提供「查看问题」入口。
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppDimens.lg,
+          0,
+          AppDimens.lg,
+          AppDimens.md,
+        ),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                _resultMsg!,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
-          ),
-        _ImportGradientCta(label: '开始导入', onTap: _import, busy: _importing),
-      ],
+            if (_lastSkipped > 0)
+              TextButton(
+                onPressed: () => _showProblemSheet(context),
+                child: const Text('查看问题'),
+              ),
+          ],
+        ),
+      );
+    }
+    return _ImportGradientCta(label: '开始导入', onTap: _import, busy: false);
+  }
+
+  /// 弹出导入问题明细（被跳过 / 失败的逐行原因），供用户核对修正后重新导入。
+  void _showProblemSheet(BuildContext context) {
+    showAppModalSheet<void>(
+      context,
+      title: '导入问题明细',
+      body: _lastReasons.isEmpty
+          ? const EmptyState(
+              message: '没有发现问题',
+              iconWidget: LineIcon(
+                LineIconKind.checkCircle,
+                size: 48,
+                color: AppPalette.ctaGreen,
+              ),
+            )
+          : ListView(
+              shrinkWrap: true,
+              children: <Widget>[
+                for (final String r in _lastReasons)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Text(
+                      '· $r',
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }

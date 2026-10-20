@@ -7,12 +7,30 @@ import '../../../database/app_database.dart';
 import '../../../database/daos/transactions_dao.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
+import '../data/import_record_repository.dart';
 import '../data/transaction_repository.dart';
 
 final Provider<TransactionRepository> transactionRepositoryProvider =
     Provider<TransactionRepository>(
   (Ref ref) => TransactionRepository(ref.watch(appDatabaseProvider)),
 );
+
+/// 导入记录仓储（原生 SQL 表 `import_records` 读写 + 级联删除）。
+final Provider<ImportRecordRepository> importRecordRepositoryProvider =
+    Provider<ImportRecordRepository>(
+  (Ref ref) => ImportRecordRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// 全部导入记录（按完成时间倒序）实时流，入口页「导入记录」列表用。
+///
+/// 导入 / 删除导入记录均伴随 transactions 表变更，[ImportRecordRepository.watchAll]
+/// 据此自动重发，列表即时刷新。
+final AutoDisposeStreamProvider<List<ImportRecord>> importRecordsProvider =
+    StreamProvider.autoDispose<List<ImportRecord>>((Ref ref) {
+  final ImportRecordRepository repo =
+      ref.watch(importRecordRepositoryProvider);
+  return repo.watchAll();
+});
 
 /// 最近流水列表。直接监听本地 Drift 流，写入后 UI 立即刷新。
 final AutoDisposeStreamProvider<List<Transaction>> recentTransactionsProvider =
