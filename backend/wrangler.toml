@@ -26,7 +26,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "pocket_ledger_prod"
-database_id = "REPLACE_WITH_YOUR_D1_ID"
+database_id = "297764db-df2a-47cb-b9d9-587107ab4a93"
 
 # R2 存储桶绑定（附件 / 票据照片）。需先 `wrangler r2 bucket create pocket-ledger-attachments`
 [[r2_buckets]]
