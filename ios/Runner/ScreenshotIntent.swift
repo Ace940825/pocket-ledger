@@ -56,7 +56,11 @@ struct RecognizeBillIntent: AppIntent {
             )
         }
 
-        let data = try await file.data(contentType: .image)
+        // iOS 16 可用：IntentFile.data 同步属性（data(contentType:) 仅 iOS 18+，
+        // 而本 intent 标注 @available(iOS 16.0, *) 且 deployment target = 16.0）。
+        guard let data = file.data else {
+            return .result(dialog: "截图数据为空，请重试。")
+        }
         try data.write(to: URL(fileURLWithPath: imgPath), options: Data.WritingOptions.atomic)
         let meta: [String: Any] = [
             "receivedAt": Int(Date().timeIntervalSince1970 * 1000),
