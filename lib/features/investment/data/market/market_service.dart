@@ -163,7 +163,7 @@ class MarketService {
               : null) ??
           j['dwjz']?.toString();
       final double? v = raw == null ? null : double.tryParse(raw);
-      if (v == null) return null;
+      if (v == null || v <= 0) return null; // 0/负值视为无效，保留旧价。
       return Quote(
         priceMinor: (v * 100).round(),
         currency: 'CNY',
@@ -210,7 +210,7 @@ class MarketService {
           ? jsonDecode(resp.data as String) as Map<String, dynamic>
           : resp.data as Map<String, dynamic>;
       final double? v = double.tryParse(j['price']?.toString() ?? '');
-      if (v == null) return null;
+      if (v == null || v <= 0) return null; // 0/负值视为无效，保留旧价。
       return Quote(
         priceMinor: (v * cnyRate * 100).round(),
         currency: 'CNY',
@@ -588,6 +588,10 @@ class MarketService {
   ///
   /// 注意：f43 是**定点整数**（真实价 × 10^f59，A股 f59=2），必须按精度还原，
   /// 否则 ¥28.02 会被读成 ¥2,802（2026-10-13 真机事故：中兴通讯 000063）。
+  ///
+  /// f43 ≤ 0 一律视为无效行情返回 null（2026-10-20 真机事故：东财宽松节点
+  /// 对有效 secid 返回 `f43:0`，每日刷新把 0 当有效价写库 → 持仓市值归零、
+  /// 手动强刷又拿回 0 形成「刷新无反应」假象）。真实现价永不为 0。
   Future<Quote?> _eastmoneyQuote(String secid, double cnyRate) async {
     if (secid.isEmpty) return null;
     try {
@@ -614,6 +618,7 @@ class MarketService {
       final int digits =
           (data['f59'] is num) ? (data['f59'] as num).toInt() : 2;
       final double v = raw / math.pow(10, digits).toDouble();
+      if (v <= 0) return null; // 宽松节点返回 f43:0 时视为无效，保留旧价。
       final String market = secid.split('.').first;
       double cny = v;
       if (market == '116') {

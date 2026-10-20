@@ -231,7 +231,9 @@ class InvestmentRepository {
     for (final InvestmentHolding h in holdings) {
       if (!force && _isSameLocalDay(h.priceUpdatedAt)) continue;
       final Quote? q = await svc.fetchQuote(h.type, h.symbol, cnyRate: cnyRate);
-      if (q == null) continue;
+      // 价格 ≤ 0 一律视为无效行情跳过（保留旧价），绝不把 0 写进现价——
+      // 否则市值归零、盈亏 -100%（2026-10-20 真机事故：东财节点返回 f43:0）。
+      if (q == null || q.priceMinor <= 0) continue;
       try {
         await updatePrice(h.id, q.priceMinor);
         updated++;
