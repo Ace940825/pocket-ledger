@@ -72,12 +72,14 @@ class AppShadows {
     BoxShadow(color: Color(0x667C9E72), blurRadius: 18, offset: Offset(0, 8)),
   ];
 
-  /// 悬浮弹层卡（AppModalSheet 专用，2026-10-14 第 17 批）：双层柔和投影。
-  /// 悬浮卡四周留边后，背景内容会从留边区透出（遮罩下页面/后层弹层的
-  /// 圆角在卡片两角旁形成「幽灵角」）；投影在卡片边缘压暗背景，既消除
-  /// 视觉干扰，又给卡片真正的悬浮层次感（对标参考稿小青账弹层投影）。
+  /// 悬浮弹层卡（AppModalSheet 专用）：双层柔和「环境光」投影。
+  ///
+  /// 旧版用 `Offset(0, 10)` 的向下投影——贴底弹层下方留白区会被压出一圈暗色
+  /// 灰板（真机「底部阴影」缺陷 #1）。改为居中无方向投影（offset 全 0），
+  /// 阴影对称包裹卡片边缘、不向任一方向偏移，既保留悬浮层次感，又消除
+  /// 贴底弹层底部的重投影。
   static const List<BoxShadow> floating = [
-    BoxShadow(color: Color(0x3D605034), blurRadius: 28, offset: Offset(0, 10)),
-    BoxShadow(color: Color(0x26605034), blurRadius: 8, offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x33605034), blurRadius: 32, offset: Offset(0, 0)),
+    BoxShadow(color: Color(0x1F605034), blurRadius: 12, offset: Offset(0, 0)),
   ];
 }

@@ -90,9 +90,8 @@ void main() {
     expect(find.text('招商储蓄卡'), findsOneWidget);
     expect(find.text('股票账户'), findsOneWidget);
     expect(find.text('招行信用卡'), findsOneWidget);
-    // 资金/投资行各带「资产」标签、信用卡带「负债」标签
-    expect(find.text('资产'), findsAtLeastNWidgets(1));
-    expect(find.text('负债'), findsOneWidget); // 仅一张信用卡
+    // 行内「资产 / 负债」标签已于 Batch 6/7 起移除（分类只由分组头体现），
+    // 故不再断言标签文本；分组归属由上面的分组头断言覆盖。
   });
 
   testWidgets('点击分组头部折叠/展开', (WidgetTester tester) async {

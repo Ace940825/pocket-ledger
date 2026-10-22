@@ -140,6 +140,42 @@ String ledgerMonthLabel(int timestamp) {
   return '${local.year}年${local.month}月';
 }
 
+/// 日期区间标签（含两端）的**唯一出口**，全 App 共用。
+///
+/// 规则：
+/// - 同年 → `2月1日-2月1日`；[keepYearOnSameYear] 为 true 时保留起始年
+///   （`2022年2月1日-2月1日`，报表页周视图口径）。
+/// - 跨年 → `2021年2月1日-2022年2月1日`，**结束年份必须显示**。
+/// - 单日（两端同一天）→ `2025年2月5日`：收敛成一个日期，既不出现
+///   「2月5日-2月5日」这种读不通的区间，也不丢年份（丢年份正是「跨年」
+///   事故的同款误读来源）。
+///
+/// 为什么必须集中：2026-10-22 真机连续两次反馈同一现象——跨年区间丢结束年份后
+/// 显示成「2021年2月1日-2月1日」，被读成「2021 年内的两个月」。根因是各页
+/// 手拼 label（账本页头 / 日历组件 / 账单清理 / 高级筛选 / 报表），漏改一处
+/// 就复发一次。此后任何区间文案一律走本函数，禁止再手拼。
+String formatDayRange(
+  DateTime start,
+  DateTime endInclusive, {
+  String separator = '-',
+  bool keepYearOnSameYear = false,
+}) {
+  String md(DateTime d) => '${d.month}月${d.day}日';
+  // 单日：收敛成一个带年份的日期（见上方规则说明）。
+  if (start.year == endInclusive.year &&
+      start.month == endInclusive.month &&
+      start.day == endInclusive.day) {
+    return '${start.year}年${md(start)}';
+  }
+  if (start.year == endInclusive.year) {
+    return keepYearOnSameYear
+        ? '${start.year}年${md(start)}$separator${md(endInclusive)}'
+        : '${md(start)}$separator${md(endInclusive)}';
+  }
+  return '${start.year}年${md(start)}$separator'
+      '${endInclusive.year}年${md(endInclusive)}';
+}
+
 /// 两个时间戳是否落在**同一个本地月份**（用于分组标题去重）。
 bool sameLocalMonth(int aMs, int bMs) {
   final DateTime a =

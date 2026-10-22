@@ -8,6 +8,7 @@ import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 
 import '../../../core/errors/failures.dart';
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -32,6 +33,10 @@ import 'widgets/security_candidate_tile.dart';
 /// （份额 = 0，保留历史）的标的。现价支持免费第三方行情自动更新
 /// （一期：基金天天基金 + 加密货币 Binance），无网络 / 失败时保留旧价；
 /// 也可在持仓详情或新建表单手动录入，配合 [InvestmentRepository.updatePrice]。
+///
+/// 新增入口（第 47 批，真机反馈）：右上角「+」移除，收敛到底部
+/// 「+ 记一笔投资」深绿渐变胶囊——与分期 / 退款 / 借还 / 报销各模块
+/// 底栏主按钮口径一致；空态标语同步指向下方按钮。
 class InvestmentPage extends ConsumerStatefulWidget {
   const InvestmentPage({super.key});
 
@@ -80,13 +85,10 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('投资'),
+        // 第 47 批：右上角「+」移除，新增入口收敛到底部「+ 记一笔投资」
+        // 胶囊（与分期 / 退款 / 借还 / 报销底栏主按钮口径一致）；
+        // 顶部只保留刷新行情。
         actions: <Widget>[
-          IconButton(
-            // 新增持仓入口：FAB 已删（第 40 批），空态文案指向本键。
-            icon: const LineGlyph(Icons.add),
-            tooltip: '新增持仓',
-            onPressed: () => showHoldingEditor(context, ref),
-          ),
           IconButton(
             icon: _refreshing
                 ? const SizedBox(
@@ -127,7 +129,11 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
                         icon: _showCleared
                             ? Icons.history_outlined
                             : Icons.show_chart,
-                        message: _showCleared ? '暂无清仓记录' : '还没有持仓，点右上角「+」新增',
+                        // 第 47 批：新增入口移到底部胶囊，标语同步改指下方
+                        // （与分期 / 退款空态口径一致）。
+                        message: _showCleared
+                            ? '暂无清仓记录'
+                            : '还没有持仓，点下方「+ 记一笔投资」新增',
                       )
                     : TxnSlidableGroup(
                         child: ListView.separated(
@@ -177,10 +183,59 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
         loading: () => const LoadingState(),
         error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
       ),
+      // 第 47 批：新增入口从右上角「+」收敛到底部主操作条。
+      bottomNavigationBar: _bottomBar(context),
     );
   }
 
   // ---------------------------------------------------------------- 视图
+
+  /// 底部主操作条：第 47 批从右上角「+」收敛到此处，与分期 / 退款 / 借还 /
+  /// 报销底栏口径一致——单个深绿渐变胶囊「+ 记一笔投资」（图标 + 文案），
+  /// 点开新建持仓表单（投资无「记一笔」Tab，仍走本页编辑器）。
+  Widget _bottomBar(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Container(
+        color: scheme.surface,
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+        child: SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () => showHoldingEditor(context, ref),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: ForestGradients.button,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  LineGlyph(
+                    Icons.add,
+                    size: 18,
+                    color: scheme.onPrimary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '记一笔投资',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   /// 左滑删除持仓：软删持仓 + 级联删名下全部买卖流水（余额同步冲回），不可撤销。
   Future<void> _confirmDelete(

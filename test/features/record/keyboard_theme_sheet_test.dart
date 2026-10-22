@@ -64,13 +64,19 @@ void main() {
 
     // 滚动区必须是 loose flex（Flexible）而非 Expanded：
     // loose 才能「矮时贴内容、高时触顶滚」。
+    // 2026-10-22 注：AppModalSheet 外壳的 body 槽位也改成了
+    // Flexible(loose)（用户二次修正，见 sheet_scaffold.dart 类文档），
+    // 祖先里现有两层 Flexible——断言从「恰好一个」改为「存在 loose
+    // Flexible 祖先」（原意图不变），Expanded 仍必须不存在。
     final Finder scrollView = find.byType(SingleChildScrollView);
     expect(scrollView, findsOneWidget);
     final Finder flexAncestor = find.ancestor(
       of: scrollView,
-      matching: find.byType(Flexible),
+      matching: find.byWidgetPredicate(
+        (Widget w) => w is Flexible && w.fit == FlexFit.loose,
+      ),
     );
-    expect(flexAncestor, findsOneWidget);
+    expect(flexAncestor, findsWidgets);
     final Finder expandedAncestor = find.ancestor(
       of: scrollView,
       matching: find.byType(Expanded),

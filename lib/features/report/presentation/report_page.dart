@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
+import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -350,12 +351,13 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     // 头部时间标签：周=起止日期区间；月=yyyy年M月；年视图=yyyy年。
     final String timeLabel;
     if (period.mode == LedgerPeriodMode.week) {
-      final DateTime s = period.start;
-      final DateTime e = period.end.subtract(const Duration(days: 1));
-      // 同年区间尾部省略年份，跨年区间两端都带年份。
-      timeLabel = s.year == e.year
-          ? '${s.year}年${s.month}月${s.day}日–${e.month}月${e.day}日'
-          : '${s.year}年${s.month}月${s.day}日–${e.year}年${e.month}月${e.day}日';
+      // 周视图用 en dash，同年保留起始年（报表既有口径）；跨年两端都带年份。
+      timeLabel = formatDayRange(
+        period.start,
+        period.end.subtract(const Duration(days: 1)),
+        separator: '–',
+        keepYearOnSameYear: true,
+      );
     } else {
       timeLabel = calMonth == null ? '$year年' : '$year年$calMonth月';
     }

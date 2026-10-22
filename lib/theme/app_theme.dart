@@ -245,10 +245,23 @@ class AppThemeData {
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
-        backgroundColor: scheme.surface,
+        // 未选中底色与输入框统一用 surfaceContainerHighest（paper2），与
+        // 奶油页面拉开层次；selectedColor 沿用 secondaryContainer（sage100）。
+        backgroundColor: scheme.surfaceContainerHighest,
         selectedColor: scheme.secondaryContainer,
+        checkmarkColor: scheme.primary,
         side: BorderSide(color: scheme.outline),
-        labelStyle: AppTextStyles.micro,
+        // labelStyle 的 color 必须是 **WidgetStateColor**：chip 内部只对
+        // `style.color` 做 `WidgetStateProperty.resolveAs`（chip.dart 1376），
+        // 普通 Color / 无色一律透传为 null → 渲染成白字（本项目两次实锤：
+        // AppBar titleTextStyle 与本次同步控制页胶囊，2026-10-21）。
+        // 未选中取 onSurface（墨色），选中取 onSecondaryContainer（sage700）。
+        labelStyle: AppTextStyles.micro.copyWith(
+          color: WidgetStateColor.resolveWith((Set<WidgetState> states) {
+            final bool selected = states.contains(WidgetState.selected);
+            return selected ? scheme.onSecondaryContainer : scheme.onSurface;
+          }),
+        ),
         shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(
           horizontal: AppDimens.md,

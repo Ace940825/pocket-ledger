@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../../theme/app_dimens.dart';
 
 /// 日分组头：左侧「M月d日（今天/昨天）」，右侧「N笔」。
+/// 跨年账单（非当年份）自动补全年份「yyyy年M月d日」，避免年份歧义
+/// （与账单列表/转换/清理页同口径）。
 ///
 /// 视觉规范源自账单明细页（ledger_page 的日分组），现抽为共享组件，
 /// 首页「最近流水」与账单明细共用，保证两处分组样式零漂移。
@@ -52,13 +54,18 @@ class DayGroupHeader extends StatelessWidget {
         : day == today0.subtract(const Duration(days: 1))
             ? '  昨天'
             : '';
+    // 跨年账单（非当年份）补全年份：只显「M月d日」时，用户无法区分
+    // 今年与去年的同月同日（与账单列表/转换/清理页同口径）。
+    final String base = date.year == now.year
+        ? DateFormat('M月d日').format(date)
+        : DateFormat('yyyy年M月d日').format(date);
 
     return Padding(
       padding: padding,
       child: Row(
         children: <Widget>[
           Text(
-            '${DateFormat('M月d日').format(date)}$relative',
+            '$base$relative',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,

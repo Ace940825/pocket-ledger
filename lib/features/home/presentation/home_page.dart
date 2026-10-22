@@ -157,12 +157,13 @@ class HomePage extends ConsumerWidget {
 /// [monthBudgetSummaryProvider] 按方向取**当月月度**预算（与预算主页
 /// 「N月预算」月视图同口径）；年/季度预算在预算页年视图查看。
 ///
-/// 第 33 批：四张卡**循环滑动**——PageView 到边界即停，用户从最后一张
-/// 左滑想回第一张必须滑回四页。第 41 批升级：头尾**双向**复制——
-/// children 为 [第4张副本, 卡0..3, 第1张副本]（6 页），initialPage 仍在
-/// 原位；滑到头部副本(0)无动画跳回真实最后一页(4)，滑到尾部副本(5)无动画
-/// 跳到真实第一页(1)——副本与原型视觉完全相同，用户无感，两个方向都能循环。
-/// 指示点取 (i − 1) % 4 映射回真实页（Dart 取模恒非负，i=0 时得 3）。
+/// 第 33 批：四张卡**双向循环**。早期用「头尾复制 + 滑到副本瞬间 jumpToPage
+/// 跳回」实现，但松手那一下会被瞬移打断、没有惯性滑行，循环到首尾时很生硬。
+/// 现改 **`PageView.builder` 无限列表**方案：`itemCount: null` 让左右两边都
+/// 永远有真实页可滑，不需要任何「跳回」逻辑，循环时惯性连续、绝不卡顿；
+/// `itemBuilder` 里用 `index % 4` 循环复用四张真实卡，`initialPage` 取极远且
+/// ≡ 2 (mod 4) 的下标默认停在「本月收支」卡。指示点直接用
+/// `controller.page % count` 取环形位置（Dart 取模恒非负）。
 class _SwipeCards extends ConsumerStatefulWidget {
   const _SwipeCards();
 
@@ -173,18 +174,15 @@ class _SwipeCards extends ConsumerStatefulWidget {
 class _SwipeCardsState extends ConsumerState<_SwipeCards> {
   static const double _cardHeight = 184;
 
-  /// 真实卡片数（指示点数）。PageView children 长度 = 真实数 + 2——头尾各
-  /// 复制一份用于双向循环，见类文档。
+  /// 真实卡片数（指示点数）。children 即四张真实卡，不做头尾复制。
   static const int _pageCount = 4;
 
-  /// 头副本下标 / 尾副本下标（真实页分别落在 1..4）。
-  static const int _headCopy = 0;
-  static const int _tailCopy = _pageCount + 1;
+  /// 极大初始页码（且 ≡ 2 mod 4，落在「本月收支」卡），实现看似无限的双向
+  /// 循环——日常滑动触不到真实边界，因此没有「瞬移跳回」的生硬感。
+  static const int _initialPage = 100002; // 100002 % 4 == 2 → 本月收支卡
 
   // 默认停在「本月收支」卡（children 顺序：0 支出预算 / 1 收入目标 / 2 收支 / 3 资产）。
-  // 头部多了一份副本，原位 = 真实下标 + 1。
-  final PageController _pageController = PageController(initialPage: 3);
-  int _currentPage = 2;
+  final PageController _pageController = PageController(initialPage: _initialPage);
 
   @override
   void dispose() {
@@ -220,59 +218,47 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
       children: <Widget>[
         SizedBox(
           height: _cardHeight,
-          child: PageView(
+          child: PageView.builder(
             controller: _pageController,
-            onPageChanged: (int i) {
-              // 双向循环：滑到头部/尾部副本区时无动画跳回对应真实页。
-              // jumpToPage 自身会再触发一次 onPageChanged（目标页在 1..4），
-              // 此时不满足两个跳转条件，仅重复 setState 相同值，安全。
-              if (i == _headCopy) {
-                _pageController.jumpToPage(_pageCount);
-              } else if (i == _tailCopy) {
-                _pageController.jumpToPage(1);
+            // itemCount 为 null = 真正的无限列表：左右两边都永远有真实页可滑，
+            // 不需要任何「跳回」逻辑，因此循环时惯性连续、没有瞬移卡顿。
+            // initialPage 取极大且 100002 ≡ 2 (mod 4) → 默认停在「本月收支」卡。
+            itemCount: null,
+            itemBuilder: (BuildContext context, int index) {
+              // 4 张真实卡按 (index % 4) 循环复用：0 支出预算 / 1 收入目标 /
+              // 2 本月收支 / 3 资产总览。
+              switch (index % _pageCount) {
+                case 0:
+                  return _BudgetCard(
+                    summary: expenseBudget,
+                    onTap: () => context.push(Routes.budget),
+                  );
+                case 1:
+                  return _IncomeTargetCard(
+                    summary: incomeTarget,
+                    onTap: () => context.push(Routes.budget),
+                  );
+                case 2:
+                  return _IncomeExpenseCard(
+                    income: income,
+                    expense: expense,
+                    onTap: () => context.push(Routes.ledger),
+                  );
+                default:
+                  return _AssetsCard(
+                    totalAssets: assetsMinor,
+                    totalLiabilities: liabilitiesMinor,
+                    netAssets: netMinor - borrowInOngoing,
+                    onTap: () => context.push(Routes.accounts),
+                  );
               }
-              setState(() => _currentPage = (i - 1) % _pageCount);
             },
-            // 头尾各复制一份实现双向循环；副本与原型视觉相同，跳回时用户无感。
-            // 下标：0=第4张副本 / 1..4=真实四卡 / 5=第1张副本。
-            children: <Widget>[
-              _AssetsCard(
-                totalAssets: assetsMinor,
-                totalLiabilities: liabilitiesMinor,
-                netAssets: netMinor - borrowInOngoing,
-                onTap: () => context.push(Routes.accounts),
-              ),
-              _BudgetCard(
-                summary: expenseBudget,
-                onTap: () => context.push(Routes.budget),
-              ),
-              _IncomeTargetCard(
-                summary: incomeTarget,
-                onTap: () => context.push(Routes.budget),
-              ),
-              _IncomeExpenseCard(
-                income: income,
-                expense: expense,
-                onTap: () => context.push(Routes.ledger),
-              ),
-              _AssetsCard(
-                totalAssets: assetsMinor,
-                totalLiabilities: liabilitiesMinor,
-                netAssets: netMinor - borrowInOngoing,
-                onTap: () => context.push(Routes.accounts),
-              ),
-              _BudgetCard(
-                summary: expenseBudget,
-                onTap: () => context.push(Routes.budget),
-              ),
-            ],
           ),
         ),
         const SizedBox(height: AppDimens.sm),
         _PageDots(
           controller: _pageController,
           count: _pageCount,
-          current: _currentPage,
         ),
       ],
     );
@@ -667,37 +653,61 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-/// 分页指示点：当前页拉长且高亮，其余短灰。
+/// 分页指示点：当前项拉长成短条，且随滑动进度在相邻两点间**连续**过渡——
+/// 每个点的宽度/颜色按「与真实页的环形距离」插值，滑到一半时两点各占
+/// 一半宽度，松手或继续滑都不会跳变。
+///
+/// 双向循环卡（children 头尾各复制一份）也在同一线性插值里处理：
+/// 副本位置经取模折回 0..count 的环形空间，从最后一张滑向第一张时
+/// 第一个点会先渐宽，与正向滑动视觉一致。
 class _PageDots extends StatelessWidget {
-  const _PageDots({
-    required this.controller,
-    required this.count,
-    required this.current,
-  });
+  const _PageDots({required this.controller, required this.count});
 
   final PageController controller;
   final int count;
-  final int current;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List<Widget>.generate(count, (int i) {
-        final bool active = i == current;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: active ? 18 : 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: active
-                ? AppPalette.primary
-                : Theme.of(context).colorScheme.outline,
-            borderRadius: BorderRadius.circular(3),
-          ),
+    final Color inactive = Theme.of(context).colorScheme.outline;
+    const Color active = AppPalette.primary;
+
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (BuildContext context, Widget? _) {
+        // 真实页的连续位置：children 即四张真实卡（无头尾副本），故直接用
+        // `page % count` 折成 [0, count) 的环形位置——大初始页码下 page 恒正，
+        // 环形取模让向左滑到「首卡之前」自然接到「尾卡」、反之亦然，无跳变。
+        double pos = (controller.initialPage % count).toDouble();
+        if (controller.hasClients) {
+          final double? page = controller.page;
+          if (page != null) {
+            pos = page % count;
+            if (pos < 0) pos += count;
+          }
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List<Widget>.generate(count, (int i) {
+            // 与第 i 点的环形最短距离，收敛到 [-count/2, count/2]。
+            double d = (pos - i) % count;
+            if (d < 0) d += count;
+            if (d > count / 2) d -= count;
+
+            // t=1 正好停在当前页（长条高亮），t=0 完全无关（短点置灰）。
+            final double t = (1 - d.abs()).clamp(0.0, 1.0);
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: 6 + 12 * t,
+              height: 6,
+              decoration: BoxDecoration(
+                color: Color.lerp(inactive, active, t)!,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            );
+          }),
         );
-      }),
+      },
     );
   }
 }

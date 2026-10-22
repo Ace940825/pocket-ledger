@@ -169,14 +169,9 @@ class _Body extends ConsumerWidget {
     final int lendOutMinor = ref.watch(lendOutOngoingProvider).valueOrNull ?? 0;
     final int borrowInMinor =
         ref.watch(borrowInOngoingProvider).valueOrNull ?? 0;
-    final Map<String, int> lendOutBalances = ref
-            .watch(lendCounterpartyBalancesProvider(LendDirection.lendOut))
-            .valueOrNull ??
-        const <String, int>{};
-    final Map<String, int> borrowInBalances = ref
-            .watch(lendCounterpartyBalancesProvider(LendDirection.borrowIn))
-            .valueOrNull ??
-        const <String, int>{};
+    // 「未指定账户」的对方明细不再在账户页平铺（2026-10-22 用户反馈：
+    // 与其他账户一致，点击汇总行进入借还页后才展示明细），故原
+    // lendCounterpartyBalancesProvider 的两个 watch 与透传一并移除。
     // 证券/投资类账户的持仓市值聚合（按 accountId）；展示余额 = 现金 + 此值。
     final Map<String, int> mv =
         ref.watch(investmentMarketValueByAccountProvider);
@@ -250,8 +245,6 @@ class _Body extends ConsumerWidget {
                     payables: payables,
                     lendOutMinor: lendOutMinor,
                     borrowInMinor: borrowInMinor,
-                    lendOutBalances: lendOutBalances,
-                    borrowInBalances: borrowInBalances,
                     mv: mv,
                   ),
                 );
@@ -285,8 +278,6 @@ class _Body extends ConsumerWidget {
     required List<Account> payables,
     required int lendOutMinor,
     required int borrowInMinor,
-    required Map<String, int> lendOutBalances,
-    required Map<String, int> borrowInBalances,
     required Map<String, int> mv,
   }) {
     return switch (title) {
@@ -326,7 +317,6 @@ class _Body extends ConsumerWidget {
       '应收类' => _ReceivableBody(
           accounts: receivables,
           lendOutMinor: lendOutMinor,
-          lendOutBalances: lendOutBalances,
           onOpenDetail: onOpenDetail,
           onEditAccount: onEditAccount,
           onArchiveAccount: onArchiveAccount,
@@ -336,7 +326,6 @@ class _Body extends ConsumerWidget {
       '应付类' => _PayableBody(
           accounts: payables,
           borrowInMinor: borrowInMinor,
-          borrowInBalances: borrowInBalances,
           onOpenDetail: onOpenDetail,
           onEditAccount: onEditAccount,
           onArchiveAccount: onArchiveAccount,
@@ -796,7 +785,6 @@ class _ReceivableBody extends StatelessWidget {
   const _ReceivableBody({
     required this.accounts,
     required this.lendOutMinor,
-    required this.lendOutBalances,
     required this.onOpenDetail,
     required this.onEditAccount,
     required this.onArchiveAccount,
@@ -806,7 +794,6 @@ class _ReceivableBody extends StatelessWidget {
 
   final List<Account> accounts;
   final int lendOutMinor;
-  final Map<String, int> lendOutBalances;
   final void Function(Account) onOpenDetail;
   final void Function(Account) onEditAccount;
   final void Function(Account) onArchiveAccount;
@@ -841,7 +828,6 @@ class _ReceivableBody extends StatelessWidget {
             title: '借出',
             icon: LineIconKind.lendOut,
             totalMinor: lendOutMinor,
-            balances: lendOutBalances,
             amountColor: AppPalette.income,
             onTotalTap: () => context.push(Routes.lend),
           ),
@@ -855,7 +841,6 @@ class _PayableBody extends StatelessWidget {
   const _PayableBody({
     required this.accounts,
     required this.borrowInMinor,
-    required this.borrowInBalances,
     required this.onOpenDetail,
     required this.onEditAccount,
     required this.onArchiveAccount,
@@ -865,7 +850,6 @@ class _PayableBody extends StatelessWidget {
 
   final List<Account> accounts;
   final int borrowInMinor;
-  final Map<String, int> borrowInBalances;
   final void Function(Account) onOpenDetail;
   final void Function(Account) onEditAccount;
   final void Function(Account) onArchiveAccount;
@@ -900,7 +884,6 @@ class _PayableBody extends StatelessWidget {
             title: '借入',
             icon: LineIconKind.borrowIn,
             totalMinor: borrowInMinor,
-            balances: borrowInBalances,
             amountColor: AppPalette.expense,
             onTotalTap: () => context.push(Routes.lend),
           ),
@@ -909,13 +892,14 @@ class _PayableBody extends StatelessWidget {
   }
 }
 
-/// 应收 / 应付对方账户明细：先显示汇总行，再列出每个 counterparty 的余额。
+/// 「未指定账户」往来汇总行（应收/应付类用）：只显示合计，点击进入借还页
+/// 后才展示各对方明细（2026-10-22 用户反馈：与其他账户一致，不在账户页
+/// 平铺对方余额——原 _CounterpartyRow 平铺区已移除）。
 class _CounterpartyBalanceBody extends StatelessWidget {
   const _CounterpartyBalanceBody({
     required this.title,
     required this.icon,
     required this.totalMinor,
-    required this.balances,
     required this.amountColor,
     required this.onTotalTap,
   });
@@ -923,68 +907,17 @@ class _CounterpartyBalanceBody extends StatelessWidget {
   final String title;
   final LineIconKind icon;
   final int totalMinor;
-  final Map<String, int> balances;
   final Color amountColor;
   final VoidCallback onTotalTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        _SummaryRow(
-          icon: icon,
-          title: title,
-          amountMinor: totalMinor,
-          amountColor: amountColor,
-          onTap: onTotalTap,
-        ),
-        ...balances.entries.map(
-          (MapEntry<String, int> e) => _CounterpartyRow(
-            name: e.key,
-            amountMinor: e.value,
-            amountColor: amountColor,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// 单个对方账户余额行。
-class _CounterpartyRow extends StatelessWidget {
-  const _CounterpartyRow({
-    required this.name,
-    required this.amountMinor,
-    required this.amountColor,
-  });
-
-  final String name;
-  final int amountMinor;
-  final Color amountColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 56),
-      child: ListTile(
-        dense: true,
-        // 右缘对齐分组头部（12）；左侧补 16 保持文字位置不变
-        contentPadding: const EdgeInsets.only(
-          left: AppDimens.lg,
-          right: AppDimens.md,
-        ),
-        title: Text(
-          name,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        trailing: MoneyText(
-          Money.fromMinor(amountMinor),
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: amountColor,
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-      ),
+    return _SummaryRow(
+      icon: icon,
+      title: title,
+      amountMinor: totalMinor,
+      amountColor: amountColor,
+      onTap: onTotalTap,
     );
   }
 }
