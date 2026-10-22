@@ -88,27 +88,36 @@ class MenuItem extends StatelessWidget {
                     ),
                 ],
               ));
-    return ListTile(
-      contentPadding: contentPadding,
-      minTileHeight: AppDimens.minTouch,
-      leading: leadingW,
-      title: Text(
-        title,
-        style: context.text.bodyLarge?.copyWith(
-          fontWeight: FontWeight.w500,
-          color: titleColor,
+    // 包一层透明 Material：ListTile 把背景/ink 画在最近的 Material 上，
+    // 而 MenuGroup/HairlineCard 是带背景色的 DecoratedBox（Container+BoxDecoration）。
+    // 若不插 Material，中间这层 DecoratedBox 会盖住 ink 水波纹，并触发 Flutter
+    // 「ListTile background color or ink splashes may be invisible」debug 断言
+    // （release 不触发，但 flutter test 调试模式会直接抛异常让测试崩）。
+    // 用 MaterialType.transparency：无底色无阴影，视觉零漂移，ink 仍正常绘制。
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        contentPadding: contentPadding,
+        minTileHeight: AppDimens.minTouch,
+        leading: leadingW,
+        title: Text(
+          title,
+          style: context.text.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+            color: titleColor,
+          ),
         ),
-      ),
-      subtitle: subtitle == null
-          ? null
-          : Text(
-              subtitle!,
-              style: context.text.bodySmall?.copyWith(
-                color: subtitleColor ?? scheme.onSurfaceVariant,
+        subtitle: subtitle == null
+            ? null
+            : Text(
+                subtitle!,
+                style: context.text.bodySmall?.copyWith(
+                  color: subtitleColor ?? scheme.onSurfaceVariant,
+                ),
               ),
-            ),
-      trailing: trailingW,
-      onTap: onTap,
+        trailing: trailingW,
+        onTap: onTap,
+      ),
     );
   }
 }
