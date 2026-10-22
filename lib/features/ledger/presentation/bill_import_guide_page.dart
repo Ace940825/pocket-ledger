@@ -53,6 +53,28 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
         '（如 沪深300ETF@1.2300；单价元计，至多两位小数），可追加空格 + 用户备注。'),
   ];
 
+  /// 账户段 15 列（v3，与 kAccountTemplateFields 同序）。
+  static const List<_Col> _accountColumns = <_Col>[
+    _Col(1, '账本', false, '文本', '账本名称；为空归当前账本。'),
+    _Col(2, '账户名', true, '文本',
+        '账户名称；与现有账户按名称匹配（忽略大小写），不存在则按本段字段建户。'),
+    _Col(3, '类型', true, '枚举',
+        '导出为英文代码（如 wechat / creditCard）保证无歧义；手填可写中文名（如 微信 / 信用卡）。'),
+    _Col(4, '币种', false, '文本', '如 CNY / USD / HKD；留空默认 CNY。'),
+    _Col(5, '余额', false, '金额',
+        '当前余额（元），照账户页显示值填；导入完成后校正为该值（报销 / 借还类为派生值不校正）。'),
+    _Col(6, '图标', false, '文本', '图标 key，留空按账户类型自动派生。'),
+    _Col(7, '颜色', false, '文本', '0xFF88CC66 / #FF88CC66 / #88CC66 任一形式；留空不自定义。'),
+    _Col(8, '信用卡额度', false, '金额', '仅信用卡 / 负债类账户有意义；留空不设额度。'),
+    _Col(9, '账单日', false, '数字', '信用卡账单日，1-31；留空不设。'),
+    _Col(10, '还款日', false, '数字', '信用卡还款日，1-31；留空不设。'),
+    _Col(11, '备注', false, '文本', '账户备注，选填。'),
+    _Col(12, '卡号', false, '文本', '卡号（可只记后四位），第三方账单导入按末四位归户时也用它匹配。'),
+    _Col(13, '状态', false, '枚举', '使用中 / 隐藏 / 封存；留空默认「使用中」。'),
+    _Col(14, '计入总资产', false, '布尔', 'Y / N。留空默认 Y。'),
+    _Col(15, '排序', false, '数字', '账户列表排序号，小的在前；留空为 0。'),
+  ];
+
   static const List<_Module> _modules = <_Module>[
     _Module('日常记账', _ModKey.neutral, '普通收支交易', '直接落库'),
     _Module('转账', _ModKey.transfer, '需填「转入账户」', '直接落库'),
@@ -211,6 +233,35 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
                   if (i > 0)
                     Divider(height: 1, color: scheme.outline.withValues(alpha: 0.6)),
                   _ColRow(col: _columns[i]),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppDimens.lg),
+
+          // Account section (v3)
+          const SectionHeader(title: 'v3 新增：账户段（15 列，可选）'),
+          const SizedBox(height: AppDimens.sm),
+          const _Feature(
+            tag: '账户复原',
+            title: '导出 → 新系统导入，账户信息全部复原',
+            body: '导出文件自带账户段：CSV 里「# [账户]」段在前、「# [账单]」段在后；'
+                'JSON 走 accounts 键。新系统导入时按名称建户 / 覆盖，类型、币种、余额、'
+                '图标、颜色、信用卡额度、账单日、还款日、备注、卡号、状态、计入总资产、'
+                '排序一个不落；流水全部落库后余额校正为段内「余额」列，终态与源系统一致'
+                '（报销 / 借还类余额为派生值，由各自台账重算）。只有账单数据时账户段'
+                '可整体省略；「合并原有数据」只建缺失户、不动已存在户，「覆盖原有数据」'
+                '对同名户全量覆盖。',
+          ),
+          const SizedBox(height: AppDimens.sm),
+          HairlineCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: <Widget>[
+                for (int i = 0; i < _accountColumns.length; i++) ...<Widget>[
+                  if (i > 0)
+                    Divider(height: 1, color: scheme.outline.withValues(alpha: 0.6)),
+                  _ColRow(col: _accountColumns[i]),
                 ],
               ],
             ),

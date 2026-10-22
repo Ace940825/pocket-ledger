@@ -23,6 +23,22 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// 账本下**全部**账户（含隐藏 / 封存，只排软删）。
+  ///
+  /// 与 [watchByBook] 的区别：不过滤 isArchived——隐藏 / 封存账户也要进
+  /// 导出账户段，保证「导出 → 新系统导入」连同隐藏账户一并复原。
+  Future<List<Account>> allByBookIncludingArchived(String bookId) {
+    return (select(accounts)
+          ..where(
+            ($AccountsTable tbl) =>
+                tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
+          )
+          ..orderBy([
+            ($AccountsTable tbl) => OrderingTerm.asc(tbl.sortOrder),
+          ]))
+        .get();
+  }
+
   /// 实时监听净资产。
   ///
   /// **约定**：信用卡余额以**正数**存储，表示「欠款金额」。因此净资产 = 非信用卡账户余额之和 − 信用卡账户余额之和。

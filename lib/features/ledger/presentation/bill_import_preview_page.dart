@@ -555,6 +555,20 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
       _aggBlock('按月', c.byMonth, 4),
       _aggBlock('按模块', c.byModule, 6),
       const SizedBox(height: 6),
+      if (c.restoredAccounts.isNotEmpty || c.updatedAccounts.isNotEmpty) ...<Widget>[
+        Text(
+          '账户段复原：新建 ${c.restoredAccounts.length} 个'
+          '${c.updatedAccounts.isEmpty ? '' : '、覆盖 ${c.updatedAccounts.length} 个'}'
+          '（${<String>[...c.restoredAccounts, ...c.updatedAccounts].join('、')}），'
+          '导入完成后余额按段内「余额」列校正。',
+          style: TextStyle(
+            fontSize: 12,
+            height: 1.5,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 4),
+      ],
       Text(
         allMatched
             ? '✅ 账户与分类全部匹配现有数据，导入不会新建。'

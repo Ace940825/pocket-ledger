@@ -75,26 +75,30 @@ void main() {
 
     test('模板示例与表头列数严格一致（防错位）', () {
       // 把模板正文（含 # 注释）整体当作数据解析，注释行会被忽略；
-      // 表头行 + 用户数据行的列数都应等于 16（15 字段 + 对方）。
-      // 这里直接校验渲染出的示例块。
+      // v3 双段：非注释区首行是**账户段**表头（15 列），第二行是**账单段**
+      // 表头（21 列：18 原字段 + 对方/位置/纬度/经度）。示例只在 # 注释里。
       final String csv = buildTemplateCsv();
       final List<String> nonComment = csv
           .split('\n')
           .where((l) => !l.trimLeft().startsWith('#'))
           .where((l) => l.trim().isNotEmpty)
           .toList();
-      // 第一行应为表头（21 列：18 原字段 + 位置/纬度/经度）。
-      expect(nonComment.first.split(',').length, 21);
+      expect(nonComment.first.split(',').length, kAccountTemplateFields.length);
+      expect(nonComment.first.split(',').length, 15);
+      expect(nonComment[1].split(',').length, 21);
     });
 
-    test('JSON 模板含 _template 元信息与空 bills 数组', () {
+    test('JSON 模板含 _template 元信息与空 bills / accounts 数组', () {
       final String json = buildTemplateJson();
       expect(json, contains('"_template"'));
       expect(json, contains('"version"'));
       expect(json, contains('"bills": []'));
+      expect(json, contains('"accounts": []'));
       expect(json, contains('"fields"'));
-      // 21 个字段规范（含「对方」、手续费、子分类、位置/纬度/经度）。
+      expect(json, contains('"accountFields"'));
+      // 21 个账单字段规范（含「对方」、手续费、子分类、位置/纬度/经度）。
       expect(kBillTemplateFields.length, 21);
+      expect(kAccountTemplateFields.length, 15);
     });
   });
 

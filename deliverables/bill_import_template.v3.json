@@ -1,0 +1,264 @@
+{
+  "_template": {
+    "app": "口袋账本",
+    "version": "v3",
+    "accountFields": [
+      {
+        "key": "book",
+        "name": "账本",
+        "type": "文本",
+        "required": false,
+        "desc": "账本名称；为空归当前账本。与账单段「账本」列同一口径，按名称归户"
+      },
+      {
+        "key": "name",
+        "name": "账户名",
+        "type": "文本",
+        "required": true,
+        "desc": "账户名称；与现有账户按名称匹配（忽略大小写），不存在则按本段全量字段建户。名称是复原的匹配键，改名会被当成另一个账户"
+      },
+      {
+        "key": "type",
+        "name": "类型",
+        "type": "枚举",
+        "required": true,
+        "desc": "导出为英文代码（如 wechat / creditCard），保证无歧义往返；手工填写也可写中文名（如 微信 / 信用卡）。代码清单：cash 现金、bankCard 借记卡、creditCard 信用卡、eWallet 电子钱包、other 其他账户、wechat 微信、alipay 支付宝、providentFund 公积金、medicalInsurance 医保卡、transitCard 公交卡、giftCard 储值卡、fund 基金、stock 股票、futures 期货、spot 现货、reimbursement 报销、lend 借出、huabei 花呗、jiebei 借呗、baitiao 白条、meituanMonthly 美团月付、douyinMonthly 抖音月付、otherDebt 其他负债账户、borrow 借入、timeDeposit 定期、investmentOther 其他投资账户"
+      },
+      {
+        "key": "currency",
+        "name": "币种",
+        "type": "文本",
+        "required": false,
+        "desc": "如 CNY / USD / HKD；留空默认 CNY"
+      },
+      {
+        "key": "balance",
+        "name": "余额",
+        "type": "金额",
+        "required": false,
+        "desc": "当前余额（元），可为负数（如投资账户亏损）；信用卡等负债类按库内口径正余额=欠款，照账户页显示值填即可。导入完成后余额会校正为该值，保证新系统与导出时一致（报销 / 借还类账户余额为派生值，由各自台账重算、不校正）；留空为 0"
+      },
+      {
+        "key": "icon",
+        "name": "图标",
+        "type": "文本",
+        "required": false,
+        "desc": "图标 key，留空则按账户类型自动派生"
+      },
+      {
+        "key": "color",
+        "name": "颜色",
+        "type": "文本",
+        "required": false,
+        "desc": "颜色值：0xFF88CC66 / #FF88CC66 / #88CC66 任一形式；留空为不自定义"
+      },
+      {
+        "key": "creditLimit",
+        "name": "信用卡额度",
+        "type": "金额",
+        "required": false,
+        "desc": "仅信用卡 / 负债类账户有意义，如 20000.00；留空为不设额度"
+      },
+      {
+        "key": "billingDay",
+        "name": "账单日",
+        "type": "数字",
+        "required": false,
+        "desc": "信用卡账单日，1-31；留空为不设"
+      },
+      {
+        "key": "dueDay",
+        "name": "还款日",
+        "type": "数字",
+        "required": false,
+        "desc": "信用卡还款日，1-31；留空为不设"
+      },
+      {
+        "key": "note",
+        "name": "备注",
+        "type": "文本",
+        "required": false,
+        "desc": "账户备注，选填"
+      },
+      {
+        "key": "cardNumber",
+        "name": "卡号",
+        "type": "文本",
+        "required": false,
+        "desc": "卡号（可只记后四位）；第三方账单导入按末四位归户时也用它匹配"
+      },
+      {
+        "key": "status",
+        "name": "状态",
+        "type": "枚举",
+        "required": false,
+        "desc": "使用中 / 隐藏 / 封存（也可写 active / hidden / sealed）；留空默认「使用中」"
+      },
+      {
+        "key": "includeInTotal",
+        "name": "计入总资产",
+        "type": "布尔",
+        "required": false,
+        "desc": "是否计入总资产（净值计算）：Y / N。留空默认 Y"
+      },
+      {
+        "key": "sortOrder",
+        "name": "排序",
+        "type": "数字",
+        "required": false,
+        "desc": "账户列表排序号，小的在前；留空为 0"
+      }
+    ],
+    "fields": [
+      {
+        "key": "date",
+        "name": "日期",
+        "type": "日期时间",
+        "required": true,
+        "desc": "格式 yyyy-MM-dd HH:mm，如 2026-10-18 12:30；只到日期也接受。兼容微信等导出的宽松写法：斜杠分隔、月/日/时/分不补零（如 2026-9-29 17:31 / 2026/10/9 17:3）"
+      },
+      {
+        "key": "module",
+        "name": "模块",
+        "type": "枚举",
+        "required": false,
+        "desc": "业务来源：日常记账 / 转账 / 借还 / 报销 / 储蓄 / 分期 / 投资 / 物品 / 退款；留空默认「日常记账」。报销的「支出侧」不用本列——垫付请记一笔普通支出并填「可报销=Y + 报销账户」（走通用路径自动挂报销账户应收）；本列「报销」（Phase 2 已支持）仅用于报销到账的收入：类型须「收入」、报销账户必填、「账户」列填实际收款账户（如微信/银行卡），导入即建报销收入流水 + 待报销记录并全额抵扣翻「已报销」+ 核销报销账户挂账，维持「报销账户余额 = 待收垫付」不变量，导出→再导入无损往返。借还（Phase 2 已支持）按分类名（借入/借出/还债/收债/债务消减/坏账计提）路由到借还台账，并需填「对方」列。储蓄（Phase 2 已支持）按「转入账户」列= 储蓄计划名路由到储蓄台账：建/匹配目标 + 逐期存入；账户列=扣款账户（可空 = 灵活存入，无联动流水）。分期（Phase 2 已支持）按「备注」= 计划名（如 iPhone 分期）+ 「转入账户」= 负债付款账户（花呗/信用卡）路由分期计划：类型须「转账」，导入即建/匹配计划并逐期生成「分期订单」、还款自动对账标记已还。投资（Phase 2 已支持）按「对方」= 证券代码 + 「分类」= 品种类型（股票/基金/债券/期货/期权/外汇/贵金属/加密货币/其他）+ 「备注」= 名称@单价 路由投资持仓台账：类型须「支出」（买入）或「收入」（卖出），导入即生成持仓与资金流水。报销（Phase 2 已支持）按「账户」= 实际收款账户 + 「报销账户」= 报销类账户路由：建报销收入流水（进收款账户）+ 建待报销记录并全额抵扣翻「已报销」+ 核销报销账户挂账，维持「报销账户余额 = 待收垫付」不变量；导出→再导入无损往返。"
+      },
+      {
+        "key": "type",
+        "name": "类型",
+        "type": "枚举",
+        "required": true,
+        "desc": "只能填：收入 / 支出 / 转账"
+      },
+      {
+        "key": "amount",
+        "name": "金额",
+        "type": "金额",
+        "required": true,
+        "desc": "正数金额（元），最多两位小数，如 25.50；不接受 0 或负数"
+      },
+      {
+        "key": "account",
+        "name": "账户",
+        "type": "文本",
+        "required": true,
+        "desc": "账户名称；与现有账户按名称匹配（忽略大小写），不存在将自动创建"
+      },
+      {
+        "key": "toAccount",
+        "name": "转入账户",
+        "type": "文本",
+        "required": false,
+        "desc": "仅「转账」必填：转入方账户名称"
+      },
+      {
+        "key": "counterparty",
+        "name": "对方",
+        "type": "文本",
+        "required": false,
+        "desc": "仅「借还」模块且分类为借入/借出/还债/收债/债务消减/坏账计提之一时必填：借款人 / 出借人 / 债务方名。借还按固定分类名路由到借还台账，对方即其 counterparty；借入/借出导入时若账户列表中无同名应收/应付账户，将按对方名自动创建对应类型账户；其余模块留空"
+      },
+      {
+        "key": "discount",
+        "name": "优惠",
+        "type": "金额",
+        "required": false,
+        "desc": "优惠 / 折扣金额（元），如 45.00；实付 = 金额 − 优惠。留空为 0"
+      },
+      {
+        "key": "fee",
+        "name": "手续费",
+        "type": "金额",
+        "required": false,
+        "desc": "手续费（元），如 2.00；常见于银行 / 第三方转账。仅作记录项签，不参与余额扣减（转账实付请在记一笔侧用「扣款金额」表达）。留空为 0"
+      },
+      {
+        "key": "category",
+        "name": "分类",
+        "type": "文本",
+        "required": false,
+        "desc": "分类名称；按收入/支出类型匹配同名分类，不存在将自动创建"
+      },
+      {
+        "key": "subcategory",
+        "name": "子分类",
+        "type": "文本",
+        "required": false,
+        "desc": "子分类名称（自由文本，可不填）；与「分类」解耦：分类参与统计归集，子分类只是可选项签，不影响任何聚合。如「餐饮」下记「聚餐 / 外卖」"
+      },
+      {
+        "key": "tags",
+        "name": "标签",
+        "type": "文本",
+        "required": false,
+        "desc": "标签名，多个用半角逗号分隔，如 旅游,2026；留空无标签"
+      },
+      {
+        "key": "book",
+        "name": "账本",
+        "type": "文本",
+        "required": false,
+        "desc": "账本名称；按名称归户到对应账本，不存在将归入当前账本。留空归当前账本"
+      },
+      {
+        "key": "isReimbursable",
+        "name": "可报销",
+        "type": "布尔",
+        "required": false,
+        "desc": "是否可报销：Y / N（或 是 / 否 / true / false）。Y 时建议填「报销账户」"
+      },
+      {
+        "key": "reimbursementAccount",
+        "name": "报销账户",
+        "type": "文本",
+        "required": false,
+        "desc": "可报销时挂账的报销账户名称（如「公司报销」）；不存在将自动创建为报销类账户"
+      },
+      {
+        "key": "excludeFromBudget",
+        "name": "不计预算",
+        "type": "布尔",
+        "required": false,
+        "desc": "是否不计入预算：Y / N。Y 时不参与预算月度统计"
+      },
+      {
+        "key": "excludeFromStats",
+        "name": "不计收支",
+        "type": "布尔",
+        "required": false,
+        "desc": "是否不计入收支统计：Y / N。Y 时不计入收支报表（如内部划转、对账调整）"
+      },
+      {
+        "key": "note",
+        "name": "备注",
+        "type": "文本",
+        "required": false,
+        "desc": "选填，最长建议 200 字"
+      },
+      {
+        "key": "placeName",
+        "name": "位置",
+        "type": "文本",
+        "required": false,
+        "desc": "选填，语义化地名（小区/店名级）；与纬度/经度一起填写可恢复定位显示"
+      },
+      {
+        "key": "latitude",
+        "name": "纬度",
+        "type": "数字",
+        "required": false,
+        "desc": "选填，WGS-84 纬度（小数度，如 39.913860）"
+      },
+      {
+        "key": "longitude",
+        "name": "经度",
+        "type": "数字",
+        "required": false,
+        "desc": "选填，WGS-84 经度（小数度，如 116.627910）"
+      }
+    ]
+  },
+  "accounts": [],
+  "bills": []
+}

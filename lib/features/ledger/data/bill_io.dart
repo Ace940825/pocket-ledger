@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import 'account_io.dart';
 
 /// 一笔可导入 / 导出的账单（与数据库无关的中间表示）。
 ///
@@ -244,8 +245,18 @@ String _nullIfEmpty(String s) {
   return t.isEmpty ? '' : t;
 }
 
+/// 账户段 / 账单段的分段标记行（CSV 单文件双段，v3）。
+///
+/// 旧文件没有标记 → 整个文件按账单段解析（向后兼容）。标记行形如
+/// `# [账户]`，以 `#` 开头所以不会被当成数据行，用户阅读时也一眼可见。
+const String kAccountSectionMarker = '# [账户]';
+const String kBillSectionMarker = '# [账单]';
+
 /// 导出为 CSV 文本（含表头）。备注里的逗号 / 换行由 [ListToCsvConverter] 自动转义。
-String buildCsv(List<BillRow> rows) {
+///
+/// [accounts] 非空时输出「账户段 + 账单段」双段文件（v3，用于在新系统复原
+/// 账户信息）；为空时保持旧单段账单格式，向后兼容。
+String buildCsv(List<BillRow> rows, {List<AccountRow> accounts = const []}) {
   final List<List<dynamic>> table = <List<dynamic>>[
     _kCsvHeader,
     for (final BillRow r in rows)
@@ -273,11 +284,24 @@ String buildCsv(List<BillRow> rows) {
         r.longitude?.toStringAsFixed(6) ?? '',
       ],
   ];
-  return const ListToCsvConverter(eol: '\n').convert(table);
+  final String bills =
+      const ListToCsvConverter(eol: '\n').convert(table);
+  if (accounts.isEmpty) return bills;
+  return <String>[
+    '$kAccountSectionMarker\n'
+        '${const ListToCsvConverter(eol: '\n').convert(<List<dynamic>>[
+              kAccountCsvHeader,
+              for (final AccountRow a in accounts) accountRowToCsvCells(a),
+            ])}',
+    '$kBillSectionMarker\n$bills',
+  ].join('\n');
 }
 
-/// 导出为 JSON 文本（账单数组，元素键与 [_kJsonKeys] 一一对应）。
-String buildJson(List<BillRow> rows) {
+/// 导出为 JSON 文本。
+///
+/// [accounts] 非空时输出 `{accounts:[…], bills:[…]}` 包裹结构（v3）；为空时
+/// 保持旧账单数组结构，向后兼容（导入侧两种都能读）。
+String buildJson(List<BillRow> rows, {List<AccountRow> accounts = const []}) {
   final List<Map<String, dynamic>> list = <Map<String, dynamic>>[
     for (final BillRow r in rows)
       <String, dynamic>{
@@ -306,14 +330,23 @@ String buildJson(List<BillRow> rows) {
         if (r.longitude != null) 'longitude': r.longitude,
       },
   ];
-  return jsonEncode(list);
+  if (accounts.isEmpty) return jsonEncode(list);
+  return jsonEncode(<String, dynamic>{
+    'accounts': <Map<String, dynamic>>[
+      for (final AccountRow a in accounts) accountRowToJson(a),
+    ],
+    'bills': list,
+  });
 }
 
-/// 解析结果：成功解析的账单行 + 每一条无法解析的记录（带行号 / 原因）。
+/// 解析结果：成功解析的账单行 / 账户行 + 每一条无法解析的记录（带行号 / 原因）。
 class ParseResult {
-  const ParseResult(this.rows, this.errors);
+  const ParseResult(this.rows, this.errors, {this.accounts = const <AccountRow>[]});
 
   final List<BillRow> rows;
+
+  /// 账户段（v3 导出文件 / 模板自带；旧文件为空）。
+  final List<AccountRow> accounts;
   final List<String> errors;
 
   bool get hasErrors => errors.isNotEmpty;
@@ -333,12 +366,101 @@ ParseResult parseInput(String content) {
 
 ParseResult _parseCsv(String content) {
   // 模板系统（bill_template.dart）：以 # 开头的行是填写说明，导入时忽略，
-  // 用户无需手动删除模板里的注释行。
-  final String filtered = content
-      .replaceAll('\r', '')
-      .split('\n')
-      .where((String line) => !line.trimLeft().startsWith('#'))
-      .join('\n');
+  // 用户无需手动删除模板里的注释行。v3 起 `# [账户]` / `# [账单]` 是分段
+  // 标记：账户段在前、账单段在后；旧文件无标记 → 全部按账单段解析。
+  final List<String> lines = content.replaceAll('\r', '').split('\n');
+  bool sawMarker = false;
+  bool inAccounts = false;
+  final List<String> billLines = <String>[];
+  final List<String> accountLines = <String>[];
+  for (final String line in lines) {
+    final String t = line.trim();
+    if (t == kAccountSectionMarker || t == '# [accounts]') {
+      sawMarker = true;
+      inAccounts = true;
+      continue;
+    }
+    if (t == kBillSectionMarker || t == '# [bills]') {
+      sawMarker = true;
+      inAccounts = false;
+      continue;
+    }
+    if (t.trimLeft().startsWith('#')) continue;
+    (inAccounts && sawMarker ? accountLines : billLines).add(line);
+  }
+  final ParseResult accountsResult = _parseAccountCsvSection(accountLines);
+  final ParseResult billsResult = _parseBillCsvSection(billLines);
+  return ParseResult(
+    billsResult.rows,
+    <String>[...accountsResult.errors, ...billsResult.errors],
+    accounts: accountsResult.accounts,
+  );
+}
+
+/// 账户段（一组 CSV 行，首行表头）→ [AccountRow]；表头缺列按空处理。
+ParseResult _parseAccountCsvSection(List<String> lines) {
+  // 去掉尾部空行（模板 / 导出文件常以换行收尾），避免空行报「账户名为空」。
+  while (lines.isNotEmpty && lines.last.trim().isEmpty) {
+    lines = lines.sublist(0, lines.length - 1);
+  }
+  if (lines.isEmpty) return const ParseResult(<BillRow>[], <String>[]);
+  final List<List<dynamic>> table =
+      const CsvToListConverter(eol: '\n', shouldParseNumbers: false)
+          .convert(lines.join('\n'));
+  if (table.isEmpty) return const ParseResult(<BillRow>[], <String>[]);
+  final List<String> errors = <String>[];
+  final List<AccountRow> accounts = <AccountRow>[];
+
+  final Map<String, int> idx = <String, int>{};
+  final List<dynamic> header = table.first;
+  for (int i = 0; i < header.length; i++) {
+    idx[header[i].toString().trim()] = i;
+  }
+  int col(String name) => idx[name] ?? -1;
+
+  final int headerLen = header.length;
+  for (int r = 1; r < table.length; r++) {
+    final List<dynamic> raw = table[r];
+    final String lineNo = '账户段第$r行';
+    if (raw.length > headerLen) {
+      errors.add('$lineNo：列数（${raw.length}）超出表头（$headerLen），'
+          '请检查是否有多余的逗号或漏写引号');
+      continue;
+    }
+    final List<dynamic> line = List<dynamic>.filled(headerLen, '');
+    for (int i = 0; i < raw.length; i++) {
+      line[i] = raw[i];
+    }
+    // 全空行（多余换行）静默跳过，不计错误。
+    if (line.every((dynamic c) => c.toString().trim().isEmpty)) continue;
+    final AccountRow? row = parseAccountCsvRow(
+      line: line,
+      lineNo: lineNo,
+      iBook: col('账本'),
+      iName: col('账户名'),
+      iType: col('类型'),
+      iCurrency: col('币种'),
+      iBalance: col('余额'),
+      iIcon: col('图标'),
+      iColor: col('颜色'),
+      iCreditLimit: col('信用卡额度'),
+      iBilling: col('账单日'),
+      iDue: col('还款日'),
+      iNote: col('备注'),
+      iCard: col('卡号'),
+      iStatus: col('状态'),
+      iInclude: col('计入总资产'),
+      iSort: col('排序'),
+      errors: errors,
+    );
+    if (row != null) accounts.add(row);
+  }
+  return ParseResult(const <BillRow>[], errors, accounts: accounts);
+}
+
+/// 账单段（一组 CSV 行，首行表头）→ [BillRow]；逻辑与旧单段解析完全一致。
+ParseResult _parseBillCsvSection(List<String> lines) {
+  final String filtered = lines.join('\n');
   final List<BillRow> rows = <BillRow>[];
   final List<String> errors = <String>[];
   final List<List<dynamic>> table =
@@ -480,13 +602,32 @@ ParseResult _parseCsv(String content) {
 
 ParseResult _parseJson(String content) {
   final List<BillRow> rows = <BillRow>[];
+  final List<AccountRow> accounts = <AccountRow>[];
   final List<String> errors = <String>[];
   try {
     final dynamic decoded = jsonDecode(content);
     // 模板系统：本 App 生成的空白模板是 {_template:…, bills:[…]} 结构，
-    // 账单数据在 bills 键下；兼容旧格式（裸数组或单对象）。
-    final dynamic bills =
-        decoded is Map && decoded['bills'] is List ? decoded['bills'] : decoded;
+    // 账单数据在 bills 键下；v3 起另有 accounts 键装账户段。
+    // 兼容旧格式（裸数组或单对象）。
+    final dynamic bills = decoded is Map
+        ? (decoded['bills'] is List ? decoded['bills'] : decoded)
+        : decoded;
+    if (decoded is Map && decoded['accounts'] is List) {
+      final List<dynamic> accList = decoded['accounts'] as List<dynamic>;
+      for (int i = 0; i < accList.length; i++) {
+        final dynamic item = accList[i];
+        if (item is! Map) {
+          errors.add('账户段第${i + 1}项：不是对象');
+          continue;
+        }
+        final AccountRow? row = parseAccountJsonRow(
+          item.cast<String, dynamic>(),
+          lineNo: '账户段第${i + 1}项',
+          errors: errors,
+        );
+        if (row != null) accounts.add(row);
+      }
+    }
     final List<dynamic> list = bills is List ? bills : <dynamic>[bills];
     for (int i = 0; i < list.length; i++) {
       final dynamic item = list[i];
@@ -585,7 +726,7 @@ ParseResult _parseJson(String content) {
   } on FormatException catch (e) {
     errors.add('JSON 解析失败：$e');
   }
-  return ParseResult(rows, errors);
+  return ParseResult(rows, errors, accounts: accounts);
 }
 
 // ───────────────────── 借还路由（Phase 2） ─────────────────────

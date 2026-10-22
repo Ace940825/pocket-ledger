@@ -263,4 +263,166 @@ class AccountRepository {
       );
     });
   }
+
+  /// 导入复原账户（账单导入 v3 账户段，见 account_io.dart）：按名称归户，
+  /// 全量字段落库（含图标 / 颜色 / 排序——[add] / [update] 不开放这三项）。
+  ///
+  /// - [existingId] == null → 建户（[balanceMinor] 传文件值，导入收尾还会
+  ///   被 [setRestoredBalance] 校正一次，等全部流水落完再定终值）；
+  /// - [existingId] != null 且 [overwrite] → 全量覆盖字段；
+  /// - [existingId] != null 且 !overwrite → 什么都不动，直接返回现有 id
+  ///   （「合并原有数据」语义：已存在的账户保持原样）。
+  ///
+  /// 借还 / 报销账户的余额是派生不变量：这里写入后前者按名下未结清记录重算、
+  /// 后者保留库中现值（与 [update] 同口径），避免导入快照覆盖派生值。
+  Future<String> restoreAccount({
+    required String bookId,
+    required String name,
+    required AccountType type,
+    required int balanceMinor,
+    String currency = 'CNY',
+    String? iconKey,
+    int? colorValue,
+    int? creditLimitMinor,
+    int? billingDay,
+    int? dueDay,
+    String? note,
+    String? cardNumber,
+    AccountStatus status = AccountStatus.active,
+    bool includeInTotal = true,
+    int sortOrder = 0,
+    String? existingId,
+    bool overwrite = false,
+  }) async {
+    if (name.trim().isEmpty) {
+      throw const ValidationFailure('账户名称不能为空');
+    }
+    if (existingId != null && !overwrite) return existingId;
+
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    return _db.transaction<String>(() async {
+      int effectiveBalance = balanceMinor;
+      String id;
+      Account? before;
+      if (existingId == null) {
+        id = const Uuid().v7();
+      } else {
+        id = existingId;
+        before = await (_db.select(_db.accounts)
+              ..where((Accounts t) => t.id.equals(id)))
+            .getSingleOrNull();
+        // 报销账户余额为派生值（待报销合计），保留库中现值。
+        if (type == AccountType.reimbursement) {
+          effectiveBalance = before?.balanceMinor ?? balanceMinor;
+        }
+      }
+
+      final AccountsCompanion row = AccountsCompanion(
+        id: Value<String>(id),
+        bookId: Value<String>(bookId),
+        name: Value<String>(name.trim()),
+        type: Value<AccountType>(type),
+        balanceMinor: Value<int>(effectiveBalance),
+        currency: Value<String>(currency),
+        iconKey: Value<String?>(iconKey),
+        colorValue: Value<int?>(colorValue),
+        creditLimitMinor: Value<int?>(creditLimitMinor),
+        billingDay: Value<int?>(billingDay),
+        dueDay: Value<int?>(dueDay),
+        note: Value<String?>(note),
+        cardNumber: Value<String?>(cardNumber),
+        status: Value<AccountStatus>(status),
+        includeInTotal: Value<bool>(includeInTotal),
+        isArchived: Value<bool>(!status.isVisible),
+        sortOrder: Value<int>(sortOrder),
+        updatedAt: Value<int>(now),
+        dirty: const Value<bool>(true),
+      );
+      if (existingId == null) {
+        await _db.accountsDao.insertAccount(row);
+      } else {
+        await _db.accountsDao.updateAccount(row);
+      }
+
+      // 借还账户：余额是派生不变量，写库后立即按名下未结清记录重算。
+      if (type == AccountType.lend || type == AccountType.borrow) {
+        await reconcileDesignatedLendBalance(_db, id);
+        final Account? after = await (_db.select(_db.accounts)
+              ..where((Accounts t) => t.id.equals(id)))
+            .getSingleOrNull();
+        effectiveBalance = after?.balanceMinor ?? effectiveBalance;
+      }
+
+      await _db.pendingOpsDao.enqueue(
+        PendingOpsCompanion(
+          targetTable: const Value<String>('accounts'),
+          recordId: Value<String>(id),
+          opType: Value<SyncOpType>(
+            existingId == null ? SyncOpType.insert : SyncOpType.update,
+          ),
+          payload: Value<String>(
+            jsonEncode(<String, Object?>{
+              'bookId': bookId,
+              'name': name.trim(),
+              'type': type.index,
+              'balanceMinor': effectiveBalance,
+              'currency': currency,
+              'iconKey': iconKey,
+              'colorValue': colorValue,
+              'creditLimitMinor': creditLimitMinor,
+              'billingDay': billingDay,
+              'dueDay': dueDay,
+              'note': note,
+              'cardNumber': cardNumber,
+              'status': status.index,
+              'includeInTotal': includeInTotal,
+              'sortOrder': sortOrder,
+            }),
+          ),
+          updatedAt: Value<int>(now),
+          createdAt: Value<int>(now),
+        ),
+      );
+      return id;
+    });
+  }
+
+  /// 导入收尾：把复原账户的余额校正为文件值（全部流水落库后调用）。
+  ///
+  /// 报销账户余额是派生值、借还账户已由对账重算，均跳过。
+  Future<void> setRestoredBalance({
+    required String id,
+    required AccountType type,
+    required int balanceMinor,
+  }) async {
+    if (type == AccountType.reimbursement ||
+        type == AccountType.lend ||
+        type == AccountType.borrow) {
+      return;
+    }
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      await _db.accountsDao.updateAccount(
+        AccountsCompanion(
+          id: Value<String>(id),
+          balanceMinor: Value<int>(balanceMinor),
+          updatedAt: Value<int>(now),
+          dirty: const Value<bool>(true),
+        ),
+      );
+      await _db.pendingOpsDao.enqueue(
+        PendingOpsCompanion(
+          targetTable: const Value<String>('accounts'),
+          recordId: Value<String>(id),
+          opType: const Value<SyncOpType>(SyncOpType.update),
+          payload: Value<String>(
+            jsonEncode(<String, Object?>{'balanceMinor': balanceMinor}),
+          ),
+          updatedAt: Value<int>(now),
+          createdAt: Value<int>(now),
+        ),
+      );
+    });
+  }
 }

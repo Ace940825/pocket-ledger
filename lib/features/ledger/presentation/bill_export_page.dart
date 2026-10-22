@@ -27,6 +27,7 @@ import '../../investment/providers/investment_providers.dart';
 import '../../lend/providers/lend_providers.dart';
 import '../../savings/data/savings_repository.dart';
 import '../../savings/providers/savings_providers.dart';
+import '../data/account_io.dart';
 import '../data/bill_io.dart';
 import '../providers/ledger_providers.dart';
 
@@ -529,7 +530,35 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
         return;
       }
 
-      final String content = _asJson ? buildJson(rows) : buildCsv(rows);
+      // 账户段（v3）：导出当前账本**全部**账户（含隐藏 / 封存），让文件在新
+      // 系统导入后连账户信息一起完整复原。余额按库内原值搬运。
+      final List<Account> allAccounts = await ref
+          .read(accountsDaoProvider)
+          .allByBookIncludingArchived(currentBookId);
+      final List<AccountRow> accountRows = <AccountRow>[
+        for (final Account a in allAccounts)
+          AccountRow(
+            book: currentBookName,
+            name: a.name,
+            type: a.type,
+            currency: a.currency,
+            balanceMinor: a.balanceMinor,
+            iconKey: a.iconKey,
+            colorValue: a.colorValue,
+            creditLimitMinor: a.creditLimitMinor,
+            billingDay: a.billingDay,
+            dueDay: a.dueDay,
+            note: a.note,
+            cardNumber: a.cardNumber,
+            status: a.status,
+            includeInTotal: a.includeInTotal,
+            sortOrder: a.sortOrder,
+          ),
+      ];
+
+      final String content = _asJson
+          ? buildJson(rows, accounts: accountRows)
+          : buildCsv(rows, accounts: accountRows);
 
       final String stamp = _timeStamp();
       final String ext = _asJson ? 'json' : 'csv';

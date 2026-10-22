@@ -39,6 +39,7 @@ import '../../reimbursement/data/reimbursement_repository.dart';
 import '../../reimbursement/providers/reimbursement_providers.dart';
 import '../../savings/data/savings_repository.dart';
 import '../../savings/providers/savings_providers.dart';
+import '../data/account_io.dart';
 import '../data/bill_import_sources.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
@@ -507,6 +508,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
         bookNames: <String>{
           for (final Book b in books) b.name.trim().toLowerCase(),
         },
+        accounts: parsed.accounts,
       );
     }
     setState(() {
@@ -859,6 +861,12 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       final AppDatabase db = ref.read(appDatabaseProvider);
       int imported = 0;
       int skipped = 0;
+      int accCreated = 0;
+      int accUpdated = 0;
+      // 导入收尾要把余额校正为文件值的账户（id + 文件余额 + 类型）。
+      // 只收本次真正写过的户（新建、或覆盖模式下被覆盖的户）。
+      final List<({String id, AccountType type, int balanceMinor})>
+          balanceFixups = <({String id, AccountType type, int balanceMinor})>[];
       final List<String> reasons = <String>[];
       // 本次导入写入的流水 ID 清单（级联删除溯源：删除导入记录时一并软删）。
       final List<String> txnIds = <String>[];
@@ -903,6 +911,82 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
             }
           }
         }
+        // ── 账户段复原（v3，见 account_io.dart）────────────────────────
+        // 顺序很关键：账户**先**于流水落库——行处理里的 _resolveAccount 按名
+        // 归户时就能命中已复原的账户（含隐藏 / 封存户），不会再建「裸账户」
+        // （只有名字、没有类型 / 额度 / 图标等元数据）。
+        // 余额此时先写文件值，等流水全部落完后在收尾统一校正（setRestoredBalance），
+        // 避免逐笔流水把余额改飞。
+        // merge（合并原有数据）：只建段内缺失的户，已存在的户一律不动；
+        // overwrite（覆盖原有数据）：已存在的户按段内全量字段覆盖。
+        final List<AccountRow> accRows = _parsed!.accounts;
+        for (int i = 0; i < accRows.length; i++) {
+          final AccountRow acc = accRows[i];
+          String bookId = currentBookId;
+          final String? accBook = acc.book?.trim();
+          if (accBook != null && accBook.isNotEmpty) {
+            final String? found = bookNameToId[accBook.toLowerCase()];
+            if (found != null) {
+              bookId = found;
+            }
+            // 未知账本：归当前账本（checkRows 已提示，此处不重复报）。
+          }
+          // 不走 accountsOf()：它缓存的是 watchByBook（排除隐藏 / 封存户），
+          // 且会在缓存里留下复原前的旧快照。这里直接查全量（含隐藏 / 封存）。
+          final List<Account> existing = await (db.select(db.accounts)
+                ..where((t) =>
+                    t.bookId.equals(bookId) & t.deleted.equals(false),))
+              .get();
+          Account? hit;
+          for (final Account a in existing) {
+            if (a.name.trim().toLowerCase() == acc.name.trim().toLowerCase()) {
+              hit = a;
+              break;
+            }
+          }
+          final bool overwriteThis =
+              mode == ImportConflictMode.overwrite && hit != null;
+          if (hit != null && !overwriteThis) continue; // 合并：已存在不动
+          final String id = await accRepo.restoreAccount(
+            bookId: bookId,
+            name: acc.name,
+            type: acc.type,
+            balanceMinor: acc.balanceMinor,
+            currency: acc.currency,
+            iconKey: acc.iconKey,
+            colorValue: acc.colorValue,
+            creditLimitMinor: acc.creditLimitMinor,
+            billingDay: acc.billingDay,
+            dueDay: acc.dueDay,
+            note: acc.note,
+            cardNumber: acc.cardNumber,
+            status: acc.status,
+            includeInTotal: acc.includeInTotal,
+            sortOrder: acc.sortOrder,
+            existingId: hit?.id,
+            overwrite: overwriteThis,
+          );
+          if (hit == null) {
+            accCreated++;
+          } else {
+            accUpdated++;
+          }
+          balanceFixups.add((
+            id: id,
+            type: acc.type,
+            balanceMinor: acc.balanceMinor,
+          ),);
+          // 预填名称 → ID 缓存：行处理的 _resolveAccount / _resolveDesignatedAccount
+          // 优先命中缓存，隐藏 / 封存户（不在 watchByBook 列表里）也能归户到
+          // 刚复原的账户，不会重复建户。
+          final String key = '$bookId|${acc.name.trim().toLowerCase()}';
+          accCache[key] = id;
+          if (acc.type == AccountType.lend || acc.type == AccountType.borrow) {
+            accCache['designated|$bookId|${acc.type.index}|'
+                '${acc.name.trim().toLowerCase()}'] = id;
+          }
+        }
+
         // 大批量导入进度（2026-10-22）：每 kImportChunk 行让出一次事件循环
         // 并刷新进度条；写入语义不变，仍在同一事务内（chunk 之间不提交）。
         // 行序修正（2026-10-22 真机反馈）：导出 occurredAt 倒序导致「收债/
@@ -1148,6 +1232,19 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           await Future.delayed(Duration.zero);
         }
 
+        // ── 账户段收尾：余额校正为文件值 ──
+        // 流水已全部落库（余额被逐笔调整过），这里把复原账户的余额拍到导出
+        // 时刻的「当前余额」，保证新系统终态与源系统一致。报销 / 借还账户的
+        // 余额是派生值，setRestoredBalance 内部跳过（由各自台账重算）。
+        for (final ({String id, AccountType type, int balanceMinor}) fix
+            in balanceFixups) {
+          await accRepo.setRestoredBalance(
+            id: fix.id,
+            type: fix.type,
+            balanceMinor: fix.balanceMinor,
+          );
+        }
+
         // 写入导入记录：入口页可查看 / 左滑删除级联删除本批账单。
         final ImportRecordRepository importRepo =
             ref.read(importRecordRepositoryProvider);
@@ -1163,9 +1260,14 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
         )); // ignore: require_trailing_commas
       }); // end db.transaction（整批原子提交）
 
+      final String accMsg = (accCreated == 0 && accUpdated == 0)
+          ? ''
+          : (accUpdated == 0
+              ? '，复原账户 $accCreated 个'
+              : '，复原账户 $accCreated 个（覆盖 $accUpdated 个）');
       final String msg = skipped == 0
-          ? '成功导入 $imported 笔账单'
-          : '导入 $imported 笔，跳过 $skipped 笔';
+          ? '成功导入 $imported 笔账单$accMsg'
+          : '导入 $imported 笔，跳过 $skipped 笔$accMsg';
       // 记录最近一次导入的跳过明细（结果栏「查看问题」复用）。
       _lastSkipped = skipped;
       _lastReasons = List<String>.from(reasons);

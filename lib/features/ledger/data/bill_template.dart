@@ -2,6 +2,7 @@ import 'package:csv/csv.dart';
 
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
+import 'account_io.dart';
 import 'bill_io.dart';
 
 /// 「数据导出 / 导入模板系统」——模板规范的唯一事实来源。
@@ -16,7 +17,11 @@ import 'bill_io.dart';
 ///    不再静默落库。
 ///
 /// 模板版本号：字段结构变化时递增，模板文件里写明，便于排查用户旧文件。
-const String kBillTemplateVersion = 'v2';
+///
+/// v3（2026-10-22）：新增账户段（[kAccountTemplateFields]）——CSV 单文件双段
+/// （`# [账户]` / `# [账单]` 标记分行），JSON 增 `accounts` 键；用于在新系统
+/// 复原账户信息。旧 v2 单段文件仍可导入。
+const String kBillTemplateVersion = 'v3';
 
 /// 模板单个字段的结构定义。
 class BillTemplateField {
@@ -226,6 +231,136 @@ const List<BillTemplateField> kBillTemplateFields = <BillTemplateField>[
   ),
 ];
 
+// ───────────────────── 账户段字段（v3，账户信息复原） ─────────────────────
+
+/// 账户段字段清单（顺序即列顺序，导出与解析共用）。
+///
+/// 与 [AccountRow]（account_io.dart）一一对应。设计目标：**导出 → 新系统
+/// 导入后账户信息全部复原**——类型 / 币种 / 余额 / 图标 / 颜色 / 信用卡额度 /
+/// 账单日 / 还款日 / 备注 / 卡号 / 状态 / 计入总资产 / 排序 一个不落。
+///
+/// 余额语义 = **当前余额**（分，信用卡负数=欠款）；导入收尾会把余额校正为
+/// 该值，因此新系统终态与导出时一致。
+const List<BillTemplateField> kAccountTemplateFields = <BillTemplateField>[
+  BillTemplateField(
+    header: '账本',
+    jsonKey: 'book',
+    typeLabel: '文本',
+    required: false,
+    desc: '账本名称；为空归当前账本。与账单段「账本」列同一口径，按名称归户',
+  ),
+  BillTemplateField(
+    header: '账户名',
+    jsonKey: 'name',
+    typeLabel: '文本',
+    required: true,
+    desc: '账户名称；与现有账户按名称匹配（忽略大小写），不存在则按本段全量字段'
+        '建户。名称是复原的匹配键，改名会被当成另一个账户',
+  ),
+  BillTemplateField(
+    header: '类型',
+    jsonKey: 'type',
+    typeLabel: '枚举',
+    required: true,
+    desc: '导出为英文代码（如 wechat / creditCard），保证无歧义往返；手工填写'
+        '也可写中文名（如 微信 / 信用卡）。代码清单：cash 现金、bankCard 借记卡、'
+        'creditCard 信用卡、eWallet 电子钱包、other 其他账户、wechat 微信、'
+        'alipay 支付宝、providentFund 公积金、medicalInsurance 医保卡、'
+        'transitCard 公交卡、giftCard 储值卡、fund 基金、stock 股票、futures 期货、'
+        'spot 现货、reimbursement 报销、lend 借出、huabei 花呗、jiebei 借呗、'
+        'baitiao 白条、meituanMonthly 美团月付、douyinMonthly 抖音月付、'
+        'otherDebt 其他负债账户、borrow 借入、timeDeposit 定期、'
+        'investmentOther 其他投资账户',
+  ),
+  BillTemplateField(
+    header: '币种',
+    jsonKey: 'currency',
+    typeLabel: '文本',
+    required: false,
+    desc: '如 CNY / USD / HKD；留空默认 CNY',
+  ),
+  BillTemplateField(
+    header: '余额',
+    jsonKey: 'balance',
+    typeLabel: '金额',
+    required: false,
+    desc: '当前余额（元），可为负数（如投资账户亏损）；信用卡等负债类按库内'
+        '口径正余额=欠款，照账户页显示值填即可。导入完成后余额会校正为该值，'
+        '保证新系统与导出时一致（报销 / 借还类账户余额为派生值，由各自台账'
+        '重算、不校正）；留空为 0',
+  ),
+  BillTemplateField(
+    header: '图标',
+    jsonKey: 'icon',
+    typeLabel: '文本',
+    required: false,
+    desc: '图标 key，留空则按账户类型自动派生',
+  ),
+  BillTemplateField(
+    header: '颜色',
+    jsonKey: 'color',
+    typeLabel: '文本',
+    required: false,
+    desc: '颜色值：0xFF88CC66 / #FF88CC66 / #88CC66 任一形式；留空为不自定义',
+  ),
+  BillTemplateField(
+    header: '信用卡额度',
+    jsonKey: 'creditLimit',
+    typeLabel: '金额',
+    required: false,
+    desc: '仅信用卡 / 负债类账户有意义，如 20000.00；留空为不设额度',
+  ),
+  BillTemplateField(
+    header: '账单日',
+    jsonKey: 'billingDay',
+    typeLabel: '数字',
+    required: false,
+    desc: '信用卡账单日，1-31；留空为不设',
+  ),
+  BillTemplateField(
+    header: '还款日',
+    jsonKey: 'dueDay',
+    typeLabel: '数字',
+    required: false,
+    desc: '信用卡还款日，1-31；留空为不设',
+  ),
+  BillTemplateField(
+    header: '备注',
+    jsonKey: 'note',
+    typeLabel: '文本',
+    required: false,
+    desc: '账户备注，选填',
+  ),
+  BillTemplateField(
+    header: '卡号',
+    jsonKey: 'cardNumber',
+    typeLabel: '文本',
+    required: false,
+    desc: '卡号（可只记后四位）；第三方账单导入按末四位归户时也用它匹配',
+  ),
+  BillTemplateField(
+    header: '状态',
+    jsonKey: 'status',
+    typeLabel: '枚举',
+    required: false,
+    desc: '使用中 / 隐藏 / 封存（也可写 active / hidden / sealed）；留空默认「使用中」',
+  ),
+  BillTemplateField(
+    header: '计入总资产',
+    jsonKey: 'includeInTotal',
+    typeLabel: '布尔',
+    required: false,
+    desc: '是否计入总资产（净值计算）：Y / N。留空默认 Y',
+  ),
+  BillTemplateField(
+    header: '排序',
+    jsonKey: 'sortOrder',
+    typeLabel: '数字',
+    required: false,
+    desc: '账户列表排序号，小的在前；留空为 0',
+  ),
+];
+
 /// 示例数据（与表头严格 21 列对齐，经 [ListToCsvConverter] 生成，避免手写错位）。
 ///
 /// 顺序：日期,模块,类型,金额,账户,转入账户,对方,优惠,手续费,分类,子分类,标签,
@@ -288,6 +423,29 @@ const List<List<String>> _sampleRows = <List<String>>[
   ],
 ];
 
+/// 账户段示例（与 [kAccountTemplateFields] 严格 15 列对齐）。
+///
+/// 顺序：账本,账户名,类型,币种,余额,图标,颜色,信用卡额度,账单日,还款日,
+/// 备注,卡号,状态,计入总资产,排序。
+const List<List<String>> _accountSampleRows = <List<String>>[
+  <String>[
+    '', '微信', 'wechat', 'CNY', '125.50', '', '', '', '', '',
+    '日常零钱', '', '使用中', 'Y', '1',
+  ],
+  <String>[
+    '', '招商银行', 'bankCard', 'CNY', '18620.33', '', '', '', '', '',
+    '工资卡', '1234', '使用中', 'Y', '2',
+  ],
+  <String>[
+    '', '招商信用卡', 'creditCard', 'CNY', '-2300.00', '', '', '20000', '5', '23',
+    '', '5678', '使用中', 'Y', '3',
+  ],
+  <String>[
+    '', '余额宝', 'investmentOther', 'CNY', '3000.00', '', '0xFF88CC66', '', '', '',
+    '货币基金', '', '隐藏', 'N', '4',
+  ],
+];
+
 /// 校验示例与表头列数严格一致（防手写错位，曾在 Excel 里被发现）。
 ///
 /// 示例与表头都由 [ListToCsvConverter] 生成，理论上不会错位；这里再显式守门，
@@ -302,6 +460,15 @@ void _verifySampleColumns() {
       );
     }
   }
+  final int accExpected = kAccountTemplateFields.length;
+  for (int i = 0; i < _accountSampleRows.length; i++) {
+    if (_accountSampleRows[i].length != accExpected) {
+      throw StateError(
+        '账户示例第 ${i + 1} 行列数（${_accountSampleRows[i].length}）≠ 表头'
+        '（$accExpected），模板示例错位',
+      );
+    }
+  }
 }
 
 /// 把示例行渲染成 CSV 文本（含表头），仅用于生成注释与预览，不直接作数据区。
@@ -313,39 +480,77 @@ String _renderSampleCsv() {
   ]);
 }
 
+/// 账户段示例渲染成 CSV 文本（含表头），用途同 [_renderSampleCsv]。
+String _renderAccountSampleCsv() {
+  _verifySampleColumns();
+  return const ListToCsvConverter(eol: '\n').convert(<List<dynamic>>[
+    <String>[for (final BillTemplateField f in kAccountTemplateFields) f.header],
+    for (final List<String> r in _accountSampleRows) r,
+  ]);
+}
+
 /// 模板文件头注释（CSV `#` 行 / JSON `_template` 元信息），含全部字段规范。
 ///
 /// 示例行由 [_renderSampleCsv] 统一生成并前缀 `# 示例：`，与表头同列数，
-/// 杜绝此前「手写注释示例列数错位」的问题。
+/// 杜绝此前「手写注释示例列数错位」的问题。账户段注释同理（v3）。
 List<String> templateCommentLines() {
-  final List<String> sampleLines = _renderSampleCsv()
+  final List<String> billSamples = _renderSampleCsv()
       .split('\n')
       .skip(1) // 跳过表头（表头另起一行，不进 # 注释）
+      .map((String l) => '# 示例：$l')
+      .toList();
+  final List<String> accountSamples = _renderAccountSampleCsv()
+      .split('\n')
+      .skip(1)
       .map((String l) => '# 示例：$l')
       .toList();
   return <String>[
     '# 口袋账本 · 账单导入模板 $kBillTemplateVersion',
     '# 带 * 为必填列；以 # 开头的行是说明，导入时自动忽略，请勿删除表头行',
+    '# 文件分两段：`# [账户]` 段（可选，账户信息，用于在新系统复原账户）+ '
+        '`# [账单]` 段（账单数据）；只有账单数据时可整体省略账户段',
+    '# ── 账户段字段 ──',
+    for (final BillTemplateField f in kAccountTemplateFields)
+      '# ${f.displayHeader}（${f.typeLabel}）：${f.desc}',
+    ...accountSamples,
+    '# ── 账单段字段 ──',
     for (final BillTemplateField f in kBillTemplateFields)
       '# ${f.displayHeader}（${f.typeLabel}）：${f.desc}',
-    ...sampleLines,
+    ...billSamples,
   ];
 }
 
-/// 生成空白填写模板 CSV：说明注释行 + 表头行。用户填到表头行下方即可导入。
+/// 生成空白填写模板 CSV：说明注释行 + 双段表头（`# [账户]` 段 + `# [账单]`
+/// 段）。用户填到各段表头行下方即可导入；账户段可整段留空。
 String buildTemplateCsv() => <String>[
       ...templateCommentLines(),
+      kAccountSectionMarker,
+      <String>[for (final BillTemplateField f in kAccountTemplateFields) f.header]
+          .join(','),
+      '',
+      kBillSectionMarker,
       <String>[for (final BillTemplateField f in kBillTemplateFields) f.header]
           .join(','),
       '',
     ].join('\n');
 
-/// 生成空白填写模板 JSON：`_template` 元信息 + 空数组，字段规范在 `fields` 里。
+/// 生成空白填写模板 JSON：`_template` 元信息 + 空数组，字段规范在 `fields` /
+/// `accountFields` 里。
 String buildTemplateJson() {
   final Map<String, dynamic> spec = <String, dynamic>{
     '_template': <String, dynamic>{
       'app': '口袋账本',
       'version': kBillTemplateVersion,
+      'accountFields': <Map<String, dynamic>>[
+        for (final BillTemplateField f in kAccountTemplateFields)
+          <String, dynamic>{
+            'key': f.jsonKey,
+            'name': f.header,
+            'type': f.typeLabel,
+            'required': f.required,
+            'desc': f.desc,
+          },
+      ],
       'fields': <Map<String, dynamic>>[
         for (final BillTemplateField f in kBillTemplateFields)
           <String, dynamic>{
@@ -357,6 +562,7 @@ String buildTemplateJson() {
           },
       ],
     },
+    'accounts': <dynamic>[],
     'bills': <dynamic>[],
   };
   return _prettyJson(spec);
@@ -371,6 +577,16 @@ List<BillRow> sampleBillRows() {
     for (final List<String> r in _sampleRows) r,
   ]);
   return parseInput(csv).rows;
+}
+
+/// 示例账户行（[AccountRow] 列表）：与 [sampleBillRows] 同定位，供导出示例 /
+/// 模板预览用。
+List<AccountRow> sampleAccountRows() {
+  return parseInput('$kAccountSectionMarker\n'
+          '${_renderAccountSampleCsv()}\n'
+          '$kBillSectionMarker\n'
+          '${_renderSampleCsv()}')
+      .accounts;
 }
 
 /// 极简两空格缩进 JSON（避免引入 dart:convert 之外的依赖；jsonEncode 原生
@@ -491,6 +707,8 @@ class TemplateCheckResult {
     required this.rowCount,
     required this.spanStart,
     required this.spanEnd,
+    this.restoredAccounts = const <String>[],
+    this.updatedAccounts = const <String>[],
   });
 
   /// 阻断性错误（金额非法、转账缺转入账户、类型不识别等），逐行带行号。
@@ -501,6 +719,12 @@ class TemplateCheckResult {
 
   /// 将自动创建的账户名（去重、保持出现顺序）。
   final List<String> newAccounts;
+
+  /// 账户段（v3）中将**新建**的账户名（当前库不存在，按段内全量字段建户）。
+  final List<String> restoredAccounts;
+
+  /// 账户段（v3）中将**覆盖更新**的账户名（当前库已存在同名账户）。
+  final List<String> updatedAccounts;
 
   /// 将自动创建的分类名（格式「支出:餐饮」）。
   final List<String> newCategories;
@@ -538,6 +762,7 @@ TemplateCheckResult checkRows(
   required Set<String> accountNames,
   required List<Set<String>> categoryNamesByType,
   Set<String> bookNames = const <String>{},
+  List<AccountRow> accounts = const <AccountRow>[],
 }) {
   final List<String> errors = <String>[];
   final List<String> warnings = <String>[];
@@ -799,6 +1024,34 @@ TemplateCheckResult checkRows(
     }
   }
 
+  // ── 账户段（v3）校验：同段重名阻断、未知账本提示、建户/覆盖归集 ──
+  final List<String> restoredAccounts = <String>[];
+  final List<String> updatedAccounts = <String>[];
+  final Map<String, String> accSeenAt = <String, String>{}; // 小写名 → 行号
+  for (int i = 0; i < accounts.length; i++) {
+    final AccountRow a = accounts[i];
+    final String lineNo = '账户段第${i + 1}行';
+    final String key = norm(a.name);
+    final String? prev = accSeenAt[key];
+    if (prev != null) {
+      errors.add('$lineNo：账户名「${a.name}」与$prev重复（匹配忽略大小写），'
+          '同名账户会归成同一个');
+      continue;
+    }
+    accSeenAt[key] = lineNo;
+    final String? book = a.book?.trim();
+    if (book != null && book.isNotEmpty && !bookNames.contains(norm(book))) {
+      if (seenNewBooks.add(norm(book))) {
+        warnings.add('$lineNo：账本「$book」不存在，将归入当前账本');
+      }
+    }
+    if (accountNames.contains(key)) {
+      updatedAccounts.add(a.name);
+    } else {
+      restoredAccounts.add(a.name);
+    }
+  }
+
   return TemplateCheckResult(
     errors: errors,
     warnings: warnings,
@@ -811,6 +1064,8 @@ TemplateCheckResult checkRows(
     rowCount: rows.length,
     spanStart: spanStart,
     spanEnd: spanEnd,
+    restoredAccounts: restoredAccounts,
+    updatedAccounts: updatedAccounts,
   );
 }
 
