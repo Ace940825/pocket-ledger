@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
 
+import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../database/daos/tags_dao.dart';
 import '../../../domain/enums.dart';
@@ -69,6 +70,15 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
   CalendarPeriodMode? _rangeMode;
+
+  /// [_rangeMode] 的条件模型口径（查询后页头周期要按这个粒度切换）。
+  LedgerPeriodMode? get _ledgerRangeMode => switch (_rangeMode) {
+        CalendarPeriodMode.week => LedgerPeriodMode.week,
+        CalendarPeriodMode.month => LedgerPeriodMode.month,
+        CalendarPeriodMode.year => LedgerPeriodMode.year,
+        CalendarPeriodMode.custom => LedgerPeriodMode.custom,
+        null => _rangeStart == null ? null : LedgerPeriodMode.custom,
+      };
   final TextEditingController _minCtrl = TextEditingController();
   final TextEditingController _maxCtrl = TextEditingController();
   final TextEditingController _noteCtrl = TextEditingController();
@@ -110,6 +120,15 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       _day = f.day;
       _rangeStart = f.rangeStart;
       _rangeEnd = f.rangeEnd;
+      // 回显粒度：旧条件没有 rangeMode（或为 null）时按自定义区间处理，
+      // 与 _timeLabel 的 null 分支同口径。
+      _rangeMode = switch (f.rangeMode) {
+        LedgerPeriodMode.week => CalendarPeriodMode.week,
+        LedgerPeriodMode.month => CalendarPeriodMode.month,
+        LedgerPeriodMode.year => CalendarPeriodMode.year,
+        LedgerPeriodMode.custom => CalendarPeriodMode.custom,
+        null => _rangeStart == null ? null : CalendarPeriodMode.custom,
+      };
       if (f.minMinor != null) _minCtrl.text = _minorToText(f.minMinor!);
       if (f.maxMinor != null) _maxCtrl.text = _minorToText(f.maxMinor!);
       if (f.note != null) _noteCtrl.text = f.note!;
@@ -155,6 +174,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         day: _day,
         rangeStart: _rangeStart,
         rangeEnd: _rangeEnd,
+        rangeMode: _ledgerRangeMode,
         minMinor: _parseMinor(_minCtrl.text),
         maxMinor: _parseMinor(_maxCtrl.text),
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
@@ -203,13 +223,10 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
     });
   }
 
-  /// 查询按钮的条件数：bookId 与当前账本相同视为不限，不计入。
-  int _conditionCount() {
-    final LedgerAdvancedFilter f = _buildResult();
-    final bool bookExtra =
-        f.bookId != null && f.bookId != ref.read(currentBookIdProvider);
-    return f.conditionCount - (bookExtra ? 0 : 1);
-  }
+  /// 查询按钮的条件数：bookId 与当前账本相同视为不限，不计入
+  /// （与页头筛选胶囊同一口径，见 [LedgerAdvancedFilter.conditionCountFor]）。
+  int _conditionCount() =>
+      _buildResult().conditionCountFor(ref.read(currentBookIdProvider));
 
   // ────────────────────────── 构建 ──────────────────────────
 
@@ -1161,7 +1178,9 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           children: <Widget>[
             _cardTitle('基本信息', trailing: _helpChip('按时间、金额区间、备注筛选账单')),
             const SizedBox(height: 12),
-            _labelRow('时间', trailing: _timeSelector()),
+            // 与本卡其余行一致：trailing 必须自带弹性，否则跨年长文案
+            // （2021年2月1日-2022年2月1日）在小屏/大字号下横向溢出。
+            _labelRow('时间', trailing: Expanded(child: _timeSelector())),
             const SizedBox(height: 12),
             _labelRow(
               '金额区间',
@@ -1491,12 +1510,17 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
             LineGlyph(
@@ -1525,11 +1549,11 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         case CalendarPeriodMode.week:
         case CalendarPeriodMode.custom:
         case null:
-          final DateTime last = end.subtract(const Duration(days: 1)); // end 排他
-          String md(DateTime d) => '${d.month}月${d.day}日';
-          return _rangeStart!.year == last.year
-              ? '${md(_rangeStart!)}-${md(last)}'
-              : '${_rangeStart!.year}年${md(_rangeStart!)}-${md(last)}';
+          // end 为排他边界；区间文案统一走 [formatDayRange]，跨年两端都带年份。
+          return formatDayRange(
+            _rangeStart!,
+            end.subtract(const Duration(days: 1)),
+          );
       }
     }
     return '${DateTime.now().year}年';

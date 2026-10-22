@@ -259,6 +259,25 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
   /// 周期切换：共享日历组件（CalendarSheet 纯周期模式，与流水页/报表页同款），
   /// 支持周/月/年/自定义四种粒度，确认后整段区间生效。
   Future<void> _pickPeriod() async {
+    // 年份下限取「账本内最早一笔流水的年份」（兜底 2000 = 日历宫格首年）：
+    // 此前硬编码 DateTime(2020)，2016-2019 的历史账单在年宫格里置灰、
+    // 无法被选中清理（2026-10-22 真机反馈「批量删除年份范围不完整」）。
+    // 动态取值同时保证：账本里存在的任意年份都可选，又不会开出一堆
+    // 永远空白的早年（2000-最早年之间仍置灰）。
+    // 注意： earliest 先用 null 累积、循环后再兜底——切勿把兜底值当初值
+    // 参与 min（那样任何账本的下限都会被压成兜底值，动态下限失效）。
+    final List<Transaction> allTxns =
+        ref.read(bookAllTransactionsProvider).valueOrNull ??
+            const <Transaction>[];
+    int? earliestYear;
+    for (final Transaction t in allTxns) {
+      final int y = DateTime.fromMillisecondsSinceEpoch(
+        t.occurredAt,
+        isUtc: true,
+      ).toLocal().year;
+      if (earliestYear == null || y < earliestYear) earliestYear = y;
+    }
+    final int firstYear = earliestYear ?? 2000;
     final CalendarPeriodMode cm = switch (_period.mode) {
       LedgerPeriodMode.week => CalendarPeriodMode.week,
       LedgerPeriodMode.month => CalendarPeriodMode.month,
@@ -271,7 +290,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
       showDayView: false,
       headerTitle: '清理周期',
       initialPeriod: CalendarPeriod(cm, _period.start, _period.end),
-      firstDate: DateTime(2020),
+      firstDate: DateTime(firstYear),
       lastDate: DateTime(DateTime.now().year, 12, 31),
       weekStart: CalendarWeekStart.monday,
     );
@@ -284,6 +303,9 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
     };
     setState(() {
       _period = LedgerPeriod(mode: lm, start: r.start, end: r.end);
+      // 反向同步：筛选带着时间条件时一并换成新周期，否则页头是新周期、
+      // 明细却被旧区间夹成空列表（时间轴只认一处）。
+      _filter = ledgerFilterWithPeriod(_filter, _period);
       _selected.clear(); // 切周期清空勾选（全选只对当前可见列表生效）
     });
   }
@@ -300,6 +322,9 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
     if (result != null) {
       setState(() {
         _filter = result.isEmpty ? null : result;
+        // 筛选的「时间」即页面周期：查询后页头周期跟着切，避免页头停在旧
+        // 周期、列表却被筛到别的区间（2026-10-22 真机反馈同款问题）。
+        _period = ledgerPeriodOfFilter(result) ?? _period;
         _selected.clear(); // 条件生效后可见列表变化，清空勾选
       });
     }

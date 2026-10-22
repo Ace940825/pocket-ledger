@@ -28,6 +28,9 @@ void main() {
         '不计预算',
         '不计收支',
         '备注',
+        '位置',
+        '纬度',
+        '经度',
       ]);
       // 必填：日期/类型/金额/账户；其余（含模块）均为选填。
       final Set<String> required = <String>{
@@ -59,7 +62,7 @@ void main() {
       expect(
         csv,
         contains('日期,模块,类型,金额,账户,转入账户,对方,优惠,手续费,分类,子分类,'
-            '标签,账本,可报销,报销账户,不计预算,不计收支,备注'),
+            '标签,账本,可报销,报销账户,不计预算,不计收支,备注,位置,纬度,经度'),
       );
       // 示例文本只在 # 注释行内（带模块列），不是独立数据行。
       expect(csv, contains('# 示例：2026-10-18 12:30,日常记账,支出'));
@@ -80,8 +83,8 @@ void main() {
           .where((l) => !l.trimLeft().startsWith('#'))
           .where((l) => l.trim().isNotEmpty)
           .toList();
-      // 第一行应为表头（18 列：16 原字段 + 手续费 + 子分类）。
-      expect(nonComment.first.split(',').length, 18);
+      // 第一行应为表头（21 列：18 原字段 + 位置/纬度/经度）。
+      expect(nonComment.first.split(',').length, 21);
     });
 
     test('JSON 模板含 _template 元信息与空 bills 数组', () {
@@ -90,8 +93,8 @@ void main() {
       expect(json, contains('"version"'));
       expect(json, contains('"bills": []'));
       expect(json, contains('"fields"'));
-      // 18 个字段规范（含「对方」、手续费、子分类）。
-      expect(kBillTemplateFields.length, 18);
+      // 21 个字段规范（含「对方」、手续费、子分类、位置/纬度/经度）。
+      expect(kBillTemplateFields.length, 21);
     });
   });
 
@@ -445,6 +448,70 @@ void main() {
       expect(lendOpNeedsAccount(LendOp.lendCollect), isTrue);
       expect(lendOpNeedsAccount(LendOp.borrowReduce), isFalse);
       expect(lendOpNeedsAccount(LendOp.lendBadDebt), isFalse);
+    });
+
+    test('reorderLendRowsForImport：借入/借出行稳定前置（导出倒序修复）', () {
+      // 复刻真机场景：导出 occurredAt 倒序 →「收债/还债」（新）排在
+      // 「借出/借入」（旧）之前。修复前按文件顺序导入，冲销行因债务
+      // 未落库报「未找到未结清债务」。
+      final List<BillRow> rows = <BillRow>[
+        _row('2026-10-05 10:00', TxnType.income, 800, '招商银行', null, '收债', '',
+            module: SourceModule.lend, counterparty: '朱德金'),
+        _row('2026-10-01 10:00', TxnType.expense, 1000, '招商银行', null, '借出',
+            '', module: SourceModule.lend, counterparty: '朱德金'),
+        _row('2026-10-04 10:00', TxnType.income, 500, '招商银行', null, '收债', '',
+            module: SourceModule.lend, counterparty: '小红'),
+        _row('2026-10-02 10:00', TxnType.expense, 600, '招商银行', null, '借出',
+            '', module: SourceModule.lend, counterparty: '小红'),
+      ];
+      final List<BillRow> reordered =
+          reorderLendRowsForImport(rows);
+
+      // 两条借出行（按原相对顺序：朱德金 10-01 → 小红 10-02）前置，
+      // 收债行保持原相对顺序（朱德金 10-05 → 小红 10-04）在后。
+      expect(
+        reordered.map((BillRow r) => '${r.categoryName}|${r.counterparty}'),
+        <String>['借出|朱德金', '借出|小红', '收债|朱德金', '收债|小红'],
+      );
+    });
+
+    test('reorderLendRowsForImport：非借还模块与冲减行保持原相对顺序', () {
+      final List<BillRow> rows = <BillRow>[
+        _row('2026-10-06 10:00', TxnType.expense, 100, '微信', null, '餐饮', ''),
+        _row('2026-10-05 10:00', TxnType.income, 800, '招商银行', null, '收债', '',
+            module: SourceModule.lend, counterparty: '朱德金'),
+        _row('2026-10-04 10:00', TxnType.expense, 1000, '招商银行', null, '借出',
+            '', module: SourceModule.lend, counterparty: '朱德金'),
+        _row('2026-10-03 10:00', TxnType.expense, 200, '招商银行', null, '坏账计提',
+            '', module: SourceModule.lend, counterparty: '朱德金'),
+        _row('2026-10-02 10:00', TxnType.expense, 300, '招商银行', null, '债务消减',
+            '', module: SourceModule.lend, counterparty: '朱德金'),
+      ];
+      final List<BillRow> reordered = reorderLendRowsForImport(rows);
+
+      // 唯一 add 行（借出 10-04）前置；其余四行（含普通餐饮、坏账计提、
+      // 债务消减、收债）严格保持原相对顺序。
+      expect(
+        reordered
+            .map((BillRow r) => '${r.occurredAt.month}-${r.occurredAt.day}')
+            .toList(),
+        <String>['10-4', '10-6', '10-5', '10-3', '10-2'],
+      );
+      // 行数不丢不重。
+      expect(reordered.length, rows.length);
+    });
+
+    test('reorderLendRowsForImport：无借还 add 行时原序不变', () {
+      final List<BillRow> rows = <BillRow>[
+        _row('2026-10-01 10:00', TxnType.expense, 100, '微信', null, '餐饮', ''),
+        _row('2026-10-02 10:00', TxnType.income, 200, '微信', null, '工资', ''),
+      ];
+      // 无 add 行：逐元素同一性不变（原序原对象）。
+      final List<BillRow> reordered = reorderLendRowsForImport(rows);
+      expect(reordered.length, rows.length);
+      for (int i = 0; i < rows.length; i++) {
+        expect(identical(reordered[i], rows[i]), isTrue);
+      }
     });
 
     test('checkRows 借还行：分类/对方必填，债务消减/坏账计提无需账户', () {

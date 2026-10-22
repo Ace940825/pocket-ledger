@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_colors.dart';
 import '../../theme/app_dimens.dart';
 import 'bottom_action_bar.dart';
 import 'modal_sheet_registry.dart';
@@ -13,12 +14,33 @@ import 'modal_sheet_registry.dart';
 /// 拖拽柄已全局移除（2026-10-14 第 19 批反馈：上/下柄都不保留；M3 路由自带的
 /// handle 由主题 `showDragHandle: false` 关闭），下滑关闭手势仍然有效。
 /// 视觉口径：四角 [AppDimens.radiusSheet] 圆角 + 发丝线标题底，暗色随
-/// [ColorScheme] 自动适配。
+/// [ColorScheme] 自动适配。四边留边 md；**上边距 = 状态栏高度 + md**——
+/// 全高弹层（isScrollControlled + constrainHeight）因此不会顶到状态栏，
+/// 贴底短弹层因底层贴底锚定，顶部留边只是不可见空白、视觉零变化。
+///
+/// **body 槽位高度（2026-10-22 二次修正：ConstrainedBox → Flexible(loose)）**：
+/// 早前 body 槽位无高度上限，键盘弹起时 `Padding(bottom: viewInset)` 把卡片
+/// 撑到超出屏幕（真机「BOTTOM OVERFLOWED BY 321 PIXELS」）；曾改为
+/// `ConstrainedBox(maxHeight: 屏高 − 铬件)`，**但没修掉根因**：
+/// `Column(mainAxisSize.min)` 给非 flex 子级的高度约束是 **Infinity**
+/// （RenderFlex 对非弹性子级只给内容自然高、不继承父级上限），
+/// `ConstrainedBox.additionalConstraints.enforce(Infinity)` 只认自己的上限，
+/// **模态路由的 9/16 高度帽（isScrollControlled=false 时
+/// `scrollControlDisabledMaxHeightRatio`）被彻底抹掉**——body 实测可拿到
+/// 近全屏高，导致：① shrinkWrap 的 ListView 按全内容高度布局、
+/// `maxScrollExtent == 0` 完全滑不动，超出卡片的条目被 `Clip.antiAlias`
+/// 裁死且不可达（真机「导入问题明细」9 条就裁掉下半截、拖动无反应）；
+/// ② 超长内容把 Column 撑爆（RenderFlex overflow）、卡片超出路由帽。
+/// 现改为 **`Flexible(fit: loose)`**：body 的上限 = 路由实际帽 − 标题/操作栏/
+/// 边距等非弹性同级——由 RenderFlex 按真实剩余空间分配，自动尊重路由帽
+/// （9/16 或 isScrollControlled 全屏）与键盘避让；短内容仍取自然高
+/// （视觉零变化），超长内容在槽位内滚动、卡片不溢出不裁死。
 class AppModalSheet extends StatelessWidget {
   const AppModalSheet({
     super.key,
     this.title,
     this.titleWidget,
+    this.titleLeading,
     this.titleTrailing,
     required this.body,
     this.actions,
@@ -37,6 +59,9 @@ class AppModalSheet extends StatelessWidget {
 
   /// 自定义标题区（如图标 + 名称 + 关闭钮），优先于 [title]。
   final Widget? titleWidget;
+
+  /// 标题左侧附加件（如返回箭头）。
+  final Widget? titleLeading;
 
   /// 标题右侧附加件（如全选 / 新增）。
   final Widget? titleTrailing;
@@ -70,6 +95,21 @@ class AppModalSheet extends StatelessWidget {
     // 键盘完全盖住（2026-10-14 真机反馈）。
     final double viewInset = MediaQuery.viewInsetsOf(context).bottom;
 
+    // 卡片上边距 = 状态栏高度 + md（2026-10-20 用户截图反馈「顶部已经顶到头了」）：
+    // 悬浮卡设计规格是「四周留边」（见类文档），但此前上边距恒为 0——
+    // 贴底短弹层看不出问题，而 isScrollControlled + constrainHeight 的
+    // 全高弹层（分类排序 / 子分类排序 / 记账设置 / 存钱目标计划调整共 4 处）
+    // 会一路撑到屏幕顶端，标题直接顶到状态栏。
+    // 状态栏高度必须读「原始视图 padding」：弹层路由默认 useSafeArea=false，
+    // 底层用 MediaQuery.removePadding(removeTop: true) 包住整个弹层内容
+    // （连 viewPadding 一起减掉）；Scaffold 有 AppBar 时也会剥掉页面 body
+    // 的 top padding——MediaQuery 在弹层内恒为 0，只有 View.of(context).padding
+    // 不受这些剥离影响（真机即状态栏高度）。
+    // 底层 _ModalBottomSheetLayout 贴底锚定（offset = 屏高 − 卡高），顶部
+    // margin 只是卡片上方的空白：短弹层视觉零变化，长弹层被挡在
+    // 「状态栏 + md」处，恢复四边留边口径。
+    final double topGap = View.of(context).padding.top + AppDimens.md;
+
     final List<Widget> children = <Widget>[
       // 拖拽柄已全局移除（第 19 批），[showHandle] 参数保留兼容但不再渲染。
       if (titleWidget != null || title != null)
@@ -85,6 +125,7 @@ class AppModalSheet extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
+              if (titleLeading != null) titleLeading!,
               Expanded(
                 child: titleWidget ??
                     Text(
@@ -100,10 +141,23 @@ class AppModalSheet extends StatelessWidget {
             ],
           ),
         ),
+      // body 槽位：constrainHeight 时 Expanded 填满剩余空间（全高弹层）；
+      // 否则 Flexible(loose) —— 上限 = 路由实际高度帽（9/16 或全屏）减去
+      // 标题 / 操作栏 / 边距等非弹性同级后的真实剩余空间。关键点：
+      // Column(mainAxisSize.min) 给非 flex 子级的高度约束是 Infinity，
+      // 任何「自己猜上限」的 ConstrainedBox 都会把路由的 9/16 帽抹掉
+      // （enforce(Infinity) 只认自己的值），导致 body 拿到近全屏高——
+      // shrinkWrap 列表 maxScrollExtent=0 滑不动、超出部分被卡片裁死
+      // （2026-10-22「导入问题明细」真机反馈）。Flexible 由 RenderFlex
+      // 按父级真实约束分配，天然尊重路由帽与键盘避让；短内容取自然高，
+      // 视觉与旧版零差异。
       if (constrainHeight)
         Expanded(child: Padding(padding: bodyPadding, child: body))
       else
-        Padding(padding: bodyPadding, child: body),
+        Flexible(
+          fit: FlexFit.loose,
+          child: Padding(padding: bodyPadding, child: body),
+        ),
     ];
 
     if (actions != null) {
@@ -132,9 +186,9 @@ class AppModalSheet extends StatelessWidget {
       // 方形台阶（2026-10-14 第 17 批反馈「两边还有角」真凶）。
       // antiAlias 把全部子级裁进圆角内。
       clipBehavior: Clip.antiAlias,
-      margin: const EdgeInsets.fromLTRB(
+      margin: EdgeInsets.fromLTRB(
         AppDimens.md,
-        0,
+        topGap,
         AppDimens.md,
         AppDimens.md,
       ),
@@ -153,6 +207,94 @@ class AppModalSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 悬浮卡片式弹层：**点卡片外任意处直接关闭**（[showAppModalSheet] 做不到）。
+///
+/// 与 [showAppModalSheet] 的关键差别在底层路由：
+/// - [showAppModalSheet] 走 `showModalBottomSheet`——它的 sheet 自带一个
+///   [Material]，形状是**整块 sheet 矩形**（不是我们的卡片圆角），会把卡片
+///   四周的透明留白一起吃掉 → 点框外没反应，只有卡片上方很窄一条才命中
+///   遮罩（2026-10-22 真机反馈「分类弹窗点框外没反应」）。
+/// - 本函数走 [showGeneralDialog]——整屏路由 + **独立遮罩**：卡片（四边留边
+///   的悬浮卡）之外的透明区域落在遮罩上，点击即关闭；遮罩之上是卡片本身，
+///   卡片内点击不受影响。
+///
+/// 视觉与 [showAppModalSheet] 完全一致（都复用 [AppModalSheet] 自绘卡片），
+/// 仅路由与遮罩不同。默认 [useRootNavigator] = true（盖在 Tab 分支导航器之上）。
+Future<T?> showAppCardModal<T>(
+  BuildContext context, {
+  String? title,
+  Widget? titleWidget,
+  Widget? titleLeading,
+  Widget? titleTrailing,
+  required Widget body,
+  List<Widget>? actions,
+  EdgeInsetsGeometry bodyPadding = const EdgeInsets.symmetric(
+    horizontal: AppDimens.md,
+    vertical: AppDimens.sm,
+  ),
+  Color? surfaceColor,
+  bool useRootNavigator = true,
+}) {
+  final AppModalSheet sheet = AppModalSheet(
+    title: title,
+    titleWidget: titleWidget,
+    titleLeading: titleLeading,
+    titleTrailing: titleTrailing,
+    body: body,
+    actions: actions,
+    bodyPadding: bodyPadding,
+    surfaceColor: surfaceColor,
+    useRootNavigator: useRootNavigator,
+  );
+
+  return showGeneralDialog<T>(
+    context: context,
+    useRootNavigator: useRootNavigator,
+    barrierDismissible: true,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    // 与 showModalBottomSheet 默认遮罩同值（black54），替换视觉零差异；
+    // 走 [AppColors] 令牌以满足「页面不抓原始调色板」的守门规则。
+    barrierColor: AppPalette.black54,
+    transitionDuration: const Duration(milliseconds: 200),
+    pageBuilder: (BuildContext ctx, _, __) => Stack(
+      children: <Widget>[
+        // 卡片贴底、满宽（与底部弹层的观感一致：卡片四周留 md 边距）。
+        // MaterialType.transparency 只提供 ink 承载（卡片内的 InkWell 需要
+        // Material 祖先），不绘制任何背景——`showGeneralDialog` 不像
+        // `showModalBottomSheet` 那样自带 Material。
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Material(
+            type: MaterialType.transparency,
+            child: sheet,
+          ),
+        ),
+      ],
+    ),
+    transitionBuilder: (
+      BuildContext ctx,
+      Animation<double> anim,
+      Animation<double> secondary,
+      Widget child,
+    ) {
+      final Animation<double> curved = CurvedAnimation(
+        parent: anim,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.06),
+          end: Offset.zero,
+        ).animate(curved),
+        child: FadeTransition(opacity: curved, child: child),
+      );
+    },
+  );
 }
 
 /// 便捷方法：统一调用 [showModalBottomSheet] 并套上 [AppModalSheet]。

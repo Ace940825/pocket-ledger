@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../database/daos/transactions_dao.dart';
 import '../../../domain/enums.dart';
@@ -219,7 +220,8 @@ class LedgerPeriod {
   String get label => switch (mode) {
         LedgerPeriodMode.month => '${start.year}年${start.month}月',
         LedgerPeriodMode.year => '${start.year}年',
-        _ => _rangeLabel(start, end.subtract(const Duration(days: 1))),
+        // 区间文案统一走 [formatDayRange]（跨年两端都带年份），禁止手拼。
+        _ => formatDayRange(start, end.subtract(const Duration(days: 1))),
       };
 
   /// 统计卡前缀：周 / 月 / 年 / 空（自定义）。
@@ -232,12 +234,6 @@ class LedgerPeriod {
 
   /// 周期总天数（≥1）。
   int get dayCount => end.difference(start).inDays;
-
-  static String _md(DateTime d) => '${d.month}月${d.day}日';
-
-  static String _rangeLabel(DateTime s, DateTime e) => s.year == e.year
-      ? '${_md(s)}-${_md(e)}'
-      : '${s.year}年${_md(s)}-${_md(e)}';
 }
 
 /// 账单页当前查看的周期。
@@ -311,6 +307,7 @@ class LedgerAdvancedFilter {
     this.day,
     this.rangeStart,
     this.rangeEnd,
+    this.rangeMode,
     this.minMinor,
     this.maxMinor,
     this.note,
@@ -336,6 +333,14 @@ class LedgerAdvancedFilter {
   /// 与 [day] 互斥：设置区间时 day 应为 null，反之亦然。
   final DateTime? rangeStart;
   final DateTime? rangeEnd;
+
+  /// 区间粒度：周/月/年/自定义（null 视为自定义）。
+  ///
+  /// 只影响**展示**（页头标签「2025年2月」而不是「2月1日-2月28日」）与
+  /// 回填日历的初始粒度；区间本身仍由 [rangeStart]/[rangeEnd] 定义。
+  /// 2026-10-22 加入：查询后要把页头周期切到该区间，切过去得带上原粒度，
+  /// 否则选「月」筛出来页头会变成日区间文案。
+  final LedgerPeriodMode? rangeMode;
   final int? minMinor;
   final int? maxMinor;
   final String? note;
@@ -395,6 +400,97 @@ class LedgerAdvancedFilter {
       (hasAccountFilter && !accountInclude ? 1 : 0);
 
   bool get isEmpty => conditionCount == 0;
+
+  /// 展示用条件数：账本限定与当前账本相同时不算一条。
+  ///
+  /// [conditionCount] 把 [bookId] 也算进去了，但筛选页打开时总会带上当前账本
+  /// （不是用户设的条件），于是「只选了时间」也会显成「筛选(2)」。
+  /// 查询按钮与页头筛选胶囊统一走本函数，两边数字才一致。
+  int conditionCountFor(String? currentBookId) {
+    final bool bookExtra = bookId != null && bookId != currentBookId;
+    final int n = conditionCount - (bookExtra ? 0 : 1);
+    return n < 0 ? 0 : n;
+  }
+
+  /// 换掉「时间」条件后的副本（单日 [day] 一并清成区间口径），其余条件保留。
+  ///
+  /// 用于「页头周期变了 → 时间条件跟着换」的方向，保证时间轴只有一处真相：
+  /// 否则页头显示 10 月、明细却被旧区间夹住，列表莫名空白。
+  LedgerAdvancedFilter withTime({
+    required DateTime? rangeStart,
+    required DateTime? rangeEnd,
+    required LedgerPeriodMode? rangeMode,
+  }) =>
+      LedgerAdvancedFilter(
+        rangeStart: rangeStart,
+        rangeEnd: rangeEnd,
+        rangeMode: rangeMode,
+        minMinor: minMinor,
+        maxMinor: maxMinor,
+        note: note,
+        flowTypes: flowTypes,
+        billTypes: billTypes,
+        sources: sources,
+        statsExclude: statsExclude,
+        budgetExclude: budgetExclude,
+        bookId: bookId,
+        categoryIds: categoryIds,
+        others: others,
+        tagNames: tagNames,
+        tagMatchAnd: tagMatchAnd,
+        accountIds: accountIds,
+        accountIncludeNone: accountIncludeNone,
+        accountInclude: accountInclude,
+      );
+}
+
+/// 筛选条件里「时间」部分对应的周期（null = 条件里没有时间部分）。
+///
+/// 筛选页的「时间」行与页头周期是同一件事的两种呈现：查询后必须用它把页头
+/// 周期切过去，否则页头标签 / 统计卡 / 结余卡停在旧周期，明细却被筛到另一个
+/// 区间（2026-10-22 真机反馈「查询后账单页面日期没有同步调整」）。
+/// 账单页（provider 版）与清理页 / 转换页（本地 state 版）共用本函数。
+LedgerPeriod? ledgerPeriodOfFilter(LedgerAdvancedFilter? f) {
+  if (f == null) return null;
+  DateTime day0(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  final DateTime? rs = f.rangeStart;
+  if (rs != null) {
+    final DateTime start = day0(rs);
+    final DateTime rawEnd =
+        day0(f.rangeEnd ?? rs.add(const Duration(days: 1)));
+    return LedgerPeriod(
+      mode: f.rangeMode ?? LedgerPeriodMode.custom,
+      start: start,
+      end: rawEnd.isAfter(start) ? rawEnd : start.add(const Duration(days: 1)),
+    );
+  }
+
+  if (f.day != null) {
+    // 单日：区间退化成 [当日, 次日)，页头文案由 formatDayRange 收敛成一个日期。
+    final DateTime start = day0(f.day!);
+    return LedgerPeriod(
+      mode: LedgerPeriodMode.custom,
+      start: start,
+      end: start.add(const Duration(days: 1)),
+    );
+  }
+  return null;
+}
+
+/// 页头周期变更后，把筛选条件里的「时间」换成新周期（其余条件保留）。
+///
+/// 条件里没有时间部分时**原样返回同一实例**（调用方可用 identical 判断免写）。
+LedgerAdvancedFilter? ledgerFilterWithPeriod(
+  LedgerAdvancedFilter? f,
+  LedgerPeriod p,
+) {
+  if (f == null || (f.day == null && f.rangeStart == null)) return f;
+  return f.withTime(
+    rangeStart: p.start,
+    rangeEnd: p.end,
+    rangeMode: p.mode,
+  );
 }
 
 /// 全部账本（筛选页分类 Tab 顶部账本选择用）。

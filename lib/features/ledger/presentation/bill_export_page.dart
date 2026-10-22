@@ -92,7 +92,8 @@ String _fmtPrice(int minor) {
 ///
 /// 对标小青账版式（2026-10-20）：头部卡（图标 + 标题，无帮助键）→ 信息条 →
 /// 「时间选择」卡（开始/结束时间，默认本月 1 日 ~ 今天，点选拉起共享组件
-/// [CalendarSheet]）→ 底部渐变按钮「选择导出方式」拉起共享弹层外壳
+/// [CalendarSheet]；两行已承担区间语义，弹窗内不再给「自定义」chip）→
+/// 底部渐变按钮「选择导出方式」拉起共享弹层外壳
 /// AppModalSheet（CSV / JSON 格式选择 + 保存为文件；空白模板下载在导入侧）。
 /// 导出内容 = 所选时间范围内的全部账单（含转账），仅走文件导出/导入通道，
 /// 无文本预览/复制输出框。不依赖系统分享组件，在 iOS 沙盒下也能稳定工作。
@@ -111,9 +112,15 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
   late DateTime _start = DateTime(DateTime.now().year, DateTime.now().month, 1);
   late DateTime _end = DateTime.now();
 
-  /// 选日期：统一走共享组件 [CalendarSheet]（纯日模式：无时间拨盘；保留
-  /// 「自定义」区间 chip——选区间则同时写入开始/结束）。单选日时保证结束
-  /// 不早于开始。
+  /// 选日期：统一走共享组件 [CalendarSheet]（纯日模式：无时间拨盘）。
+  ///
+  /// 区间语义由本页「开始时间 / 结束时间」两行承担，弹窗里再放一个「自定义」
+  /// chip 属重复入口（还得在宫格里连点两日），故 `showCustomRange: false`
+  /// 隐去它（2026-10-22 用户反馈：两行时间的入口不应再出现自定义）。
+  ///
+  /// 「周 / 月 / 年」chip 保留：选中即把整个范围设为该周期（月 → 月初~月末），
+  /// 比在宫格里逐日点更省事。注意 [CalendarPeriod.end] 是**开区间**，
+  /// 本页 [_end] 是闭区间（含当日），故减一天落回末日。
   Future<void> _pickDate({required bool isStart}) async {
     final DateTime initial = isStart ? _start : _end;
     final CalendarSelection? picked = await CalendarSheet.show(
@@ -122,9 +129,22 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       initialDate: initial,
       headerTitle: isStart ? '选择开始时间' : '选择结束时间',
       showTime: false,
-      showCustomRange: true,
+      showCustomRange: false,
       weekStart: CalendarWeekStart.monday,
     );
+    if (picked == null) return;
+    // 周期 chip（周/月/年/自定义）：整段覆盖为所选周期。自定义 chip 已在上面
+    // 关掉，但 custom 周期仍可能由其它模式透传，这里一并按开区间口径处理。
+    if (picked is CalendarPeriod) {
+      final DateTime s = picked.start;
+      final DateTime e = picked.end.subtract(const Duration(days: 1));
+      setState(() {
+        _start = DateTime(s.year, s.month, s.day);
+        _end = DateTime(e.year, e.month, e.day);
+      });
+      return;
+    }
+    // 独立区间选择器（CalendarSheetMode.range）的返回值。
     if (picked is CalendarRange) {
       setState(() {
         _start = picked.start;
@@ -243,6 +263,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 t.sourceModule == SourceModule.lend && t.relatedId != null
                     ? lendCounterparty[t.relatedId]
                     : null,
+            placeName: t.placeName,
+            latitude: t.latitude,
+            longitude: t.longitude,
           ),
         );
       }
@@ -306,6 +329,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             note: note,
             currency: currency,
             counterparty: null,
+            placeName: linked?.placeName,
+            latitude: linked?.latitude,
+            longitude: linked?.longitude,
           ),
         );
       }
@@ -341,6 +367,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             note: t.note,
             currency: t.currency,
             counterparty: null,
+            placeName: t.placeName,
+            latitude: t.latitude,
+            longitude: t.longitude,
           ),
         );
       }
@@ -413,6 +442,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 note: p.title,
                 currency: currency,
                 counterparty: null,
+                placeName: repay?.placeName,
+                latitude: repay?.latitude,
+                longitude: repay?.longitude,
               ),
             );
           }
@@ -475,6 +507,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 note: note,
                 currency: 'CNY',
                 counterparty: h.symbol,
+                placeName: f.placeName,
+                latitude: f.latitude,
+                longitude: f.longitude,
               ),
             );
           }

@@ -22,7 +22,8 @@ import 'sheet_scaffold.dart';
 /// - [showTime]：日模式下是否显示英雄时间卡（RECORD AT）与时间拨号 + 时/分分段（默认 false=纯日期，整卡隐藏、页头标题退为 DATE；
 ///   全站仅记一笔传 true——只有记账需要时分，其余位置一律隐藏时间区）。
 /// - [showCustomRange]：是否显示「自定义区间」粒度 chip（默认 true；
-///   记一笔传 false 隐藏——选日期无区间语义）。
+///   记一笔传 false 隐藏——选日期无区间语义；账单导出也传 false——区间已由
+///   「开始时间 / 结束时间」两行分别承担，弹窗内再来一个自定义属重复入口）。
 /// - [showQuickChips]：日模式下是否显示「今天/昨天/前天/此刻」快选胶囊。
 /// - [showYearPanel]：兼容参数（小青账式改版后年份导航走「年」粒度 chip，此参数不再生效）。
 /// - [showHandle]：顶部拖拽把手。
@@ -147,13 +148,9 @@ final class CalendarPeriod extends CalendarSelection {
         CalendarPeriodMode.custom => _rangeLabel(start, end),
       };
 
-  static String _md(DateTime d) => '${d.month}月${d.day}日';
-  static String _rangeLabel(DateTime s, DateTime e) {
-    final DateTime last = e.subtract(const Duration(days: 1));
-    return s.year == last.year
-        ? '${_md(s)}-${_md(last)}'
-        : '${s.year}年${_md(s)}-${_md(last)}';
-  }
+  /// 跨年区间必须显结束年份（与 [LedgerPeriod] 同口径，统一走 [formatDayRange]）。
+  static String _rangeLabel(DateTime s, DateTime e) =>
+      formatDayRange(s, e.subtract(const Duration(days: 1)));
 }
 
 class _CalendarSheetBody extends StatefulWidget {
@@ -195,7 +192,8 @@ class _CalendarSheetBody extends StatefulWidget {
   /// 打开直接落在 [initialPeriod] 对应的周期视图，粒度 chip 再点不回日视图。
   final bool showDayView;
 
-  /// false=隐藏「自定义区间」粒度 chip（记一笔：选日期无区间语义）。
+  /// false=隐藏「自定义区间」粒度 chip（记一笔：选日期无区间语义；
+  /// 账单导出：区间已由开始/结束两行承担）。
   final bool showCustomRange;
 
   /// 标题栏文案覆盖（默认 DATE & TIME）；纯周期模式传「账单周期」等。
@@ -1103,7 +1101,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   /// 粒度 chip 行（小青账式 ptabs）：周 Wk / 月 Mo / 年 Yr / 自定义 …
   /// 再点当前激活 chip 返回日视图（预览一致）。
   Widget _buildGranularityChips() {
-    // 「自定义区间」chip 按调用方开关显隐（记一笔隐藏，其余恒显示）。
+    // 「自定义区间」chip 按调用方开关显隐（记一笔 / 账单导出隐藏，其余显示）。
     final List<(CalendarPeriodMode, String, String)> all =
         <(CalendarPeriodMode, String, String)>[
       (CalendarPeriodMode.week, '周', 'Wk'),
@@ -1906,7 +1904,11 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                       ? '选择开始日期'
                       : _rangeEnd == null
                           ? '选择结束日期'
-                          : '${_md(_rangeStart!)} - ${_md(_rangeEnd!)}',
+                          // 跨年预览同样补结束年份（与 CalendarPeriod.label 同口径）。
+                          : _rangeStart!.year == _rangeEnd!.year
+                              ? '${_md(_rangeStart!)} - ${_md(_rangeEnd!)}'
+                              : '${_rangeStart!.year}年${_md(_rangeStart!)} - '
+                                  '${_rangeEnd!.year}年${_md(_rangeEnd!)}',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

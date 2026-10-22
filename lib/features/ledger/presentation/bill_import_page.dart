@@ -2,6 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+// 仅取查询构建所需符号：全量 import 会与 material 的 Column 冲突。
+// BaseAggregate 提供 count()，BooleanExpressionOperators 提供 Expression<bool> 的 & 运算。
+import 'package:drift/drift.dart'
+    show BaseAggregate, BooleanExpressionOperators, Expression, TypedResult;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,6 +46,7 @@ import '../data/import_record_repository.dart';
 import '../data/transaction_repository.dart';
 import '../providers/ledger_providers.dart';
 import 'bill_import_preview_page.dart';
+import 'widgets/import_conflict_dialog.dart';
 import 'widgets/txn_slidable.dart';
 
 /// 「账单管理 → 账单导入」入口页（对标小青账，2026-10-20）：头部卡（云上传
@@ -420,6 +425,13 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   int _lastSkipped = 0;
   List<String> _lastReasons = <String>[];
 
+  /// 大批量导入进度（2026-10-22 移植自 fresh 优化版）：总行数 / 已完成行数。
+  /// 导入期间在底部 CTA 上方展示确定性进度条与计数，替代原先"一直转圈、
+  /// 不知死活"的观感。事务结构沿用本工程已有的「整批原子」实现（根因 #4），
+  /// 此处只补进度反馈：每 500 行让出一次事件循环并刷新。
+  int _progressTotal = 0;
+  int _progressDone = 0;
+
   /// 导入来源（第三方 CSV 走专用解析器，见 bill_import_sources.dart）。
   ImportSource _source = ImportSource.pocketLedger;
 
@@ -682,14 +694,60 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _import();
+    // 数据库中已有数据 → 冲突处理三选一（2026-10-22：合并 / 覆盖 / 取消）。
+    final String bookId = ref.read(currentBookIdProvider);
+    final int existing = await _countBookTxns(bookId);
+    if (!mounted) return;
+    ImportConflictMode mode = ImportConflictMode.merge;
+    if (existing > 0) {
+      final ImportConflictMode? picked = await showImportConflictDialog(
+        context,
+        existingCount: existing,
+        incomingCount: _parsed!.rows.length,
+      );
+      if (picked == null || !mounted) return;
+      if (picked == ImportConflictMode.overwrite) {
+        // 覆盖不可恢复：二次危险确认，文案带具体笔数。
+        final bool? dangerOk = await showConfirm(
+          context,
+          title: '覆盖原有数据',
+          content: '将删除当前账本全部 $existing 笔流水（不可恢复），'
+              '随后导入 ${_parsed!.rows.length} 笔新账单。',
+          confirmText: '删除并导入',
+          danger: true,
+        );
+        if (dangerOk != true || !mounted) return;
+      }
+      mode = picked;
+    }
+    await _import(mode: mode, existingCount: existing);
+  }
+
+  /// 当前账本未删除流水笔数（导入冲突检测用，2026-10-22）。
+  Future<int> _countBookTxns(String bookId) async {
+    final AppDatabase db = ref.read(appDatabaseProvider);
+    final Expression<int> cnt = db.transactions.id.count();
+    final TypedResult? row = await (db.selectOnly(db.transactions)
+          ..addColumns(<Expression<Object>>[cnt])
+          ..where(db.transactions.bookId.equals(bookId) &
+              db.transactions.deleted.equals(false),))
+        .getSingleOrNull();
+    return row?.read(cnt) ?? 0;
   }
 
   /// 执行真实导入。调用前必经 [BillImportPreviewPage] 预览页「确认导入账单」
   /// ——预览页即写入前确认环节（2026-10-20 起，替代原 showConfirm 弹窗）。
-  Future<void> _import() async {
+  Future<void> _import({
+    ImportConflictMode mode = ImportConflictMode.merge,
+    int existingCount = 0,
+  }) async {
     if (_importing || _parsed == null || _parsed!.rows.isEmpty) return;
-    setState(() => _importing = true);
+    setState(() {
+      _importing = true;
+      // 覆盖模式的进度基数含「先删除的旧流水量」，删除与导入共用一个进度条。
+      _progressTotal = _parsed!.rows.length + existingCount;
+      _progressDone = 0;
+    });
     try {
       final String currentBookId = ref.read(currentBookIdProvider);
       final List<Book> books = await ref.read(booksListProvider.future);
@@ -798,234 +856,312 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       // 二级分类缓存：key 带 parentId，避免不同一级下的同名子分类互相串扰。
       final Map<String, String> subCatCache = <String, String>{};
 
+      final AppDatabase db = ref.read(appDatabaseProvider);
       int imported = 0;
       int skipped = 0;
       final List<String> reasons = <String>[];
       // 本次导入写入的流水 ID 清单（级联删除溯源：删除导入记录时一并软删）。
       final List<String> txnIds = <String>[];
 
-      for (final BillRow row in _parsed!.rows) {
-        try {
-          // 解析目标账本：指定且存在则用之，否则归入当前账本。
-          String bookId = currentBookId;
-          if (row.book != null && row.book!.trim().isNotEmpty) {
-            final String? found = bookNameToId[row.book!.trim().toLowerCase()];
-            if (found != null) {
-              bookId = found;
-            } else {
-              reasons.add('账本「${row.book!.trim()}」不存在，已归入当前账本');
+      // 整批原子导入（根因 #4）：所有写入（流水 / 借还 / 储蓄 / 分期 / 投资 /
+      // 报销台账 + 同步入队 + 导入记录）包进同一个 DB 事务。逐行「数据校验
+      // 不通过」仍由内层 try/catch 跳过并计入 skipped；但任何未预期的崩溃
+      // （内容过多 / OOM / DB 错误 / 导入记录写入失败）会令整批回滚——含已
+      // 落库的流水与已入队的 pending_ops，杜绝「导入失败却仍累计同步数 /
+      // 脏数据叠加」。内层各仓库的 _db.transaction 退化为 savepoint，随外层
+      // 一并提交或回滚。
+      await db.transaction<void>(() async {
+        // ── 覆盖模式：先清空当前账本全部流水（2026-10-22 导入冲突处理）──
+        // 不走 deleteCascade：getById 不过滤已软删行，对已删流水再 remove
+        // 会重复回退余额。改为「按 bookId 批量软删流水（removeBatch 内部
+        // 自理余额回退 / 同步入队 / 报销级联），再删有交集的导入记录行」。
+        // 导入记录无 bookId 字段，按 txnIds 与清空集合求交集判断归属，
+        // 避免误删其他账本的导入记录。删除与导入在同一外层事务内，整体原子。
+        if (mode == ImportConflictMode.overwrite) {
+          final List<Transaction> stale = await (db.select(db.transactions)
+                ..where((t) =>
+                    t.bookId.equals(currentBookId) & t.deleted.equals(false),))
+              .get();
+          final List<String> staleIds =
+              stale.map((Transaction t) => t.id).toList();
+          final Set<String> staleIdSet = staleIds.toSet();
+          const int kClearChunk = 500;
+          for (int start = 0; start < staleIds.length; start += kClearChunk) {
+            final int end = start + kClearChunk < staleIds.length
+                ? start + kClearChunk
+                : staleIds.length;
+            await txnRepo.removeBatch(staleIds.sublist(start, end));
+            if (mounted) setState(() => _progressDone = end);
+            await Future.delayed(Duration.zero);
+          }
+          if (staleIdSet.isNotEmpty) {
+            final ImportRecordRepository clearImportRepo =
+                ref.read(importRecordRepositoryProvider);
+            for (final ImportRecord r in await clearImportRepo.getAll()) {
+              final bool touched = r.txnIds?.any(staleIdSet.contains) ?? false;
+              if (touched) await clearImportRepo.deleteRow(r.id);
             }
           }
-          final List<Account> accounts = await accountsOf(bookId);
-          final List<Category> categories = await categoriesOf(bookId);
+        }
+        // 大批量导入进度（2026-10-22）：每 kImportChunk 行让出一次事件循环
+        // 并刷新进度条；写入语义不变，仍在同一事务内（chunk 之间不提交）。
+        // 行序修正（2026-10-22 真机反馈）：导出 occurredAt 倒序导致「收债/
+        // 还债」排在「借出/借入」之前，冲销时债务未落库报「未找到未结清
+        // 债务」；借入/借出 add 行稳定前置，其余行保持原相对顺序。
+        final List<BillRow> allRows = reorderLendRowsForImport(_parsed!.rows);
+        const int kImportChunk = 500;
+        for (int start = 0; start < allRows.length; start += kImportChunk) {
+          final int end = start + kImportChunk < allRows.length
+              ? start + kImportChunk
+              : allRows.length;
+          for (int i = start; i < end; i++) {
+            final BillRow row = allRows[i];
+            try {
+              // 解析目标账本：指定且存在则用之，否则归入当前账本。
+              String bookId = currentBookId;
+              if (row.book != null && row.book!.trim().isNotEmpty) {
+                final String? found = bookNameToId[row.book!.trim().toLowerCase()];
+                if (found != null) {
+                  bookId = found;
+                } else {
+                  reasons.add('账本「${row.book!.trim()}」不存在，已归入当前账本');
+                }
+              }
+              final List<Account> accounts = await accountsOf(bookId);
+              final List<Category> categories = await categoriesOf(bookId);
 
-          // ── Phase 2 借还路由 ──
-          // 模块=借还 且分类为 6 类固定名（借入/借出/还债/收债/债务消减/坏账计提）
-          // 时，落到借还台账（add/repay/debtReduction），而非普通交易。
-          if (row.module == SourceModule.lend) {
-            final LendOp? op = parseLendOp(row.categoryName);
-            if (op == null) {
-              skipped++;
-              reasons.add('借还分类「${row.categoryName ?? ''}」未识别，跳过');
-              continue;
-            }
-            await _importLend(
-              row,
-              op,
-              bookId,
-              lendRepo,
-              accounts,
-              accRepo,
-              accCache,
-            );
-            imported++;
-            continue;
-          }
-
-          // ── Phase 2 储蓄路由 ──
-          // 模块=储蓄 且「转入账户」= 计划名时，建/匹配储蓄目标并逐期存入台账，
-          // 联动真实账本「存款」流水（扣除款账户），与 in-app _syncPeriodTxn 同口径。
-          if (row.module == SourceModule.savings) {
-            await _importSavings(
-              row,
-              bookId,
-              savingsRepo,
-              accounts,
-              accRepo,
-              catRepo,
-              txnRepo,
-              accCache,
-              planTotals,
-              planGoalId,
-              planDayIndex,
-              savingsGoalsByBook,
-              txnIds,
-            );
-            imported++;
-            continue;
-          }
-
-          // ── Phase 2 分期路由 ──
-          // 模块=分期 且类型=转账、备注=计划名、转入账户=负债付款账户时，建/匹配
-          // 分期计划（addPlan 末尾自动 postDuePeriods 在负债账户生成「分期订单」），
-          // 逐期导入还款转账（relatedId='${period.id}#repay'）并标记已还。整组只处理一次。
-          if (row.module == SourceModule.installment) {
-            final String plan = (row.note ?? '').trim();
-            String pid = currentBookId;
-            if (row.book != null && row.book!.trim().isNotEmpty) {
-              final String? found = bookNameToId[row.book!.trim().toLowerCase()];
-              if (found != null) pid = found;
-            }
-            final String planKey = '$pid#$plan';
-            if (!instPlanDone.contains(planKey)) {
-              await _importInstallmentPlan(
-                planKey,
-                pid,
-                instRepo,
-                accounts,
-                accRepo,
-                txnRepo,
-                accCache,
-                instPlanRows,
-                instPlanTotals,
-                instPlanFirstDue,
-                instPlanId,
-                txnIds,
-              );
-              instPlanDone.add(planKey);
-            }
-            imported++;
-            continue;
-          }
-
-          // ── Phase 2 投资路由 ──
-          // 模块=投资 且类型=支出/收入（买入/卖出）、对方=证券代码、分类=品种类型、
-          // 备注=名称@单价时，路由到投资持仓台账：买入建/增资持仓 + 支出流水，卖出
-          // 减仓 + 收入流水；账户列 = 资金账户（买款来源/卖款去向）。同证券同品种
-          // 多次买入累加到同一持仓（按 账本#代码#品种 归户）。卖出前该证券须已有买入。
-          if (row.module == SourceModule.investment) {
-            await _importInvestment(
-              row,
-              bookId,
-              investRepo,
-              accounts,
-              accRepo,
-              accCache,
-              investHoldingId,
-            );
-            imported++;
-            continue;
-          }
-
-          // ── Phase 2 报销路由 ──
-          // 模块=报销 + 收入 + 报销账户：建「报销收入」流水（账户列=实际收款账户，
-          // 报销账户写回流水保证导出往返）+ 建待报销记录 + 全额抵扣翻「已报销」
-          // （写回收入流水 ID 到抵扣台账，删除收入可逆向恢复）+ 核销报销账户挂账。
-          // 与 in-app _saveReimbursementIncome 同口径，维持「余额 = 待收垫付」。
-          if (row.module == SourceModule.reimbursement) {
-            await _importReimbursement(
-              row,
-              bookId,
-              reimbRepo,
-              catRepo,
-              accRepo,
-              txnRepo,
-              accounts,
-              accCache,
-              txnIds,
-            );
-            imported++;
-            continue;
-          }
-
-          // 关联账户（资产）：用户指定时通用路径强制归入该账户；未选择则按
-          // 表格「账户」列自动获取（缺失自动创建）。
-          final String accountId = _linkedAccountId ??
-              await _resolveAccount(
-                row.accountName,
-                bookId,
-                accounts,
-                accRepo,
-                accCache,
-              );
-          final String? toAccountId = row.toAccountName == null
-              ? null
-              : await _resolveAccount(
-                  row.toAccountName!,
+              // ── Phase 2 借还路由 ──
+              // 模块=借还 且分类为 6 类固定名（借入/借出/还债/收债/债务消减/坏账计提）
+              // 时，落到借还台账（add/repay/debtReduction），而非普通交易。
+              if (row.module == SourceModule.lend) {
+                final LendOp? op = parseLendOp(row.categoryName);
+                if (op == null) {
+                  skipped++;
+                  reasons.add('借还分类「${row.categoryName ?? ''}」未识别，跳过');
+                  continue;
+                }
+                await _importLend(
+                  row,
+                  op,
                   bookId,
+                  lendRepo,
                   accounts,
                   accRepo,
                   accCache,
                 );
-          final String? categoryId = row.categoryName == null
-              ? null
-              : await _resolveCategory(
-                  row.categoryName!,
+                imported++;
+                continue;
+              }
+
+              // ── Phase 2 储蓄路由 ──
+              // 模块=储蓄 且「转入账户」= 计划名时，建/匹配储蓄目标并逐期存入台账，
+              // 联动真实账本「存款」流水（扣除款账户），与 in-app _syncPeriodTxn 同口径。
+              if (row.module == SourceModule.savings) {
+                await _importSavings(
+                  row,
+                  bookId,
+                  savingsRepo,
+                  accounts,
+                  accRepo,
+                  catRepo,
+                  txnRepo,
+                  accCache,
+                  planTotals,
+                  planGoalId,
+                  planDayIndex,
+                  savingsGoalsByBook,
+                  txnIds,
+                );
+                imported++;
+                continue;
+              }
+
+              // ── Phase 2 分期路由 ──
+              // 模块=分期 且类型=转账、备注=计划名、转入账户=负债付款账户时，建/匹配
+              // 分期计划（addPlan 末尾自动 postDuePeriods 在负债账户生成「分期订单」），
+              // 逐期导入还款转账（relatedId='${period.id}#repay'）并标记已还。整组只处理一次。
+              if (row.module == SourceModule.installment) {
+                final String plan = (row.note ?? '').trim();
+                String pid = currentBookId;
+                if (row.book != null && row.book!.trim().isNotEmpty) {
+                  final String? found = bookNameToId[row.book!.trim().toLowerCase()];
+                  if (found != null) pid = found;
+                }
+                final String planKey = '$pid#$plan';
+                if (!instPlanDone.contains(planKey)) {
+                  await _importInstallmentPlan(
+                    planKey,
+                    pid,
+                    instRepo,
+                    accounts,
+                    accRepo,
+                    txnRepo,
+                    accCache,
+                    instPlanRows,
+                    instPlanTotals,
+                    instPlanFirstDue,
+                    instPlanId,
+                    txnIds,
+                  );
+                  instPlanDone.add(planKey);
+                }
+                imported++;
+                continue;
+              }
+
+              // ── Phase 2 投资路由 ──
+              // 模块=投资 且类型=支出/收入（买入/卖出）、对方=证券代码、分类=品种类型、
+              // 备注=名称@单价时，路由到投资持仓台账：买入建/增资持仓 + 支出流水，卖出
+              // 减仓 + 收入流水；账户列 = 资金账户（买款来源/卖款去向）。同证券同品种
+              // 多次买入累加到同一持仓（按 账本#代码#品种 归户）。卖出前该证券须已有买入。
+              if (row.module == SourceModule.investment) {
+                await _importInvestment(
+                  row,
+                  bookId,
+                  investRepo,
+                  accounts,
+                  accRepo,
+                  accCache,
+                  investHoldingId,
+                );
+                imported++;
+                continue;
+              }
+
+              // ── Phase 2 报销路由 ──
+              // 模块=报销 + 收入 + 报销账户：建「报销收入」流水（账户列=实际收款账户，
+              // 报销账户写回流水保证导出往返）+ 建待报销记录 + 全额抵扣翻「已报销」
+              // （写回收入流水 ID 到抵扣台账，删除收入可逆向恢复）+ 核销报销账户挂账。
+              // 与 in-app _saveReimbursementIncome 同口径，维持「余额 = 待收垫付」。
+              if (row.module == SourceModule.reimbursement) {
+                await _importReimbursement(
+                  row,
+                  bookId,
+                  reimbRepo,
+                  catRepo,
+                  accRepo,
+                  txnRepo,
+                  accounts,
+                  accCache,
+                  txnIds,
+                );
+                imported++;
+                continue;
+              }
+
+              // 关联账户（资产）：用户指定时通用路径强制归入该账户；未选择则按
+              // 表格「账户」列自动获取（缺失自动创建）。
+              final String accountId = _linkedAccountId ??
+                  await _resolveAccount(
+                    row.accountName,
+                    bookId,
+                    accounts,
+                    accRepo,
+                    accCache,
+                  );
+              final String? toAccountId = row.toAccountName == null
+                  ? null
+                  : await _resolveAccount(
+                      row.toAccountName!,
+                      bookId,
+                      accounts,
+                      accRepo,
+                      accCache,
+                    );
+              final String? categoryId = row.categoryName == null
+                  ? null
+                  : await _resolveCategory(
+                      row.categoryName!,
+                      row.type,
+                      bookId,
+                      categories,
+                      catRepo,
+                      catCache,
+                    );
+              // 「子分类」列结构化：非空时在该一级分类下按名找/建二级分类，
+              // categoryId 改指二级（二级带 parentId，报表按 parentId 归集到一级，
+              // 二级因此真正参与统计归集）；子分类文本仍落 Transactions.subcategory。
+              String? txnCategoryId = categoryId;
+              final String subTrim = row.subcategoryName?.trim() ?? '';
+              if (categoryId != null && subTrim.isNotEmpty) {
+                txnCategoryId = await _resolveSubCategory(
+                  subTrim,
                   row.type,
+                  categoryId,
                   bookId,
                   categories,
                   catRepo,
-                  catCache,
+                  subCatCache,
                 );
-          // 「子分类」列结构化：非空时在该一级分类下按名找/建二级分类，
-          // categoryId 改指二级（二级带 parentId，报表按 parentId 归集到一级，
-          // 二级因此真正参与统计归集）；子分类文本仍落 Transactions.subcategory。
-          String? txnCategoryId = categoryId;
-          final String subTrim = row.subcategoryName?.trim() ?? '';
-          if (categoryId != null && subTrim.isNotEmpty) {
-            txnCategoryId = await _resolveSubCategory(
-              subTrim,
-              row.type,
-              categoryId,
-              bookId,
-              categories,
-              catRepo,
-              subCatCache,
-            );
-          }
-          // 报销账户：可报销且指定了账户名时，按名称归户；缺失则建为报销类账户。
-          String? reimbursementAccountId;
-          if (row.isReimbursable &&
-              row.reimbursementAccount != null &&
-              row.reimbursementAccount!.trim().isNotEmpty) {
-            reimbursementAccountId = await _resolveAccount(
-              row.reimbursementAccount!,
-              bookId,
-              accounts,
-              accRepo,
-              accCache,
-              createType: AccountType.reimbursement,
-            );
-          }
+              }
+              // 报销账户：可报销且指定了账户名时，按名称归户；缺失则建为报销类账户。
+              String? reimbursementAccountId;
+              if (row.isReimbursable &&
+                  row.reimbursementAccount != null &&
+                  row.reimbursementAccount!.trim().isNotEmpty) {
+                reimbursementAccountId = await _resolveAccount(
+                  row.reimbursementAccount!,
+                  bookId,
+                  accounts,
+                  accRepo,
+                  accCache,
+                  createType: AccountType.reimbursement,
+                );
+              }
 
-          final String tid = await txnRepo.add(
-            bookId: bookId,
-            type: row.type,
-            amountMinor: row.amountMinor,
-            accountId: accountId,
-            toAccountId: toAccountId,
-            categoryId: txnCategoryId,
-            occurredAt: row.occurredAt.toUtc().millisecondsSinceEpoch,
-            note: row.note,
-            currency: row.currency,
-            sourceModule: row.module,
-            tags: row.tags.isEmpty ? null : row.tags,
-            discountMinor: row.discountMinor,
-            feeMinor: row.feeMinor,
-            subcategory: row.subcategoryName,
-            excludeFromBudget: row.excludeFromBudget,
-            excludeFromStats: row.excludeFromStats,
-            isReimbursable: row.isReimbursable,
-            reimbursementAccountId: reimbursementAccountId,
-          );
-          txnIds.add(tid);
-          imported++;
-        } catch (e) {
-          skipped++;
-          reasons.add('${row.accountName} ${_typeLabel(row.type)} '
-              '${Money.fromMinor(row.amountMinor).format()}：$e');
+              final String tid = await txnRepo.add(
+                bookId: bookId,
+                type: row.type,
+                amountMinor: row.amountMinor,
+                accountId: accountId,
+                toAccountId: toAccountId,
+                categoryId: txnCategoryId,
+                occurredAt: row.occurredAt.toUtc().millisecondsSinceEpoch,
+                note: row.note,
+                currency: row.currency,
+                sourceModule: row.module,
+                tags: row.tags.isEmpty ? null : row.tags,
+                discountMinor: row.discountMinor,
+                feeMinor: row.feeMinor,
+                subcategory: row.subcategoryName,
+                excludeFromBudget: row.excludeFromBudget,
+                excludeFromStats: row.excludeFromStats,
+                isReimbursable: row.isReimbursable,
+                reimbursementAccountId: reimbursementAccountId,
+                // 位置信息（可选列）：随导入落库恢复定位显示。
+                placeName: row.placeName,
+                latitude: row.latitude,
+                longitude: row.longitude,
+              );
+              txnIds.add(tid);
+              imported++;
+            } catch (e) {
+              skipped++;
+              reasons.add('${row.accountName} ${_typeLabel(row.type)} '
+                  '${Money.fromMinor(row.amountMinor).format()}：$e');
+            }
+          }
+          // 每批让出事件循环并刷新进度：进度条 / 动画有机会渲染，长导入
+          // 不再像卡死（导入逻辑本身不受影响，仍在同一事务内）。覆盖模式下
+          // 基数含已删除的旧流水量，进度条跨「删除 + 导入」两段连续。
+          if (mounted) setState(() => _progressDone = existingCount + end);
+          await Future.delayed(Duration.zero);
         }
-      }
+
+        // 写入导入记录：入口页可查看 / 左滑删除级联删除本批账单。
+        final ImportRecordRepository importRepo =
+            ref.read(importRecordRepositoryProvider);
+        await importRepo.insert(ImportRecord(
+          id: const Uuid().v7(),
+          source: _source.name,
+          sourceLabel: _source.label,
+          importedCount: imported,
+          skippedCount: skipped,
+          createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+          failReasons: skipped > 0 ? List<String>.from(reasons) : null,
+          txnIds: txnIds.isNotEmpty ? List<String>.from(txnIds) : null,
+        )); // ignore: require_trailing_commas
+      }); // end db.transaction（整批原子提交）
 
       final String msg = skipped == 0
           ? '成功导入 $imported 笔账单'
@@ -1033,20 +1169,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       // 记录最近一次导入的跳过明细（结果栏「查看问题」复用）。
       _lastSkipped = skipped;
       _lastReasons = List<String>.from(reasons);
-      // 写入导入记录：入口页可查看 / 左滑删除级联删除本批账单。
-      final ImportRecordRepository importRepo =
-          ref.read(importRecordRepositoryProvider);
-      await importRepo.insert(ImportRecord(
-        id: const Uuid().v7(),
-        source: _source.name,
-        sourceLabel: _source.label,
-        importedCount: imported,
-        skippedCount: skipped,
-        createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
-        failReasons: skipped > 0 ? List<String>.from(reasons) : null,
-        txnIds: txnIds.isNotEmpty ? List<String>.from(txnIds) : null,
-      )); // ignore: require_trailing_commas
-      setState(() => _resultMsg = msg);
+      if (mounted) setState(() => _resultMsg = msg);
       if (mounted) showAppToast(context, msg);
       // reasons 已留存至导入记录，结果栏提供「查看问题」入口。
     } catch (e) {
@@ -1095,6 +1218,48 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       name: name.trim(),
       type: effectiveType,
       cardNumber: last4,
+    );
+    cache[key] = id;
+    return id;
+  }
+
+  /// 按「对方名 + 方向」解析指定借入/借出账户（应收/应付），匹配不到则
+  /// **自动创建**（借入 → [AccountType.borrow]、借出 → [AccountType.lend]，
+  /// 户名 = 对方名）。
+  ///
+  /// 与 [LendRepository] 内部 `_resolveDesignatedAccount` 同口径（同名 +
+  /// 同方向类型即视为同一对象），区别仅在于导入场景要求账户列表中不存在
+  /// 时建户（2026-10-22 用户反馈），而非留空走「非指定债务跟踪」——
+  /// 后者会让导入的应收/应付在账户页不可见、无余额。
+  ///
+  /// 缓存 key 带账本与类型维度，避免同批导入中同对方重复建户。
+  Future<String> _resolveDesignatedAccount(
+    String counterparty,
+    LendDirection direction,
+    String bookId,
+    List<Account> accounts,
+    AccountRepository repo,
+    Map<String, String> cache,
+  ) async {
+    final AccountType type = direction == LendDirection.borrowIn
+        ? AccountType.borrow
+        : AccountType.lend;
+    final String key =
+        'designated|$bookId|${type.index}|${counterparty.trim().toLowerCase()}';
+    final String? cached = cache[key];
+    if (cached != null) return cached;
+
+    for (final Account a in accounts) {
+      if (a.type == type &&
+          a.name.trim().toLowerCase() == counterparty.trim().toLowerCase()) {
+        cache[key] = a.id;
+        return a.id;
+      }
+    }
+    final String id = await repo.add(
+      bookId: bookId,
+      name: counterparty.trim(),
+      type: type,
     );
     cache[key] = id;
     return id;
@@ -1204,6 +1369,24 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     switch (op) {
       case LendOp.borrowAdd:
       case LendOp.lendAdd:
+        // 指定借入/借出账户（应收/应付，2026-10-22 用户反馈「未匹配到指定
+        // 账户时应支持自动创建」）：账户列解析出的是真实资产账户
+        // （toAccountId），「对方」的虚拟账户（借出/借入类型）若账户列表
+        // 中不存在，则按方向自动创建（lend/borrow 类型、户名=对方名），
+        // 使导入的应收/应付在账户页可见；余额由仓储内
+        // _reconcileDesignatedBalance 按「名下未结清合计」保持不变量。
+        // 与仓储 _resolveDesignatedAccount 同口径，区别仅在于匹配不到时
+        // 建户而非留空（否则退回「非指定债务跟踪」，账户页不可见）。
+        final String? designatedId = counterparty.isEmpty
+            ? null
+            : await _resolveDesignatedAccount(
+                counterparty,
+                direction,
+                bookId,
+                accounts,
+                accRepo,
+                accCache,
+              );
         await lendRepo.add(
           bookId: bookId,
           direction: direction,
@@ -1212,6 +1395,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           amountMinor: row.amountMinor,
           occurredAt: occurredAt,
           note: row.note,
+          accountId: designatedId,
           toAccountId: assetAccountId,
           discountMinor: row.discountMinor,
         );
@@ -1850,7 +2034,51 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
 
   Widget _importBar() {
     if (_importing) {
-      return _ImportGradientCta(label: '开始导入', onTap: () {}, busy: true);
+      // 大批量导入（2026-10-22）：确定性进度条 + 已处理行数。长导入期间
+      // 界面持续可感知进度，不再"只转圈像卡死"。
+      final ColorScheme scheme = Theme.of(context).colorScheme;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.lg,
+              0,
+              AppDimens.lg,
+              AppDimens.sm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+                  child: LinearProgressIndicator(
+                    value: _progressTotal <= 0
+                        ? null
+                        : _progressDone >= _progressTotal
+                            ? 1.0
+                            : _progressDone / _progressTotal,
+                    minHeight: 6,
+                    backgroundColor: AppPalette.divider,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppPalette.ctaGreen,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppDimens.xs),
+                Text(
+                  '正在导入 $_progressDone / $_progressTotal',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _ImportGradientCta(label: '开始导入', onTap: () {}, busy: true),
+        ],
+      );
     }
     if (_resultMsg != null) {
       // 导入完成：展示结果文案；存在被跳过 / 失败的笔数时提供「查看问题」入口。

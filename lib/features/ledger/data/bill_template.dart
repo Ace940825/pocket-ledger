@@ -121,6 +121,7 @@ const List<BillTemplateField> kBillTemplateFields = <BillTemplateField>[
     required: false,
     desc: '仅「借还」模块且分类为借入/借出/还债/收债/债务消减/坏账计提之一时必填：'
         '借款人 / 出借人 / 债务方名。借还按固定分类名路由到借还台账，对方即其 counterparty；'
+        '借入/借出导入时若账户列表中无同名应收/应付账户，将按对方名自动创建对应类型账户；'
         '其余模块留空',
   ),
   BillTemplateField(
@@ -202,67 +203,88 @@ const List<BillTemplateField> kBillTemplateFields = <BillTemplateField>[
     required: false,
     desc: '选填，最长建议 200 字',
   ),
+  BillTemplateField(
+    header: '位置',
+    jsonKey: 'placeName',
+    typeLabel: '文本',
+    required: false,
+    desc: '选填，语义化地名（小区/店名级）；与纬度/经度一起填写可恢复定位显示',
+  ),
+  BillTemplateField(
+    header: '纬度',
+    jsonKey: 'latitude',
+    typeLabel: '数字',
+    required: false,
+    desc: '选填，WGS-84 纬度（小数度，如 39.913860）',
+  ),
+  BillTemplateField(
+    header: '经度',
+    jsonKey: 'longitude',
+    typeLabel: '数字',
+    required: false,
+    desc: '选填，WGS-84 经度（小数度，如 116.627910）',
+  ),
 ];
 
-/// 示例数据（与表头严格 18 列对齐，经 [ListToCsvConverter] 生成，避免手写错位）。
+/// 示例数据（与表头严格 21 列对齐，经 [ListToCsvConverter] 生成，避免手写错位）。
 ///
 /// 顺序：日期,模块,类型,金额,账户,转入账户,对方,优惠,手续费,分类,子分类,标签,
-/// 账本,可报销,报销账户,不计预算,不计收支,备注。
+/// 账本,可报销,报销账户,不计预算,不计收支,备注,位置,纬度,经度。
 const List<List<String>> _sampleRows = <List<String>>[
   <String>[
     '2026-10-18 12:30', '日常记账', '支出', '25.50', '微信',
     '', '', '', '', '餐饮', '', '午饭', '',
-    'N', '', 'N', 'N', '午饭',
+    'N', '', 'N', 'N', '午饭', '通州区XX小区', '39.913860', '116.627910',
   ],
   <String>[
     '2026-10-18 09:00', '退款', '收入', '25.50', '微信',
     '', '', '', '', '', '', '旅游,2026', '',
-    'N', '', 'N', 'N', '退货退款',
+    'N', '', 'N', 'N', '退货退款', '', '', '',
   ],
   <String>[
     '2026-10-18 15:00', '借还', '支出', '1000', '微信',
     '', '小米', '', '', '借出', '', '', '',
-    'N', '', 'N', 'N', '借给小米',
+    'N', '', 'N', 'N', '借给小米', '', '', '',
   ],
   <String>[
     '2026-10-18 18:00', '储蓄', '支出', '500', '招商银行',
     '定期存款', '', '', '', '', '', '', '',
-    'N', '', 'N', 'N', '每月定存（第1期）',
+    'N', '', 'N', 'N', '每月定存（第1期）', '', '', '',
   ],
   <String>[
     '2026-10-19 18:00', '储蓄', '支出', '500', '招商银行',
     '定期存款', '', '', '', '', '', '', '',
-    'N', '', 'N', 'N', '每月定存（第2期）',
+    'N', '', 'N', 'N', '每月定存（第2期）', '', '', '',
   ],
   <String>[
     '2026-11-01 09:00', '分期', '转账', '2000', '招商银行',
     '花呗', '', '', '', '', '', '', '',
-    'N', '', 'N', 'N', 'iPhone 分期',
+    'N', '', 'N', 'N', 'iPhone 分期', '', '', '',
   ],
   <String>[
     '2026-12-01 09:00', '分期', '转账', '2000', '招商银行',
     '花呗', '', '', '', '', '', '', '',
-    'N', '', 'N', 'N', 'iPhone 分期',
+    'N', '', 'N', 'N', 'iPhone 分期', '', '', '',
   ],
   <String>[
     '2026-10-20 09:30', '投资', '支出', '1000', '招商银行',
     '', '000300', '0', '', '基金', '', '', '',
-    'N', '', 'N', 'N', '沪深300ETF@1.2300',
+    'N', '', 'N', 'N', '沪深300ETF@1.2300', '', '', '',
   ],
   <String>[
     '2026-11-20 09:30', '投资', '收入', '800', '招商银行',
     '', '000300', '0', '', '基金', '', '', '',
-    'N', '', 'N', 'N', '沪深300ETF@1.3500 部分止盈',
+    'N', '', 'N', 'N', '沪深300ETF@1.3500 部分止盈', '', '', '',
   ],
   <String>[
     '2026-10-18 20:00', '日常记账', '支出', '200', '微信',
     '', '', '', '', '餐饮', '', '', '',
-    'Y', '公司报销', 'N', 'N', '出差午饭（垫付，待报销）',
+    'Y', '公司报销', 'N', 'N', '出差午饭（垫付，待报销）', '', '', '',
   ],
   <String>[
     '2026-10-25 10:00', '报销', '收入', '200', '微信',
     '', '', '', '', '', '', '', '',
-    'N', '公司报销', 'N', 'N', '报销到账（退回垫付，收款账户=微信）',
+    'N', '公司报销', 'N', 'N', '报销到账（退回垫付，收款账户=微信）', '', '', '',
   ],
 ];
 
@@ -533,6 +555,7 @@ TemplateCheckResult checkRows(
   // 未知账户 / 分类只在首次出现时登记提示，避免报告刷屏。
   final Set<String> seenNewAccounts = <String>{};
   final Set<String> seenNewCategories = <String>{};
+  final Set<String> seenNewSubCategories = <String>{}; // 同一子分类名只提示一次
   final Set<String> seenNewBooks = <String>{};
   final Set<SourceModule> seenPhase2Modules = <SourceModule>{}; // 每个 Phase2 模块只提示一次
 
@@ -742,6 +765,18 @@ TemplateCheckResult checkRows(
         );
       }
       (byCategory[catKey] ??= TemplateAgg()).add(r);
+      // 子分类列语义 = 二级分类名：挂到上方一级分类下，不存在则自动创建
+      // （导入侧 categoryId 改指二级，报表按 parentId 归集一级）。
+      // 仅提示不阻断；同一子分类名只提示一次。
+      final String subTrim = r.subcategoryName?.trim() ?? '';
+      if (subTrim.isNotEmpty &&
+          !seenNewSubCategories.contains(norm(r.subcategoryName!))) {
+        seenNewSubCategories.add(norm(r.subcategoryName!));
+        warnings.add(
+          '子分类「$subTrim」将作为二级分类挂到'
+          '「${r.categoryName!.trim()}」下（不存在则自动创建）',
+        );
+      }
     }
 
     (byAccount[r.accountName.trim()] ??= TemplateAgg()).add(r);

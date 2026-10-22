@@ -131,9 +131,11 @@ class ImportRecordRepository {
     _updates.add(null);
   }
 
-  /// 级联删除：先逐笔软删本批导入的流水（[TransactionRepository.remove] 负责
-  /// 余额回滚 + 同步队列 + 报销联动），再删记录行。单笔失败（如已不存在）
-  /// 不阻断其余，保证记录最终能被删掉。
+  /// 级联删除：先把本批导入的流水**合并进单个事务**批量软删（余额回滚 + 同步
+  /// 入队 + 报销联动 + 借还联动由 [TransactionRepository.removeBatch] 内部逐笔
+  /// 自理，语义与单笔删除完全一致），再删记录行。一次提交、一次 fsync、watch
+  /// 只重建一次 —— 大批量删除不再随笔数线性变慢、避免请求超时。单笔失败
+  /// （如已手动删除）不阻断其余，保证记录最终能被删掉。
   ///
   /// 注：普通 / 储蓄 / 分期 / 报销路由的流水均在 [txnIds] 内，级联完整；
   /// 借还 / 投资路由的流水在各自台账内部创建，未纳入 [txnIds]，删除导入记录时
@@ -143,14 +145,8 @@ class ImportRecordRepository {
     TransactionRepository txnRepo,
   ) async {
     final ImportRecord? rec = await getById(recordId);
-    if (rec?.txnIds != null) {
-      for (final String tid in rec!.txnIds!) {
-        try {
-          await txnRepo.remove(tid);
-        } on Object {
-          // 单笔删除失败（如流水已被手动删除）不影响其余。
-        }
-      }
+    if (rec?.txnIds != null && rec!.txnIds!.isNotEmpty) {
+      await txnRepo.removeBatch(rec.txnIds!);
     }
     await deleteRow(recordId);
     _updates.add(null);

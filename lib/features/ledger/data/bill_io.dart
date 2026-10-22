@@ -42,6 +42,9 @@ class BillRow {
     this.currency = 'CNY',
     this.confidence,
     this.counterparty,
+    this.placeName,
+    this.latitude,
+    this.longitude,
   });
 
   /// 发生时间（本地时区）。
@@ -97,6 +100,12 @@ class BillRow {
   /// 识别置信度（0~1），仅截图 / OCR 识别来源填充；CSV / JSON 导入为 null。
   /// 低于 [kLowConfidence] 的字段在确认页标「需复核」。
   final double? confidence;
+
+  /// 位置信息（可选）：语义化地名（小区/店名级）+ WGS-84 坐标。
+  /// 导出附加三列（CSV）/三个键（JSON），导入解析后随流水落库恢复定位显示。
+  final String? placeName;
+  final double? latitude;
+  final double? longitude;
 }
 
 /// 低于该置信度的字段在确认页高亮提示用户复核。
@@ -122,6 +131,9 @@ const List<String> _kCsvHeader = <String>[
   '不计预算',
   '不计收支',
   '备注',
+  '位置',
+  '纬度',
+  '经度',
 ];
 
 String _formatDate(DateTime dt) => DateFormat('yyyy-MM-dd HH:mm').format(dt);
@@ -256,6 +268,9 @@ String buildCsv(List<BillRow> rows) {
         _boolLabel(r.excludeFromBudget),
         _boolLabel(r.excludeFromStats),
         r.note ?? '',
+        r.placeName ?? '',
+        r.latitude?.toStringAsFixed(6) ?? '',
+        r.longitude?.toStringAsFixed(6) ?? '',
       ],
   ];
   return const ListToCsvConverter(eol: '\n').convert(table);
@@ -286,6 +301,9 @@ String buildJson(List<BillRow> rows) {
         'excludeFromStats': r.excludeFromStats,
         'note': r.note ?? '',
         'currency': r.currency,
+        if (r.placeName != null) 'placeName': r.placeName,
+        if (r.latitude != null) 'latitude': r.latitude,
+        if (r.longitude != null) 'longitude': r.longitude,
       },
   ];
   return jsonEncode(list);
@@ -353,6 +371,10 @@ ParseResult _parseCsv(String content) {
   final int iExclBudget = col('不计预算');
   final int iExclStats = col('不计收支');
   final int iNote = col('备注');
+  // 位置三列（可选，旧导出文件无这些列 → -1，按空处理）。
+  final int iPlace = col('位置');
+  final int iLat = col('纬度');
+  final int iLng = col('经度');
 
   // 列数守门：表头长度即合法列数。数据行若多出列（多半是某字段漏写引号 /
   // 多出逗号），会导致后续字段整体串位 → 直接报错，避免静默错读。
@@ -421,6 +443,10 @@ ParseResult _parseCsv(String content) {
     final bool excludeFromStats = _parseBool(cell(iExclStats));
     final String noteTrim = _nullIfEmpty(cell(iNote));
     final String? note = noteTrim.isEmpty ? null : noteTrim;
+    final String placeTrim = _nullIfEmpty(cell(iPlace));
+    final String? placeName = placeTrim.isEmpty ? null : placeTrim;
+    final double? latitude = double.tryParse(cell(iLat).trim());
+    final double? longitude = double.tryParse(cell(iLng).trim());
 
     rows.add(
       BillRow(
@@ -443,6 +469,9 @@ ParseResult _parseCsv(String content) {
         note: note,
         currency: 'CNY',
         counterparty: counterparty,
+        placeName: placeName,
+        latitude: latitude,
+        longitude: longitude,
       ),
     );
   }
@@ -521,6 +550,10 @@ ParseResult _parseJson(String content) {
           _parseBool((m['excludeFromStats'] ?? '').toString());
       final String noteRaw = _nullIfEmpty((m['note'] ?? '').toString());
       final String? note = noteRaw.isEmpty ? null : noteRaw;
+      final String placeRaw = _nullIfEmpty((m['placeName'] ?? '').toString());
+      final String? placeName = placeRaw.isEmpty ? null : placeRaw;
+      final double? latitude = (m['latitude'] as num?)?.toDouble();
+      final double? longitude = (m['longitude'] as num?)?.toDouble();
 
       rows.add(
         BillRow(
@@ -543,6 +576,9 @@ ParseResult _parseJson(String content) {
           note: note,
           currency: (m['currency'] ?? 'CNY').toString(),
           counterparty: counterparty,
+          placeName: placeName,
+          latitude: latitude,
+          longitude: longitude,
         ),
       );
     }
@@ -609,3 +645,30 @@ bool lendOpNeedsAccount(LendOp op) =>
     op == LendOp.lendAdd ||
     op == LendOp.borrowRepay ||
     op == LendOp.lendCollect;
+
+/// 导入行序修正：借入/借出（add）行稳定前置，其余行保持原相对顺序。
+///
+/// 根因：导出按 `occurredAt DESC`（见 `transactions_dao.watchAll`），CSV 里
+/// 「收债/还债」（发生更晚）排在「借出/借入」（更早）之前；导入按文件顺序
+/// 逐行处理时，冲销行的债务尚未落库，`_offsetDebts` 抛
+/// 「未找到可收债的「XXX」未结清债务」——整行计入 skipped（2026-10-22
+/// 真机反馈：导出再导入，9 条收债全报此错）。
+///
+/// 稳定分区（非排序）：add 行内部、非 add 行内部都维持原相对顺序，
+/// 只保证「同批导入中所有债务先建立、再冲销」。储蓄/分期/投资等模块
+/// 的行相对顺序不受影响（它们本就依赖稳定分区外的原序）。
+List<BillRow> reorderLendRowsForImport(List<BillRow> rows) {
+  final List<BillRow> addRows = <BillRow>[];
+  final List<BillRow> rest = <BillRow>[];
+  for (final BillRow row in rows) {
+    final LendOp? op = row.module == SourceModule.lend
+        ? parseLendOp(row.categoryName)
+        : null;
+    if (op == LendOp.borrowAdd || op == LendOp.lendAdd) {
+      addRows.add(row);
+    } else {
+      rest.add(row);
+    }
+  }
+  return <BillRow>[...addRows, ...rest];
+}

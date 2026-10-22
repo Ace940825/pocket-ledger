@@ -10,6 +10,7 @@ import 'package:pocket_ledger/theme/app_theme.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
+import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
@@ -213,6 +214,11 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     LedgerPeriod period,
     LedgerAdvancedFilter? advFilter,
   ) {
+    // 条件数走展示口径（与筛选页「查询(条件N个)」一致）：账本限定等于当前
+    // 账本时不计入，否则「只选了时间」也会显成「筛选(2)」。
+    final int n =
+        advFilter?.conditionCountFor(ref.watch(currentBookIdProvider)) ?? 0;
+    final bool active = n > 0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.lg,
@@ -224,31 +230,40 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
           // 左：周期切换入口「2026年9月 ˅」
-          InkWell(
-            borderRadius: BorderRadius.circular(AppDimens.radiusSm),
-            onTap: () => _pickPeriod(context, period),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.xs,
-                vertical: 4,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    period.label,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+          // Flexible(loose) + 换行：查询把长区间（2025年2月5日-2026年3月6日）
+          // 写进周期后标签会明显变长，小屏/大字号下不能溢出（与筛选页
+          // 「时间」行同款处理）；loose 保证 InkWell 仍只占内容宽度，
+          // 右侧筛选胶囊继续贴边。
+          Flexible(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+              onTap: () => _pickPeriod(context, period),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.xs,
+                  vertical: 4,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Flexible(
+                      child: Text(
+                        period.label,
+                        maxLines: 2,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    LineGlyph(
+                      Icons.keyboard_arrow_down,
+                      size: 20,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
-                  ),
-                  LineGlyph(
-                    Icons.keyboard_arrow_down,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -267,21 +282,19 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                   LineGlyph(
                     Icons.tune,
                     size: 18,
-                    color: (advFilter?.isEmpty ?? true)
-                        ? Theme.of(context).colorScheme.onSurface
-                        : AppPalette.ctaGreen,
+                    color: active
+                        ? AppPalette.ctaGreen
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    advFilter == null || advFilter.isEmpty
-                        ? '筛选'
-                        : '筛选(${advFilter.conditionCount})',
+                    active ? '筛选($n)' : '筛选',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: (advFilter?.isEmpty ?? true)
-                          ? Theme.of(context).colorScheme.onSurface
-                          : AppPalette.ctaGreen,
+                      color: active
+                          ? AppPalette.ctaGreen
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -949,8 +962,19 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         CalendarPeriodMode.year => LedgerPeriodMode.year,
         CalendarPeriodMode.custom => LedgerPeriodMode.custom,
       };
-      ref.read(ledgerPeriodProvider.notifier).state =
-          LedgerPeriod(mode: lm, start: cp.start, end: cp.end);
+      final LedgerPeriod next = LedgerPeriod(
+        mode: lm,
+        start: cp.start,
+        end: cp.end,
+      );
+      ref.read(ledgerPeriodProvider.notifier).state = next;
+      // 反向同步：筛选里若带着时间条件，一并换成新周期——否则页头已是新周期、
+      // 明细却被旧时间条件夹成空列表（时间轴只认一处）。
+      final LedgerAdvancedFilter? f = ref.read(ledgerAdvancedFilterProvider);
+      final LedgerAdvancedFilter? synced = ledgerFilterWithPeriod(f, next);
+      if (!identical(synced, f)) {
+        ref.read(ledgerAdvancedFilterProvider.notifier).state = synced;
+      }
       setState(() => _selectedBucket = null);
     }
   }
@@ -970,6 +994,14 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     );
     if (result != null) {
       ref.read(ledgerAdvancedFilterProvider.notifier).state = result;
+      // 筛选的「时间」就是页面周期：查询后把页头周期一并切过去，否则页头
+      // 标签 / 统计卡 / 结余卡仍停在旧周期，明细却被筛到另一个区间
+      // （2026-10-22 真机反馈「查询后账单页面日期没有同步调整」）。
+      final LedgerPeriod? p = ledgerPeriodOfFilter(result);
+      if (p != null) {
+        ref.read(ledgerPeriodProvider.notifier).state = p;
+        setState(() => _selectedBucket = null);
+      }
     }
   }
 

@@ -7,8 +7,11 @@ import 'package:pocket_ledger/features/ledger/presentation/bill_import_guide_pag
 void main() {
   // 页面是长列表，测试时给一个足够高的视口，让 ListView 一次性渲染全部内容，
   // 否则滚动视口外的子节点不会 build，find.text 会漏判。
+  // 12000：文档文案会随功能增长（2026-10-22 加「借还自动建户」两句后
+  // 6000 已不够，末节「导入校验要点」被懒加载裁掉导致误报失败），
+  // 后续再加文案若超此高度，同步抬高即可。
   testWidgets('导入说明页能正常构建并展示 16 列核心内容', (WidgetTester tester) async {
-    await tester.binding.setSurfaceSize(const Size(420, 6000));
+    await tester.binding.setSurfaceSize(const Size(420, 12000));
     await tester.pumpWidget(
       const MaterialApp(home: BillImportGuidePage()),
     );
@@ -48,7 +51,7 @@ void main() {
       SystemChannels.platform,
       (MethodCall call) async => null,
     );
-    await tester.binding.setSurfaceSize(const Size(420, 6000));
+    await tester.binding.setSurfaceSize(const Size(420, 12000));
     await tester.pumpWidget(
       const MaterialApp(home: BillImportGuidePage()),
     );

@@ -656,6 +656,136 @@ class TransactionRepository {
     }
   }
 
+  /// 批量软删除（大批量删除导入数据用）。
+  ///
+  /// 业务语义与逐笔 [remove] **完全一致**（余额回滚 + 同步入队 + 报销联动 +
+  /// 借还联动一个不少，逐笔逻辑直接复用 [remove]）；区别在于把 N 笔合并进
+  /// **同一个 DB 事务**：每条 [remove] 内部的事务在此退化为 savepoint，最终
+  /// 只有外层一次提交、一次 fsync，反应式 watch 也只重建一次。
+  ///
+  /// 大批量删除（如删一条导入记录级联几百笔）从 O(N) 次独立事务提交降到
+  /// O(1)，耗时不随笔数线性增长，避免请求超时。单笔失败（如流水已被手动
+  /// 删除、余额回滚异常）不阻断其余 —— 保证这批导入记录最终能被整体删掉。
+  Future<void> removeBatch(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await _db.transaction<void>(() async {
+      for (final String id in ids) {
+        try {
+          await remove(id);
+        } on Object {
+          // 单笔删除失败不阻断其余：余额回滚 / 同步入队由 [remove] 内部
+          // 自管，失败的那笔其 savepoint 自动回滚，其余继续。
+        }
+      }
+    });
+  }
+
+  /// 批量转换流水属性（「账单清理」的姊妹能力）：对 [ids] 选中的账单，
+  /// 按调用方开启的开关统一改写 分类 / 账户 / 收支类型 / 标签 / 备注。
+  ///
+  /// 业务语义与逐笔 [updateTransaction] **完全一致**（余额回滚+重算、同步入队、
+  /// 类型从属字段重新推导、投资重算钩子一个不少），区别只是把 N 笔合并进
+  /// **同一个 DB 事务**：嵌套的 [updateTransaction] 各自退化为 savepoint，最终
+  /// 只有一次提交、一次 fsync，反应式 watch 也只重建一次。大批量转换不会
+  /// 随笔数线性变慢、避免请求超时。
+  ///
+  /// ## 分类与收支方向绑定（2026-10-22 真机反馈「改收支类型移除，功能合并到
+  /// 改分类，分类是按照支出收入方向调整的，选中分类后自动修改支出收入方向」）
+  /// 分类本身带方向（[CategoryType].expense / income），调用方选定分类后会
+  /// **同时**给出 [type]（由分类方向推导）。本方法把这两者当**一个原子操作**：
+  /// - 目标方向与账单当前方向**相同**（只换了个同级分类）→ 不需要改类型，
+  ///   分类照常应用（对所有账单生效，保持「改分类是纯属性」的旧语义）；
+  /// - 目标方向与当前方向**不同**（支出 ↔ 收入）→ 必须改收支类型，因此只有
+  ///   允许改类型的账单（[._canConvertType]）才能改；改不了方向的联动类账单
+  ///   **连分类一起不应用**并计入 [skipped]——否则会出现「分类是收入、账单
+  ///   类型还是支出」的矛盾数据（统计口径直接错乱）。
+  ///
+  /// ## 安全护栏（避免平移破坏外部台账联动）
+  /// - **改账户 / 改收支类型**只对「日常记账(ledger)」类账单生效；
+  ///   转账(transfer)账单允许改**源账户**（平移转出方，转入方与转账分组保留），
+  ///   但**不允许改收支类型**（否则会丢失转账腿、金额方向错乱）；
+  /// - 借还 / 报销 / 储蓄 / 分期 / 投资 / 物品 / 退款等来源模块的账单，
+  ///   **改账户与改类型都不生效**——它们的账户/类型由对应台账主导，平移会破坏
+  ///   核销、余额派生与关联交易；这类账单若同时选中且只开了账户/类型开关，
+  ///   会被计入 [skipped] 而非报错；
+  /// - **改标签 / 改备注**对所有账单生效（纯属性，不动余额与联动）。
+  ///
+  /// 返回 `(converted, skipped)`：converted=真正被改写的笔数；
+  /// skipped=因安全护栏或单笔异常未改写的笔数（仍计入总数，调用方据以提示）。
+  Future<(int, int)> convertBatch(
+    List<String> ids, {
+    String? categoryId,
+    String? accountId,
+    TxnType? type,
+    List<String>? tags,
+    String? note,
+    bool clearNote = false,
+  }) async {
+    // 至少开启一个转换项；不允许落到转账（转账须有转入账户且由 transfer 模块主导）。
+    final bool anyReq = categoryId != null ||
+        accountId != null ||
+        type != null ||
+        tags != null ||
+        note != null ||
+        clearNote;
+    if (!anyReq) {
+      throw const ValidationFailure('未指定任何批量转换项');
+    }
+    if (type == TxnType.transfer) {
+      throw const ValidationFailure('批量转换不支持改为转账');
+    }
+    final List<Transaction> txns = await getByIds(ids);
+    int converted = 0;
+    int skipped = 0;
+    await _db.transaction<void>(() async {
+      for (final Transaction t in txns) {
+        final bool reqAccount = accountId != null;
+        final bool reqType = type != null;
+        final bool reqCat = categoryId != null;
+        final bool reqTags = tags != null;
+        final bool reqNote = note != null || clearNote;
+
+        final bool applyAccount = reqAccount && _canConvertAccount(t);
+        final bool applyType = reqType && _canConvertType(t);
+        // 分类带方向：目标方向与当前方向不同就必须改类型；改不了类型的
+        // 联动类账单连分类一起不应用（避免「分类方向 ≠ 收支类型」的矛盾数据）。
+        final bool catNeedsTypeChange = reqCat && reqType && t.type != type;
+        final bool applyCat = reqCat && (!catNeedsTypeChange || applyType);
+        final bool anyApplies =
+            applyAccount || applyType || applyCat || reqTags || reqNote;
+        if (!anyApplies) {
+          skipped++;
+          continue;
+        }
+        try {
+          await updateTransaction(
+            original: t,
+            categoryId: applyCat ? categoryId : null,
+            accountId: applyAccount ? accountId : null,
+            type: applyType ? type : null,
+            tags: reqTags ? tags : null,
+            note: reqNote ? (clearNote ? '' : note) : null,
+          );
+          converted++;
+        } on Object {
+          // 单笔异常（如类型推导冲突）不阻断整批：其 savepoint 自动回滚。
+          skipped++;
+        }
+      }
+    });
+    return (converted, skipped);
+  }
+
+  /// 见 [convertBatch]：改账户只对 ledger / transfer 类账单生效。
+  static bool _canConvertAccount(Transaction t) =>
+      t.sourceModule == SourceModule.ledger ||
+      t.sourceModule == SourceModule.transfer;
+
+  /// 见 [convertBatch]：改收支类型只对「日常记账」且当前为 支出/收入 的账单生效。
+  static bool _canConvertType(Transaction t) =>
+      t.sourceModule == SourceModule.ledger &&
+      (t.type == TxnType.expense || t.type == TxnType.income);
+
   /// 转账：**只写一条**流水（`accountId = 转出方`，`toAccountId = 转入方`）。
   ///
   /// 为什么不再写「转入腿」：`TransactionsDao.watchByAccount` 的取数条件是
