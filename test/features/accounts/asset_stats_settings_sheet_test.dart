@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocket_ledger/features/accounts/presentation/widgets/asset_stats_settings_sheet.dart';
+import 'package:pocket_ledger/shared/widgets/round_close_button.dart';
 
 /// 「资产月消费统计」面板的 widget 测试。
 ///
@@ -116,7 +117,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // 关闭二级弹窗（页面里此时有两个 ✕，取最上层那个）。
-    await tester.tap(find.byIcon(Icons.close).last);
+    // 注意：关闭按钮是 RoundCloseButton（内部用 LineGlyph 渲染 ✕，不是 Icon），
+    // 故不能用 find.byIcon(Icons.close)，要直接定位控件本身。
+    await tester.tap(find.byType(RoundCloseButton).last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('保存'));

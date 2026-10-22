@@ -9,6 +9,9 @@ import 'package:pocket_ledger/features/accounts/data/account_repository.dart';
 import 'package:pocket_ledger/features/accounts/presentation/add_account_page.dart';
 import 'package:pocket_ledger/features/accounts/providers/accounts_providers.dart';
 import 'package:pocket_ledger/providers/app_providers.dart';
+import 'package:pocket_ledger/shared/widgets/amount_keypad.dart';
+import 'package:pocket_ledger/shared/widgets/line_icon_map.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
 /// 新增账户流程测试。
 ///
@@ -32,6 +35,8 @@ void main() {
           currentBookIdProvider.overrideWith((_) => 'default'),
         ],
         child: MaterialApp(
+          theme: AppThemeData.light,
+          darkTheme: AppThemeData.dark,
           home: Scaffold(
             body: Builder(
               builder: (BuildContext context) => TextButton(
@@ -92,6 +97,13 @@ void main() {
     // 进入银行选择页
     expect(find.text('选择银行'), findsOneWidget);
     expect(find.text('搜索银行'), findsOneWidget);
+    // 银行列表按首字母分组且 SliverList 懒加载，目标银行初始未渲染；
+    // 用搜索过滤把它带到视口，再点选。
+    await tester.enterText(
+      find.widgetWithText(TextField, '搜索银行'),
+      '工商',
+    );
+    await tester.pumpAndSettle();
     expect(find.text('中国工商银行'), findsOneWidget);
 
     await tester.tap(find.text('中国工商银行'));
@@ -129,14 +141,8 @@ void main() {
       find.widgetWithText(TextField, '银行卡号'),
       '6222',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, '信用额度'),
-      '10000',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, '当前欠款'),
-      '2500',
-    );
+    await _enterAmount(tester, '信用额度', '10000');
+    await _enterAmount(tester, '当前欠款', '2500');
 
     // 修改还款日为 20 日
     await tester.tap(find.text('还款日期'));
@@ -182,6 +188,13 @@ void main() {
     // 进入银行选择页
     expect(find.text('选择银行'), findsOneWidget);
     expect(find.text('搜索银行'), findsOneWidget);
+    // 银行列表按首字母分组且 SliverList 懒加载，目标银行初始未渲染；
+    // 用搜索过滤把它带到视口，再点选。
+    await tester.enterText(
+      find.widgetWithText(TextField, '搜索银行'),
+      '工商',
+    );
+    await tester.pumpAndSettle();
     expect(find.text('中国工商银行'), findsOneWidget);
 
     await tester.tap(find.text('中国工商银行'));
@@ -196,10 +209,7 @@ void main() {
       find.widgetWithText(TextField, '账户名称'),
       '我的工资卡',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, '账户余额'),
-      '88.5',
-    );
+    await _enterAmount(tester, '账户余额', '88.5');
     await tester.enterText(
       find.widgetWithText(TextField, '备注信息'),
       '备用',
@@ -216,8 +226,9 @@ void main() {
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
-    // 保存后 pop 回到新增账户页
-    expect(find.text('新增账户'), findsOneWidget);
+    // 保存后连退两层（账户表单页 + 新增账户页），直接回到来源页（host）。
+    expect(find.text('新建账户'), findsNothing);
+    expect(find.text('host'), findsOneWidget);
 
     expect(fakeRepo.adds, hasLength(1));
     final AddCall call = fakeRepo.adds.single;
@@ -246,10 +257,7 @@ void main() {
       find.widgetWithText(TextField, '账户名称'),
       '零花钱',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, '账户余额'),
-      '200',
-    );
+    await _enterAmount(tester, '账户余额', '200');
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
@@ -296,14 +304,8 @@ void main() {
       find.widgetWithText(TextField, '备注信息'),
       '日常消费',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, '信用额度'),
-      '3000',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, '当前欠款'),
-      '500',
-    );
+    await _enterAmount(tester, '信用额度', '3000');
+    await _enterAmount(tester, '当前欠款', '500');
 
     // 修改账单日为 5 日
     await tester.tap(find.text('账单日期'));
@@ -337,7 +339,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('账户余额'), findsOneWidget);
-    expect(find.byIcon(Icons.calculate_outlined), findsOneWidget);
     expect(find.byIcon(Icons.account_balance_wallet_outlined), findsNothing);
     expect(find.text('备注信息'), findsNothing);
     expect(find.text('银行卡号'), findsNothing);
@@ -346,10 +347,7 @@ void main() {
       find.widgetWithText(TextField, '账户名称'),
       '天天基金',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, '账户余额'),
-      '1200',
-    );
+    await _enterAmount(tester, '账户余额', '1200');
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
@@ -372,7 +370,6 @@ void main() {
     expect(find.text('基本信息'), findsOneWidget);
     expect(find.text('借款给谁'), findsOneWidget);
     expect(find.text('借出金额'), findsOneWidget);
-    expect(find.byIcon(Icons.calculate_outlined), findsOneWidget);
     expect(find.text('账户余额'), findsNothing);
     expect(find.text('备注信息'), findsNothing);
     expect(find.text('银行卡号'), findsNothing);
@@ -386,10 +383,7 @@ void main() {
       find.widgetWithText(TextField, '借款给谁'),
       '张三',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, '借出金额'),
-      '500',
-    );
+    await _enterAmount(tester, '借出金额', '500');
 
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
@@ -444,7 +438,6 @@ void main() {
     expect(find.text('基本信息'), findsOneWidget);
     expect(find.text('向谁借'), findsOneWidget);
     expect(find.text('借入金额'), findsOneWidget);
-    expect(find.byIcon(Icons.calculate_outlined), findsOneWidget);
     expect(find.text('账户余额'), findsNothing);
     expect(find.text('备注信息'), findsNothing);
     expect(find.text('银行卡号'), findsNothing);
@@ -457,10 +450,7 @@ void main() {
       find.widgetWithText(TextField, '向谁借'),
       '李四',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, '借入金额'),
-      '1000',
-    );
+    await _enterAmount(tester, '借入金额', '1000');
 
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
@@ -484,6 +474,48 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('借入'), findsOneWidget);
   });
+}
+
+/// 通过工程内数字键盘录入金额字段。
+///
+/// 账户表单的金额 / 额度 / 借出（入）金额等字段为只读 + 点击唤起工程内键盘
+/// （[AmountKeypad]），直接 [enterText] 只会唤起键盘弹层却写不进文本，因此必须
+/// 模拟真实交互：点击字段 → 键盘弹层 → 逐位点按数字（小数点用 [Icons.circle] 键）
+/// → 点键盘上的「保存」确认。
+Future<void> _enterAmount(
+  WidgetTester tester,
+  String label,
+  String value,
+) async {
+  await tester.tap(find.widgetWithText(TextField, label));
+  await tester.pumpAndSettle();
+  for (final String ch in value.split('')) {
+    final Finder key;
+    if (ch == '.') {
+      // 小数点键渲染为 LineGlyph(Icons.circle)（自定义线稿，非 Icon 组件），
+      // find.byIcon 无法命中，需按 LineGlyph + icon 谓词定位。
+      key = find.descendant(
+        of: find.byType(AmountKeypad),
+        matching: find.byWidgetPredicate(
+          (Widget w) => w is LineGlyph && w.icon == Icons.circle,
+        ),
+      );
+    } else {
+      key = find.descendant(
+        of: find.byType(AmountKeypad),
+        matching: find.text(ch),
+      );
+    }
+    await tester.tap(key);
+    await tester.pump();
+  }
+  await tester.tap(
+    find.descendant(
+      of: find.byType(AmountKeypad),
+      matching: find.text('保存'),
+    ),
+  );
+  await tester.pumpAndSettle();
 }
 
 /// [AccountRepository] 的假实现：只记录 `add` 调用，不做任何数据库操作。

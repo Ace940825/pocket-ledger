@@ -124,7 +124,7 @@ void main() {
     // 账户名出现 2 处：卡片标题 + 交易行的账户说明
     expect(find.text('中国工商银行'), findsNWidgets(2));
     expect(find.text('借记卡'), findsOneWidget);
-    expect(find.text('当前余额(元)'), findsOneWidget);
+    expect(find.text('当前余额'), findsOneWidget);
     expect(find.text('¥113.00'), findsOneWidget); // 余额带 ¥ 符号
 
     // 年份选择行
@@ -153,7 +153,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('招行信用卡'), findsOneWidget);
-    expect(find.text('当前欠款(元)'), findsOneWidget);
+    expect(find.text('当前欠款'), findsOneWidget);
     expect(find.text('信用卡'), findsOneWidget);
   });
 
