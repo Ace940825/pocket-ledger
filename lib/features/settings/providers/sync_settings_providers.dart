@@ -56,7 +56,7 @@ class SyncSettingsController extends AsyncNotifier<SyncSettings> {
     // 旧值由此以「用户自定义」的名义驻留 storage，钉死内置端点轮换。
     // 凡存储值命中历史内置名单，视为未自定义，回退到当前内置值。
     final bool baseUrlIsLegacy =
-        legacyBuiltInSyncBaseUrls.contains(baseUrlStored);
+        Env.legacyBuiltInSyncBaseUrls.contains(baseUrlStored);
     final String baseUrl =
         (baseUrlStored?.isNotEmpty == true && !baseUrlIsLegacy)
             ? baseUrlStored!

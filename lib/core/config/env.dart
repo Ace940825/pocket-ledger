@@ -25,6 +25,16 @@ abstract final class Env {
     defaultValue: '',
   );
 
+  /// 历史内置同步端点名单（非密钥，已提交）。
+  ///
+  /// 设置页曾把旧内置端点回写进 secure storage；内置端点轮换后，旧值会以
+  /// 「用户自定义」名义驻留并钉死配置。凡存储值命中此名单，一律视为未自定义，
+  /// 回退到当前 [syncBaseUrl]。
+  /// 以后再轮换端点时，把旧值加进这里即可自动迁移。
+  static const List<String> legacyBuiltInSyncBaseUrls = <String>[
+    'https://pocket-ledger-sync.ace0825.workers.dev',
+  ];
+
   /// 单次拉取的最大记录数，避免一次请求过大。
   static const int syncPullBatchSize = 500;
 

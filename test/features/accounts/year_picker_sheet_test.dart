@@ -41,7 +41,7 @@ void main() {
   }
 
   // 年宫格需双击确认（单击仅选中），两次 tap 紧接执行以压在 320ms 真实时间内。
-  Future<void> _doubleTapYear(WidgetTester tester, String year) async {
+  Future<void> doubleTapYear(WidgetTester tester, String year) async {
     await tester.tap(find.text(year));
     await tester.tap(find.text(year));
     await tester.pumpAndSettle();
@@ -62,7 +62,7 @@ void main() {
     CalendarSelection? result;
     await openSheet(tester, onResult: (r) => result = r);
 
-    await _doubleTapYear(tester, '2027');
+    await doubleTapYear(tester, '2027');
 
     expect(result, isA<CalendarYear>());
     expect((result! as CalendarYear).year, 2027);
@@ -83,7 +83,7 @@ void main() {
     expect(result, isNull);
 
     // 范围内年份双击可点选。
-    await _doubleTapYear(tester, '2027');
+    await doubleTapYear(tester, '2027');
     expect((result! as CalendarYear).year, 2027);
   });
 }
