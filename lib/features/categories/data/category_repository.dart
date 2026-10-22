@@ -30,6 +30,10 @@ class CategoryRepository {
     String? iconKey,
     int? colorValue,
     bool isSystem = false,
+    /// 跳过同步入队：系统分类为本地不变量（云端表尚未含相关字段），
+    /// 由启动种子 / 借还落账自动重建时传 true，令其直接标记已同步、
+    /// 不入 pending_ops，避免「无用户记录却显示 N 条待同步」的脏计数。
+    bool skipSync = false,
   }) async {
     final String trimmed = name.trim();
     final List<Category> all = await (_db.select(_db.categories)
@@ -50,6 +54,7 @@ class CategoryRepository {
       iconKey: iconKey,
       colorValue: colorValue,
       isSystem: isSystem,
+      skipSync: skipSync,
     );
   }
 
@@ -66,6 +71,7 @@ class CategoryRepository {
     required String name,
     required CategoryType type,
     String? iconKey,
+    bool skipSync = false,
   }) async {
     final String trimmed = name.trim();
     final List<Category> all = await (_db.select(_db.categories)
@@ -86,10 +92,15 @@ class CategoryRepository {
       parentId: parentId,
       iconKey: iconKey,
       colorValue: 0, // 0 = 继承父分类配色
+      skipSync: skipSync,
     );
   }
 
   /// 新增分类。返回新记录 ID。
+  ///
+  /// [skipSync] 为 true 时：该分类视为本地不变量（如系统分类），直接写入
+  /// [syncedAt] 并标记非 dirty、不进入 pending_ops，使其永不参与同步推送；
+  /// 否则走标准「落库 + dirty + 入队」口径。
   Future<String> add({
     required String bookId,
     required String name,
@@ -98,6 +109,7 @@ class CategoryRepository {
     int? colorValue,
     String? iconKey,
     bool isSystem = false,
+    bool skipSync = false,
   }) {
     if (name.trim().isEmpty) {
       throw const ValidationFailure('分类名称不能为空');
@@ -118,24 +130,27 @@ class CategoryRepository {
           iconKey: Value<String?>(iconKey),
           isSystem: Value<bool>(isSystem),
           updatedAt: Value<int>(now),
-          dirty: const Value<bool>(true),
+          dirty: Value<bool>(!skipSync),
+          syncedAt: skipSync ? Value<int?>(now) : const Value.absent(),
         ),
       );
 
-      await _enqueue(
-        id,
-        SyncOpType.insert,
-        now,
-        <String, Object?>{
-          'bookId': bookId,
-          'name': name.trim(),
-          'type': type.index,
-          'parentId': parentId,
-          'colorValue': colorValue,
-          'iconKey': iconKey,
-          'isSystem': isSystem,
-        },
-      );
+      if (!skipSync) {
+        await _enqueue(
+          id,
+          SyncOpType.insert,
+          now,
+          <String, Object?>{
+            'bookId': bookId,
+            'name': name.trim(),
+            'type': type.index,
+            'parentId': parentId,
+            'colorValue': colorValue,
+            'iconKey': iconKey,
+            'isSystem': isSystem,
+          },
+        );
+      }
 
       return id;
     });
