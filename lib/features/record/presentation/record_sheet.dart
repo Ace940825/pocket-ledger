@@ -6,7 +6,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -29,6 +28,7 @@ import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/utils/geo_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../features/accounts/data/account_icon.dart';
@@ -7756,27 +7756,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           timeLimit: Duration(seconds: 15),
         ),
       );
-      // 逆地理编码：行政/市/区/路逐级拼成地名；失败不影响坐标存储。
-      String? name;
-      try {
-        final List<Placemark> marks =
-            await Geocoding().placemarkFromCoordinates(
-          pos.latitude,
-          pos.longitude,
-        );
-        if (marks.isNotEmpty) {
-          final Placemark m = marks.first;
-          final List<String> parts = <String>[
-            if ((m.administrativeArea ?? '').isNotEmpty) m.administrativeArea!,
-            if ((m.locality ?? '').isNotEmpty) m.locality!,
-            if ((m.subLocality ?? '').isNotEmpty) m.subLocality!,
-            if ((m.thoroughfare ?? '').isNotEmpty) m.thoroughfare!,
-          ];
-          if (parts.isNotEmpty) name = parts.join('');
-        }
-      } catch (_) {
-        // 逆地理编码失败：地名留空，坐标仍保存。
-      }
+      // 逆地理编码：语义化地名（优先小区/店名 POI 级，见 geo_utils），
+      // 失败不影响坐标存储。
+      final String? name =
+          await reverseGeocodeSemantic(pos.latitude, pos.longitude);
       if (mounted) {
         setState(() {
           _locLat = pos.latitude;

@@ -61,4 +61,22 @@ class PendingOpsDao extends DatabaseAccessor<AppDatabase>
   Future<int> clearAll() {
     return delete(pendingOps).go();
   }
+
+  /// 清理历史遗留的系统分类同步 op（启动种子曾误把 11 个系统分类的 insert
+  /// 入队，导致「无任何用户记录却显示 N 条待同步」）。系统分类为本地不变量、
+  /// 永不参与同步；删除这些孤儿 op 使待同步计数归零。仅删 `is_system=1`
+  /// 的分类相关 op，不影响任何用户数据。返回被清除的行数（用于启动日志）。
+  Future<int> clearSystemCategoryOps() {
+    return (delete(pendingOps)
+          ..where(
+            ($PendingOpsTable tbl) =>
+                tbl.targetTable.equals('categories') &
+                tbl.recordId.isInQuery(
+                  attachedDatabase.selectOnly(attachedDatabase.categories)
+                    ..addColumns([attachedDatabase.categories.id])
+                    ..where(attachedDatabase.categories.isSystem.equals(true)),
+                ),
+          ))
+        .go();
+  }
 }

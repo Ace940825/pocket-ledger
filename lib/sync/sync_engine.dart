@@ -1,14 +1,23 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:uuid/uuid.dart';
 
 import '../core/config/env.dart';
 import '../core/errors/failures.dart';
 import '../database/app_database.dart';
+import '../database/sync_conflict_access.dart';
+import '../database/sync_history_access.dart';
 import '../database/sync_records.dart';
+import '../domain/enums.dart';
 import 'adapters/offline_adapter.dart';
+import 'conflict_models.dart';
 import 'record_codec.dart';
 import 'sync_adapter.dart';
+import 'sync_field_meta.dart';
+import 'sync_options.dart';
 
 /// 同步结果
 enum SyncStatus {
@@ -28,6 +37,7 @@ class SyncState {
     this.lastSyncedAt,
     this.pendingCount = 0,
     this.adapterName = '纯本地',
+    this.pendingConflicts = 0,
     this.error,
   });
 
@@ -35,6 +45,8 @@ class SyncState {
   final int? lastSyncedAt;
   final int pendingCount;
   final String adapterName;
+  /// 待解决的字段级冲突数（[ConflictPolicy.prompt] 下产生）。
+  final int pendingConflicts;
   final String? error;
 
   SyncState copyWith({
@@ -42,6 +54,7 @@ class SyncState {
     int? lastSyncedAt,
     int? pendingCount,
     String? adapterName,
+    int? pendingConflicts,
     String? error,
   }) {
     return SyncState(
@@ -49,15 +62,30 @@ class SyncState {
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       pendingCount: pendingCount ?? this.pendingCount,
       adapterName: adapterName ?? this.adapterName,
+      pendingConflicts: pendingConflicts ?? this.pendingConflicts,
       error: error,
     );
   }
+}
+
+/// 一次 pull 的统计。
+class _PullStats {
+  const _PullStats({this.applied = 0, this.overwrote = 0, this.suspended = 0});
+
+  final int applied;
+  final int overwrote;
+  /// 因 [ConflictPolicy.prompt] 被挂起、需用户逐字段解决的冲突数。
+  final int suspended;
 }
 
 /// 同步引擎。
 ///
 /// 流程：push（本地 → 云端）→ pull（云端 → 本地）→ 冲突判定 → 落库。
 /// 全程异步，UI 不等待；失败时操作保留在 [PendingOps] 队列中，下次自动重试。
+///
+/// 控制层（v36）：在保持「自动全量同步」不变的前提下，新增
+/// [runWithOptions] 支持**手动定向同步**（方向 / 时间区间 / 数据范围）、
+/// **本地回滚点**（覆盖前打快照）与**同步历史记录**。
 class SyncEngine {
   SyncEngine({
     required AppDatabase database,
@@ -76,10 +104,16 @@ class SyncEngine {
 
   bool _running = false;
 
-  /// 执行一轮完整同步。
+  /// 兼容原 [run]：全量自动同步。
+  Future<SyncState> run() => runWithOptions(SyncOptions.fullAuto);
+
+  /// 执行一轮同步（可带方向 / 区间 / 范围）。
   ///
-  /// 返回 [SyncState]，调用方（Riverpod Notifier）据此更新 UI。
-  Future<SyncState> run() async {
+  /// - 自动模式（[SyncOptions.fullAuto]）：与旧 [run] 行为完全一致，并推进
+  ///   全局增量游标；
+  /// - 手动定向同步：只在 [scope] 限定的区间 / 表内操作，**不推进全局游标**
+  ///   （否则下一次自动全量同步会因游标越界而永久漏拉区间外记录）。
+  Future<SyncState> runWithOptions(SyncOptions options) async {
     if (_running) {
       return _snapshot(SyncStatus.running);
     }
@@ -93,19 +127,50 @@ class SyncEngine {
     try {
       final bool available = await _adapter.isAvailable();
       if (!available) {
-        // 用 await 才能真正把 _snapshot 内部的异常纳入下方 catch；
-        // 直接 return 会让 finally 先执行、快照的错误逃逸到 unhandled。
         return await _snapshot(SyncStatus.disabled);
       }
 
-      await _push();
-      await _pull();
+      int pushed = 0;
+      int pulled = 0;
+      int overwrote = 0;
+      final String syncId = const Uuid().v4();
+
+      if (options.direction != SyncDirection.pullOnly) {
+        pushed = await _push(options.scope);
+      }
+
+      if (options.direction != SyncDirection.pushOnly) {
+        final _PullStats stats = await _pull(
+          options.scope,
+          advanceCursor: options.scope.isFull,
+          syncId: syncId,
+          conflictPolicy: options.conflictPolicy,
+        );
+        pulled = stats.applied;
+        overwrote = stats.overwrote;
+      }
 
       final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
       await _storage.write(
         key: Env.lastSyncedAtStorageKey,
         value: now.toString(),
       );
+
+      // 写入同步历史版本记录。
+      await _db.insertSyncHistory(
+        id: syncId,
+        direction: options.direction.name,
+        fromMs: options.scope.fromMs,
+        toMs: options.scope.toMs,
+        tables: options.scope.tablesParam,
+        pushed: pushed,
+        pulled: pulled,
+        overwrote: overwrote,
+        at: now,
+        deviceId: _deviceId,
+      );
+      await _db.pruneSyncHistory(retain: 50);
+
       return await _snapshot(SyncStatus.success, lastSyncedAt: now);
     } on AppFailure catch (e) {
       return _snapshot(SyncStatus.failure, error: e.message);
@@ -116,13 +181,62 @@ class SyncEngine {
     }
   }
 
-  /// 推送本地待同步操作
-  Future<void> _push() async {
+  /// 撤回某次同步：把该次「本地被覆盖」的行恢复到同步前状态，并重新入队，
+  /// 使本地改动可在下次推送时再次生效（覆盖云端）。
+  ///
+  /// 仅对「含本地覆盖」的同步有意义（pullOnly / merge 且云端确实覆盖过本地）；
+  /// uploadOnly 同步不会覆盖本地，撤回无副作用，UI 应禁用其撤回按钮。
+  Future<int> rollback(String syncId) async {
+    final List<SyncBackupRow> backups = await _db.getSyncBackups(syncId);
+    if (backups.isEmpty) return 0;
+
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    for (final SyncBackupRow b in backups) {
+      final Map<String, Object?>? before =
+          (jsonDecode(b.payloadBefore) as Map?)?.cast<String, Object?>();
+      if (before == null) continue;
+      final dynamic companion = RecordCodec.decode(
+        b.table,
+        b.recordId,
+        before,
+        updatedAt: now,
+        deleted: (before['deleted'] as int? ?? 0) == 1,
+        syncedAt: now,
+      );
+      if (companion == null) continue;
+      await _db.syncUpsert(b.table, companion);
+      // 重新入队：让本地这版改动下次推送时覆盖云端，等于「本地重新胜出」。
+      await _db.pendingOpsDao.enqueue(
+        PendingOpsCompanion(
+          targetTable: Value<String>(b.table),
+          recordId: Value<String>(b.recordId),
+          opType: Value<SyncOpType>(SyncOpType.update),
+          payload: Value<String>(b.payloadBefore),
+          updatedAt: Value<int>(now),
+          createdAt: Value<int>(now),
+        ),
+      );
+    }
+    await _db.deleteSyncBackups(syncId);
+    return backups.length;
+  }
+
+  /// 推送本地待同步操作（可按 [scope] 限定区间 / 表）。
+  ///
+  /// 返回本次实际发送的待同步条数（用于历史记录展示）。
+  Future<int> _push([SyncScope? scope]) async {
     final List<PendingOp> ops = await _db.pendingOpsDao.pending();
-    if (ops.isEmpty) return;
+    if (ops.isEmpty) return 0;
+
+    final List<PendingOp> scoped = (scope == null || scope.isFull)
+        ? ops
+        : ops
+            .where((PendingOp o) => scope.matches(o.targetTable, o.updatedAt))
+            .toList(growable: false);
+    if (scoped.isEmpty) return 0;
 
     final List<SyncOp> payload = <SyncOp>[];
-    for (final PendingOp op in ops) {
+    for (final PendingOp op in scoped) {
       payload.add(
         SyncOp(
           tableName: op.targetTable,
@@ -141,29 +255,29 @@ class SyncEngine {
 
     if (result.appliedIds.isEmpty && result.conflictedIds.isEmpty) {
       await _db.pendingOpsDao.incrementRetry(
-        ops.map((PendingOp o) => o.localSeq).toList(),
+        scoped.map((PendingOp o) => o.localSeq).toList(),
       );
-      return;
+      return 0;
     }
 
     final Set<String> applied = result.appliedIds.toSet();
     final Set<String> conflicted = result.conflictedIds.toSet();
 
     // 只有被服务端确认的操作才从队列移除，失败的保留等待重试
-    final List<int> doneSeqs = ops
+    final List<int> doneSeqs = scoped
         .where((PendingOp o) => applied.contains(o.recordId))
         .map((PendingOp o) => o.localSeq)
         .toList(growable: false);
 
     if (doneSeqs.isNotEmpty) {
       await _db.pendingOpsDao.removeBySeq(doneSeqs);
-      await _markSynced(ops, applied);
+      await _markSynced(scoped, applied);
     }
 
     // 冲突 = 服务端持有更新的版本，本地这条注定推不上去。
     // 必须出队：紧随其后的 pull 会把权威版本拉回来覆盖本地；
     // 留在队列里只会让每次同步都重复推一条必然失败的操作。
-    final List<int> conflictedSeqs = ops
+    final List<int> conflictedSeqs = scoped
         .where((PendingOp o) => conflicted.contains(o.recordId))
         .map((PendingOp o) => o.localSeq)
         .toList(growable: false);
@@ -172,7 +286,7 @@ class SyncEngine {
       await _db.pendingOpsDao.removeBySeq(conflictedSeqs);
     }
 
-    final List<int> failedSeqs = ops
+    final List<int> failedSeqs = scoped
         .where(
           (PendingOp o) =>
               !applied.contains(o.recordId) && !conflicted.contains(o.recordId),
@@ -183,6 +297,8 @@ class SyncEngine {
     if (failedSeqs.isNotEmpty) {
       await _db.pendingOpsDao.incrementRetry(failedSeqs);
     }
+
+    return scoped.length;
   }
 
   /// 构造要推送的 payload。
@@ -224,17 +340,31 @@ class SyncEngine {
     }
   }
 
-  /// 拉取并应用云端变更。
+  /// 拉取并应用云端变更（可按 [scope] 限定区间 / 表）。
   ///
-  /// **循环拉取直到取空**：一次请求的条数上限是 [Env.syncPullBatchSize]，
-  /// 首次全量同步时变更很容易超过这个数。若只拉一批就收工，
-  /// 剩下的数据会因为游标已经推进而永远拉不到 —— 静默丢数据。
+  /// **循环拉取直到取空**：一次请求的条数上限是 [Env.syncPullBatchSize]。
+  /// 游标以**服务端记录的 updatedAt** 推进，绝不用本地时钟。
   ///
-  /// 游标以**服务端记录的 updatedAt** 推进，绝不用本地时钟：
-  /// 本机时间偏快会让 since 超过真实数据，同样导致记录被永久跳过。
-  Future<void> _pull() async {
-    int since = await lastPulledAt();
-    String afterId = await lastPulledId();
+  /// [advanceCursor] 为 true 时按全局增量游标推进（自动全量同步）；
+  /// 为 false 时（手动定向同步）**不推进游标**，仅做一次性定向拉取。
+  ///
+  /// [syncId] 非 null 时，对「将覆盖本地已有行」的记录打回滚点快照。
+  Future<_PullStats> _pull(
+    SyncScope? scope, {
+    bool advanceCursor = true,
+    String? syncId,
+    ConflictPolicy conflictPolicy = ConflictPolicy.auto,
+  }) async {
+    int since = advanceCursor
+        ? await lastPulledAt()
+        : (scope?.fromMs ?? 0);
+    String afterId = advanceCursor ? await lastPulledId() : '';
+
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final List<SyncBackupRow> backups = <SyncBackupRow>[];
+    int applied = 0;
+    int overwrote = 0;
+    int suspended = 0;
 
     while (true) {
       final PullResult result = await _adapter.pull(
@@ -242,24 +372,192 @@ class SyncEngine {
         since: since,
         afterId: afterId,
         limit: Env.syncPullBatchSize,
+        until: scope?.toMs,
+        tables: scope?.tables?.toList(),
       );
 
       final List<RemoteRecord> records = result.records;
       if (records.isEmpty) break;
 
       for (final RemoteRecord record in records) {
-        await _apply(record);
+        await _apply(
+          record,
+          syncId: syncId,
+          backups: backups,
+          now: now,
+          conflictPolicy: conflictPolicy,
+          onApplied: () => applied++,
+          onOverwrite: () => overwrote++,
+          onConflict: () => suspended++,
+        );
       }
 
       // 结果按 (updatedAt, id) 升序，最后一条即新游标
       final RemoteRecord last = records.last;
       since = last.updatedAt;
       afterId = last.recordId;
-      await _saveCursor(since, afterId);
+      if (advanceCursor) await _saveCursor(since, afterId);
 
       // 不足一批说明已经拉到末尾
       if (records.length < Env.syncPullBatchSize) break;
     }
+
+    if (backups.isNotEmpty) await _db.insertSyncBackups(backups);
+
+    return _PullStats(
+      applied: applied,
+      overwrote: overwrote,
+      suspended: suspended,
+    );
+  }
+
+  /// 应用单条云端记录，采用 LWW（最后写入胜出）解决冲突。
+  ///
+  /// 覆盖 [SyncTables.all] 全部 12 张表：解码逻辑集中在 [RecordCodec]，
+  /// 这里只负责「比时间戳 → 解码 → 落库」三步。
+  /// 表名未知时 [RecordCodec.decode] 返回 null，只跳过这一条，
+  /// 不让一条脏数据中断整轮同步。
+  ///
+  /// [conflictPolicy] 为 [ConflictPolicy.prompt] 时，若本地存在未同步修改
+  /// （`dirty == true`）且云端版本更新且字段确有差异，则**不覆盖本地**，改为
+  /// 把双方整行 payload 暂存为一条 [SyncConflict]，等用户在冲突解决页逐字段选择。
+  Future<void> _apply(
+    RemoteRecord record, {
+    required String? syncId,
+    required List<SyncBackupRow> backups,
+    required int now,
+    required ConflictPolicy conflictPolicy,
+    required VoidCallback onApplied,
+    required VoidCallback onOverwrite,
+    VoidCallback? onConflict,
+  }) async {
+    final int? localUpdatedAt = await _db.syncLocalUpdatedAt(
+      record.tableName,
+      record.recordId,
+    );
+
+    // 本地更新且本地更新时间更新 → 保留本地版本，不覆盖（LWW）。
+    if (localUpdatedAt != null && localUpdatedAt > record.updatedAt) return;
+
+    // 本地已存在：读取整行（含 dirty 标记），用于判定「真冲突」与回滚点。
+    final Map<String, Object?>? before = localUpdatedAt != null
+        ? await _db.syncRowAsJson(record.tableName, record.recordId)
+        : null;
+
+    // 字段级冲突策略：本地有未同步修改 + 云端更新 + 字段差异 → 挂起，不覆盖。
+    if (conflictPolicy == ConflictPolicy.prompt &&
+        before != null &&
+        _isDirty(before) &&
+        record.updatedAt >= localUpdatedAt! &&
+        SyncFieldMeta.differingFields(
+          record.tableName,
+          before,
+          record.payload,
+        ).isNotEmpty) {
+      await _db.upsertConflict(
+        SyncConflict.create(
+          table: record.tableName,
+          recordId: record.recordId,
+          localPayload: before,
+          remotePayload: record.payload,
+          localUpdatedAt: localUpdatedAt,
+          remoteUpdatedAt: record.updatedAt,
+        ),
+      );
+      onConflict?.call();
+      return;
+    }
+
+    // 本地已存在且云端版本更新/相等 → 将覆盖本地，打回滚点快照。
+    if (syncId != null && before != null) {
+      backups.add(
+        SyncBackupRow(
+          id: const Uuid().v4(),
+          syncId: syncId,
+          table: record.tableName,
+          recordId: record.recordId,
+          payloadBefore: jsonEncode(before),
+          at: now,
+        ),
+      );
+      onOverwrite();
+    }
+
+    final int applyNow = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final dynamic companion = RecordCodec.decode(
+      record.tableName,
+      record.recordId,
+      record.payload,
+      updatedAt: record.updatedAt,
+      deleted: record.deleted,
+      syncedAt: applyNow,
+    );
+    if (companion == null) return;
+
+    await _db.syncUpsert(record.tableName, companion);
+    onApplied();
+  }
+
+  /// 本地行是否带有未同步修改（[SyncTables] 的 `dirty` 列，bool 或 0/1 皆可）。
+  bool _isDirty(Map<String, Object?> row) {
+    final Object? d = row['dirty'];
+    if (d is bool) return d;
+    if (d is int) return d != 0;
+    return false;
+  }
+
+  /// 解决一条字段级冲突：按用户逐字段选择合并，落库并按需重新入队回推云端。
+  ///
+  /// [choices]：字段名 → true(采用本地) / false(采用云端)，仅含确有差异的字段。
+  /// 若没有任何字段选「本地」，说明用户全盘接受云端 → 直接标记已同步、无需回推；
+  /// 否则合并结果以「本地为胜」写回并重新入队，使其在下一次推送时以更新的时间戳
+  /// 覆盖云端，让多设备收敛到同一份数据。
+  ///
+  /// 返回解决的冲突条数（0 表示 ID 不存在）。
+  Future<int> resolveConflict(String id, Map<String, bool> choices) async {
+    final SyncConflict? conflict = await _db.getConflict(id);
+    if (conflict == null) return 0;
+
+    final Map<String, Object?> merged = conflict.merged(choices);
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final bool anyLocal = choices.values.any((bool b) => b);
+
+    final int updatedAt = anyLocal ? now : conflict.remoteUpdatedAt;
+    final dynamic companion = RecordCodec.decode(
+      conflict.table,
+      conflict.recordId,
+      merged,
+      updatedAt: updatedAt,
+      deleted: (merged['deleted'] as bool?) ?? false,
+      syncedAt: now,
+    );
+    if (companion == null) return 0;
+
+    await _db.syncUpsert(conflict.table, companion);
+
+    if (anyLocal) {
+      // 标记本地脏并刷新 updatedAt，使合并结果在下一次推送时以更新的时间戳
+      // 胜出（否则服务端 LWW 会因时间戳不新而再次判为冲突）。
+      await _db.customStatement(
+        'UPDATE ${conflict.table} SET dirty = 1, updated_at = ? WHERE id = ?',
+        <Object?>[now, conflict.recordId],
+      );
+      await _db.pendingOpsDao.enqueue(
+        PendingOpsCompanion(
+          targetTable: Value<String>(conflict.table),
+          recordId: Value<String>(conflict.recordId),
+          opType: Value<SyncOpType>(SyncOpType.update),
+          payload: Value<String>(jsonEncode(merged)),
+          updatedAt: Value<int>(now),
+          createdAt: Value<int>(now),
+        ),
+      );
+    } else {
+      await _db.syncMarkSynced(conflict.table, <String>[conflict.recordId], now);
+    }
+
+    await _db.markConflictResolved(id, merged, choices);
+    return 1;
   }
 
   /// 上次成功同步时间（本地时钟），仅用于 UI 展示。
@@ -284,49 +582,19 @@ class SyncEngine {
     await _storage.write(key: Env.lastPulledIdStorageKey, value: afterId);
   }
 
-  /// 应用单条云端记录，采用 LWW（最后写入胜出）解决冲突。
-  ///
-  /// 覆盖 [SyncTables.all] 全部 12 张表：解码逻辑集中在 [RecordCodec]，
-  /// 这里只负责「比时间戳 → 解码 → 落库」三步。
-  /// 表名未知时 [RecordCodec.decode] 返回 null，只跳过这一条，
-  /// 不让一条脏数据中断整轮同步。
-  ///
-  /// 单人使用场景下几乎不会冲突（同一时刻只在一台设备操作）。
-  /// 若将来支持多人共享账本，可在此升级为字段级 LWW 或 CRDT。
-  Future<void> _apply(RemoteRecord record) async {
-    final int? localUpdatedAt = await _db.syncLocalUpdatedAt(
-      record.tableName,
-      record.recordId,
-    );
-
-    // 本地更新，保留本地版本
-    if (localUpdatedAt != null && localUpdatedAt > record.updatedAt) return;
-
-    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final dynamic companion = RecordCodec.decode(
-      record.tableName,
-      record.recordId,
-      record.payload,
-      updatedAt: record.updatedAt,
-      deleted: record.deleted,
-      syncedAt: now,
-    );
-    if (companion == null) return;
-
-    await _db.syncUpsert(record.tableName, companion);
-  }
-
   Future<SyncState> _snapshot(
     SyncStatus status, {
     int? lastSyncedAt,
     String? error,
   }) async {
     final int pending = await _db.pendingOpsDao.watchCount().first;
+    final int pendingConflicts = await _db.countUnresolvedConflicts();
     return SyncState(
       status: status,
       lastSyncedAt: lastSyncedAt ?? await this.lastSyncedAt(),
       pendingCount: pending,
       adapterName: _adapter.name,
+      pendingConflicts: pendingConflicts,
       error: error,
     );
   }

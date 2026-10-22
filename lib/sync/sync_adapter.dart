@@ -111,11 +111,17 @@ abstract class SyncAdapter {
   ///
   /// 只用一个时间戳是不够的 —— 同一毫秒内的多条记录会被漏掉。
   /// 返回条数小于 [limit] 即表示已拉到末尾。
+  ///
+  /// [until] 与 [tables] 为可选的范围限定（控制层「选择性同步」用）：
+  /// [until] 限定 `updatedAt <= until`；[tables] 限定 `entity_table IN (...)`。
+  /// 二者都为 null 时退化成全量拉取，对现有自动同步零影响。
   Future<PullResult> pull({
     required String deviceId,
     required int since,
     String afterId = '',
     int limit = 500,
+    int? until,
+    List<String>? tables,
   });
 
   /// 批量推送本地变更。

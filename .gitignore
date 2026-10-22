@@ -65,3 +65,5 @@ app.*.map.json
 
 # Flutter 金像测试失败产物（自动再生，不入库）
 test/failures/
+# 金像失败产物实际落在各用例同级的 failures/ 子目录（按 feature 分），一并忽略
+test/**/failures/

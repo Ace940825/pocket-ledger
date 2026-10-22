@@ -11,11 +11,12 @@ abstract final class Env {
   static const bool cloudSyncEnabled = true;
 
   /// Cloudflare Workers 同步端点。
-  /// 部署后形如 https://pocket-ledger.<your-subdomain>.workers.dev
-  /// 也可使用免费提供的 *.workers.dev 子域，无需购买域名。
+  /// 默认指向已绑定的自定义域 https://ace0825.dpdns.org（*.workers.dev 在
+  /// 中国大陆被 DNS 阻断，故内置默认改用自定义域以保证开箱可同步）；
+  /// 也可用 --dart-define=SYNC_BASE_URL=... 覆盖。
   static const String syncBaseUrl = String.fromEnvironment(
     'SYNC_BASE_URL',
-    defaultValue: 'https://pocket-ledger.example.workers.dev',
+    defaultValue: 'https://ace0825.dpdns.org',
   );
 
   /// 同步访问令牌。生产环境建议通过 --dart-define 注入，不要硬编码。
@@ -57,6 +58,15 @@ abstract final class Env {
 
   /// 用户自定义同步令牌
   static const String syncTokenStorageKey = 'sync_token';
+
+  /// 同步模式存储键（auto / manual）。默认 auto，保持现有自动同步行为。
+  static const String syncModeStorageKey = 'sync_mode';
+
+  /// 手动同步默认方向存储键（merge / pushOnly / pullOnly）。
+  static const String syncDirectionStorageKey = 'sync_direction';
+
+  /// 冲突处理策略存储键（auto / prompt）。默认 auto（LWW 时间戳决胜）。
+  static const String syncConflictPolicyStorageKey = 'sync_conflict_policy';
 
   /// 设备唯一标识存储键，用于多设备区分同步来源。
   static const String deviceIdStorageKey = 'device_id';

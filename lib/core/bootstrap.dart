@@ -243,6 +243,8 @@ Future<void> bootstrapData(AppDatabase db) async {
   if (books.isEmpty) {
     await _seedDefaults(db);
     await _seedSystemCategories(db);
+    // 清理历史遗留的系统分类同步 op（首版种子曾误入队），使待同步归零。
+    await db.pendingOpsDao.clearSystemCategoryOps();
     return;
   }
   // 已存在账本：兜底修复老版本默认分类缺少图标/颜色的问题（只补空白值）。
@@ -267,6 +269,8 @@ Future<void> bootstrapData(AppDatabase db) async {
   // 预建 11 个落账系统分类（转账三变体/借还六类/报销收入/退款），确保入库
   // 并隐藏于用户分类列表，落账时按同名同类型引用。
   await _seedSystemCategories(db);
+  // 清理历史遗留的系统分类同步 op（首版种子曾误入队），使待同步归零。
+  await db.pendingOpsDao.clearSystemCategoryOps();
   // 借还流水分类重挂（幂等自愈）：旧种子「还债/债务消减」曾被下线软删，
   // 期间落账的借还流水 categoryId 悬空（标题退化「支出」、详情「未分类」）。
   // 按备注动词前缀把悬空行重新挂回系统分类。
@@ -521,6 +525,7 @@ Future<void> _relinkLendFlowCategories(AppDatabase db) async {
       type: hit.$3,
       iconKey: hit.$4,
       isSystem: true,
+      skipSync: true,
     );
     await (db.update(db.transactions)
           ..where((Transactions t) => t.id.equals(txn.id)))
@@ -577,6 +582,9 @@ Future<void> _seedSystemCategories(AppDatabase db) async {
         type: type,
         iconKey: iconKey,
         isSystem: true,
+        // 系统分类为本地不变量：直接标记已同步、不入 pending_ops，
+        // 避免「无用户记录却显示 11 条待同步」的脏计数（见 #384）。
+        skipSync: true,
       );
     }
   }

@@ -23,6 +23,7 @@ import '../features/inventory/presentation/inventory_page.dart';
 import '../features/investment/presentation/investment_page.dart';
 import '../features/ledger/data/bill_io.dart';
 import '../features/ledger/presentation/bill_clean_page.dart';
+import '../features/ledger/presentation/bill_convert_page.dart';
 import '../features/ledger/presentation/bill_export_page.dart';
 import '../features/ledger/presentation/bill_import_page.dart';
 import '../features/ledger/presentation/bill_list_page.dart';
@@ -41,6 +42,8 @@ import '../features/report/presentation/report_page.dart';
 import '../features/savings/presentation/savings_page.dart';
 import '../features/settings/presentation/me_page.dart';
 import '../features/settings/presentation/settings_page.dart';
+import '../features/settings/presentation/sync_conflict_page.dart';
+import '../features/settings/presentation/sync_control_page.dart';
 import '../features/shell/app_shell.dart';
 import '../features/transfer/presentation/transfer_page.dart';
 
@@ -87,8 +90,11 @@ abstract final class Routes {
   static const String billExport = '/bill-export';
   static const String billImport = '/bill-import';
   static const String billClean = '/bill-clean';
+  static const String billConvert = '/bill-convert';
 
   static const String settings = '/settings';
+  static const String syncControl = '/sync-control';
+  static const String conflictResolve = '/sync-conflicts';
   static const String record = '/record';
 }
 
@@ -315,9 +321,23 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: Routes.billClean,
         builder: (_, __) => const BillCleanPage(),
       ),
+      // 批量转换（账单管理入口）：按分类/账户等筛选后多选，统一改写分类/账户/
+      // 收支类型/标签/备注，整批合并单事务，余额与同步联动复用逐笔编辑逻辑。
+      GoRoute(
+        path: Routes.billConvert,
+        builder: (_, __) => const BillConvertPage(),
+      ),
       GoRoute(
         path: Routes.settings,
         builder: (_, __) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: Routes.syncControl,
+        builder: (_, __) => const SyncControlPage(),
+      ),
+      GoRoute(
+        path: Routes.conflictResolve,
+        builder: (_, __) => const SyncConflictPage(),
       ),
       // 预算：已移出底部导航，保留全屏入口（首页收支卡/设置页可进）。
       GoRoute(

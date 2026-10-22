@@ -84,16 +84,38 @@ app.get('/api/sync/pull', async (c) => {
   const since = Number(c.req.query('since') || '0') || 0;
   const afterId = c.req.query('afterId') || '';
   const limit = Math.min(Number(c.req.query('limit') || '500') || 500, 1000);
+  const untilRaw = c.req.query('until');
+  const until = untilRaw != null ? Number(untilRaw) || 0 : null;
+  const tablesRaw = c.req.query('tables');
+  const tables =
+    typeof tablesRaw === 'string' && tablesRaw.length > 0
+      ? tablesRaw.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+
+  // 复合游标 + 可选范围过滤。表名来自客户端，但只允许显式白名单内的取值，
+  // 防止注入（IN 子句用占位符，绝不拼接原始字符串）。
+  const binds: (string | number)[] = [scope, since, since, afterId];
+  let where =
+    'owner_scope = ? AND (updated_at > ? OR (updated_at = ? AND id > ?))';
+  if (until != null && until > 0) {
+    where += ' AND updated_at <= ?';
+    binds.push(until);
+  }
+  if (tables.length > 0) {
+    const ph = tables.map(() => '?').join(',');
+    where += ` AND entity_table IN (${ph})`;
+    binds.push(...tables);
+  }
+  binds.push(limit);
 
   const { results } = await c.env.DB.prepare(
     `SELECT id, entity_table, updated_at, deleted, payload
        FROM sync_records
-      WHERE owner_scope = ?
-        AND (updated_at > ? OR (updated_at = ? AND id > ?))
+      WHERE ${where}
       ORDER BY updated_at ASC, id ASC
       LIMIT ?`,
   )
-    .bind(scope, since, since, afterId, limit)
+    .bind(...binds)
     .all<{ id: string; entity_table: string; updated_at: number; deleted: number; payload: string }>();
 
   const records = (results || []).map((r) => ({

@@ -55,6 +55,8 @@ class CloudflareAdapter implements SyncAdapter {
     required int since,
     String afterId = '',
     int limit = 500,
+    int? until,
+    List<String>? tables,
   }) async {
     return _withRetry(() async {
       try {
@@ -66,6 +68,8 @@ class CloudflareAdapter implements SyncAdapter {
             if (afterId.isNotEmpty) 'afterId': afterId,
             'limit': limit,
             'device': deviceId,
+            if (until != null) 'until': until,
+            if (tables != null && tables.isNotEmpty) 'tables': tables.join(','),
           },
         );
 
@@ -83,7 +87,7 @@ class CloudflareAdapter implements SyncAdapter {
               DateTime.now().toUtc().millisecondsSinceEpoch,
         );
       } on DioException catch (e) {
-        throw NetworkFailure('拉取云端数据失败：${e.message}', cause: e);
+        throw NetworkFailure(_friendlyNetworkError('拉取云端数据', e), cause: e);
       }
     });
   }
@@ -117,7 +121,7 @@ class CloudflareAdapter implements SyncAdapter {
           conflictedIds: _toStringList(data['conflictedIds']),
         );
       } on DioException catch (e) {
-        throw NetworkFailure('推送本地变更失败：${e.message}', cause: e);
+        throw NetworkFailure(_friendlyNetworkError('推送本地变更', e), cause: e);
       }
     });
   }
@@ -143,7 +147,7 @@ class CloudflareAdapter implements SyncAdapter {
         }
         return url;
       } on DioException catch (e) {
-        throw NetworkFailure('上传文件失败：${e.message}', cause: e);
+        throw NetworkFailure(_friendlyNetworkError('上传文件', e), cause: e);
       }
     });
   }
@@ -156,6 +160,41 @@ class CloudflareAdapter implements SyncAdapter {
       delayFactor: const Duration(milliseconds: 500),
       retryIf: (Exception e) => e is NetworkFailure || e is DioException,
     );
+  }
+
+  /// 把 Dio 异常翻译成**可行动**的中文提示（原始 e.message 是开发向英文长文，
+  /// 如 "The request connection took longer than 0:00:10..."，用户无从下手）。
+  ///
+  /// 重点：`*.workers.dev` 在中国大陆普遍被 DNS 阻断/污染，典型表现就是
+  /// 连接超时（10s 内 TCP 都握不上手）。换网络偶尔能通，稳定解法是给
+  /// Worker 绑定自有域名后更新端点。
+  String _friendlyNetworkError(String action, DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+        return '$action失败：连接云端超时。设备连不上 Workers 端点——'
+            '*.workers.dev 域名在中国大陆常被网络阻断，建议换 Wi-Fi/蜂窝网络'
+            '重试，或在 Cloudflare 给 Worker 绑定自有域名后更新端点。';
+      case DioExceptionType.connectionError:
+        return '$action失败：无法连接云端。请检查端点地址拼写与当前网络；'
+            '*.workers.dev 在中国大陆常被阻断，可绑定自有域名解决。';
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.transformTimeout:
+        return '$action失败：云端响应超时，请稍后重试。';
+      case DioExceptionType.badCertificate:
+        return '$action失败：HTTPS 证书校验未通过，请确认端点未被劫持。';
+      case DioExceptionType.cancel:
+        return '$action已取消。';
+      case DioExceptionType.badResponse:
+        final int? code = e.response?.statusCode;
+        final String hint = (code == 401 || code == 403)
+            ? '（令牌无效或已过期，请到设置页重新保存访问令牌）'
+            : '';
+        return '$action失败：云端返回 HTTP $code$hint。';
+      case DioExceptionType.unknown:
+        final String detail = e.error?.toString() ?? '未知网络错误';
+        return '$action失败：$detail';
+    }
   }
 
   List<String> _toStringList(Object? value) {

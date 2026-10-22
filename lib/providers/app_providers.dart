@@ -11,12 +11,15 @@ import '../database/daos/categories_dao.dart';
 import '../database/daos/pending_ops_dao.dart';
 import '../database/daos/tags_dao.dart';
 import '../database/daos/transactions_dao.dart';
+import '../database/sync_conflict_access.dart';
 import '../features/settings/data/sync_settings.dart';
 import '../features/settings/providers/sync_settings_providers.dart';
 import '../sync/adapters/cloudflare_adapter.dart';
 import '../sync/adapters/offline_adapter.dart';
+import '../sync/conflict_models.dart';
 import '../sync/sync_adapter.dart';
 import '../sync/sync_engine.dart';
+import '../sync/sync_options.dart';
 
 /// 安全存储（iOS Keychain / Android Keystore）
 final Provider<FlutterSecureStorage> secureStorageProvider =
@@ -126,33 +129,83 @@ final AutoDisposeAsyncNotifierProvider<SyncController, SyncState>
   SyncController.new,
 );
 
+/// 待解决的字段级冲突列表（自动失效；解决后手动 invalidate 刷新）。
+final AutoDisposeFutureProvider<List<SyncConflict>> conflictsProvider =
+    FutureProvider.autoDispose<List<SyncConflict>>(
+  (Ref ref) => ref.watch(appDatabaseProvider).listUnresolvedConflicts(),
+);
+
+/// 待同步操作数实时流（驱动同步页计数即时刷新）。
+///
+/// 原先 [SyncController.build] 用 `watchCount().first` 单次快照读取，删除/导入/
+/// 同步后计数不刷新（根因 #3）。改为 watch 本流后，任意 pending_ops 变动都会
+/// 触发 [SyncController] 重建，使「待同步 N 条」实时跟随。
+final AutoDisposeStreamProvider<int> pendingOpsCountProvider =
+    StreamProvider.autoDispose<int>(
+  (Ref ref) => ref.watch(appDatabaseProvider).pendingOpsDao.watchCount(),
+);
+
 class SyncController extends AutoDisposeAsyncNotifier<SyncState> {
   @override
   Future<SyncState> build() async {
     final AppDatabase db = ref.watch(appDatabaseProvider);
     final SyncAdapter adapter = ref.watch(syncAdapterProvider);
-    final int pending = await db.pendingOpsDao.watchCount().first;
+    // 订阅 pending 计数流（实时刷新；见 pendingOpsCountProvider）。
+    final int pending = ref.watch(pendingOpsCountProvider).valueOrNull ?? 0;
 
     int lastSyncedAt = 0;
+    int pendingConflicts = 0;
     if (adapter is! OfflineAdapter) {
       final SyncEngine engine = await ref.watch(syncEngineProvider.future);
       lastSyncedAt = await engine.lastSyncedAt();
+      pendingConflicts = await db.countUnresolvedConflicts();
     }
 
     return SyncState(
       status: adapter is OfflineAdapter ? SyncStatus.disabled : SyncStatus.idle,
       lastSyncedAt: lastSyncedAt,
       pendingCount: pending,
+      pendingConflicts: pendingConflicts,
       adapterName: adapter.name,
     );
   }
 
-  /// 手动触发一轮同步
-  Future<void> syncNow() async {
+  /// 手动触发一轮同步。不传 [options] 即全量自动同步（兼容现有调用）。
+  ///
+  /// 冲突策略：未显式指定时，统一采用用户在设置页选择的 [ConflictPolicy]
+  /// （即自动同步也会遵循「逐字段选择」策略），避免两套口径。仅当调用方
+  /// 明确传入非 auto 策略时才以调用方为准。
+  Future<SyncState> syncNow({SyncOptions? options}) async {
     final SyncEngine engine = await ref.read(syncEngineProvider.future);
+    final ConflictPolicy policy = ref.read(syncSettingsProvider).value?.conflictPolicy ??
+        ConflictPolicy.auto;
+    final SyncOptions base = options ?? const SyncOptions();
+    final SyncOptions effective = SyncOptions(
+      direction: base.direction,
+      scope: base.scope,
+      conflictPolicy: base.conflictPolicy == ConflictPolicy.auto
+          ? policy
+          : base.conflictPolicy,
+    );
     state = const AsyncLoading<SyncState>();
-    final SyncState result = await engine.run();
+    final SyncState result = await engine.runWithOptions(effective);
     state = AsyncData<SyncState>(result);
+    return result;
+  }
+
+  /// 撤回某次同步（恢复本地被覆盖的行）。
+  Future<int> rollbackSync(String syncId) async {
+    final SyncEngine engine = await ref.read(syncEngineProvider.future);
+    return engine.rollback(syncId);
+  }
+
+  /// 解决一条字段级冲突（逐字段合并后落库并回推云端）。
+  Future<int> resolveConflict(String id, Map<String, bool> choices) async {
+    final SyncEngine engine = await ref.read(syncEngineProvider.future);
+    final int n = await engine.resolveConflict(id, choices);
+    ref.invalidate(conflictsProvider);
+    ref.invalidate(syncControllerProvider);
+    return n;
   }
 }
 

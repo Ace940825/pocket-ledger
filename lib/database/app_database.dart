@@ -8,6 +8,8 @@ import 'daos/categories_dao.dart';
 import 'daos/pending_ops_dao.dart';
 import 'daos/tags_dao.dart';
 import 'daos/transactions_dao.dart';
+import 'sync_conflict_access.dart';
+import 'sync_history_access.dart';
 import 'tables.dart';
 
 /// 注意：[AppDatabase] 是 `app_database.g.dart` 的宿主文件，
@@ -71,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 抽出为顶层常量，便于测试在不实例化 [AppDatabase] 的情况下引用当前版本，
   /// 避免迁移回归测试把版本号写死导致每次升级都要手动同步。
-  static const int kSchemaVersion = 35;
+  static const int kSchemaVersion = 38;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -485,6 +487,24 @@ class AppDatabase extends _$AppDatabase {
             );
           }
 
+          if (from < 36) {
+            // v36：同步控制层——新增「同步历史」与「回滚点」两张原生 SQL 表
+            // （见 [SyncHistoryAccess]）。幂等建表，兼容全新安装与存量升级。
+            await ensureSyncHistoryTables();
+          }
+
+          if (from < 37) {
+            // v37：字段级冲突解决——新增「待解决冲突」暂存表（见
+            // [SyncConflictAccess]）。幂等建表，兼容全新安装与存量升级。
+            await ensureSyncConflictsTable();
+          }
+
+          if (from < 38) {
+            // v38：补齐删除 / 级联 / 反应式 watch 的索引（见 [_createIndexes]）。
+            // 索引创建统一交给末尾的 [_createIndexes()]（IF NOT EXISTS 幂等），
+            // 此处仅作版本标记，避免漏写迁移步骤导致存量库永远停在 v37。
+          }
+
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
           // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
           await _createIndexes();
@@ -640,6 +660,8 @@ class AppDatabase extends _$AppDatabase {
     await _ensureSecurityMetaTable();
     await _ensureRollingPlansTable();
     await _ensureImportRecordsTable();
+    await ensureSyncHistoryTables();
+    await ensureSyncConflictsTable();
   }
 
   /// 幂等建表：账单导入归档记录表（原生 SQL，不参与 drift 代码生成）。
@@ -809,6 +831,33 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_rolling_plans_goal '
       'ON savings_rolling_plans(goal_id)',
+    );
+    // v38 新增索引：消除删除 / 级联 / 反应式 watch 的全表扫描。
+    // - 删流水时按 transaction_id 级联查报销（remove 逐笔 SELECT 由此降到
+    //   索引查找）；报销收入反向抵扣扫描按 book + 已删过滤。
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_reimbursements_txn '
+      'ON reimbursements(transaction_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_reimbursements_book '
+      'ON reimbursements(book_id, deleted)',
+    );
+    // - relatedId / toAccountId 关联查询（借还本金级联 / 投资买卖流水 /
+    //   退款关联 / 转账余额回滚的 toAccountId 侧）索引命中。
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_txn_related '
+      'ON transactions(related_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_txn_to_account '
+      'ON transactions(to_account_id)',
+    );
+    // - 部分索引排除已软删行：watch 查询（book_id = ? AND deleted = 0）
+    //   只扫活数据，且随软删行累积不膨胀。
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_txn_book_live '
+      'ON transactions(book_id) WHERE deleted = 0',
     );
   }
 }

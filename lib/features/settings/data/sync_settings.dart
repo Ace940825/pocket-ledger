@@ -1,3 +1,5 @@
+import '../../../sync/sync_options.dart';
+
 /// 云同步的运行期配置。
 ///
 /// 与 [Env] 的区别：Env 是**编译期**常量（可用 `--dart-define` 注入，
@@ -6,12 +8,24 @@
 class SyncSettings {
   const SyncSettings({
     this.enabled = false,
+    this.mode = SyncMode.auto,
+    this.defaultDirection = SyncDirection.merge,
+    this.conflictPolicy = ConflictPolicy.auto,
     this.baseUrl = '',
     this.token = '',
   });
 
-  /// 用户是否开启云同步
+  /// 用户是否开启云同步。false 即「关闭（纯本地）」，[mode] 不再生效。
   final bool enabled;
+
+  /// 同步模式：auto 后台自动全量同步；manual 仅手动触发。
+  final SyncMode mode;
+
+  /// 手动同步的默认方向（设置页「立即同步」弹窗的初始选择）。
+  final SyncDirection defaultDirection;
+
+  /// 冲突处理策略：auto（LWW 时间戳决胜）/ prompt（逐字段选择解决）。
+  final ConflictPolicy conflictPolicy;
 
   /// Workers 端点，如 https://pocket-ledger.xxx.workers.dev
   final String baseUrl;
@@ -33,9 +47,19 @@ class SyncSettings {
     return null;
   }
 
-  SyncSettings copyWith({bool? enabled, String? baseUrl, String? token}) {
+  SyncSettings copyWith({
+    bool? enabled,
+    SyncMode? mode,
+    SyncDirection? defaultDirection,
+    ConflictPolicy? conflictPolicy,
+    String? baseUrl,
+    String? token,
+  }) {
     return SyncSettings(
       enabled: enabled ?? this.enabled,
+      mode: mode ?? this.mode,
+      defaultDirection: defaultDirection ?? this.defaultDirection,
+      conflictPolicy: conflictPolicy ?? this.conflictPolicy,
       baseUrl: baseUrl ?? this.baseUrl,
       token: token ?? this.token,
     );

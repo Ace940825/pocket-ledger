@@ -21,6 +21,8 @@ class OfflineAdapter implements SyncAdapter {
     required int since,
     String afterId = '',
     int limit = 500,
+    int? until,
+    List<String>? tables,
   }) async {
     throw const SyncFailure('当前为纯本地模式，未启用云同步');
   }

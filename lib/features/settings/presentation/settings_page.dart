@@ -1,93 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
-import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
-import '../../../shared/widgets/hairline_card.dart';
-import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/menu_item.dart';
-import '../../../sync/sync_engine.dart';
 import 'sync_config_card.dart';
 
-/// 同步状态卡片：展示适配器、上次同步时间、待同步条数，并提供手动同步。
-class SyncStatusCard extends ConsumerWidget {
-  const SyncStatusCard({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<SyncState> state = ref.watch(syncControllerProvider);
-    final ThemeData theme = Theme.of(context);
-
-    return HairlineCard(
-      padding: const EdgeInsets.all(AppDimens.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              const LineGlyph(Icons.cloud_sync_outlined),
-              const SizedBox(width: AppDimens.sm),
-              Text('云备份与同步', style: theme.textTheme.titleMedium),
-            ],
-          ),
-          const SizedBox(height: AppDimens.md),
-          state.when(
-            data: (SyncState s) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                InfoKVRow(label: '模式', value: Text(s.adapterName)),
-                InfoKVRow(
-                  label: '上次同步',
-                  value: Text(
-                    s.lastSyncedAt == null || s.lastSyncedAt == 0
-                        ? '从未同步'
-                        : DateTime.fromMillisecondsSinceEpoch(
-                            s.lastSyncedAt!,
-                          ).toLocal().toString().substring(0, 19),
-                  ),
-                ),
-                InfoKVRow(label: '待同步', value: Text('${s.pendingCount} 条')),
-                if (s.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppDimens.sm),
-                    child: Text(
-                      s.error!,
-                      style: TextStyle(color: theme.colorScheme.error),
-                    ),
-                  ),
-              ],
-            ),
-            loading: () => const LinearProgressIndicator(),
-            error: (Object e, StackTrace? s) => Text('状态加载失败：$e'),
-          ),
-          const SizedBox(height: AppDimens.md),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: state.value?.status == SyncStatus.disabled
-                  ? null
-                  : () => ref.read(syncControllerProvider.notifier).syncNow(),
-              icon: const LineGlyph(Icons.sync),
-              label: const Text('立即同步'),
-            ),
-          ),
-          const SizedBox(height: AppDimens.sm),
-          Text(
-            '云端仅用于多设备备份与共享。关闭后应用依然是功能完整的本地记账工具。',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 设置页
+/// 设置页。
+///
+/// 2026-10-21 收口：旧的「云备份与同步」状态卡已删除——其全部功能
+/// （模式/上次同步/待同步状态概览 + 立即同步 + 同步历史）迁入
+/// [Routes.syncControl] 同步控制页；设置页只保留：
+/// · [SyncConfigCard]：云端凭据（端点/令牌）唯一录入处，必须保留；
+/// · 「同步控制」菜单入口：同步的中枢操作台。
+///
+/// 2026-10-22：按用户要求移除「全部功能 / 预算」两个入口（宫格入口收敛）。
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -100,19 +28,13 @@ class SettingsPage extends ConsumerWidget {
         children: <Widget>[
           const SyncConfigCard(),
           const SizedBox(height: AppDimens.lg),
-          const SyncStatusCard(),
-          const SizedBox(height: AppDimens.lg),
           MenuGroup(
             children: <Widget>[
               MenuItem(
-                icon: Icons.grid_view_outlined,
-                title: '全部功能',
-                onTap: () => context.push(Routes.more),
-              ),
-              MenuItem(
-                icon: Icons.pie_chart_outline,
-                title: '预算',
-                onTap: () => context.push(Routes.budget),
+                icon: Icons.sync,
+                title: '同步控制',
+                subtitle: '状态 · 模式 · 方向 · 范围 · 历史撤回',
+                onTap: () => context.push(Routes.syncControl),
               ),
             ],
           ),
