@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/line_icon_map.dart';
-import '../../../theme/app_dimens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
@@ -10,17 +8,19 @@ import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
-import '../../../shared/widgets/confirm_dialog.dart';
-import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/clay_icon_tile.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/hairline_card.dart';
+import '../../../shared/widgets/line_icon_map.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/module_list_scaffold.dart'
     show confirmDelete, showToast;
 import '../../../shared/widgets/round_close_button.dart';
 import '../../../shared/widgets/segmented_row.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimens.dart';
 import '../../../theme/app_theme.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
@@ -67,7 +67,7 @@ final AutoDisposeStreamProviderFamily<Map<String, CategoryTotal>,
         )
         .map((List<CategoryTotal> list) => <String, CategoryTotal>{
               for (final CategoryTotal t in list) t.categoryId: t,
-            });
+            },);
   },
 );
 
@@ -121,7 +121,7 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
   late int _year = widget.initialYear;
   late int _month = widget.initialMonth;
   late bool _yearly = widget.initialYearly;
-  late CategoryType _direction = widget.initialDirection;
+  late final CategoryType _direction = widget.initialDirection;
 
   /// 已展开「二级预算折叠栏」的一级分类 id 集合（默认空 = 进入页面全折叠）。
   final Set<String> _expandedCats = <String>{};

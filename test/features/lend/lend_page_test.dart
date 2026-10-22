@@ -76,7 +76,7 @@ void main() {
   testWidgets('有未指定账户的记录：平铺区 + 底部栏常驻', (WidgetTester tester) async {
     await tester.pumpWidget(wrap(
       records: <LendRecord>[fakeRecord(id: 'r1')],
-    ));
+    ),);
     await tester.pumpAndSettle();
 
     expect(find.text('还没有借还记录'), findsNothing);

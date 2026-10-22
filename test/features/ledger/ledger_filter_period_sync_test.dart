@@ -126,7 +126,7 @@ void main() {
 
       expect(identical(g, f), isTrue);
       expect(identical(ledgerFilterWithPeriod(null, LedgerPeriod.yearOf(2026)), null),
-          isTrue);
+          isTrue,);
     });
   });
 }

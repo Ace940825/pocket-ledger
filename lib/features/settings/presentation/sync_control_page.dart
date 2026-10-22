@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/database/sync_history_access.dart';
 import 'package:pocket_ledger/features/settings/data/sync_settings.dart';
 import 'package:pocket_ledger/features/settings/providers/sync_settings_providers.dart';
 import 'package:pocket_ledger/providers/app_providers.dart';
+import 'package:pocket_ledger/routing/app_router.dart';
 import 'package:pocket_ledger/shared/widgets/app_toast.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
@@ -12,12 +13,10 @@ import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 import 'package:pocket_ledger/shared/widgets/line_icon_map.dart';
 import 'package:pocket_ledger/shared/widgets/section_header.dart';
 import 'package:pocket_ledger/shared/widgets/segmented_row.dart';
+import 'package:pocket_ledger/sync/conflict_models.dart';
 import 'package:pocket_ledger/sync/record_codec.dart';
 import 'package:pocket_ledger/sync/sync_engine.dart';
 import 'package:pocket_ledger/sync/sync_options.dart';
-import 'package:pocket_ledger/routing/app_router.dart';
-import 'package:pocket_ledger/sync/conflict_models.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import 'package:pocket_ledger/theme/app_theme.dart';
 
@@ -276,9 +275,9 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
         const SectionHeader(title: '同步模式'),
         const SizedBox(height: AppDimens.sm),
         SegmentedRow<SyncMode>(
-          options: <SegmentOption<SyncMode>>[
-            const SegmentOption<SyncMode>(value: SyncMode.auto, label: '自动'),
-            const SegmentOption<SyncMode>(value: SyncMode.manual, label: '手动'),
+          options: const <SegmentOption<SyncMode>>[
+            SegmentOption<SyncMode>(value: SyncMode.auto, label: '自动'),
+            SegmentOption<SyncMode>(value: SyncMode.manual, label: '手动'),
           ],
           value: mode,
           onChanged: (SyncMode v) =>
@@ -304,18 +303,18 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
         const SectionHeader(title: '默认方向'),
         const SizedBox(height: AppDimens.sm),
         SegmentedRow<SyncDirection>(
-          options: <SegmentOption<SyncDirection>>[
-            const SegmentOption<SyncDirection>(
+          options: const <SegmentOption<SyncDirection>>[
+            SegmentOption<SyncDirection>(
               value: SyncDirection.merge,
               label: '合并',
               leading: LineGlyph(Icons.sync, size: 16),
             ),
-            const SegmentOption<SyncDirection>(
+            SegmentOption<SyncDirection>(
               value: SyncDirection.pushOnly,
               label: '仅上传',
               leading: LineGlyph(Icons.cloud_upload_outlined, size: 16),
             ),
-            const SegmentOption<SyncDirection>(
+            SegmentOption<SyncDirection>(
               value: SyncDirection.pullOnly,
               label: '仅下载',
               leading: LineGlyph(Icons.cloud_download_outlined, size: 16),

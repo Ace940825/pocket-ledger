@@ -115,7 +115,7 @@ class BillImportPage extends StatelessWidget {
                       ),
                       error: (Object e, _) => EmptyState(
                         message: '加载导入记录失败：$e',
-                        iconWidget: LineIcon(
+                        iconWidget: const LineIcon(
                           LineIconKind.receipt,
                           size: 48,
                           color: AppPalette.expense,
@@ -164,8 +164,8 @@ class BillImportPage extends StatelessWidget {
 
   /// 入口页空态（无导入记录时）。
   Widget _emptyRecords() {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppDimens.lg),
+    return const Padding(
+      padding: EdgeInsets.only(top: AppDimens.lg),
       child: EmptyState(
         message: '没有发现导入记录哦',
         iconWidget: LineIcon(

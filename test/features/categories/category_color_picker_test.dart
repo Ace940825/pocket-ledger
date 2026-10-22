@@ -15,7 +15,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(
           home: AddCategoryPage(type: CategoryType.expense),
         ),

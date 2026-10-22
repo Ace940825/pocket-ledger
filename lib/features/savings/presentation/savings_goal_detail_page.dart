@@ -1036,7 +1036,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                                   }
                                 },
                                 icon: const LineGlyph(Icons.delete_outline,
-                                    size: 18),
+                                    size: 18,),
                                 label: const Text('撤销存入'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: theme.colorScheme.error,

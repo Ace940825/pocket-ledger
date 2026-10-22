@@ -25,13 +25,13 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
 
   static const List<_Col> _columns = <_Col>[
     _Col(1, '日期', true, '日期时间',
-        '格式 yyyy-MM-dd HH:mm（如 2026-10-18 12:30）；只到日期也接受。'),
+        '格式 yyyy-MM-dd HH:mm（如 2026-10-18 12:30）；只到日期也接受。',),
     _Col(2, '模块', false, '枚举',
-        '日常记账 / 转账 / 借还 / 报销 / 储蓄 / 分期 / 投资 / 物品 / 退款；留空默认「日常记账」。'),
+        '日常记账 / 转账 / 借还 / 报销 / 储蓄 / 分期 / 投资 / 物品 / 退款；留空默认「日常记账」。',),
     _Col(3, '类型', true, '枚举', '只能填：收入 / 支出 / 转账。'),
     _Col(4, '金额', true, '金额', '正数金额（元），最多两位小数，如 25.50；不接受 0 或负数。'),
     _Col(5, '账户', true, '文本',
-        '账户名称；与现有账户按名称匹配（忽略大小写），不存在将自动创建。'),
+        '账户名称；与现有账户按名称匹配（忽略大小写），不存在将自动创建。',),
     _Col(6, '转入账户', false, '文本', '仅「转账」必填：转入方账户名称。'),
     _Col(7, '对方', false, '文本',
         '借还模块 + 6 个借还操作名时必填：借款人 / 出借人 / 债务方名。借入 / 借出导入时'
@@ -46,7 +46,7 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
     _Col(11, '账本', false, '文本', '账本名称；按名称归户到对应账本，不存在将归入当前账本。留空归当前账本。'),
     _Col(12, '可报销', false, '布尔', 'Y / N（或 是 / 否 / true / false）。Y 时建议填「报销账户」。'),
     _Col(13, '报销账户', false, '文本',
-        '可报销时挂账的报销账户名称（如「公司报销」）；不存在将自动创建为报销类账户。'),
+        '可报销时挂账的报销账户名称（如「公司报销」）；不存在将自动创建为报销类账户。',),
     _Col(14, '不计预算', false, '布尔', 'Y / N。Y 时不参与预算月度统计。'),
     _Col(15, '不计收支', false, '布尔', 'Y / N。Y 时不计入收支报表（如内部划转、对账调整）。'),
     _Col(16, '备注', false, '文本', '选填，最长建议 200 字。投资模块中本列必填且约定为「名称@单价」'
@@ -57,12 +57,12 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
   static const List<_Col> _accountColumns = <_Col>[
     _Col(1, '账本', false, '文本', '账本名称；为空归当前账本。'),
     _Col(2, '账户名', true, '文本',
-        '账户名称；与现有账户按名称匹配（忽略大小写），不存在则按本段字段建户。'),
+        '账户名称；与现有账户按名称匹配（忽略大小写），不存在则按本段字段建户。',),
     _Col(3, '类型', true, '枚举',
-        '导出为英文代码（如 wechat / creditCard）保证无歧义；手填可写中文名（如 微信 / 信用卡）。'),
+        '导出为英文代码（如 wechat / creditCard）保证无歧义；手填可写中文名（如 微信 / 信用卡）。',),
     _Col(4, '币种', false, '文本', '如 CNY / USD / HKD；留空默认 CNY。'),
     _Col(5, '余额', false, '金额',
-        '当前余额（元），照账户页显示值填；导入完成后校正为该值（报销 / 借还类为派生值不校正）。'),
+        '当前余额（元），照账户页显示值填；导入完成后校正为该值（报销 / 借还类为派生值不校正）。',),
     _Col(6, '图标', false, '文本', '图标 key，留空按账户类型自动派生。'),
     _Col(7, '颜色', false, '文本', '0xFF88CC66 / #FF88CC66 / #88CC66 任一形式；留空不自定义。'),
     _Col(8, '信用卡额度', false, '金额', '仅信用卡 / 负债类账户有意义；留空不设额度。'),
@@ -98,20 +98,20 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
   static const List<_Example> _examples = <_Example>[
     _Example(_ModKey.neutral, '日常',
         '2026-10-18 12:30,日常记账,支出,25.50,微信,,,0.00,餐饮,午饭,,N,,N,N,午饭',
-        '普通支出：微信账户，分类「餐饮」，标签「午饭」。'),
+        '普通支出：微信账户，分类「餐饮」，标签「午饭」。',),
     _Example(_ModKey.income, '退款',
         '2026-10-18 09:00,退款,收入,25.50,微信,,,0.00,,"旅游,2026",,N,,N,N,退货退款',
-        '退款收入，多标签用半角逗号分隔。'),
+        '退款收入，多标签用半角逗号分隔。',),
     _Example(_ModKey.lend, '借还',
         '2026-10-18 15:00,借还,支出,"1,000.00",微信,,小米,0.00,借出,,,N,,N,N,借给小米',
-        '借出 1000 元给「小米」——模块=借还、分类=借出、对方=小米，路由到借出本金。'),
+        '借出 1000 元给「小米」——模块=借还、分类=借出、对方=小米，路由到借出本金。',),
     _Example(_ModKey.lend, '储蓄',
         '2026-10-18 18:00,储蓄,支出,500.00,招商银行,定期存款,,0.00,,,,N,,N,N,每月定存（第1期）',
         '储蓄存入：模块=储蓄、转入账户=计划名「定期存款」、账户=扣款账户（可空）。'
             '导入即建/匹配目标并逐期存入台账，并联动一笔「存款」支出流水。'),
     _Example(_ModKey.expense, '垫付',
         '2026-10-18 20:00,日常记账,支出,200.00,微信,,,0.00,餐饮,,,Y,公司报销,N,N,出差午饭（垫付，待报销）',
-        '垫付支出：可报销=Y + 报销账户「公司报销」。'),
+        '垫付支出：可报销=Y + 报销账户「公司报销」。',),
     _Example(_ModKey.income, '报销',
         '2026-10-25 10:00,报销,收入,200.00,微信,,,0.00,,,,N,公司报销,N,N,报销到账（退回垫付，收款账户=微信）',
         '报销到账：模块=报销、类型=收入、账户列=实际收款账户（微信）、报销账户=公司报销。'
@@ -169,9 +169,9 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(
+                const Text(
                   '账单批量导入指南 · v2',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: AppPalette.white,
@@ -189,10 +189,10 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
                   ),
                 ),
                 const SizedBox(height: AppDimens.md),
-                Wrap(
+                const Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: const <Widget>[
+                  children: <Widget>[
                     _Pill('16 列模板'),
                     _Pill('借还/储蓄/分期/投资/报销 已支持'),
                     _Pill('CSV / JSON 双格式'),
@@ -306,7 +306,7 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(
+                const Text(
                   '借还（Phase 2 已支持）：借还模块不靠普通分类，而是靠 6 个固定分类名决定走向。'
                   '必须填「对方」列。债务消减 / 坏账计提无需真实资产账户（账户可空），其余 4 类需指定账户。'
                   '借入 / 借出导入时，若账户列表中无对方名的应收 / 应付账户，将自动创建。',
@@ -369,11 +369,11 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
             padding: EdgeInsets.zero,
             child: Stack(
               children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(14, 14, 14, 14),
                   child: SelectableText(
                     _template,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 12,
                       height: 1.55,
@@ -414,9 +414,9 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
           // Validation
           const SectionHeader(title: '导入校验要点'),
           const SizedBox(height: AppDimens.sm),
-          HairlineCard(
+          const HairlineCard(
             child: Column(
-              children: const <Widget>[
+              children: <Widget>[
                 _Rule('必填列（日期 / 类型 / 金额 / 账户）缺失会被逐行拦截并提示行号。'),
                 _Rule('金额为正数，不接受 0 或负数；格式最多两位小数。'),
                 _Rule('借还行必须指定「分类」（6 个固定名之一）与「对方」；借入 / 借出 / '
@@ -824,7 +824,7 @@ class _Rule extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
+          const Text(
             '✓',
             style: TextStyle(
               fontSize: 13,

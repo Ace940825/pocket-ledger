@@ -288,7 +288,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
         final String currency;
         if (linked != null) {
           date = DateTime.fromMillisecondsSinceEpoch(linked.occurredAt,
-                  isUtc: true)
+                  isUtc: true,)
               .toLocal();
           type = linked.type;
           accountName = accountNames[linked.accountId] ?? '未知账户';
@@ -402,7 +402,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             final String currency;
             if (repay != null) {
               date = DateTime.fromMillisecondsSinceEpoch(repay.occurredAt,
-                      isUtc: true)
+                      isUtc: true,)
                   .toLocal();
               amountMinor = repay.amountMinor;
               accountName = accountNames[repay.accountId] ?? '未知账户';
@@ -490,7 +490,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             rows.add(
               BillRow(
                 occurredAt: DateTime.fromMillisecondsSinceEpoch(f.occurredAt,
-                        isUtc: true)
+                        isUtc: true,)
                     .toLocal(),
                 module: SourceModule.investment,
                 type: f.type,

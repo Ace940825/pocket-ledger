@@ -322,7 +322,7 @@ void main() {
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 2550, '微信', null, '餐饮', ''),
           _row('2026-10-02 10:00', TxnType.expense, 1000, '微信', null, '借出',
-              '借给小米', module: SourceModule.lend, counterparty: '小米'),
+              '借给小米', module: SourceModule.lend, counterparty: '小米',),
         ],
         accountNames: <String>{'微信'},
         categoryNamesByType: <Set<String>>[
@@ -339,12 +339,12 @@ void main() {
       final TemplateCheckResult c = checkRows(
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 500, '招商银行', '定期存款',
-              null, '', module: SourceModule.savings),
+              null, '', module: SourceModule.savings,),
           _row('2026-10-02 10:00', TxnType.expense, 1000, '微信', null, '借出',
-              '借给小米', module: SourceModule.lend, counterparty: '小米'),
+              '借给小米', module: SourceModule.lend, counterparty: '小米',),
           // 分期行：类型非转账、缺转入账户、缺备注 → 应被校验拦截。
           _row('2026-10-03 10:00', TxnType.expense, 2000, '微信', null, null,
-              '', module: SourceModule.installment),
+              '', module: SourceModule.installment,),
         ],
         accountNames: <String>{'微信', '招商银行', '定期存款'},
         categoryNamesByType: <Set<String>>[
@@ -379,7 +379,7 @@ void main() {
       final TemplateCheckResult c = checkRows(
         <BillRow>[
           _row('2026-11-01 09:00', TxnType.transfer, 200000, '招商银行', '花呗',
-              null, 'iPhone 分期', module: SourceModule.installment),
+              null, 'iPhone 分期', module: SourceModule.installment,),
         ],
         accountNames: <String>{'招商银行', '花呗'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -393,7 +393,7 @@ void main() {
       final TemplateCheckResult c1 = checkRows(
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 500, '招商银行', null, null,
-              '', module: SourceModule.savings),
+              '', module: SourceModule.savings,),
         ],
         accountNames: <String>{'招商银行'},
         categoryNamesByType: <Set<String>>[
@@ -408,7 +408,7 @@ void main() {
       final TemplateCheckResult c2 = checkRows(
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 500, '招商银行', '定期存款',
-              null, '', module: SourceModule.savings),
+              null, '', module: SourceModule.savings,),
         ],
         accountNames: <String>{'招商银行'},
         categoryNamesByType: <Set<String>>[
@@ -460,13 +460,13 @@ void main() {
       // 未落库报「未找到未结清债务」。
       final List<BillRow> rows = <BillRow>[
         _row('2026-10-05 10:00', TxnType.income, 800, '招商银行', null, '收债', '',
-            module: SourceModule.lend, counterparty: '朱德金'),
+            module: SourceModule.lend, counterparty: '朱德金',),
         _row('2026-10-01 10:00', TxnType.expense, 1000, '招商银行', null, '借出',
-            '', module: SourceModule.lend, counterparty: '朱德金'),
+            '', module: SourceModule.lend, counterparty: '朱德金',),
         _row('2026-10-04 10:00', TxnType.income, 500, '招商银行', null, '收债', '',
-            module: SourceModule.lend, counterparty: '小红'),
+            module: SourceModule.lend, counterparty: '小红',),
         _row('2026-10-02 10:00', TxnType.expense, 600, '招商银行', null, '借出',
-            '', module: SourceModule.lend, counterparty: '小红'),
+            '', module: SourceModule.lend, counterparty: '小红',),
       ];
       final List<BillRow> reordered =
           reorderLendRowsForImport(rows);
@@ -483,13 +483,13 @@ void main() {
       final List<BillRow> rows = <BillRow>[
         _row('2026-10-06 10:00', TxnType.expense, 100, '微信', null, '餐饮', ''),
         _row('2026-10-05 10:00', TxnType.income, 800, '招商银行', null, '收债', '',
-            module: SourceModule.lend, counterparty: '朱德金'),
+            module: SourceModule.lend, counterparty: '朱德金',),
         _row('2026-10-04 10:00', TxnType.expense, 1000, '招商银行', null, '借出',
-            '', module: SourceModule.lend, counterparty: '朱德金'),
+            '', module: SourceModule.lend, counterparty: '朱德金',),
         _row('2026-10-03 10:00', TxnType.expense, 200, '招商银行', null, '坏账计提',
-            '', module: SourceModule.lend, counterparty: '朱德金'),
+            '', module: SourceModule.lend, counterparty: '朱德金',),
         _row('2026-10-02 10:00', TxnType.expense, 300, '招商银行', null, '债务消减',
-            '', module: SourceModule.lend, counterparty: '朱德金'),
+            '', module: SourceModule.lend, counterparty: '朱德金',),
       ];
       final List<BillRow> reordered = reorderLendRowsForImport(rows);
 
@@ -523,7 +523,7 @@ void main() {
       final TemplateCheckResult c1 = checkRows(
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 1000, '微信', null, null, '',
-              module: SourceModule.lend, counterparty: '小米'),
+              module: SourceModule.lend, counterparty: '小米',),
         ],
         accountNames: <String>{'微信'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -534,7 +534,7 @@ void main() {
       final TemplateCheckResult c2 = checkRows(
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 1000, '微信', null, '借出', '',
-              module: SourceModule.lend),
+              module: SourceModule.lend,),
         ],
         accountNames: <String>{'微信'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -545,7 +545,7 @@ void main() {
       final TemplateCheckResult c3 = checkRows(
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 1000, '', null, '债务消减',
-              '', module: SourceModule.lend, counterparty: '小米'),
+              '', module: SourceModule.lend, counterparty: '小米',),
         ],
         accountNames: <String>{},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -557,7 +557,7 @@ void main() {
       final TemplateCheckResult c4 = checkRows(
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 1000, '', null, '借出', '',
-              module: SourceModule.lend, counterparty: '小米'),
+              module: SourceModule.lend, counterparty: '小米',),
         ],
         accountNames: <String>{},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -570,7 +570,7 @@ void main() {
       final TemplateCheckResult c = checkRows(
         <BillRow>[
           _row('2026-10-01 10:00', TxnType.expense, 1000, '微信', null, '借出',
-              '借给小米', module: SourceModule.lend, counterparty: '小米'),
+              '借给小米', module: SourceModule.lend, counterparty: '小米',),
         ],
         accountNames: <String>{'微信'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -614,7 +614,7 @@ void main() {
         <BillRow>[
           _row('2026-10-20 09:30', TxnType.transfer, 100000, '招商银行', null,
               '基金', '沪深300ETF@1.2300',
-              module: SourceModule.investment, counterparty: '000300'),
+              module: SourceModule.investment, counterparty: '000300',),
         ],
         accountNames: <String>{'招商银行'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -627,7 +627,7 @@ void main() {
         <BillRow>[
           _row('2026-10-20 09:30', TxnType.expense, 100000, '招商银行', null,
               '基金', '沪深300ETF@1.2300',
-              module: SourceModule.investment),
+              module: SourceModule.investment,),
         ],
         accountNames: <String>{'招商银行'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -640,7 +640,7 @@ void main() {
         <BillRow>[
           _row('2026-10-20 09:30', TxnType.expense, 100000, '招商银行', null,
               '基金', '沪深300ETF',
-              module: SourceModule.investment, counterparty: '000300'),
+              module: SourceModule.investment, counterparty: '000300',),
         ],
         accountNames: <String>{'招商银行'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -653,7 +653,7 @@ void main() {
         <BillRow>[
           _row('2026-10-20 09:30', TxnType.expense, 100000, '', null, '基金',
               '沪深300ETF@1.2300',
-              module: SourceModule.investment, counterparty: '000300'),
+              module: SourceModule.investment, counterparty: '000300',),
         ],
         accountNames: <String>{},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -666,10 +666,10 @@ void main() {
         <BillRow>[
           _row('2026-10-20 09:30', TxnType.expense, 100000, '招商银行', null,
               '基金', '沪深300ETF@1.2300',
-              module: SourceModule.investment, counterparty: '000300'),
+              module: SourceModule.investment, counterparty: '000300',),
           _row('2026-11-20 09:30', TxnType.income, 80000, '招商银行', null,
               '基金', '沪深300ETF@1.3500 部分止盈',
-              module: SourceModule.investment, counterparty: '000300'),
+              module: SourceModule.investment, counterparty: '000300',),
         ],
         accountNames: <String>{'招商银行'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
@@ -685,7 +685,7 @@ void main() {
     // 报销到账：模块=报销 + 收入 + 报销账户，路由到报销台账（建报销收入流水 +
     // 待报销记录 + 全额抵扣翻「已报销」+ 核销报销账户挂账）；垫付侧（支出 + 可报销=Y
     // + 报销账户）走通用路径，不由本模块校验拦截。
-    BillRow _reimb({
+    BillRow reimb({
       required TxnType type,
       required int amountMinor,
       String account = '微信',
@@ -704,12 +704,12 @@ void main() {
 
     test('checkRows 报销行：类型非收入被拦截', () {
       final TemplateCheckResult c = checkRows(
-        <BillRow>[_reimb(type: TxnType.expense, amountMinor: 20000)],
+        <BillRow>[reimb(type: TxnType.expense, amountMinor: 20000)],
         accountNames: <String>{'微信'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
       );
       expect(c.errors,
-          contains(startsWith('第1行：报销模块（报销到账）类型必须为')));
+          contains(startsWith('第1行：报销模块（报销到账）类型必须为')),);
     });
 
     test('checkRows 报销行：缺报销账户被拦截', () {
@@ -732,7 +732,7 @@ void main() {
 
     test('checkRows 报销行：金额<=0 被拦截（通用金额校验优先于模块校验）', () {
       final TemplateCheckResult c = checkRows(
-        <BillRow>[_reimb(type: TxnType.income, amountMinor: 0)],
+        <BillRow>[reimb(type: TxnType.income, amountMinor: 0)],
         accountNames: <String>{'微信'},
         categoryNamesByType: <Set<String>>[<String>{}, <String>{}, <String>{}],
       );
@@ -742,7 +742,7 @@ void main() {
     test('checkRows 报销合法到账行（收入 + 报销账户）通过校验并归集到「报销」模块', () {
       final TemplateCheckResult c = checkRows(
         <BillRow>[
-          _reimb(
+          reimb(
             type: TxnType.income,
             amountMinor: 20000,
             account: '微信',
@@ -760,7 +760,7 @@ void main() {
     test('checkRows 报销行：账户=报销账户给出失真提示但不拦截', () {
       final TemplateCheckResult c = checkRows(
         <BillRow>[
-          _reimb(
+          reimb(
             type: TxnType.income,
             amountMinor: 20000,
             account: '公司报销',
@@ -772,7 +772,7 @@ void main() {
       );
       expect(c.errors, isEmpty);
       expect(c.warnings,
-          contains(contains('报销到账的「账户」与「报销账户」相同')));
+          contains(contains('报销到账的「账户」与「报销账户」相同')),);
     });
   });
 }

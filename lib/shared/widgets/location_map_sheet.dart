@@ -166,7 +166,7 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                           // 瓦片加载失败静默留白：无网时灰底仍可拖动选点。
                           errorTileCallback:
                               (TileImage tile, Object error,
-                                      StackTrace? stackTrace) {},
+                                      StackTrace? stackTrace,) {},
                         ),
                       ],
                     ),

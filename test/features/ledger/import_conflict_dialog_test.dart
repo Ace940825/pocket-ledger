@@ -41,7 +41,7 @@ void main() {
       // 文案：标题 + 双笔数副文。
       expect(find.text('数据库中已有数据，您想如何处理？'), findsOneWidget);
       expect(find.text('当前账本已有 15631 笔流水，本次准备导入 500 笔。'),
-          findsOneWidget);
+          findsOneWidget,);
 
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();

@@ -963,7 +963,7 @@ TemplateCheckResult checkRows(
             r.toAccountName!.trim().toLowerCase() == name.trim().toLowerCase();
         warnings.add(isInstallmentTo
             ? '账户「${name.trim()}」不存在，导入时将自动创建为负债类账户（分期付款账户）'
-            : '账户「${name.trim()}」不存在，导入时将自动创建（现金类；报销账户建为报销类）');
+            : '账户「${name.trim()}」不存在，导入时将自动创建（现金类；报销账户建为报销类）',);
       }
     }
 

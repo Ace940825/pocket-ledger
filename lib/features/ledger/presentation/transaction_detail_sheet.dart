@@ -7,8 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/core/utils/note_utils.dart';
-import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
+import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 import 'package:pocket_ledger/shared/widgets/location_map_sheet.dart';
@@ -249,7 +249,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                         )!,
                       ),
                     );
-                  }),
+                  },),
                   const SizedBox(width: 12),
                   Expanded(
                     child: GestureDetector(

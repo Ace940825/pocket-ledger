@@ -42,7 +42,7 @@ void main() {
   });
 
   Future<String> addAccount(String id, AccountType type,
-      {String bookId = 'default'}) async {
+      {String bookId = 'default',}) async {
     await db.accountsDao.insertAccount(
       AccountsCompanion(
         id: Value<String>(id),
@@ -82,15 +82,15 @@ void main() {
     oldIds.add(await txnRepo.add(
       bookId: 'default', type: TxnType.expense, amountMinor: 100,
       accountId: a, occurredAt: 1700000000000, note: 'old-e',
-    ));
+    ),);
     oldIds.add(await txnRepo.add(
       bookId: 'default', type: TxnType.income, amountMinor: 250,
       accountId: a, occurredAt: 1700000001000, note: 'old-i',
-    ));
+    ),);
     oldIds.add(await txnRepo.add(
       bookId: 'default', type: TxnType.transfer, amountMinor: 300,
       accountId: a, toAccountId: b, occurredAt: 1700000002000, note: 'old-t',
-    ));
+    ),);
     // 旧导入记录（txnIds 指向上面三笔）。
     await importRepo.insert(ImportRecord(
       id: 'rec-old',
@@ -100,7 +100,7 @@ void main() {
       skippedCount: 0,
       createdAt: 1700000003000,
       txnIds: List<String>.from(oldIds),
-    ));
+    ),);
 
     expect(await liveTxnCount('default'), 3);
     // 甲：-100 +250 -300 = -150；乙：+300。
@@ -136,14 +136,14 @@ void main() {
       bookId: 'default', type: TxnType.expense, amountMinor: 88,
       accountId: a, occurredAt: 1700000004000, note: 'new-e',
     );
-    await importRepo.insert(ImportRecord(
+    await importRepo.insert(const ImportRecord(
       id: 'rec-new',
       source: 'pocketLedger',
       sourceLabel: '口袋账本',
       importedCount: 1,
       skippedCount: 0,
       createdAt: 1700000005000,
-    ));
+    ),);
     expect(await liveTxnCount('default'), 1);
     expect(await balanceOf(a), -88);
     expect((await importRepo.getAll()).length, 1);
@@ -151,7 +151,7 @@ void main() {
 
   test('覆盖不影响其他账本的流水与导入记录', () async {
     final String other = await addAccount('另账本账户', AccountType.cash,
-        bookId: 'other');
+        bookId: 'other',);
     final List<String> otherIds = <String>[
       await txnRepo.add(
         bookId: 'other', type: TxnType.expense, amountMinor: 42,
@@ -166,7 +166,7 @@ void main() {
       skippedCount: 0,
       createdAt: 1700000001000,
       txnIds: List<String>.from(otherIds),
-    ));
+    ),);
 
     // 对 default 账本执行覆盖（此时 default 无流水，staleIds 为空）。
     final List<Transaction> stale = await (db.select(db.transactions)

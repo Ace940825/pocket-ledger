@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/line_icon_map.dart';
-import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
-
 import 'package:pocket_ledger/theme/app_dimens.dart';
+
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../database/app_database.dart';
@@ -18,6 +16,8 @@ import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/line_icon_map.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../../../theme/app_colors.dart';
 import '../../investment/providers/investment_providers.dart';

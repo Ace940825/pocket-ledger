@@ -495,7 +495,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
           ),
           ActionRow(
             icon: const LineGlyph(Icons.swap_vert,
-                size: 18, color: ForestGreen.deep),
+                size: 18, color: ForestGreen.deep,),
             title: '类别排序',
             subtitle: '拖拽调整类别顺序',
             onTap: () {
@@ -980,7 +980,7 @@ class _TagCategoryReorderPageState
                 onTap: () {
                   Navigator.of(context).pop();
                   _confirmMigrateCategory(source, t);
-                }),
+                },),
         ],
       ),
     );
@@ -1178,7 +1178,7 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
                 onTap: () {
                   Navigator.of(context).pop();
                   _confirmMigrateTag(source, t);
-                }),
+                },),
         ],
       ),
     );

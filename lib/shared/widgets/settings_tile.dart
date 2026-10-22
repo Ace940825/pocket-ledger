@@ -118,7 +118,7 @@ class SettingsTile extends StatelessWidget {
             trailing!,
           ] else if (onTap != null)
             const LineGlyph(Icons.chevron_right,
-                color: AppPalette.neutralSlate),
+                color: AppPalette.neutralSlate,),
         ],
       ),
     );

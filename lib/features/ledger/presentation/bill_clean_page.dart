@@ -9,8 +9,8 @@ import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
-import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/clay_icon_tile.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
@@ -661,7 +661,7 @@ class _CleanTile extends StatelessWidget {
                 ),
                 child: checked
                     ? const LineGlyph(Icons.check,
-                        size: 14, color: AppPalette.white)
+                        size: 14, color: AppPalette.white,)
                     : null,
               ),
             ],

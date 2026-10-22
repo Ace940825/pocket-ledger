@@ -21,10 +21,10 @@ import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/segmented_row.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/config/env.dart';
-import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../core/utils/date_utils.dart';
@@ -3853,7 +3853,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       child: Row(
         children: <Widget>[
           const LineGlyph(Icons.timer_outlined,
-              size: 16, color: _Sage.greenDeep),
+              size: 16, color: _Sage.greenDeep,),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -5319,7 +5319,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ),
                 child: LineIcon(
                   accountLineKind(
-                          selected?.type ?? AccountType.reimbursement) ??
+                          selected?.type ?? AccountType.reimbursement,) ??
                       LineIconKind.star,
                   size: 16,
                   color: picked
@@ -11666,7 +11666,7 @@ class _HoldingRow extends StatelessWidget {
             if (selected) ...<Widget>[
               const SizedBox(width: 8),
               const LineGlyph(Icons.check_circle,
-                  size: 20, color: _Sage.greenDeep),
+                  size: 20, color: _Sage.greenDeep,),
             ],
           ],
         ),

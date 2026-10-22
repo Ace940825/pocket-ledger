@@ -34,19 +34,19 @@ void main() {
     await bootstrapData(db);
     txnRepo = TransactionRepository(db);
     await db.accountsDao.insertAccount(
-      AccountsCompanion(
-        id: const Value<String>('现金'),
-        bookId: const Value<String>('default'),
-        name: const Value<String>('现金'),
-        type: const Value<AccountType>(AccountType.cash),
-        updatedAt: const Value<int>(0),
+      const AccountsCompanion(
+        id: Value<String>('现金'),
+        bookId: Value<String>('default'),
+        name: Value<String>('现金'),
+        type: Value<AccountType>(AccountType.cash),
+        updatedAt: Value<int>(0),
       ),
     );
     final List<Category> cats =
         await db.categoriesDao.watchAll('default').first;
     final List<Category> expenseCats = cats
         .where((Category c) =>
-            c.type == CategoryType.expense && c.deleted == false)
+            c.type == CategoryType.expense && c.deleted == false,)
         .toList()
       ..sort((Category a, Category b) => a.name.compareTo(b.name));
     catOld = expenseCats[0].id;
@@ -107,7 +107,7 @@ void main() {
     // 默认当月：只见本月流水。
     final DateTime now = DateTime.now();
     expect(find.text('${now.year}年${now.month}月'), findsOneWidget,
-        reason: '页头应显示当前月');
+        reason: '页头应显示当前月',);
     expect(find.text('共 1 笔账单'), findsOneWidget);
 
     // 打开「清理周期」弹层（AppModalSheet）。
@@ -125,7 +125,7 @@ void main() {
     await tester.tap(find.text('‹'));
     await tester.pumpAndSettle();
     expect(find.text('2012年–2023年'), findsOneWidget,
-        reason: '页头应显示翻窗后的 12 年区间');
+        reason: '页头应显示翻窗后的 12 年区间',);
 
     // 2016 必须可点（修复前 firstDate=2020 会置灰）。
     // 注意：周期年宫格 cell 文案带「年」后缀（「2016年」），与年份单选器
@@ -141,7 +141,7 @@ void main() {
     // 2016 流水可见、本月流水不可见 → 历史账单确实可被选中清理。
     expect(find.text('共 1 笔账单'), findsOneWidget);
     expect(find.text('2016年5月20日'), findsOneWidget,
-        reason: '跨年流水行显完整年月日');
+        reason: '跨年流水行显完整年月日',);
     await disposePage(tester);
   });
 
@@ -165,14 +165,14 @@ void main() {
     );
     expect(cell2015, findsOneWidget);
     expect(tester.widget<InkWell>(cell2015).onTap, isNull,
-        reason: '2015 无流水、应保持置灰');
+        reason: '2015 无流水、应保持置灰',);
     // 2016 有流水 → 可点。
     final Finder cell2016 = find.ancestor(
       of: find.text('2016年'),
       matching: find.byType(InkWell),
     );
     expect(tester.widget<InkWell>(cell2016).onTap, isNotNull,
-        reason: '2016 有流水、必须可选中');
+        reason: '2016 有流水、必须可选中',);
     await disposePage(tester);
   });
 }

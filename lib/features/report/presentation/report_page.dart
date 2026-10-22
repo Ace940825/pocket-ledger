@@ -572,7 +572,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
               ),
               child: selected
                   ? const LineGlyph(Icons.check,
-                      size: 10, color: AppPalette.white)
+                      size: 10, color: AppPalette.white,)
                   : const SizedBox.shrink(),
             ),
             const SizedBox(width: 5),
@@ -1726,7 +1726,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     LineGlyph(Icons.history,
-                        size: 15, color: AppPalette.deepGreen),
+                        size: 15, color: AppPalette.deepGreen,),
                     SizedBox(width: 4),
                     Text(
                       '记一笔',

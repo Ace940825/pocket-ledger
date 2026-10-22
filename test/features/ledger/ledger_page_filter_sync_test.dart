@@ -30,12 +30,12 @@ void main() {
     db = AppDatabase(NativeDatabase(File(p.join(tmp.path, 'ledger.db'))));
     await bootstrapData(db);
     await db.accountsDao.insertAccount(
-      AccountsCompanion(
-        id: const Value<String>('现金'),
-        bookId: const Value<String>('default'),
-        name: const Value<String>('现金'),
-        type: const Value<AccountType>(AccountType.cash),
-        updatedAt: const Value<int>(0),
+      const AccountsCompanion(
+        id: Value<String>('现金'),
+        bookId: Value<String>('default'),
+        name: Value<String>('现金'),
+        type: Value<AccountType>(AccountType.cash),
+        updatedAt: Value<int>(0),
       ),
     );
     final List<Category> cats =

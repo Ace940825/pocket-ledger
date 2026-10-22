@@ -52,19 +52,19 @@ void main() {
     await bootstrapData(db);
     txnRepo = TransactionRepository(db);
     await db.accountsDao.insertAccount(
-      AccountsCompanion(
-        id: const Value<String>('现金'),
-        bookId: const Value<String>('default'),
-        name: const Value<String>('现金'),
-        type: const Value<AccountType>(AccountType.cash),
-        updatedAt: const Value<int>(0),
+      const AccountsCompanion(
+        id: Value<String>('现金'),
+        bookId: Value<String>('default'),
+        name: Value<String>('现金'),
+        type: Value<AccountType>(AccountType.cash),
+        updatedAt: Value<int>(0),
       ),
     );
     final List<Category> cats =
         await db.categoriesDao.watchAll('default').first;
     final List<Category> expenseCats = cats
         .where((Category c) =>
-            c.type == CategoryType.expense && c.deleted == false)
+            c.type == CategoryType.expense && c.deleted == false,)
         .toList();
     // 一级弹窗口径：parentId == null && 非系统，段内按 sortOrder。
     final List<Category> parents = cats
@@ -104,7 +104,7 @@ void main() {
   });
 
   Future<void> pumpPage(WidgetTester tester,
-      {Brightness brightness = Brightness.light}) async {
+      {Brightness brightness = Brightness.light,}) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: <Override>[appDatabaseProvider.overrideWithValue(db)],
@@ -155,13 +155,13 @@ void main() {
     await pumpFrames(tester);
     expect(tester.takeException(), isNull, reason: '二级弹窗不应崩溃');
     expect(find.byType(AppModalSheet), findsNWidgets(2),
-        reason: '转换面板 + 分类选择两个弹窗同时在栈');
+        reason: '转换面板 + 分类选择两个弹窗同时在栈',);
 
     // 第一次点框外：只应关掉栈顶的「选择分类」。
     await tester.tapAt(const Offset(207, 30));
     await tester.pumpAndSettle();
     expect(find.byType(AppModalSheet), findsOneWidget,
-        reason: '二级弹窗应关闭，转换面板仍在');
+        reason: '二级弹窗应关闭，转换面板仍在',);
     expect(_sheetBodyText, findsOneWidget);
 
     // 第二次点框外：关掉转换面板。
@@ -382,7 +382,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull,
-        reason: '键盘弹起时不应 RenderFlex overflow');
+        reason: '键盘弹起时不应 RenderFlex overflow',);
     expect(find.text('应用转换'), findsOneWidget);
     await disposePage(tester);
   });

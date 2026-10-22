@@ -210,7 +210,7 @@ class SyncEngine {
         PendingOpsCompanion(
           targetTable: Value<String>(b.table),
           recordId: Value<String>(b.recordId),
-          opType: Value<SyncOpType>(SyncOpType.update),
+          opType: const Value<SyncOpType>(SyncOpType.update),
           payload: Value<String>(b.payloadBefore),
           updatedAt: Value<int>(now),
           createdAt: Value<int>(now),
@@ -546,7 +546,7 @@ class SyncEngine {
         PendingOpsCompanion(
           targetTable: Value<String>(conflict.table),
           recordId: Value<String>(conflict.recordId),
-          opType: Value<SyncOpType>(SyncOpType.update),
+          opType: const Value<SyncOpType>(SyncOpType.update),
           payload: Value<String>(jsonEncode(merged)),
           updatedAt: Value<int>(now),
           createdAt: Value<int>(now),

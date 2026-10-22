@@ -27,7 +27,7 @@ void main() {
   });
 
   test('insert → getAll 往返，含 failReasons / txnIds JSON 序列化', () async {
-    final ImportRecord r = ImportRecord(
+    const ImportRecord r = ImportRecord(
       id: 'rec-1',
       source: 'unionpay',
       sourceLabel: '云闪付',
@@ -53,14 +53,14 @@ void main() {
   });
 
   test('getById 命中与未命中', () async {
-    await repo.insert(ImportRecord(
+    await repo.insert(const ImportRecord(
       id: 'rec-2',
       source: 'alipay',
       sourceLabel: '支付宝',
       importedCount: 3,
       skippedCount: 0,
       createdAt: 1700000000001,
-    ));
+    ),);
 
     final ImportRecord? hit = await repo.getById('rec-2');
     expect(hit, isNotNull);
@@ -71,14 +71,14 @@ void main() {
   });
 
   test('deleteRow 仅移除记录行', () async {
-    await repo.insert(ImportRecord(
+    await repo.insert(const ImportRecord(
       id: 'rec-3',
       source: 'wechat',
       sourceLabel: '微信',
       importedCount: 1,
       skippedCount: 0,
       createdAt: 1700000000002,
-    ));
+    ),);
     expect((await repo.getAll()).length, 1);
 
     await repo.deleteRow('rec-3');
@@ -86,14 +86,14 @@ void main() {
   });
 
   test('deleteCascade 对无 txnIds 记录只删记录行（不触碰流水）', () async {
-    await repo.insert(ImportRecord(
+    await repo.insert(const ImportRecord(
       id: 'rec-4',
       source: 'bank',
       sourceLabel: '银行',
       importedCount: 5,
       skippedCount: 1,
       createdAt: 1700000000003,
-    ));
+    ),);
     final TransactionRepository txnRepo = TransactionRepository(db);
 
     await repo.deleteCascade('rec-4', txnRepo);
@@ -105,14 +105,14 @@ void main() {
         await repo.watchAll().first;
     expect(initial.length, 0);
 
-    await repo.insert(ImportRecord(
+    await repo.insert(const ImportRecord(
       id: 'rec-5',
       source: 'pocketLedger',
       sourceLabel: '本应用',
       importedCount: 2,
       skippedCount: 0,
       createdAt: 1700000000004,
-    ));
+    ),);
     final List<ImportRecord> afterInsert =
         await repo.watchAll().first;
     expect(afterInsert.length, 1);

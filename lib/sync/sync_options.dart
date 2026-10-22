@@ -11,6 +11,7 @@
 ///   uploadOnly 不碰本地、无需快照，避免无谓膨胀；
 /// - 后端只需给 `/pull` 增加 `until` + `tables` 两个可选参数，
 ///   推送侧的表过滤在客户端完成（根本不发范围外的 op），后端零改动。
+library;
 
 /// 同步方向。
 enum SyncDirection {

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/line_icon_map.dart';
-import '../../../theme/app_dimens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failures.dart';
@@ -10,17 +8,19 @@ import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/bottom_action_bar.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
-import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/clay_icon_tile.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/hairline_card.dart';
 import '../../../shared/widgets/info_tip_row.dart';
+import '../../../shared/widgets/line_icon_map.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/module_list_scaffold.dart' show showToast;
 import '../../../shared/widgets/round_close_button.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/segmented_row.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimens.dart';
 import '../../categories/providers/categories_providers.dart';
 import '../data/budget_repository.dart';
 import '../providers/budget_providers.dart';
@@ -569,7 +569,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                       ' → ${_target.year}-${_target.month}',
                 ),
                 const SizedBox(height: 16),
-                SectionHeader(title: '复制范围'),
+                const SectionHeader(title: '复制范围'),
                 const SizedBox(height: 8),
                 HairlineCard(
                   margin: EdgeInsets.zero,
@@ -799,7 +799,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                       TextField(
                         controller: _totalController,
                         keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
+                            decimal: true,),
                         onChanged: (String _) => _totalTouched = true,
                         decoration: InputDecoration(
                           hintText: '0.00',

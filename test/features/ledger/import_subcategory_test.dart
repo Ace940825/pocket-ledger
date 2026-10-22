@@ -75,7 +75,7 @@ void main() {
       expect(a, b);
       final int count = (await db.select(db.categories).get())
           .where((Category c) =>
-              c.name == '公共交通' && c.parentId == travel.id && !c.deleted)
+              c.name == '公共交通' && c.parentId == travel.id && !c.deleted,)
           .length;
       expect(count, 1);
     });

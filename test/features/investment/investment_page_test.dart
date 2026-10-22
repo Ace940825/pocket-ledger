@@ -57,7 +57,7 @@ void main() {
   }
 
   Future<void> pumpPage(WidgetTester tester,
-      {Brightness brightness = Brightness.light}) async {
+      {Brightness brightness = Brightness.light,}) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: <Override>[appDatabaseProvider.overrideWithValue(db)],
@@ -85,7 +85,7 @@ void main() {
 
     // 底部主操作条：渐变胶囊「+ 记一笔投资」（图标 + 文案）。
     expect(find.text('记一笔投资'), findsOneWidget,
-        reason: '底部应出现「+ 记一笔投资」胶囊');
+        reason: '底部应出现「+ 记一笔投资」胶囊',);
     // 右上角「+」已移除：AppBar 动作区只剩刷新行情一个 IconButton。
     expect(
       find.descendant(
@@ -103,7 +103,7 @@ void main() {
     await tester.tap(find.text('记一笔投资'));
     await tester.pumpAndSettle();
     expect(find.byType(AppModalSheet), findsOneWidget,
-        reason: '点底部胶囊应弹出持仓编辑器');
+        reason: '点底部胶囊应弹出持仓编辑器',);
     expect(find.text('新增持仓'), findsOneWidget);
     await disposePage(tester);
   });
@@ -119,7 +119,7 @@ void main() {
     expect(find.text('中兴通讯'), findsOneWidget);
     expect(find.text('000063'), findsOneWidget);
     expect(find.text('记一笔投资'), findsOneWidget,
-        reason: '有持仓时底部胶囊仍常驻');
+        reason: '有持仓时底部胶囊仍常驻',);
     await disposePage(tester);
   });
 

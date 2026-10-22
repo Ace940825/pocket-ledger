@@ -21,7 +21,7 @@ import 'package:pocket_ledger/features/ledger/data/bill_template.dart';
 ///    建户、合并不动、覆盖、余额收尾校正；
 /// ③ 兼容：旧单段（v2）文件照常按账单解析、无账户段。
 void main() {
-  final AccountRow rich = AccountRow(
+  const AccountRow rich = AccountRow(
     name: '招商信用卡',
     type: AccountType.creditCard,
     book: '日常账本',

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
+import 'package:pocket_ledger/theme/app_dimens.dart';
+
+import '../../../domain/enums.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
-import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
-
-import 'package:pocket_ledger/theme/app_dimens.dart';
-import '../../../domain/enums.dart';
 import '../data/account_icon.dart';
 import 'account_form_page.dart';
 import 'bank_select_page.dart';

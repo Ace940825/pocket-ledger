@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:pocket_ledger/providers/app_providers.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 import 'package:pocket_ledger/shared/widgets/app_toast.dart';
 import 'package:pocket_ledger/shared/widgets/empty_state.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
@@ -10,6 +8,7 @@ import 'package:pocket_ledger/shared/widgets/line_icon_map.dart';
 import 'package:pocket_ledger/sync/conflict_models.dart';
 import 'package:pocket_ledger/sync/sync_field_meta.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
+import 'package:pocket_ledger/theme/app_theme.dart';
 
 /// 字段级冲突解决页。
 ///

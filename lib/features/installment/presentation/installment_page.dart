@@ -19,10 +19,10 @@ import '../../../shared/widgets/module_list_scaffold.dart'
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
+import '../../record/record_tab.dart';
 import '../domain/fee_utils.dart';
 import '../domain/repeat_rule.dart';
 import '../providers/installment_providers.dart';
-import '../../record/record_tab.dart';
 import 'installment_detail_page.dart';
 
 /// 分期页：进行中 / 已结束双 Tab + 计划卡片（对照有钱记账分期文档布局）。

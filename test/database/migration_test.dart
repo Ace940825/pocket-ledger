@@ -102,7 +102,7 @@ void main() {
     await db.close();
 
     expect(userVersion(), AppDatabase.kSchemaVersion,
-        reason: '迁移成功后 user_version 必须推进到当前 schemaVersion');
+        reason: '迁移成功后 user_version 必须推进到当前 schemaVersion',);
   });
 
   test('升级路径也必须补齐索引（且幂等）', () async {
@@ -149,7 +149,7 @@ void main() {
     expect(transactionColumns(), contains('exclude_from_budget'));
     expect(transactionColumns(), contains('is_reimbursable'));
     expect(userVersion(), AppDatabase.kSchemaVersion,
-        reason: 'v6→当前版本 升级后 user_version 必须推进到当前 schemaVersion');
+        reason: 'v6→当前版本 升级后 user_version 必须推进到当前 schemaVersion',);
     // v8 迁移同时补齐本地模板表。
     expect(tableExists('record_templates'), isTrue);
   });

@@ -246,7 +246,7 @@ class TxnSlideAction extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: LineGlyph(icon,
-              size: 24, color: color, semanticLabel: semanticLabel),
+              size: 24, color: color, semanticLabel: semanticLabel,),
         ),
       ),
     );

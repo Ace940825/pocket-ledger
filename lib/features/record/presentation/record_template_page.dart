@@ -834,7 +834,7 @@ class RecordTemplateCard extends ConsumerWidget {
     final (Widget, Color) fallback = switch (tab) {
       RecordTab.income => (
           const LineGlyph(Icons.south_west,
-              size: 22, color: ForestSemantic.income),
+              size: 22, color: ForestSemantic.income,),
           ForestSemantic.income
         ),
       RecordTab.transfer => (

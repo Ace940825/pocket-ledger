@@ -416,7 +416,7 @@ class _DayGroup extends StatelessWidget {
                 ),
                 const SizedBox(width: 5),
                 const LineGlyph(Icons.autorenew,
-                    size: 14, color: ForestGreen.deep),
+                    size: 14, color: ForestGreen.deep,),
                 const Spacer(),
                 Text(
                   _totalLabel,

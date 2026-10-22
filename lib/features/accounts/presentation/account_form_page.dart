@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/line_icon_map.dart';
-import '../../../shared/widgets/line_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
-
 import 'package:pocket_ledger/theme/app_dimens.dart';
+
 import '../../../core/errors/failures.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -13,6 +11,8 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/day_pick_sheet.dart';
+import '../../../shared/widgets/line_icon_map.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../data/account_icon.dart';
 import '../data/bank_data.dart';
@@ -608,7 +608,7 @@ class _TypeHeader extends StatelessWidget {
         child: Row(
           children: <Widget>[
             LineIcon(accountLineKind(type) ?? LineIconKind.star,
-                color: AppPalette.primary, size: 24),
+                color: AppPalette.primary, size: 24,),
             const SizedBox(width: AppDimens.md),
             Expanded(
               child: Text(

@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/app_button.dart';
-import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
+import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
-
 import 'package:pocket_ledger/theme/app_dimens.dart';
+
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/app_providers.dart';
@@ -715,7 +715,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                     title: Text(option),
                     trailing: option == selected
                         ? const LineGlyph(Icons.check,
-                            color: AppPalette.sage600)
+                            color: AppPalette.sage600,)
                         : null,
                     onTap: () =>
                         Navigator.of(context, rootNavigator: true).pop(option),

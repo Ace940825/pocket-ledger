@@ -56,7 +56,7 @@ class AppShell extends StatelessWidget {
                       .entries
                       .map(
                         (MapEntry<int, ({LineIconKind icon, String label})>
-                                entry) =>
+                                entry,) =>
                             NavigationDestination(
                           icon: LineIcon(
                             entry.value.icon,
