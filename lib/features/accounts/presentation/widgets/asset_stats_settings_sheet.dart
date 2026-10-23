@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pocket_ledger/shared/widgets/line_icons.dart';
 import 'package:pocket_ledger/shared/widgets/menu_item.dart';
 import 'package:pocket_ledger/shared/widgets/round_close_button.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
@@ -82,10 +81,6 @@ class _AssetStatsSettingsSheetState
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                    const LineIcon(
-                      LineIconKind.star,
-                      color: AppPalette.warn,
                     ),
                   ],
                 ),
