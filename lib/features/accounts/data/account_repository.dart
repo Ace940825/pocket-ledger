@@ -25,6 +25,7 @@ class AccountRepository {
     int? creditLimitMinor,
     int? billingDay,
     int? dueDay,
+    int? dueGraceDays,
     String? note,
     String? cardNumber,
     AccountStatus status = AccountStatus.active,
@@ -49,6 +50,7 @@ class AccountRepository {
           creditLimitMinor: Value<int?>(creditLimitMinor),
           billingDay: Value<int?>(billingDay),
           dueDay: Value<int?>(dueDay),
+          dueGraceDays: Value<int?>(dueGraceDays),
           note: Value<String?>(note),
           cardNumber: Value<String?>(cardNumber),
           status: Value<AccountStatus>(status),
@@ -74,6 +76,7 @@ class AccountRepository {
               'creditLimitMinor': creditLimitMinor,
               'billingDay': billingDay,
               'dueDay': dueDay,
+              'dueGraceDays': dueGraceDays,
               'note': note,
               'cardNumber': cardNumber,
               'status': status.index,
@@ -172,6 +175,7 @@ class AccountRepository {
     Value<int?> creditLimitMinor = const Value.absent(),
     Value<int?> billingDay = const Value.absent(),
     Value<int?> dueDay = const Value.absent(),
+    Value<int?> dueGraceDays = const Value.absent(),
     String? note,
     String? cardNumber,
     AccountStatus? status,
@@ -204,6 +208,8 @@ class AccountRepository {
       final int? effectiveBilling =
           billingDay.present ? billingDay.value : before?.billingDay;
       final int? effectiveDue = dueDay.present ? dueDay.value : before?.dueDay;
+      final int? effectiveGrace =
+          dueGraceDays.present ? dueGraceDays.value : before?.dueGraceDays;
 
       await _db.accountsDao.updateAccount(
         AccountsCompanion(
@@ -215,6 +221,7 @@ class AccountRepository {
           creditLimitMinor: Value<int?>(effectiveLimit),
           billingDay: Value<int?>(effectiveBilling),
           dueDay: Value<int?>(effectiveDue),
+          dueGraceDays: Value<int?>(effectiveGrace),
           note: Value<String?>(note ?? before?.note),
           cardNumber: Value<String?>(cardNumber ?? before?.cardNumber),
           status: Value<AccountStatus>(effectiveStatus),
@@ -250,6 +257,7 @@ class AccountRepository {
               'creditLimitMinor': effectiveLimit,
               'billingDay': effectiveBilling,
               'dueDay': effectiveDue,
+              'dueGraceDays': effectiveGrace,
               'note': note ?? before?.note,
               'cardNumber': cardNumber ?? before?.cardNumber,
               'status': effectiveStatus.index,
@@ -286,6 +294,7 @@ class AccountRepository {
     int? creditLimitMinor,
     int? billingDay,
     int? dueDay,
+    int? dueGraceDays,
     String? note,
     String? cardNumber,
     AccountStatus status = AccountStatus.active,
@@ -330,6 +339,7 @@ class AccountRepository {
         creditLimitMinor: Value<int?>(creditLimitMinor),
         billingDay: Value<int?>(billingDay),
         dueDay: Value<int?>(dueDay),
+        dueGraceDays: Value<int?>(dueGraceDays),
         note: Value<String?>(note),
         cardNumber: Value<String?>(cardNumber),
         status: Value<AccountStatus>(status),
@@ -373,6 +383,7 @@ class AccountRepository {
               'creditLimitMinor': creditLimitMinor,
               'billingDay': billingDay,
               'dueDay': dueDay,
+              'dueGraceDays': dueGraceDays,
               'note': note,
               'cardNumber': cardNumber,
               'status': status.index,

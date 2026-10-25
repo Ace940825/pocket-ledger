@@ -74,7 +74,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) => _buildCondition(
+            (Transactions tbl) => _buildCondition(
               tbl,
               bookId: bookId,
               startAt: startAt,
@@ -85,7 +85,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
             ),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ])
           ..limit(limit, offset: offset))
         .get();
@@ -98,11 +98,11 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ])
           ..limit(limit))
         .watch();
@@ -115,11 +115,11 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   Stream<List<Transaction>> watchAll({required String bookId}) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch();
   }
@@ -135,14 +135,14 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false) &
                 tbl.occurredAt.isBiggerOrEqualValue(startAt) &
                 tbl.occurredAt.isSmallerThanValue(endAt),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch();
   }
@@ -154,13 +154,13 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   Stream<List<Transaction>> watchExpenses({required String bookId}) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false) &
                 tbl.type.equals(TxnType.expense.index),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch();
   }
@@ -174,13 +174,13 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false) &
                 tbl.categoryId.equals(categoryId),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch();
   }
@@ -197,7 +197,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false) &
                 tbl.type.equals(TxnType.income.index) &
@@ -207,7 +207,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
                         : const Constant<bool>(false))),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch();
   }
@@ -224,14 +224,14 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false) &
                 (tbl.accountId.equals(accountId) |
                     tbl.toAccountId.equals(accountId)),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch()
         .map(
@@ -263,7 +263,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           );
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false) &
                 (tbl.accountId.equals(accountId) |
@@ -272,7 +272,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
                         tbl.relatedId.isInQuery(relatedIds))),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch()
         .map(
@@ -282,7 +282,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
 
   Stream<Transaction?> watchById(String id) {
     return (select(transactions)
-          ..where(($TransactionsTable tbl) => tbl.id.equals(id)))
+          ..where((Transactions tbl) => tbl.id.equals(id)))
         .watchSingleOrNull();
   }
 
@@ -295,14 +295,14 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false) &
                 tbl.sourceModule.equals(SourceModule.refund.index) &
                 tbl.relatedId.equals(relatedId),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch();
   }
@@ -317,14 +317,14 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false) &
                 tbl.sourceModule.equals(SourceModule.investment.index) &
                 tbl.relatedId.equals(holdingId),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch();
   }
@@ -335,20 +335,20 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false) &
                 tbl.sourceModule.equals(SourceModule.investment.index),
           )
           ..orderBy([
-            ($TransactionsTable tbl) => OrderingTerm.desc(tbl.occurredAt),
+            (Transactions tbl) => OrderingTerm.desc(tbl.occurredAt),
           ]))
         .watch();
   }
 
   Future<Transaction?> getById(String id) {
     return (select(transactions)
-          ..where(($TransactionsTable tbl) => tbl.id.equals(id)))
+          ..where((Transactions tbl) => tbl.id.equals(id)))
         .getSingleOrNull();
   }
 
@@ -500,14 +500,14 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   /// 取出所有待同步的流水
   Future<List<Transaction>> dirtyTransactions({int limit = 200}) {
     return (select(transactions)
-          ..where(($TransactionsTable tbl) => tbl.dirty.equals(true))
+          ..where((Transactions tbl) => tbl.dirty.equals(true))
           ..limit(limit))
         .get();
   }
 
   Future<void> markSynced(List<String> ids, int syncedAt) {
     return (update(transactions)
-          ..where(($TransactionsTable tbl) => tbl.id.isIn(ids)))
+          ..where((Transactions tbl) => tbl.id.isIn(ids)))
         .write(
       TransactionsCompanion(
         dirty: const Value<bool>(false),
@@ -526,7 +526,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   Future<int> updateTx(TransactionsCompanion companion) {
     return (update(transactions)
           ..where(
-            ($TransactionsTable tbl) => tbl.id.equals(companion.id.value),
+            (Transactions tbl) => tbl.id.equals(companion.id.value),
           ))
         .write(companion);
   }
@@ -550,7 +550,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     int updatedAt,
   ) {
     return (update(transactions)
-          ..where(($TransactionsTable tbl) => tbl.categoryId.equals(fromId)))
+          ..where((Transactions tbl) => tbl.categoryId.equals(fromId)))
         .write(
       TransactionsCompanion(
         categoryId: Value<String?>(toId),
@@ -572,7 +572,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   ) async {
     final List<Transaction> rows = await (select(transactions)
           ..where(
-            ($TransactionsTable tbl) =>
+            (Transactions tbl) =>
                 tbl.tags.isNotNull() & tbl.deleted.equals(false),
           ))
         .get();
@@ -591,7 +591,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         // 其余旧名（重复项 / 目标名已存在时）直接丢弃
       }
       await (update(transactions)
-            ..where(($TransactionsTable tbl) => tbl.id.equals(t.id)))
+            ..where((Transactions tbl) => tbl.id.equals(t.id)))
           .write(
         TransactionsCompanion(
           tags: Value<String?>(next.isEmpty ? null : jsonEncode(next)),
@@ -619,7 +619,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   /// 软删除：物理删除无法同步到云端，必须标记后随同步推送。
   Future<int> softDelete(String id, int updatedAt) {
     return (update(transactions)
-          ..where(($TransactionsTable tbl) => tbl.id.equals(id)))
+          ..where((Transactions tbl) => tbl.id.equals(id)))
         .write(
       TransactionsCompanion(
         deleted: const Value<bool>(true),
@@ -630,7 +630,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }
 
   Expression<bool> _buildCondition(
-    $TransactionsTable tbl, {
+    Transactions tbl, {
     required String bookId,
     int? startAt,
     int? endAt,

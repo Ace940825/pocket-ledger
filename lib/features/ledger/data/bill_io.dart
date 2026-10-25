@@ -446,6 +446,7 @@ ParseResult _parseAccountCsvSection(List<String> lines) {
       iCreditLimit: col('信用卡额度'),
       iBilling: col('账单日'),
       iDue: col('还款日'),
+      iGrace: col('免息期'),
       iNote: col('备注'),
       iCard: col('卡号'),
       iStatus: col('状态'),

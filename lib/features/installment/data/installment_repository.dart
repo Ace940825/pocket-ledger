@@ -364,6 +364,7 @@ class InstallmentRepository {
       occurredAt: period.dueAt,
       note: '${plan.title}第${period.periodIndex}期分期入账$feeNote',
       sourceModule: SourceModule.installment,
+      source: '分期记账',
       relatedId: period.id,
     );
   }
@@ -716,6 +717,7 @@ class InstallmentRepository {
       note:
           '${plan.title}提前结清\n剩余本金 ${Money.fromMinor(remainingPrincipal).format()}',
       sourceModule: SourceModule.installment,
+      source: '分期记账',
       relatedId: plan.id,
     );
 

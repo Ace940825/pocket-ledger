@@ -15,13 +15,13 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
   Stream<List<Category>> watchByType(String bookId, CategoryType type) {
     return (select(categories)
           ..where(
-            ($CategoriesTable tbl) =>
+            (Categories tbl) =>
                 tbl.bookId.equals(bookId) &
                 tbl.type.equals(type.index) &
                 tbl.isArchived.equals(false),
           )
           ..orderBy([
-            ($CategoriesTable tbl) => OrderingTerm.asc(tbl.sortOrder),
+            (Categories tbl) => OrderingTerm.asc(tbl.sortOrder),
           ]))
         .watch();
   }
@@ -29,18 +29,18 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
   Stream<List<Category>> watchAll(String bookId) {
     return (select(categories)
           ..where(
-            ($CategoriesTable tbl) =>
+            (Categories tbl) =>
                 tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
           )
           ..orderBy([
-            ($CategoriesTable tbl) => OrderingTerm.asc(tbl.sortOrder),
+            (Categories tbl) => OrderingTerm.asc(tbl.sortOrder),
           ]))
         .watch();
   }
 
   Future<Category?> getById(String id) {
     return (select(categories)
-          ..where(($CategoriesTable tbl) => tbl.id.equals(id)))
+          ..where((Categories tbl) => tbl.id.equals(id)))
         .getSingleOrNull();
   }
 
@@ -52,13 +52,13 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
   /// 会把缺省列（isSystem/sortOrder 等）写成默认值。
   Future<int> updateCategory(CategoriesCompanion companion) {
     return (update(categories)
-          ..where(($CategoriesTable tbl) => tbl.id.equals(companion.id.value)))
+          ..where((Categories tbl) => tbl.id.equals(companion.id.value)))
         .write(companion);
   }
 
   Future<int> softDelete(String id, int updatedAt) {
     return (update(categories)
-          ..where(($CategoriesTable tbl) => tbl.id.equals(id)))
+          ..where((Categories tbl) => tbl.id.equals(id)))
         .write(
       CategoriesCompanion(
         deleted: const Value<bool>(true),
@@ -72,7 +72,7 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
   /// 封存分类。仅置 isArchived = true，保留数据与流水关联，可恢复。
   Future<int> archive(String id, int updatedAt) {
     return (update(categories)
-          ..where(($CategoriesTable tbl) => tbl.id.equals(id)))
+          ..where((Categories tbl) => tbl.id.equals(id)))
         .write(
       CategoriesCompanion(
         isArchived: const Value<bool>(true),
@@ -85,7 +85,7 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
   /// 解封分类（撤销 [archive]）。
   Future<int> unarchive(String id, int updatedAt) {
     return (update(categories)
-          ..where(($CategoriesTable tbl) => tbl.id.equals(id)))
+          ..where((Categories tbl) => tbl.id.equals(id)))
         .write(
       CategoriesCompanion(
         isArchived: const Value<bool>(false),
@@ -98,7 +98,7 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
   /// 更新单个分类的排序值（分类排序用）。
   Future<int> setSortOrder(String id, int sortOrder, int updatedAt) {
     return (update(categories)
-          ..where(($CategoriesTable tbl) => tbl.id.equals(id)))
+          ..where((Categories tbl) => tbl.id.equals(id)))
         .write(
       CategoriesCompanion(
         sortOrder: Value<int>(sortOrder),
@@ -115,7 +115,7 @@ class CategoriesDao extends DatabaseAccessor<AppDatabase>
     int updatedAt,
   ) {
     return (update(categories)
-          ..where(($CategoriesTable tbl) => tbl.parentId.equals(oldParentId)))
+          ..where((Categories tbl) => tbl.parentId.equals(oldParentId)))
         .write(
       CategoriesCompanion(
         parentId: Value<String?>(newParentId),

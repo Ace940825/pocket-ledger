@@ -245,6 +245,9 @@ Future<void> bootstrapData(AppDatabase db) async {
     await _seedSystemCategories(db);
     // 清理历史遗留的系统分类同步 op（首版种子曾误入队），使待同步归零。
     await db.pendingOpsDao.clearSystemCategoryOps();
+    // 折叠历史重复 op：同一记录多条操作合并为最新一条（修复「待同步累计 3 万+」
+    // 虚高计数）。须在 clearSystemCategoryOps 之后，避免被清掉的孤儿 op 复活。
+    await db.pendingOpsDao.dedupePendingOps();
     return;
   }
   // 已存在账本：兜底修复老版本默认分类缺少图标/颜色的问题（只补空白值）。
@@ -271,6 +274,9 @@ Future<void> bootstrapData(AppDatabase db) async {
   await _seedSystemCategories(db);
   // 清理历史遗留的系统分类同步 op（首版种子曾误入队），使待同步归零。
   await db.pendingOpsDao.clearSystemCategoryOps();
+  // 折叠历史重复 op：同一记录多条操作合并为最新一条（修复「待同步累计 3 万+」
+  // 虚高计数）。须在 clearSystemCategoryOps 之后，避免被清掉的孤儿 op 复活。
+  await db.pendingOpsDao.dedupePendingOps();
   // 借还流水分类重挂（幂等自愈）：旧种子「还债/债务消减」曾被下线软删，
   // 期间落账的借还流水 categoryId 悬空（标题退化「支出」、详情「未分类」）。
   // 按备注动词前缀把悬空行重新挂回系统分类。

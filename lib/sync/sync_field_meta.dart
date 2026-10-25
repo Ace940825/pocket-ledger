@@ -64,6 +64,7 @@ class SyncFieldMeta {
     'accounts.colorValue': '颜色',
     'accounts.billingDay': '账单日',
     'accounts.dueDay': '还款日',
+    'accounts.dueGraceDays': '免息期',
     'accounts.note': '备注',
     'accounts.cardNumber': '卡号',
     'accounts.status': '状态',

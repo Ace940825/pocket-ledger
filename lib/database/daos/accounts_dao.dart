@@ -14,11 +14,11 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   Stream<List<Account>> watchByBook(String bookId) {
     return (select(accounts)
           ..where(
-            ($AccountsTable tbl) =>
+            (Accounts tbl) =>
                 tbl.bookId.equals(bookId) & tbl.isArchived.equals(false),
           )
           ..orderBy([
-            ($AccountsTable tbl) => OrderingTerm.asc(tbl.sortOrder),
+            (Accounts tbl) => OrderingTerm.asc(tbl.sortOrder),
           ]))
         .watch();
   }
@@ -30,11 +30,11 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   Future<List<Account>> allByBookIncludingArchived(String bookId) {
     return (select(accounts)
           ..where(
-            ($AccountsTable tbl) =>
+            (Accounts tbl) =>
                 tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
           )
           ..orderBy([
-            ($AccountsTable tbl) => OrderingTerm.asc(tbl.sortOrder),
+            (Accounts tbl) => OrderingTerm.asc(tbl.sortOrder),
           ]))
         .get();
   }
@@ -98,13 +98,13 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<Account?> getById(String id) {
-    return (select(accounts)..where(($AccountsTable tbl) => tbl.id.equals(id)))
+    return (select(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
         .getSingleOrNull();
   }
 
   /// 按 ID 实时监听单个账户（即使已归档/隐藏也返回）。
   Stream<Account?> watchById(String id) {
-    return (select(accounts)..where(($AccountsTable tbl) => tbl.id.equals(id)))
+    return (select(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
         .watchSingleOrNull();
   }
 
@@ -136,13 +136,13 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   /// 会触发 InvalidDataException，且 iconKey/colorValue 等未带列会被清空。
   Future<int> updateAccount(AccountsCompanion companion) {
     return (update(accounts)
-          ..where(($AccountsTable tbl) => tbl.id.equals(companion.id.value)))
+          ..where((Accounts tbl) => tbl.id.equals(companion.id.value)))
         .write(companion);
   }
 
   /// 软删除
   Future<int> softDelete(String id, int updatedAt) {
-    return (update(accounts)..where(($AccountsTable tbl) => tbl.id.equals(id)))
+    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
         .write(
       AccountsCompanion(
         deleted: const Value<bool>(true),
@@ -157,7 +157,7 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   /// 与 [softDelete] 区别：隐藏只置 `isArchived = true`、`deleted = false`，
   /// 后续可调用 [unarchive] 恢复。
   Future<int> archive(String id, int updatedAt) {
-    return (update(accounts)..where(($AccountsTable tbl) => tbl.id.equals(id)))
+    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
         .write(
       AccountsCompanion(
         isArchived: const Value<bool>(true),
@@ -169,7 +169,7 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
 
   /// 取消隐藏（撤销 [archive]）。不会改 `deleted` 字段。
   Future<int> unarchive(String id, int updatedAt) {
-    return (update(accounts)..where(($AccountsTable tbl) => tbl.id.equals(id)))
+    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
         .write(
       AccountsCompanion(
         isArchived: const Value<bool>(false),
@@ -181,7 +181,7 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
 
   Future<List<Account>> dirtyAccounts({int limit = 200}) {
     return (select(accounts)
-          ..where(($AccountsTable tbl) => tbl.dirty.equals(true))
+          ..where((Accounts tbl) => tbl.dirty.equals(true))
           ..limit(limit))
         .get();
   }
@@ -197,7 +197,7 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
         batch.update(
           accounts,
           AccountsCompanion(sortOrder: Value<int>(i)),
-          where: ($AccountsTable tbl) => tbl.id.equals(orderedIds[i]),
+          where: (Accounts tbl) => tbl.id.equals(orderedIds[i]),
         );
       }
     });

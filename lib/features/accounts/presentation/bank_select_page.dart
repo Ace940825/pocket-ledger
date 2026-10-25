@@ -4,6 +4,7 @@ import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../data/bank_data.dart';
+import 'widgets/bank_alphabet_index.dart';
 
 /// 银行选择页。
 ///
@@ -189,7 +190,7 @@ class _BankSelectPageState extends State<BankSelectPage> {
             top: kToolbarHeight + MediaQuery.of(context).padding.top,
             bottom: 0,
             width: 32,
-            child: _AlphabetIndex(
+            child: BankAlphabetIndex(
               initials: kBankIndexLetters,
               onTap: _scrollToInitial,
               available: grouped.keys.toSet(),
@@ -245,63 +246,6 @@ class _BankTile extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _AlphabetIndex extends StatelessWidget {
-  const _AlphabetIndex({
-    required this.initials,
-    required this.onTap,
-    required this.available,
-  });
-
-  final List<String> initials;
-  final ValueChanged<String> onTap;
-  final Set<String> available;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onVerticalDragUpdate: (DragUpdateDetails details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final double y = details.localPosition.dy.clamp(0, box.size.height);
-        final int index = (y / (box.size.height / initials.length)).floor();
-        if (index >= 0 && index < initials.length) {
-          onTap(initials[index]);
-        }
-      },
-      onTapUp: (TapUpDetails details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final double y = details.localPosition.dy.clamp(0, box.size.height);
-        final int index = (y / (box.size.height / initials.length)).floor();
-        if (index >= 0 && index < initials.length) {
-          onTap(initials[index]);
-        }
-      },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: initials.map((String initial) {
-          final bool enabled = available.contains(initial) || initial == '↑';
-          return Expanded(
-            child: Center(
-              child: Text(
-                initial,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: enabled
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
-                      : Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant
-                          .withValues(alpha: 0.4),
-                ),
-              ),
-            ),
-          );
-        }).toList(growable: false),
       ),
     );
   }

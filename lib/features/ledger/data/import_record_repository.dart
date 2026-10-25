@@ -4,6 +4,12 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../../database/app_database.dart';
+import '../../accounts/data/account_repository.dart';
+import '../../installment/data/installment_repository.dart';
+import '../../investment/data/investment_repository.dart';
+import '../../lend/data/lend_repository.dart';
+import '../../reimbursement/data/reimbursement_repository.dart';
+import '../../savings/data/savings_repository.dart';
 import 'transaction_repository.dart';
 
 /// 一笔「账单导入」的归档记录（入口页展示 + 级联删除溯源）。
@@ -20,6 +26,12 @@ class ImportRecord {
     required this.createdAt,
     this.failReasons,
     this.txnIds,
+    this.accountIds,
+    this.lendRecordIds,
+    this.investmentHoldingIds,
+    this.reimbursementIds,
+    this.savingsGoalIds,
+    this.installmentPlanIds,
   });
 
   final String id;
@@ -45,9 +57,45 @@ class ImportRecord {
   /// 本次导入写入的流水 ID 清单（级联删除溯源）。
   final List<String>? txnIds;
 
+  /// 本次导入**新建**的账户 ID 清单（随导入建设的账户，删导入时一并软删）。
+  final List<String>? accountIds;
+
+  /// 本次导入新建的借还记录 ID 清单。
+  final List<String>? lendRecordIds;
+
+  /// 本次导入新建的投资持仓 ID 清单。
+  final List<String>? investmentHoldingIds;
+
+  /// 本次导入新建的报销记录 ID 清单。
+  final List<String>? reimbursementIds;
+
+  /// 本次导入新建的储蓄目标 ID 清单。
+  final List<String>? savingsGoalIds;
+
+  /// 本次导入新建的分期计划 ID 清单。
+  final List<String>? installmentPlanIds;
+
   String? get failJson => failReasons == null ? null : jsonEncode(failReasons);
 
   String? get txnIdsJson => txnIds == null ? null : jsonEncode(txnIds);
+
+  String? get accountIdsJson =>
+      accountIds == null ? null : jsonEncode(accountIds);
+
+  String? get lendRecordIdsJson =>
+      lendRecordIds == null ? null : jsonEncode(lendRecordIds);
+
+  String? get investmentHoldingIdsJson =>
+      investmentHoldingIds == null ? null : jsonEncode(investmentHoldingIds);
+
+  String? get reimbursementIdsJson =>
+      reimbursementIds == null ? null : jsonEncode(reimbursementIds);
+
+  String? get savingsGoalIdsJson =>
+      savingsGoalIds == null ? null : jsonEncode(savingsGoalIds);
+
+  String? get installmentPlanIdsJson =>
+      installmentPlanIds == null ? null : jsonEncode(installmentPlanIds);
 
   static List<String>? _parseJsonList(String? raw) {
     if (raw == null || raw.isEmpty) return null;
@@ -78,7 +126,10 @@ class ImportRecordRepository {
     await _db.customStatement(
       'INSERT INTO import_records '
       '(id, source, source_label, imported_count, skipped_count, '
-      'fail_json, txn_ids, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'fail_json, txn_ids, account_ids, lend_record_ids, '
+      'investment_holding_ids, reimbursement_ids, savings_goal_ids, '
+      'installment_plan_ids, created_at) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       <Object?>[
         r.id,
         r.source,
@@ -87,6 +138,12 @@ class ImportRecordRepository {
         r.skippedCount,
         r.failJson,
         r.txnIdsJson,
+        r.accountIdsJson,
+        r.lendRecordIdsJson,
+        r.investmentHoldingIdsJson,
+        r.reimbursementIdsJson,
+        r.savingsGoalIdsJson,
+        r.installmentPlanIdsJson,
         r.createdAt,
       ],
     );
@@ -97,7 +154,9 @@ class ImportRecordRepository {
   Future<List<ImportRecord>> getAll() async {
     final List<QueryRow> rows = await _db.customSelect(
       'SELECT id, source, source_label, imported_count, skipped_count, '
-      'fail_json, txn_ids, created_at FROM import_records '
+      'fail_json, txn_ids, account_ids, lend_record_ids, '
+      'investment_holding_ids, reimbursement_ids, savings_goal_ids, '
+      'installment_plan_ids, created_at FROM import_records '
       'ORDER BY created_at DESC',
     ).get();
     return rows.map(_rowToRecord).toList();
@@ -115,7 +174,9 @@ class ImportRecordRepository {
   Future<ImportRecord?> getById(String id) async {
     final List<QueryRow> rows = await _db.customSelect(
       'SELECT id, source, source_label, imported_count, skipped_count, '
-      'fail_json, txn_ids, created_at FROM import_records WHERE id = ?',
+      'fail_json, txn_ids, account_ids, lend_record_ids, '
+      'investment_holding_ids, reimbursement_ids, savings_goal_ids, '
+      'installment_plan_ids, created_at FROM import_records WHERE id = ?',
       variables: <Variable<Object>>[Variable<Object>(id)],
     ).get();
     if (rows.isEmpty) return null;
@@ -131,25 +192,108 @@ class ImportRecordRepository {
     _updates.add(null);
   }
 
-  /// 级联删除：先把本批导入的流水**合并进单个事务**批量软删（余额回滚 + 同步
-  /// 入队 + 报销联动 + 借还联动由 [TransactionRepository.removeBatch] 内部逐笔
-  /// 自理，语义与单笔删除完全一致），再删记录行。一次提交、一次 fsync、watch
-  /// 只重建一次 —— 大批量删除不再随笔数线性变慢、避免请求超时。单笔失败
-  /// （如已手动删除）不阻断其余，保证记录最终能被删掉。
+  /// 级联删除：把本批导入新建的**全部对象**一次性清除——流水（含借还 / 投资 /
+  /// 分期订单等各路由产生的，靠事务前后差集网全）、借还 / 投资 / 报销 / 储蓄 /
+  /// 分期台账、以及随导入新建的账户。整体包在单个 DB 事务里，任一步失败整批
+  /// 回滚，杜绝「删一半留一半」。
   ///
-  /// 注：普通 / 储蓄 / 分期 / 报销路由的流水均在 [txnIds] 内，级联完整；
-  /// 借还 / 投资路由的流水在各自台账内部创建，未纳入 [txnIds]，删除导入记录时
-  /// 不会回溯（属幂次模板导入的窄路径，沿用「删台账由模块负责」的既有约定）。
+  /// 顺序很关键：
+  /// 1. **先 `removeBatch(txnIds)`**：删除本批全部流水，余额回滚 / 报销账单复原
+  ///    （收入流水触发按台账反向恢复）/ 同步入队由 [TransactionRepository] 自理。
+  ///    必须在删报销记录之前——收入流水删除时要能按 `reimbursements` 台账反向
+  ///    恢复被抵扣的账单，若先把记录软删了就查不到、账单停留在「已报销」。
+  /// 2. **再删各台账父记录**：借还 / 投资 remove 内部会级联自身关联流水并重算
+  ///    派生余额（这些流水没进 `txnIds`，靠父记录 remove 兜底删除）；报销 / 储蓄 /
+  ///    分期只删记录，其收入 / 存款 / 还款流水已在第 1 步删。
+  /// 3. **最后删账户**：仅删本次导入新建、且此时（第 1、2 步后）已无其他未删
+  ///    流水 / 借还 / 报销引用的账户——手动记账引用的账户会被保留，避免变孤儿。
+  ///    删除走 [AccountRepository.remove]，自动入队同步 delete。
+  ///
+  /// 单笔失败（如已手动删除）不阻断其余，保证记录最终能被删掉。
   Future<void> deleteCascade(
     String recordId,
     TransactionRepository txnRepo,
+    AccountRepository accRepo,
+    LendRepository lendRepo,
+    InvestmentRepository investRepo,
+    ReimbursementRepository reimbRepo,
+    SavingsRepository savingsRepo,
+    InstallmentRepository instRepo,
   ) async {
     final ImportRecord? rec = await getById(recordId);
-    if (rec?.txnIds != null && rec!.txnIds!.isNotEmpty) {
-      await txnRepo.removeBatch(rec.txnIds!);
-    }
-    await deleteRow(recordId);
+    await _db.transaction<void>(() async {
+      // 1. 本批全部流水。
+      if (rec?.txnIds != null && rec!.txnIds!.isNotEmpty) {
+        await txnRepo.removeBatch(rec.txnIds!);
+      }
+      if (rec != null) {
+        // 2. 各台账父记录（幂等：软删已删行是空操作，重复调用安全）。
+        for (final String id in rec.lendRecordIds ?? const <String>[]) {
+          await lendRepo.remove(id);
+        }
+        for (final String id in rec.investmentHoldingIds ?? const <String>[]) {
+          await investRepo.remove(id);
+        }
+        for (final String id in rec.reimbursementIds ?? const <String>[]) {
+          await reimbRepo.remove(id);
+        }
+        for (final String id in rec.savingsGoalIds ?? const <String>[]) {
+          await savingsRepo.remove(id);
+        }
+        for (final String id in rec.installmentPlanIds ?? const <String>[]) {
+          await instRepo.removePlan(id);
+        }
+        // 3. 随导入新建、且已无其他引用的账户。
+        for (final String id in rec.accountIds ?? const <String>[]) {
+          if (await _accountReferencedElsewhere(id)) continue;
+          await accRepo.remove(id);
+        }
+      }
+      // 4. 记录行。
+      await _db.customStatement(
+        'DELETE FROM import_records WHERE id = ?',
+        <Object?>[recordId],
+      );
+    });
     _updates.add(null);
+  }
+
+  /// 账户是否仍被「本批以外」的未删数据引用：任意未删流水（accountId /
+  /// toAccountId）、未删借还记录（指定账户）、未删报销记录。在级联第 3 步调用，
+  /// 此时本批流水 / 台账已在同一事务内软删，故这里查到的都是外来引用。
+  Future<bool> _accountReferencedElsewhere(String id) async {
+    final Expression<int> total = countAll();
+
+    final int txns = await (_db.selectOnly(_db.transactions)
+          ..addColumns(<Expression<int>>[total])
+          ..where(
+            _db.transactions.deleted.equals(false) &
+                (_db.transactions.accountId.equals(id) |
+                    _db.transactions.toAccountId.equals(id)),
+          ))
+        .map((TypedResult row) => row.read(total) ?? 0)
+        .getSingle();
+    if (txns > 0) return true;
+
+    final int lends = await (_db.selectOnly(_db.lendRecords)
+          ..addColumns(<Expression<int>>[total])
+          ..where(
+            _db.lendRecords.deleted.equals(false) &
+                _db.lendRecords.accountId.equals(id),
+          ))
+        .map((TypedResult row) => row.read(total) ?? 0)
+        .getSingle();
+    if (lends > 0) return true;
+
+    final int reimbs = await (_db.selectOnly(_db.reimbursements)
+          ..addColumns(<Expression<int>>[total])
+          ..where(
+            _db.reimbursements.deleted.equals(false) &
+                _db.reimbursements.accountId.equals(id),
+          ))
+        .map((TypedResult row) => row.read(total) ?? 0)
+        .getSingle();
+    return reimbs > 0;
   }
 
   ImportRecord _rowToRecord(QueryRow row) {
@@ -162,6 +306,19 @@ class ImportRecordRepository {
       createdAt: row.read<int>('created_at'),
       failReasons: ImportRecord._parseJsonList(row.read<String?>('fail_json')),
       txnIds: ImportRecord._parseJsonList(row.read<String?>('txn_ids')),
+      accountIds: ImportRecord._parseJsonList(row.read<String?>('account_ids')),
+      lendRecordIds:
+          ImportRecord._parseJsonList(row.read<String?>('lend_record_ids')),
+      investmentHoldingIds: ImportRecord._parseJsonList(
+        row.read<String?>('investment_holding_ids'),
+      ),
+      reimbursementIds:
+          ImportRecord._parseJsonList(row.read<String?>('reimbursement_ids')),
+      savingsGoalIds:
+          ImportRecord._parseJsonList(row.read<String?>('savings_goal_ids')),
+      installmentPlanIds: ImportRecord._parseJsonList(
+        row.read<String?>('installment_plan_ids'),
+      ),
     );
   }
 }

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
-import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 
 import '../../../core/errors/failures.dart';
@@ -20,7 +19,11 @@ import '../../../theme/app_colors.dart';
 import '../../investment/data/investment_repository.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../data/account_icon.dart';
+import '../data/repay_date.dart';
 import '../providers/accounts_providers.dart';
+import 'account_type_sheet.dart';
+import 'bank_picker_sheet.dart';
+import 'widgets/repay_date_picker_sheet.dart';
 
 /// 编辑账户页（参照小青账编辑逻辑），按账户类型分流多种布局：
 ///
@@ -31,15 +34,24 @@ import '../providers/accounts_providers.dart';
 ///   **投资余额**（派生余额，只读展示——有持仓时取「现金余额 + 名下持仓
 ///   市值合计」、否则保留账户现金余额；随持仓自动更新，不可手改）；与应收
 ///   应付同款「派生不变量」约束：落库只记现金，市值由展示层叠加；
-/// - **借记卡（银行账户）**：「资产类型」卡（银行图标 + 银行名，点击改名）+
+/// - **借记卡（银行账户）**：「资产类型」两栏（账户类型 + 银行信息）+
 ///   基本信息（备注信息 / 银行卡号）+ **资金**（账户余额可手动校正）；
-/// - **资金账户（现金 / 微信 / 支付宝等，借记卡除外）**：「资产类型」卡
+/// - **资金账户（现金 / 微信 / 支付宝等，借记卡除外）**：「资产类型」栏
 ///   （类型图标 + 类型名）+ 基本信息（用户名 / 账户余额可编辑）；
-/// - **负债（信用卡 / 花呗等）**：资产类型卡 + 基本信息 + **资金**
-///   （信用额度 / 当前欠款可编辑，剩余额度 = 额度 − 欠款自动计算）+
-///   **账单/还款日期**（每月 X 日）；
+/// - **负债（信用卡 / 花呗等）**：「资产类型」两栏（信用卡含银行信息）+
+///   基本信息 + **资金**（信用额度 / 当前欠款可编辑，剩余额度 = 额度 −
+///   欠款自动计算）+ **账单/还款日期**（每月 X 日）；
 /// - 共用「其他」：**资产状态** 三态胶囊（使用中 / 隐藏 / 封存）+
 ///   **计入总资产** 开关；底部整宽「保存」按钮。
+///
+/// **资产类型区（两栏布局）**：
+/// - 第一栏（恒显示）：账户类型选择器，点击弹出两级类型弹层
+///   （五大类 → 类下账户类型，见 [showAccountTypeSheet]）；切换类型后
+///   整页布局随之切换；
+/// - 第二栏（仅银行类账户——借记卡 / 信用卡）：银行信息，点击弹出银行
+///   选择弹层（见 [showBankPickerSheet]）；银行类账户的名称即银行名，
+///   选银行同步改名；
+/// - 非银行类账户只显示第一栏（通栏）。
 class AccountEditPage extends ConsumerStatefulWidget {
   const AccountEditPage({super.key, required this.accountId});
 
@@ -59,7 +71,21 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   // 负债方向账户约定正余额=欠款）。
   late final TextEditingController _creditLimitController;
   late final TextEditingController _billingDayController;
-  late final TextEditingController _dueDayController;
+
+  /// 还款日设定：两种模式互斥（固定日期 / 免息期）。
+  RepayMode _repayMode = RepayMode.fixedDay;
+  int? _dueDayValue;
+  int? _dueGraceDaysValue;
+
+  /// 当前选中的账户类型（资产类型第一栏可改，初始为账户原类型）；
+  /// 整页布局与保存分支都以它为准，实现「改类型即换布局」。
+  late AccountType _selectedType;
+
+  /// 银行类账户（借记卡 / 信用卡）的银行名：这类账户没有独立名称字段，
+  /// 名称即银行名（新建时由银行选择命名），第二栏展示与修改都走它。
+  /// 非银行类账户恒为 null（第二栏隐藏）。
+  String? _bankName;
+
   late AccountStatus _status;
   late bool _includeInTotal;
   bool _initialized = false;
@@ -74,20 +100,21 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     }
 
     _ensureInitialized(account);
-    final bool isLend = account.type == AccountType.lend;
-    final bool isDebit = account.type == AccountType.bankCard;
-    final bool isDebt = account.type.isDebt;
+    // 布局分支一律以「当前选中的类型」为准（第一栏可改类型 → 换布局）。
+    final AccountType type = _selectedType;
+    final bool isLend = type == AccountType.lend;
+    final bool isDebit = type == AccountType.bankCard;
+    final bool isDebt = type.isDebt;
     // 投资账户（基金 / 股票 / 期货 / 现货等）：余额随名下持仓市值派生，
     // 只读展示，与借还同款「派生不变量」约束。
-    final bool isInvestment =
-        account.type.category == AccountCategory.investment;
+    final bool isInvestment = type.category == AccountCategory.investment;
     // 定期存款：真实余额（非持仓派生），允许手动校正，与资金账户同口径。
-    final bool isTimeDeposit = account.type == AccountType.timeDeposit;
+    final bool isTimeDeposit = type == AccountType.timeDeposit;
     // 资金账户（现金 / 微信 / 支付宝 / 公积金等，借记卡单独布局）。
     final bool isFund = !isDebit &&
         !isDebt &&
         !isInvestment &&
-        account.type.category == AccountCategory.capital;
+        type.category == AccountCategory.capital;
 
     return Scaffold(
       appBar: AppBar(
@@ -216,8 +243,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   // ---- 借记卡（银行账户）布局，参照小青账截图 ----
 
   List<Widget> _debitSections(Account account) => <Widget>[
-        _sectionLabel('资产类型'),
-        _assetTypeCard(account),
+        _assetTypeSection(),
         const SizedBox(height: AppDimens.lg),
         _sectionLabel('基本信息'),
         _basicInfoCard(),
@@ -253,12 +279,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 
   // ---- 资金账户（现金 / 微信 / 支付宝等，借记卡除外）布局，参照小青账截图 ----
   //
-  // 「资产类型」卡固定展示类型名（现金 / 微信钱包…），点击改名即改账户名；
-  // 基本信息「用户名」= 账户名、「账户余额」为真实值可手动校正。
+  // 「资产类型」栏固定展示类型名（现金 / 微信钱包…）；基本信息「用户名」
+  // = 账户名、「账户余额」为真实值可手动校正。
 
   List<Widget> _fundSections(Account account) => <Widget>[
-        _sectionLabel('资产类型'),
-        _assetTypeCard(account, name: account.type.label),
+        _assetTypeSection(),
         const SizedBox(height: AppDimens.lg),
         _sectionLabel('基本信息'),
         HairlineCard(
@@ -302,8 +327,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   // 剩余额度 = 信用额度 − 当前欠款，输入任一可编辑项即自动重算。
 
   List<Widget> _debtSections(Account account) => <Widget>[
-        _sectionLabel('资产类型'),
-        _assetTypeCard(account),
+        _assetTypeSection(),
         const SizedBox(height: AppDimens.lg),
         _sectionLabel('基本信息'),
         _basicInfoCard(),
@@ -377,11 +401,12 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                   decoration: _dayDecoration(),
                 ),
                 const SizedBox(height: AppDimens.md),
-                _fieldLabel('还款日期'),
-                KeypadField(
-                  controller: _dueDayController,
-                  allowDecimal: false,
-                  decoration: _dayDecoration(),
+                _fieldLabel('还款日'),
+                _RepayDateField(
+                  mode: _repayMode,
+                  dueDay: _dueDayValue,
+                  dueGraceDays: _dueGraceDaysValue,
+                  onTap: _pickRepayDate,
                 ),
               ],
             ),
@@ -429,51 +454,84 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     return limit - debt;
   }
 
-  /// 「资产类型」卡：类型图标 + 名称 + chevron，点击改名。
-  /// [name] 覆盖显示文本（资金模式展示类型名而非账户名）。
-  Widget _assetTypeCard(Account account, {String? name}) => HairlineCard(
-        radius: AppDimens.radiusMd,
-        padding: EdgeInsets.zero,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          onTap: () => _renameDialog(account),
-          child: Padding(
-            padding: const EdgeInsets.all(AppDimens.md),
-            child: Row(
-              children: <Widget>[
-                ClayIconTile(
-                  size: 40,
-                  color: AppPalette.primary,
-                  child: LineIcon(
-                    accountLineKind(account.type) ?? LineIconKind.star,
-                    size: 20,
-                    color: Color.lerp(
-                      AppPalette.primary,
-                      Theme.of(context).colorScheme.onSurface,
-                      0.22,
-                    )!,
-                  ),
+  /// 「资产类型」区：两栏布局。
+  ///
+  /// - 第一栏（恒显示）：账户类型选择器（类型图标 + 类型名），点击弹
+  ///   两级类型弹层；切换类型整页布局随之切换；
+  /// - 第二栏（仅银行类账户——借记卡 / 信用卡）：银行信息（银行图标 +
+  ///   银行名），点击弹银行选择弹层；
+  /// - 非银行类账户只显示第一栏（通栏）。
+  Widget _assetTypeSection() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _sectionLabel('资产类型'),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _AssetColumnCard(
+                  icon: accountLineKind(_selectedType) ?? LineIconKind.star,
+                  label: _selectedType.label,
+                  onTap: _pickAccountType,
                 ),
-                const SizedBox(width: AppDimens.md),
+              ),
+              if (_isBank) ...<Widget>[
+                const SizedBox(width: AppDimens.sm),
                 Expanded(
-                  child: Text(
-                    name ?? account.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                  child: _AssetColumnCard(
+                    icon: LineIconKind.finance,
+                    label: _bankName ?? '选择银行',
+                    dimmed: _bankName == null,
+                    onTap: _pickBank,
                   ),
-                ),
-                LineGlyph(
-                  Icons.chevron_right,
-                  size: 22,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ],
-            ),
+            ],
           ),
-        ),
+        ],
       );
+
+  /// 是否银行类账户（借记卡 / 信用卡）：这类账户有「银行」第二栏。
+  bool _isBankType(AccountType type) =>
+      type == AccountType.bankCard || type == AccountType.creditCard;
+
+  bool get _isBank => _isBankType(_selectedType);
+
+  /// 第一栏：选择账户类型（两级弹层：五大类 → 类下类型）。
+  Future<void> _pickAccountType() async {
+    final AccountType? picked =
+        await showAccountTypeSheet(context, current: _selectedType);
+    if (picked == null || !mounted || picked == _selectedType) return;
+    setState(() {
+      final bool wasBank = _isBank;
+      _selectedType = picked;
+      if (_isBankType(picked)) {
+        if (!wasBank) {
+          // 非银行类 → 银行类：第二栏出现，银行名待选；名称先按类型标签
+          // 兜底（选完银行后由银行名覆盖，与新建流程「未选银行用类型名」一致）。
+          _bankName = null;
+          _nameController.text = picked.label;
+        }
+        // 银行类 → 银行类：保留原银行名与名称，只换类型。
+      } else {
+        // 切到非银行类：第二栏隐藏；名称保留（资金等布局内有名称字段可改）。
+        _bankName = null;
+      }
+    });
+  }
+
+  /// 第二栏：选择银行（搜索 + 字母索引弹层）。
+  ///
+  /// 银行类账户没有独立名称字段，**名称即银行名**：选银行同步改名
+  /// （「自定义」可输入列表外银行或任意名称）。
+  Future<void> _pickBank() async {
+    final String? picked =
+        await showBankPickerSheet(context, selected: _bankName);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _bankName = picked;
+      _nameController.text = picked;
+    });
+  }
 
   /// 「其他」区块：资产状态三态 + 计入总资产开关（两种模式共用，
   /// 参照小青账：区块标题收进卡片内部）。
@@ -493,18 +551,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           ),
         ),
       );
-
-  /// 改名对话框：借记卡的「银行名」即账户名。
-  Future<void> _renameDialog(Account account) async {
-    final String? name = await showTextInput(
-      context,
-      title: '账户名称',
-      initialValue: _nameController.text,
-    );
-    if (name != null && mounted) {
-      setState(() => _nameController.text = name);
-    }
-  }
 
   // ---- 初始化（仅在首次拿到账户时回填，避免流刷新覆盖用户输入） ----
 
@@ -526,8 +572,19 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     );
     _billingDayController =
         TextEditingController(text: account.billingDay?.toString() ?? '');
-    _dueDayController =
-        TextEditingController(text: account.dueDay?.toString() ?? '');
+    // 还款日：免息期优先（dueGraceDays 非空），否则固定日期（dueDay）。
+    if (account.dueGraceDays != null) {
+      _repayMode = RepayMode.graceDays;
+      _dueGraceDaysValue = account.dueGraceDays;
+      _dueDayValue = null;
+    } else {
+      _repayMode = RepayMode.fixedDay;
+      _dueDayValue = account.dueDay;
+      _dueGraceDaysValue = null;
+    }
+    _selectedType = account.type;
+    // 银行类账户：现有名称即银行名（如「安阳银行」），直接作为第二栏初值。
+    if (_isBankType(_selectedType)) _bankName = account.name;
     _status = account.status;
     _includeInTotal = account.includeInTotal;
     _initialized = true;
@@ -702,77 +759,107 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       );
 
   Future<void> _save(Account account) async {
-    final String name = _nameController.text.trim();
+    final String note = _noteController.text.trim();
+    // 负债账户的基本信息只有「备注信息 / 银行卡号」，没有账户名称输入框：
+    // 备注非空时以备注充当账户名（用户指定口径）；为空则保留原账户名。
+    // 其余类型仍以「账户名称」输入框（_nameController）为准。
+    final bool noteAsName = _selectedType.isDebt && note.isNotEmpty;
+    final String name = noteAsName ? note : _nameController.text.trim();
     if (name.isEmpty) {
       showAppToast(context, '账户名称不能为空');
       return;
     }
-    // 账单日 / 还款日：空 = 清除，非法或超出 1-31 视为未填。
+    // 账单日：空 = 清除，非法或超出 1-31 视为未填。
     final int? billingDay = _parseDay(_billingDayController.text);
-    final int? dueDay = _parseDay(_dueDayController.text);
+    // 还款日：按当前模式取其一（固定日期 / 免息期互斥）。
+    final int? dueDay = _repayMode == RepayMode.fixedDay ? _dueDayValue : null;
+    final int? dueGraceDays =
+        _repayMode == RepayMode.graceDays ? _dueGraceDaysValue : null;
+    // 保存分支以「当前选中的类型」为准（第一栏可能已改类型）。
+    final AccountType type = _selectedType;
+    // 非负债类型：清掉原负债专属字段（额度 / 账单日 / 还款日），避免从
+    // 负债切走后库里留不可见脏数据；本就走非负债分支时是无害的空写。
+    const Value<int?> nonDebtFields = Value<int?>(null);
     try {
-      if (account.type.isDebt) {
+      if (type.isDebt) {
         // 负债：正余额 = 当前欠款（输入负数即多还/溢缴款）；额度/日期
         // 输入框为空 = 清空（Value(null)），有值 = 设置（Value(x)）。
         final String limitText = _creditLimitController.text.trim();
         await ref.read(accountRepositoryProvider).update(
               id: account.id,
               name: name,
-              type: account.type,
+              type: type,
               balanceMinor: Money.tryParse(_balanceController.text).minor,
               creditLimitMinor: Value<int?>(
                 limitText.isEmpty ? null : Money.tryParse(limitText).minor,
               ),
               billingDay: Value<int?>(billingDay),
               dueDay: Value<int?>(dueDay),
+              dueGraceDays: Value<int?>(dueGraceDays),
               note: _noteController.text.trim(),
               cardNumber: _cardNumberController.text.trim(),
               status: _status,
               includeInTotal: _includeInTotal,
             );
-      } else if (account.type == AccountType.bankCard) {
+      } else if (type == AccountType.bankCard) {
         // 借记卡：余额为真实值（允许手动校正）；备注 / 卡号传空串即清空
         // （仓储层 `?? before` 仅在 null 时保留现值，空串会正常写入）。
         await ref.read(accountRepositoryProvider).update(
               id: account.id,
               name: name,
-              type: account.type,
+              type: type,
               balanceMinor: Money.tryParse(_balanceController.text).minor,
+              creditLimitMinor: nonDebtFields,
+              billingDay: nonDebtFields,
+              dueDay: nonDebtFields,
+              dueGraceDays: nonDebtFields,
               note: _noteController.text.trim(),
               cardNumber: _cardNumberController.text.trim(),
               status: _status,
               includeInTotal: _includeInTotal,
             );
-      } else if (account.type.category == AccountCategory.capital) {
+      } else if (type.category == AccountCategory.capital) {
         // 资金账户（现金 / 微信 / 支付宝 / 公积金等）：余额为真实值
         // （允许手动校正）；备注 / 卡号不在表单内，不传即保留现值。
         await ref.read(accountRepositoryProvider).update(
               id: account.id,
               name: name,
-              type: account.type,
+              type: type,
               balanceMinor: Money.tryParse(_balanceController.text).minor,
+              creditLimitMinor: nonDebtFields,
+              billingDay: nonDebtFields,
+              dueDay: nonDebtFields,
+              dueGraceDays: nonDebtFields,
               status: _status,
               includeInTotal: _includeInTotal,
             );
-      } else if (account.type == AccountType.timeDeposit) {
+      } else if (type == AccountType.timeDeposit) {
         // 定期存款：余额为真实值（允许手动校正），与资金账户同口径保存。
         await ref.read(accountRepositoryProvider).update(
               id: account.id,
               name: name,
-              type: account.type,
+              type: type,
               balanceMinor: Money.tryParse(_balanceController.text).minor,
+              creditLimitMinor: nonDebtFields,
+              billingDay: nonDebtFields,
+              dueDay: nonDebtFields,
+              dueGraceDays: nonDebtFields,
               status: _status,
               includeInTotal: _includeInTotal,
             );
-      } else if (account.type.category == AccountCategory.investment) {
+      } else if (type.category == AccountCategory.investment) {
         // 投资账户：现金余额（balanceMinor）是存储唯一口径，不随持仓市值
         // 变化；展示层用 displayBalanceWithMarket 叠加市值。此处只保留现金
         // 现值，绝不可把市值写回覆盖现金（此前 bug：编辑即把余额覆盖成市值）。
         await ref.read(accountRepositoryProvider).update(
               id: account.id,
               name: name,
-              type: account.type,
+              type: type,
               balanceMinor: account.balanceMinor,
+              creditLimitMinor: nonDebtFields,
+              billingDay: nonDebtFields,
+              dueDay: nonDebtFields,
+              dueGraceDays: nonDebtFields,
               status: _status,
               includeInTotal: _includeInTotal,
             );
@@ -782,8 +869,12 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         await ref.read(accountRepositoryProvider).update(
               id: account.id,
               name: name,
-              type: account.type,
+              type: type,
               balanceMinor: account.balanceMinor,
+              creditLimitMinor: nonDebtFields,
+              billingDay: nonDebtFields,
+              dueDay: nonDebtFields,
+              dueGraceDays: nonDebtFields,
               status: _status,
               includeInTotal: _includeInTotal,
             );
@@ -805,9 +896,98 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     if (day == null || day < 1 || day > 31) return null;
     return day;
   }
+
+  /// 打开「还款日」弹窗（固定日期 / 免息期 并行）；返回后回写当前模式与值。
+  Future<void> _pickRepayDate() async {
+    final RepayDateResult? result = await showRepayDatePickerSheet(
+      context,
+      initialBillingDay: int.tryParse(_billingDayController.text),
+      initialDueDay: _dueDayValue,
+      initialDueGraceDays: _dueGraceDaysValue,
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _repayMode = result.mode;
+        _dueDayValue = result.dueDay;
+        _dueGraceDaysValue = result.dueGraceDays;
+      });
+    }
+  }
 }
 
-/// 圆角卡片容器（与新增账户页同风格）。
+/// 「资产类型」两栏中的单栏卡片：黏土方糖图标 + 名称 + chevron。
+///
+/// 两栏并排时每栏约半宽，名称超长省略；[dimmed] 为 true（如银行未选）
+/// 时名称用次级色显示「选择银行」占位。
+class _AssetColumnCard extends StatelessWidget {
+  const _AssetColumnCard({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.dimmed = false,
+  });
+
+  final LineIconKind icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool dimmed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return HairlineCard(
+      radius: AppDimens.radiusMd,
+      padding: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimens.md,
+            vertical: AppDimens.sm,
+          ),
+          child: Row(
+            children: <Widget>[
+              ClayIconTile(
+                size: 40,
+                color: AppPalette.primary,
+                child: LineIcon(
+                  icon,
+                  size: 20,
+                  color: Color.lerp(
+                    AppPalette.primary,
+                    theme.colorScheme.onSurface,
+                    0.22,
+                  )!,
+                ),
+              ),
+              const SizedBox(width: AppDimens.md),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: dimmed
+                        ? theme.colorScheme.onSurfaceVariant
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppDimens.xs),
+              LineGlyph(
+                Icons.chevron_right,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// 资产状态胶囊按钮：选中绿底白字，未选中灰底。
 class _StatusPill extends StatelessWidget {
@@ -849,6 +1029,52 @@ class _StatusPill extends StatelessWidget {
                 : Theme.of(context).colorScheme.onSurfaceVariant,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 还款日选择行（编辑/新建负债账户共用）：展示当前还款方式摘要（每月X日 /
+/// 账单后N天），点击打开「固定日期 / 免息期」并行弹窗。
+class _RepayDateField extends StatelessWidget {
+  const _RepayDateField({
+    required this.mode,
+    this.dueDay,
+    this.dueGraceDays,
+    required this.onTap,
+  });
+
+  final RepayMode mode;
+  final int? dueDay;
+  final int? dueGraceDays;
+  final VoidCallback onTap;
+
+  String get _summary =>
+      mode == RepayMode.graceDays ? '账单后${dueGraceDays ?? 0}天' : '每月${dueDay ?? 10}日';
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppDimens.sm + 4),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                _summary,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+            LineGlyph(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
         ),
       ),
     );

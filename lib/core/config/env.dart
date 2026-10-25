@@ -80,4 +80,25 @@ abstract final class Env {
 
   /// 设备唯一标识存储键，用于多设备区分同步来源。
   static const String deviceIdStorageKey = 'device_id';
+
+  /// 高德 Web 服务「逆地理编码」Key（用于解析小区 / 楼栋 / 门牌级地名）。
+  ///
+  /// 工程地图选点此前用平台原生 [Geocoding]，国内（尤其 iOS CLGeocoder /
+  /// Android Geocoder）几乎拉不到小区名，导致位置行只能显示「暂无地名」。
+  /// 高德在国内 POI 覆盖最好，是「小区级定位展示」的直接解法。
+  ///
+  /// 申请步骤（个人免费，日配额足够个人记账使用）：
+  /// 1. 注册高德开放平台开发者：https://lbs.amap.com/ （用高德/支付宝账号登录）；
+  /// 2. 进入「应用管理 → 我的应用 → 创建应用」，应用类型选「其他」；
+  /// 3. 在应用下「添加 Key」，**服务平台务必选「Web 服务」**（不是 iOS/Android 端）；
+  /// 4. 复制生成的 Key，通过编译参数注入：
+  ///    `flutter run --dart-define=AMAP_WEB_KEY=你的key`
+  ///    或在下方 defaultValue 直接填入（不推荐硬编码进仓库，仅本地调试用）。
+  ///
+  /// 留空（默认）时：[reverseGeocodeSemantic] 自动回退平台原生逆地理，
+  /// 不崩溃、仅降级为「仅坐标 / 粗略地名」。
+  static const String amapWebKey = String.fromEnvironment(
+    'AMAP_WEB_KEY',
+    defaultValue: '',
+  );
 }

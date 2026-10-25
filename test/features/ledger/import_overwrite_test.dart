@@ -128,8 +128,11 @@ void main() {
     expect(await balanceOf(a), 0);
     expect(await balanceOf(b), 0);
 
-    // ③ 同步队列：3 笔写入 op + 3 笔删除 op = 基线上 +6。
-    expect(await db.pendingOpsDao.watchCount().first, queueBefore + 6);
+    // ③ 同步队列：[PendingOpsDao.enqueue] 按 (targetTable, recordId) 去重
+    //    （修复「待同步累计统计异常」根因）——3 笔 insert op 各自被随后的
+    //    delete op 折叠替换，队列收敛为 3 条 delete op（= 有未同步变更的
+    //    记录数），故基线上 +3 而非旧的 +6。
+    expect(await db.pendingOpsDao.watchCount().first, queueBefore + 3);
 
     // ④ 之后正常导入新流水：计数 / 余额 / 记录均正确。
     await txnRepo.add(

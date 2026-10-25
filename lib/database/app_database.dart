@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 抽出为顶层常量，便于测试在不实例化 [AppDatabase] 的情况下引用当前版本，
   /// 避免迁移回归测试把版本号写死导致每次升级都要手动同步。
-  static const int kSchemaVersion = 38;
+  static const int kSchemaVersion = 40;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -505,6 +505,41 @@ class AppDatabase extends _$AppDatabase {
             // 此处仅作版本标记，避免漏写迁移步骤导致存量库永远停在 v37。
           }
 
+          if (from < 39) {
+            // v39：流水新增「来源标记」source（手动记账 / 存钱计划 / 分期记账 /
+            // 导入 / 自动同步），支撑账单页「账单来源」筛选。列带默认『手动记账』，
+            // 存量行经 _addColumnIfMissing 自动回填为『手动记账』；再按 sourceModule
+            // 把自动生成的储蓄/分期流水纠正为对应来源（其余保持默认手动记账）。
+            await _addColumnIfMissing(
+              m,
+              transactions,
+              transactions.source,
+            );
+            await customUpdate(
+              'UPDATE ${transactions.actualTableName} '
+              'SET source = ? WHERE source_module = ?',
+              variables: <Variable<Object>>[
+                const Variable<String>('存钱计划'),
+                Variable<int>(SourceModule.savings.index),
+              ],
+            );
+            await customUpdate(
+              'UPDATE ${transactions.actualTableName} '
+              'SET source = ? WHERE source_module = ?',
+              variables: <Variable<Object>>[
+                const Variable<String>('分期记账'),
+                Variable<int>(SourceModule.installment.index),
+              ],
+            );
+          }
+
+          if (from < 40) {
+            // v40：账户表新增「免息期」列（账单日后 N 天为还款日），与 due_day
+            // （每月固定还款日）互斥二选一。存量库该列为 null（即沿用旧的固定
+            // 还款日模式，due_day 已存值），无需回填，展示层按非空优先推算。
+            await _addColumnIfMissing(m, accounts, accounts.dueGraceDays);
+          }
+
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
           // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
           await _createIndexes();
@@ -654,6 +689,47 @@ class AppDatabase extends _$AppDatabase {
   /// 36 期滚存计划配置表。被 [migration] 的 onCreate（先于 [_createIndexes]，
   /// 因索引直接引用这些表）与 beforeOpen（每次打开自愈）共用——将来新增
   /// 第五张原生表时只需在此追加一行，onCreate/beforeOpen 自动覆盖。
+  /// 清空全部本地账目数据（「清空全部数据」重置入口，**破坏性**）。
+  ///
+  /// 删除所有用户账目表：账户 / 流水 / 借还 / 报销 / 储蓄 / 分期 / 预算 / 投资 /
+  /// 存货 / 模板 / 分类 / 标签 / 待同步队列，以及原生表（导入记录 / 借还冲销 /
+  /// 分期自动已还 / 滚存计划 / 同步历史 / 同步备份 / 同步冲突）。
+  /// **保留账本（Books）**：重置后应用仍可立即记账，不必重建账本。
+  /// 整个操作包在单事务内，任一失败整体回滚。
+  ///
+  /// ⚠️ 云端数据不受影响：若已配置同步，下次同步会以本地为准——本地已空、
+  /// pending_ops 也清空，云端旧数据**不会**自动拉回（无待同步差异即不覆盖）。
+  /// 需要「连云端一起清」，请在清空后另行处理云端或换新同步端点。
+  Future<void> wipeAllUserData() {
+    return transaction(() async {
+      // drift 表（保留 books）。
+      await delete(accounts).go();
+      await delete(categories).go();
+      await delete(transactions).go();
+      await delete(lendRecords).go();
+      await delete(reimbursements).go();
+      await delete(savingsGoals).go();
+      await delete(savingsDeposits).go();
+      await delete(installmentPlans).go();
+      await delete(installmentPeriods).go();
+      await delete(budgets).go();
+      await delete(investmentHoldings).go();
+      await delete(inventoryItems).go();
+      await delete(recordTemplates).go();
+      await delete(pendingOps).go();
+      await delete(tagCategories).go();
+      await delete(tags).go();
+      // 原生 SQL 表（保留 security_meta：行情候选缓存，非用户账目）。
+      await customStatement('DELETE FROM import_records');
+      await customStatement('DELETE FROM lend_flow_offsets');
+      await customStatement('DELETE FROM installment_auto_paid');
+      await customStatement('DELETE FROM savings_rolling_plans');
+      await customStatement('DELETE FROM sync_history');
+      await customStatement('DELETE FROM sync_backups');
+      await customStatement('DELETE FROM sync_conflicts');
+    });
+  }
+
   Future<void> _ensureRawTables() async {
     await _ensureLendFlowOffsetsTable();
     await _ensureInstallmentAutoPaidTable();
@@ -680,8 +756,37 @@ class AppDatabase extends _$AppDatabase {
       'skipped_count INTEGER NOT NULL, '
       'fail_json TEXT, '
       'txn_ids TEXT, '
+      'account_ids TEXT, '
+      'lend_record_ids TEXT, '
+      'investment_holding_ids TEXT, '
+      'reimbursement_ids TEXT, '
+      'savings_goal_ids TEXT, '
+      'installment_plan_ids TEXT, '
       'created_at INTEGER NOT NULL)',
     );
+    // 幂等加列（存量库无下列）：导入级联删除溯源需要记录「本次导入新建的
+    // 账户 / 借还 / 投资 / 报销 / 储蓄 / 分期台账」，删导入记录时一并软删 +
+    // 同步入队。探测缺失项再 ALTER，同 [_ensureRollingPlansTable] 的防重原则。
+    final List<QueryRow> cols = await customSelect(
+      'PRAGMA table_info(import_records)',
+    ).get();
+    final Set<String> have =
+        cols.map((QueryRow r) => r.read<String>('name')).toSet();
+    const Map<String, String> newCols = <String, String>{
+      'account_ids': 'TEXT',
+      'lend_record_ids': 'TEXT',
+      'investment_holding_ids': 'TEXT',
+      'reimbursement_ids': 'TEXT',
+      'savings_goal_ids': 'TEXT',
+      'installment_plan_ids': 'TEXT',
+    };
+    for (final MapEntry<String, String> e in newCols.entries) {
+      if (!have.contains(e.key)) {
+        await customStatement(
+          'ALTER TABLE import_records ADD COLUMN ${e.key} ${e.value}',
+        );
+      }
+    }
   }
 
   /// 幂等建表：借还流水冲销台账（[LendRepository] 用于跨账户冲销反向恢复）。

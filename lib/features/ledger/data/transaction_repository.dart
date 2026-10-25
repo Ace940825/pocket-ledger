@@ -53,6 +53,7 @@ class TransactionRepository {
     double? latitude,
     double? longitude,
     String? placeName,
+    String source = '手动记账',
   }) {
     if (amountMinor <= 0) {
       throw const ValidationFailure('金额必须大于 0');
@@ -105,6 +106,7 @@ class TransactionRepository {
           latitude: Value<double?>(latitude),
           longitude: Value<double?>(longitude),
           placeName: Value<String?>(placeName),
+          source: Value<String?>(source),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -141,6 +143,7 @@ class TransactionRepository {
         'latitude': latitude,
         'longitude': longitude,
         'placeName': placeName,
+        'source': source,
       };
       if (fromAmountMinor != null) {
         payload['fromAmountMinor'] = fromAmountMinor;
@@ -301,6 +304,7 @@ class TransactionRepository {
           latitude: Value<double?>(latitude ?? original.latitude),
           longitude: Value<double?>(longitude ?? original.longitude),
           placeName: Value<String?>(placeName ?? original.placeName),
+          source: Value<String?>(original.source),
           deleted: Value<bool>(original.deleted),
           updatedAt: Value<int>(now),
           syncedAt: Value<int?>(original.syncedAt),
@@ -349,6 +353,7 @@ class TransactionRepository {
           'latitude': latitude ?? original.latitude,
           'longitude': longitude ?? original.longitude,
           'placeName': placeName ?? original.placeName,
+          'source': original.source,
           'feeMinor': newFee,
           'discountMinor': newDiscount,
         },

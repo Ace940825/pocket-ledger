@@ -5,7 +5,12 @@ import 'dart:typed_data';
 // 仅取查询构建所需符号：全量 import 会与 material 的 Column 冲突。
 // BaseAggregate 提供 count()，BooleanExpressionOperators 提供 Expression<bool> 的 & 运算。
 import 'package:drift/drift.dart'
-    show BaseAggregate, BooleanExpressionOperators, Expression, TypedResult;
+    show
+        BaseAggregate,
+        BooleanExpressionOperators,
+        Expression,
+        QueryRow,
+        TypedResult;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -214,8 +219,7 @@ class BillImportPage extends StatelessWidget {
   }) {
     final DateTime dt =
         DateTime.fromMillisecondsSinceEpoch(record.createdAt).toLocal();
-    final String time =
-        '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
+    final String time = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
         '${dt.day.toString().padLeft(2, '0')} '
         '${dt.hour.toString().padLeft(2, '0')}:'
         '${dt.minute.toString().padLeft(2, '0')}';
@@ -266,13 +270,10 @@ class BillImportPage extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         '$time · 导入 ${record.importedCount} 笔'
-                        '${record.skippedCount > 0
-                            ? ' · 跳过 ${record.skippedCount} 笔'
-                            : ''}',
+                        '${record.skippedCount > 0 ? ' · 跳过 ${record.skippedCount} 笔' : ''}',
                         style: TextStyle(
                           fontSize: 12.5,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -307,6 +308,12 @@ class BillImportPage extends StatelessWidget {
       await ref.read(importRecordRepositoryProvider).deleteCascade(
             r.id,
             ref.read(transactionRepositoryProvider),
+            ref.read(accountRepositoryProvider),
+            ref.read(lendRepositoryProvider),
+            ref.read(investmentRepositoryProvider),
+            ref.read(reimbursementRepositoryProvider),
+            ref.read(savingsRepositoryProvider),
+            ref.read(installmentRepositoryProvider),
           );
       if (context.mounted) {
         showAppToast(context, '已删除导入记录及关联账单');
@@ -347,8 +354,7 @@ class BillImportPage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12.5,
                     height: 1.5,
-                    color:
-                        Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -731,8 +737,10 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     final Expression<int> cnt = db.transactions.id.count();
     final TypedResult? row = await (db.selectOnly(db.transactions)
           ..addColumns(<Expression<Object>>[cnt])
-          ..where(db.transactions.bookId.equals(bookId) &
-              db.transactions.deleted.equals(false),))
+          ..where(
+            db.transactions.bookId.equals(bookId) &
+                db.transactions.deleted.equals(false),
+          ))
         .getSingleOrNull();
     return row?.read(cnt) ?? 0;
   }
@@ -805,8 +813,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
 
       // 分期预聚合：按「账本#计划名」归集本批分期行（备注=计划名），计算合计金额、
       // 最早日期与行清单（按日期升序用于逐期映射）。建/匹配计划只需一次。
-      final Map<String, List<BillRow>> instPlanRows =
-          <String, List<BillRow>>{};
+      final Map<String, List<BillRow>> instPlanRows = <String, List<BillRow>>{};
       final Map<String, int> instPlanTotals = <String, int>{};
       final Map<String, int> instPlanFirstDue = <String, int>{};
       for (final BillRow row in _parsed!.rows) {
@@ -826,7 +833,9 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
         instPlanFirstDue[key] = due < cur ? due : cur;
       }
       for (final List<BillRow> list in instPlanRows.values) {
-        list.sort((BillRow a, BillRow b) => a.occurredAt.compareTo(b.occurredAt));
+        list.sort(
+          (BillRow a, BillRow b) => a.occurredAt.compareTo(b.occurredAt),
+        );
       }
       final Map<String, String> instPlanId = <String, String>{};
       final Set<String> instPlanDone = <String>{};
@@ -879,6 +888,24 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       // 脏数据叠加」。内层各仓库的 _db.transaction 退化为 savepoint，随外层
       // 一并提交或回滚。
       await db.transaction<void>(() async {
+        // 级联删除溯源：事务前后差集 = 本次导入新建对象（账户 / 流水 / 借还 /
+        // 投资 / 报销 / 储蓄 / 分期台账）。用差集而非逐个路由收集，能把借还 /
+        // 投资 / 分期「订单」等各路由产生的、未显式计入 txnIds 的流水一次网全，
+        // 删导入记录时清干净、不残留。快照取全部行 ID（不按 deleted 过滤），
+        // 覆盖模式先软删的旧流水 ID 前后都在集合里、不会误入差集。
+        Future<Set<String>> snapIds(String table) async {
+          final List<QueryRow> rows =
+              await db.customSelect('SELECT id FROM $table').get();
+          return rows.map((QueryRow r) => r.read<String>('id')).toSet();
+        }
+
+        final Set<String> preAccounts = await snapIds('accounts');
+        final Set<String> preTxns = await snapIds('transactions');
+        final Set<String> preLends = await snapIds('lend_records');
+        final Set<String> preInvests = await snapIds('investment_holdings');
+        final Set<String> preReimbs = await snapIds('reimbursements');
+        final Set<String> preSavings = await snapIds('savings_goals');
+        final Set<String> preInstPlans = await snapIds('installment_plans');
         // ── 覆盖模式：先清空当前账本全部流水（2026-10-22 导入冲突处理）──
         // 不走 deleteCascade：getById 不过滤已软删行，对已删流水再 remove
         // 会重复回退余额。改为「按 bookId 批量软删流水（removeBatch 内部
@@ -887,8 +914,10 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
         // 避免误删其他账本的导入记录。删除与导入在同一外层事务内，整体原子。
         if (mode == ImportConflictMode.overwrite) {
           final List<Transaction> stale = await (db.select(db.transactions)
-                ..where((t) =>
-                    t.bookId.equals(currentBookId) & t.deleted.equals(false),))
+                ..where(
+                  (t) =>
+                      t.bookId.equals(currentBookId) & t.deleted.equals(false),
+                ))
               .get();
           final List<String> staleIds =
               stale.map((Transaction t) => t.id).toList();
@@ -934,8 +963,9 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           // 不走 accountsOf()：它缓存的是 watchByBook（排除隐藏 / 封存户），
           // 且会在缓存里留下复原前的旧快照。这里直接查全量（含隐藏 / 封存）。
           final List<Account> existing = await (db.select(db.accounts)
-                ..where((t) =>
-                    t.bookId.equals(bookId) & t.deleted.equals(false),))
+                ..where(
+                  (t) => t.bookId.equals(bookId) & t.deleted.equals(false),
+                ))
               .get();
           Account? hit;
           for (final Account a in existing) {
@@ -958,6 +988,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
             creditLimitMinor: acc.creditLimitMinor,
             billingDay: acc.billingDay,
             dueDay: acc.dueDay,
+            dueGraceDays: acc.dueGraceDays,
             note: acc.note,
             cardNumber: acc.cardNumber,
             status: acc.status,
@@ -971,11 +1002,13 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           } else {
             accUpdated++;
           }
-          balanceFixups.add((
-            id: id,
-            type: acc.type,
-            balanceMinor: acc.balanceMinor,
-          ),);
+          balanceFixups.add(
+            (
+              id: id,
+              type: acc.type,
+              balanceMinor: acc.balanceMinor,
+            ),
+          );
           // 预填名称 → ID 缓存：行处理的 _resolveAccount / _resolveDesignatedAccount
           // 优先命中缓存，隐藏 / 封存户（不在 watchByBook 列表里）也能归户到
           // 刚复原的账户，不会重复建户。
@@ -1004,7 +1037,8 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
               // 解析目标账本：指定且存在则用之，否则归入当前账本。
               String bookId = currentBookId;
               if (row.book != null && row.book!.trim().isNotEmpty) {
-                final String? found = bookNameToId[row.book!.trim().toLowerCase()];
+                final String? found =
+                    bookNameToId[row.book!.trim().toLowerCase()];
                 if (found != null) {
                   bookId = found;
                 } else {
@@ -1068,7 +1102,8 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                 final String plan = (row.note ?? '').trim();
                 String pid = currentBookId;
                 if (row.book != null && row.book!.trim().isNotEmpty) {
-                  final String? found = bookNameToId[row.book!.trim().toLowerCase()];
+                  final String? found =
+                      bookNameToId[row.book!.trim().toLowerCase()];
                   if (found != null) pid = found;
                 }
                 final String planKey = '$pid#$plan';
@@ -1194,6 +1229,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
               }
 
               final String tid = await txnRepo.add(
+                source: '导入',
                 bookId: bookId,
                 type: row.type,
                 amountMinor: row.amountMinor,
@@ -1245,6 +1281,26 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           );
         }
 
+        // 级联删除溯源：差集 = 本次导入新建对象（见事务开头的快照注释）。
+        final List<String> newAccounts =
+            (await snapIds('accounts')).difference(preAccounts).toList();
+        final List<String> newTxns =
+            (await snapIds('transactions')).difference(preTxns).toList();
+        final List<String> newLends =
+            (await snapIds('lend_records')).difference(preLends).toList();
+        final List<String> newInvests =
+            (await snapIds('investment_holdings'))
+                .difference(preInvests)
+                .toList();
+        final List<String> newReimbs =
+            (await snapIds('reimbursements')).difference(preReimbs).toList();
+        final List<String> newSavings =
+            (await snapIds('savings_goals')).difference(preSavings).toList();
+        final List<String> newInstPlans =
+            (await snapIds('installment_plans'))
+                .difference(preInstPlans)
+                .toList();
+
         // 写入导入记录：入口页可查看 / 左滑删除级联删除本批账单。
         final ImportRecordRepository importRepo =
             ref.read(importRecordRepositoryProvider);
@@ -1256,7 +1312,15 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           skippedCount: skipped,
           createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
           failReasons: skipped > 0 ? List<String>.from(reasons) : null,
-          txnIds: txnIds.isNotEmpty ? List<String>.from(txnIds) : null,
+          // txnIds 用差集（含借还 / 投资 / 分期订单等各路由流水），比逐路由手收
+          // 集更全；其余为本次新建的账户 / 台账 ID，删导入记录时一并级联清。
+          txnIds: newTxns.isNotEmpty ? newTxns : null,
+          accountIds: newAccounts.isNotEmpty ? newAccounts : null,
+          lendRecordIds: newLends.isNotEmpty ? newLends : null,
+          investmentHoldingIds: newInvests.isNotEmpty ? newInvests : null,
+          reimbursementIds: newReimbs.isNotEmpty ? newReimbs : null,
+          savingsGoalIds: newSavings.isNotEmpty ? newSavings : null,
+          installmentPlanIds: newInstPlans.isNotEmpty ? newInstPlans : null,
         )); // ignore: require_trailing_commas
       }); // end db.transaction（整批原子提交）
 
@@ -1618,6 +1682,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       final Transaction? existingTxn = await txnRepo.getByRelatedId(relatedId);
       if (existingTxn == null) {
         final String sid = await txnRepo.add(
+          source: '导入',
           bookId: bookId,
           type: TxnType.expense,
           amountMinor: row.amountMinor,
@@ -1737,9 +1802,11 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
         accCache,
       );
       final String relatedId = '${period.id}#repay';
-      final Transaction? existingRepay = await txnRepo.getByRelatedId(relatedId);
+      final Transaction? existingRepay =
+          await txnRepo.getByRelatedId(relatedId);
       if (existingRepay == null) {
         final String rid = await txnRepo.add(
+          source: '导入',
           bookId: bookId,
           type: TxnType.transfer,
           amountMinor: r.amountMinor,
@@ -1787,8 +1854,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     if (priceMinor == null || priceMinor <= 0) {
       throw Exception('投资行缺少有效单价（备注格式 名称@单价）');
     }
-    final InvestmentType type =
-        resolveInvestmentType(row.categoryName, symbol);
+    final InvestmentType type = resolveInvestmentType(row.categoryName, symbol);
     final bool isBuy = row.type == TxnType.expense;
     final String accountId = await _resolveAccount(
       row.accountName,
@@ -1887,6 +1953,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       isSystem: true,
     );
     final String incomeTxnId = await txnRepo.add(
+      source: '导入',
       bookId: bookId,
       type: TxnType.income,
       amountMinor: row.amountMinor,

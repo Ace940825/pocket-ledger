@@ -19,7 +19,7 @@ void showAppToast(
       content: Text(message),
       duration: duration,
       behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(bottom: 96, left: 16, right: 16),
+      margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
       backgroundColor: ForestNeutral.deepInk,
     ),
   );

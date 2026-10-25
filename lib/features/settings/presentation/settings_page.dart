@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
+import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
+import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/menu_item.dart';
 import 'sync_config_card.dart';
 
@@ -16,11 +19,17 @@ import 'sync_config_card.dart';
 /// · 「同步控制」菜单入口：同步的中枢操作台。
 ///
 /// 2026-10-22：按用户要求移除「全部功能 / 预算」两个入口（宫格入口收敛）。
+///
+/// 2026-10-25：加「清空全部数据」重置入口（危险区，删除本机所有账目数据、
+/// 仅保留账本）。配套修复了「删除导入记录时随导入新建的账户 / 借还 / 投资 /
+/// 报销 / 储蓄 / 分期台账及其流水清不干净」——级联删除见
+/// [ImportRecordRepository.deleteCascade]。
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final Color error = Theme.of(context).colorScheme.error;
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
       body: ListView(
@@ -57,8 +66,43 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: AppDimens.lg),
+          // 危险区：破坏性重置，放最底部并与上文拉开间距。
+          MenuGroup(
+            children: <Widget>[
+              MenuItem(
+                icon: Icons.delete_forever_outlined,
+                iconColor: error,
+                titleColor: error,
+                title: '清空全部数据',
+                subtitle: '删除本机所有账目数据，仅保留账本（不可恢复）',
+                onTap: () => _confirmWipeAll(context, ref),
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  /// 「清空全部数据」二次确认 + 执行。强确认（danger）后调用
+  /// [AppDatabase.wipeAllUserData]，删除所有账目表但保留账本。
+  Future<void> _confirmWipeAll(BuildContext context, WidgetRef ref) async {
+    final bool? ok = await showConfirm(
+      context,
+      title: '清空全部数据？',
+      content: '将删除本机所有账户、账单、借还、报销、储蓄、分期、预算、'
+          '投资、分类、标签及导入记录，仅保留账本。此操作不可恢复。\n\n'
+          '已配置云端同步的话，云端数据不会被本机删除，但也不会自动拉回覆盖。',
+      confirmText: '全部清空',
+      danger: true,
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(appDatabaseProvider).wipeAllUserData();
+      if (context.mounted) showAppToast(context, '已清空全部账目数据');
+    } catch (e) {
+      if (context.mounted) showAppToast(context, '清空失败：$e');
+    }
   }
 }

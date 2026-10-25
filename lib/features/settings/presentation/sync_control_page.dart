@@ -26,6 +26,30 @@ final AutoDisposeFutureProvider<List<SyncHistoryRow>> syncHistoryProvider =
   (Ref ref) => ref.watch(appDatabaseProvider).listSyncHistory(),
 );
 
+/// 按表统计的待同步分布（「云端同步数据（本地镜像）」面板用）。
+final AutoDisposeFutureProvider<List<({String table, int count})>>
+    pendingByTableProvider =
+    FutureProvider.autoDispose<List<({String table, int count})>>(
+  (Ref ref) =>
+      ref.watch(appDatabaseProvider).pendingOpsDao.pendingCountByTable(),
+);
+
+/// 业务表中文名（与同步历史一致），用于把表名映射为友好标签。
+const Map<String, String> _tableLabels = <String, String>{
+  SyncTables.books: '账本',
+  SyncTables.transactions: '交易',
+  SyncTables.accounts: '账户',
+  SyncTables.categories: '分类',
+  SyncTables.lendRecords: '借还',
+  SyncTables.reimbursements: '报销',
+  SyncTables.savingsGoals: '储蓄',
+  SyncTables.installmentPlans: '分期',
+  SyncTables.installmentPeriods: '分期期次',
+  SyncTables.budgets: '预算',
+  SyncTables.investmentHoldings: '投资',
+  SyncTables.inventoryItems: '物品',
+};
+
 /// 数据范围：友好标签 → 参与的表名（可多张，如「分期」含主计划与期次两张表）。
 const List<({String label, List<String> tables})> _scopeGroups =
     <({String label, List<String> tables})>[
@@ -78,19 +102,22 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
       case _TimeRangeKind.last7:
         final DateTime from = now.subtract(const Duration(days: 7));
         return (
-          fromMs:
-              DateTime(from.year, from.month, from.day).toUtc().millisecondsSinceEpoch,
+          fromMs: DateTime(from.year, from.month, from.day)
+              .toUtc()
+              .millisecondsSinceEpoch,
           toMs: null,
         );
       case _TimeRangeKind.thisMonth:
         return (
-          fromMs: DateTime(now.year, now.month, 1).toUtc().millisecondsSinceEpoch,
+          fromMs:
+              DateTime(now.year, now.month, 1).toUtc().millisecondsSinceEpoch,
           toMs: null,
         );
       case _TimeRangeKind.custom:
         if (_from == null || _to == null) return (fromMs: null, toMs: null);
-        final int fromMs =
-            DateTime(_from!.year, _from!.month, _from!.day).toUtc().millisecondsSinceEpoch;
+        final int fromMs = DateTime(_from!.year, _from!.month, _from!.day)
+            .toUtc()
+            .millisecondsSinceEpoch;
         final DateTime toEnd = DateTime(
           _to!.year,
           _to!.month,
@@ -114,16 +141,16 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
     final SyncScope scope = _buildScope();
     setState(() => _syncing = true);
     try {
-      final SyncState result = await ref
-          .read(syncControllerProvider.notifier)
-          .syncNow(
-            options: SyncOptions(
-              direction: settings.defaultDirection,
-              scope: scope,
-            ),
-          );
+      final SyncState result =
+          await ref.read(syncControllerProvider.notifier).syncNow(
+                options: SyncOptions(
+                  direction: settings.defaultDirection,
+                  scope: scope,
+                ),
+              );
       ref.invalidate(syncHistoryProvider);
       ref.invalidate(conflictsProvider);
+      ref.invalidate(pendingByTableProvider);
       if (!mounted) return;
       if (result.status == SyncStatus.failure) {
         showAppToast(context, '同步失败：${result.error ?? '未知错误'}');
@@ -147,8 +174,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
     final bool? confirmed = await showConfirm(
       context,
       title: '撤回本次同步',
-      content:
-          '将恢复被本次同步覆盖的本地数据，并将其标记为待上传。\n确定撤回「${_fmtRange(row)}」的同步吗？',
+      content: '将恢复被本次同步覆盖的本地数据，并将其标记为待上传。\n确定撤回「${_fmtRange(row)}」的同步吗？',
       confirmText: '撤回',
       danger: true,
     );
@@ -177,8 +203,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
   }
 
   Future<void> _pickDate(bool isFrom) async {
-    final DateTime initial =
-        (isFrom ? _from : _to) ?? DateTime.now();
+    final DateTime initial = (isFrom ? _from : _to) ?? DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -208,6 +233,8 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
         children: <Widget>[
           _buildStatusSection(),
           const SizedBox(height: AppDimens.lg),
+          _buildCloudDataSection(),
+          const SizedBox(height: AppDimens.lg),
           _buildModeSection(settings),
           const SizedBox(height: AppDimens.lg),
           _buildDirectionSection(settings),
@@ -234,35 +261,105 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
         const SectionHeader(title: '同步状态'),
         const SizedBox(height: AppDimens.sm),
         ref.watch(syncControllerProvider).when(
-          data: (SyncState s) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              InfoKVRow(label: '模式', value: Text(s.adapterName)),
-              InfoKVRow(
-                label: '上次同步',
-                value: Text(
-                  s.lastSyncedAt == null || s.lastSyncedAt == 0
-                      ? '从未同步'
-                      : DateTime.fromMillisecondsSinceEpoch(s.lastSyncedAt!)
-                          .toLocal()
-                          .toString()
-                          .substring(0, 19),
-                ),
-              ),
-              InfoKVRow(label: '待同步', value: Text('${s.pendingCount} 条')),
-              if (s.error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppDimens.sm),
-                  child: Text(
-                    s.error!,
-                    style: TextStyle(color: theme.colorScheme.error),
+              data: (SyncState s) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  InfoKVRow(label: '模式', value: Text(s.adapterName)),
+                  InfoKVRow(
+                    label: '上次同步',
+                    value: Text(
+                      s.lastSyncedAt == null || s.lastSyncedAt == 0
+                          ? '从未同步'
+                          : DateTime.fromMillisecondsSinceEpoch(s.lastSyncedAt!)
+                              .toLocal()
+                              .toString()
+                              .substring(0, 19),
+                    ),
                   ),
-                ),
-            ],
-          ),
-          loading: () => const LinearProgressIndicator(),
-          error: (Object e, _) => Text('状态加载失败：$e'),
+                  InfoKVRow(label: '待同步', value: Text('${s.pendingCount} 条')),
+                  if (s.error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppDimens.sm),
+                      child: Text(
+                        s.error!,
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
+                    ),
+                ],
+              ),
+              loading: () => const LinearProgressIndicator(),
+              error: (Object e, _) => Text('状态加载失败：$e'),
+            ),
+      ],
+    );
+  }
+
+  /// 云端同步数据（本地镜像）面板（修复「云同步界面缺少云端数据展示」）。
+  ///
+  /// 本地不保存云端全量副本，这里以「待推送队列按业务表分布」近似展示即将
+  /// 同步到云端的数据范围与量级，让用户对「同步了什么 / 还有多少在排队」一目了然。
+  Widget _buildCloudDataSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SectionHeader(title: '云端同步数据（本地镜像）'),
+        const SizedBox(height: AppDimens.sm),
+        Text(
+          '本地不保存云端全量副本；下方为「待推送队列按表分布」，即本次同步将上传的数据范围与量级。',
+          style: context.text.bodySmall
+              ?.copyWith(color: context.colors.onSurfaceVariant),
         ),
+        const SizedBox(height: AppDimens.sm),
+        ref.watch(pendingByTableProvider).when(
+              loading: () => const LinearProgressIndicator(),
+              error: (Object e, _) => Text('读取失败：$e'),
+              data: (List<({String table, int count})> rows) {
+                if (rows.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
+                    child: Text(
+                      '暂无待同步数据',
+                      style: context.text.bodyMedium
+                          ?.copyWith(color: context.colors.onSurfaceVariant),
+                    ),
+                  );
+                }
+                return Column(
+                  children: <Widget>[
+                    for (final (table: String table, count: int count) in rows)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppDimens.sm),
+                        child: Row(
+                          children: <Widget>[
+                            Text(
+                              _tableLabels[table] ?? table,
+                              style: context.text.bodyMedium,
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: context.colors.surfaceContainerHighest,
+                                borderRadius:
+                                    BorderRadius.circular(AppDimens.radiusChip),
+                              ),
+                              child: Text(
+                                '$count 条',
+                                style: context.text.bodySmall?.copyWith(
+                                  color: context.colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
       ],
     );
   }
@@ -327,12 +424,9 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
         const SizedBox(height: AppDimens.sm),
         Text(
           switch (dir) {
-            SyncDirection.merge =>
-              '合并：本地与云端互相同步，冲突以时间戳决胜（最后写入胜出）。',
-            SyncDirection.pushOnly =>
-              '仅上传：本地覆盖云端，跳过下载（适合「以这台设备为准」）。',
-            SyncDirection.pullOnly =>
-              '仅下载：云端覆盖本地，跳过上传（适合「拉取其他设备的最新数据」）。',
+            SyncDirection.merge => '合并：本地与云端互相同步，冲突以时间戳决胜（最后写入胜出）。',
+            SyncDirection.pushOnly => '仅上传：本地覆盖云端，跳过下载（适合「以这台设备为准」）。',
+            SyncDirection.pullOnly => '仅下载：云端覆盖本地，跳过上传（适合「拉取其他设备的最新数据」）。',
           },
           style: context.text.bodySmall
               ?.copyWith(color: context.colors.onSurfaceVariant),
@@ -469,8 +563,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
         const SizedBox(height: AppDimens.md),
         Text(
           '数据范围',
-          style: context.text.bodyMedium
-              ?.copyWith(fontWeight: FontWeight.w600),
+          style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppDimens.sm),
         Wrap(
@@ -655,7 +748,8 @@ class _HistoryTile extends StatelessWidget {
     if (row.fromMs == null && row.toMs == null) return '全部时间';
     final DateTime from = row.fromMs == null
         ? DateTime(2018)
-        : DateTime.fromMillisecondsSinceEpoch(row.fromMs!, isUtc: true).toLocal();
+        : DateTime.fromMillisecondsSinceEpoch(row.fromMs!, isUtc: true)
+            .toLocal();
     final DateTime to = row.toMs == null
         ? DateTime.now()
         : DateTime.fromMillisecondsSinceEpoch(row.toMs!, isUtc: true).toLocal();

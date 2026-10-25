@@ -209,6 +209,7 @@ class RecordSheetLaunchArgs {
     this.reimburseSourceId,
     this.initialAmountMinor,
     this.initialNote,
+    this.initialTransferToAccountId,
     this.onSaved,
   });
   final RecordTab initialTab;
@@ -234,6 +235,11 @@ class RecordSheetLaunchArgs {
   /// 预设备注：同上。
   final String? initialNote;
 
+  /// 转账 Tab 预填的转入账户 id（信用卡还款页「还款」键入口）：
+  /// 非空且 initialTab 为 [RecordTab.transfer] 时，转入账户预选中该账户
+  /// （信用卡还款 = 资金账户 → 负债账户），转出账户与金额留空待填。
+  final String? initialTransferToAccountId;
+
   /// 保存成功回调（仅内存传递，不走深链序列化）：
   /// 任一 Tab 落库后触发。分期详情「退款」入口用它把计划转为已结束——
   /// 多选退款 relatedId 为空、无法从退款数据反推归属，必须由入口显式联动；
@@ -250,6 +256,7 @@ Future<void> openRecordSheet(
   String? reimburseSourceId,
   int? initialAmountMinor,
   String? initialNote,
+  String? initialTransferToAccountId,
   VoidCallback? onSaved,
 }) async {
   await context.push<void>(
@@ -262,6 +269,7 @@ Future<void> openRecordSheet(
       reimburseSourceId: reimburseSourceId,
       initialAmountMinor: initialAmountMinor,
       initialNote: initialNote,
+      initialTransferToAccountId: initialTransferToAccountId,
       onSaved: onSaved,
     ),
   );
@@ -280,6 +288,7 @@ class RecordSheet extends ConsumerStatefulWidget {
     this.reimburseSourceId,
     this.initialAmountMinor,
     this.initialNote,
+    this.initialTransferToAccountId,
     this.onSaved,
   });
 
@@ -322,6 +331,10 @@ class RecordSheet extends ConsumerStatefulWidget {
 
   /// 预设备注：同上，写入备注输入框（用户可改）。
   final String? initialNote;
+
+  /// 转账 Tab 预填的转入账户 id（信用卡还款页「还款」键入口）：
+  /// 仅普通新建转账模式生效（模板 / 编辑不适用），用户可改。
+  final String? initialTransferToAccountId;
 
   /// 保存成功回调（[RecordSheetLaunchArgs.onSaved] 透传）：
   /// 任一 Tab 落库成功后触发一次（退款 / 购物清单快速记账等入口联动）；
@@ -565,6 +578,17 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           preNote.isNotEmpty &&
           _noteController.text.isEmpty) {
         _noteController.text = preNote;
+      }
+    }
+    // 转账预填：信用卡还款「还款」键入口——转入账户预选当前负债账户
+    // （资金账户 → 负债账户即「还款」语义），转出账户与金额留空待填。
+    if (widget.initialTemplate == null &&
+        widget.editTxnId == null &&
+        widget.editLendId == null &&
+        _tab == RecordTab.transfer) {
+      final String? preToAccountId = widget.initialTransferToAccountId;
+      if (preToAccountId != null && preToAccountId.isNotEmpty) {
+        _toAccountId = preToAccountId;
       }
     }
     // 编辑模式：异步加载原记录并回填（流水 / 借还二选一）。
@@ -2332,6 +2356,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         title: '选择$label',
         showNoneRow: allowNone,
         noneSubtitle: noneSubtitle,
+        // 记一笔内选中后的展示全部是现金口径（转账纽带卡 / 报销账户行取
+        // balanceMinor）：弹层若按「现金 + 市值」展示证券账户，选中后主页卡
+        // 金额会变小（两边对不上）。这里统一按现金余额展示。
+        balanceWithMarket: false,
         // 同账户不能互转：冲突校验在弹窗内就地提示（不关弹窗）。
         conflictId: conflictId,
         conflictMessage: '转出与转入账户不能相同',
@@ -3852,8 +3880,11 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       ),
       child: Row(
         children: <Widget>[
-          const LineGlyph(Icons.timer_outlined,
-              size: 16, color: _Sage.greenDeep,),
+          const LineGlyph(
+            Icons.timer_outlined,
+            size: 16,
+            color: _Sage.greenDeep,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -5319,7 +5350,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ),
                 child: LineIcon(
                   accountLineKind(
-                          selected?.type ?? AccountType.reimbursement,) ??
+                        selected?.type ?? AccountType.reimbursement,
+                      ) ??
                       LineIconKind.star,
                   size: 16,
                   color: picked
@@ -7612,6 +7644,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         selectedId: _reimbAccountId,
         title: '选择报销账户',
         noneSubtitle: '暂不关联报销账户',
+        // 报销 Tab 选中后的账户行展示现金余额（balanceMinor），弹层口径需一致。
+        balanceWithMarket: false,
         onAdd: () {
           if (mounted) context.push(Routes.accountAdd);
         },
@@ -7752,8 +7786,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       }
       final Position pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 15),
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 8),
         ),
       );
       // 逆地理编码：语义化地名（优先小区/店名 POI 级，见 geo_utils），
@@ -11665,8 +11699,11 @@ class _HoldingRow extends StatelessWidget {
             ),
             if (selected) ...<Widget>[
               const SizedBox(width: 8),
-              const LineGlyph(Icons.check_circle,
-                  size: 20, color: _Sage.greenDeep,),
+              const LineGlyph(
+                Icons.check_circle,
+                size: 20,
+                color: _Sage.greenDeep,
+              ),
             ],
           ],
         ),

@@ -144,12 +144,19 @@ void main() {
     await _enterAmount(tester, '信用额度', '10000');
     await _enterAmount(tester, '当前欠款', '2500');
 
-    // 修改还款日为 20 日
+    // 修改还款日：打开日期选择 → 选 20 日 → 确定；断言展示文案同步刷新
+    // （回归：_pickDay 必须 setState，否则选完仍停在「每月10日」，看似改不了）。
     await tester.tap(find.text('还款日期'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('20'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('确定'));
     await tester.pumpAndSettle();
-
+    expect(
+      find.text('每月20日'),
+      findsOneWidget,
+      reason: '选完日期后展示文案应刷新',
+    );
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
@@ -162,7 +169,7 @@ void main() {
     expect(call.note, '日常消费');
     expect(call.cardNumber, '6222');
     expect(call.billingDay, 1);
-    expect(call.dueDay, 10);
+    expect(call.dueDay, 20);
   });
 
   testWidgets('空名称保存 → 仓库抛校验异常，页面提示「账户名称不能为空」',
@@ -534,6 +541,7 @@ class FakeAccountRepository extends AccountRepository {
     int? creditLimitMinor,
     int? billingDay,
     int? dueDay,
+    int? dueGraceDays,
     String? note,
     String? cardNumber,
     AccountStatus status = AccountStatus.active,
@@ -550,6 +558,7 @@ class FakeAccountRepository extends AccountRepository {
       creditLimitMinor: creditLimitMinor,
       billingDay: billingDay,
       dueDay: dueDay,
+      dueGraceDays: dueGraceDays,
       note: note,
       cardNumber: cardNumber,
       status: status,
@@ -568,6 +577,7 @@ class AddCall {
     this.creditLimitMinor,
     this.billingDay,
     this.dueDay,
+    this.dueGraceDays,
     this.note,
     this.cardNumber,
     this.status = AccountStatus.active,
@@ -581,6 +591,7 @@ class AddCall {
   final int? creditLimitMinor;
   final int? billingDay;
   final int? dueDay;
+  final int? dueGraceDays;
   final String? note;
   final String? cardNumber;
   final AccountStatus status;

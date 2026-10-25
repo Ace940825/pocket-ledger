@@ -1035,8 +1035,10 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                                     }
                                   }
                                 },
-                                icon: const LineGlyph(Icons.delete_outline,
-                                    size: 18,),
+                                icon: const LineGlyph(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                ),
                                 label: const Text('撤销存入'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: theme.colorScheme.error,
@@ -1714,6 +1716,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         occurredAt: now,
         note: note,
         sourceModule: SourceModule.savings,
+        source: '存钱计划',
         relatedId: relatedId,
       );
     } else {
@@ -1727,6 +1730,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         occurredAt: now,
         note: note,
         sourceModule: SourceModule.savings,
+        source: '存钱计划',
         relatedId: relatedId,
       );
     }
@@ -1768,6 +1772,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         occurredAt: now,
         note: note,
         sourceModule: SourceModule.savings,
+        source: '存钱计划',
         relatedId: relatedId,
       );
     } else {
@@ -1781,6 +1786,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
         occurredAt: now,
         note: note,
         sourceModule: SourceModule.savings,
+        source: '存钱计划',
         relatedId: relatedId,
       );
     }

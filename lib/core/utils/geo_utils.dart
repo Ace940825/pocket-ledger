@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:geocoding/geocoding.dart';
 
+import 'amap_geocoder.dart';
+
 /// 地理工具：WGS-84 ⇄ GCJ-02 坐标互转 + 语义化逆地理编码。
 ///
 /// - 定位 SDK（geolocator）给出的是 WGS-84 真实坐标，库内一律存 WGS-84；
@@ -24,10 +26,9 @@ double _transformLat(double x, double y) {
       0.2 * math.sqrt(x.abs());
   ret += (20.0 * math.sin(6.0 * x) + 20.0 * math.sin(2.0 * x)) * 2.0 / 3.0;
   ret += (20.0 * math.sin(y * 3.0) + 40.0 * math.sin(y / 3.0)) * 2.0 / 3.0;
-  ret +=
-      (160.0 * math.sin(y / 12.0) + 320.0 * math.sin(y * math.pi / 30.0)) *
-          2.0 /
-          3.0;
+  ret += (160.0 * math.sin(y / 12.0) + 320.0 * math.sin(y * math.pi / 30.0)) *
+      2.0 /
+      3.0;
   return ret;
 }
 
@@ -79,15 +80,26 @@ double _transformLng(double x, double y) {
 
 /// 逆地理编码成**语义化精确地址**（小区名 / 店名 / 门牌级），供位置行展示。
 ///
-/// 平台的 [Placemark.name] 在 iOS / Android 上通常就是 POI 级地名
-/// （如「XX小区」「星巴克咖啡」或楼门牌号），优先使用并拼上区县前缀
-/// 保持上下文；[Placemark.name] 缺失或与道路名重复（部分平台把路名
-/// 同时填进 name 与 thoroughfare）时，回退到「省市区 + 道路 + 门牌」链。
-/// 编码失败（无网 / 平台不支持）返回 null，调用方按「仅坐标」兜底。
+/// 解析策略（分层回退）：
+/// 1. 优先 [amapReverseGeocode]（高德 Web 逆地理）：国内小区 / 楼栋 / POI
+///    级覆盖最好，直接解决「暂无地名」问题；[Env.amapWebKey] 为空或失败
+///    时自动跳过。
+/// 2. 回退平台原生 [Geocoding]：用 [Placemark.name]（通常即 POI 级地名，
+///    如「XX小区」「星巴克咖啡」或楼门牌号）优先，拼上区县前缀保持上下文；
+///    [Placemark.name] 缺失或与道路名重复时回退「省市区 + 道路 + 门牌」链。
+/// 3. 所有层都失败（无网 / 平台不支持）返回 null，调用方按「仅坐标」兜底。
 Future<String?> reverseGeocodeSemantic(
   double latitude,
   double longitude,
 ) async {
+  // 1) 高德（小区级）——失败静默跳过，不阻断后续回退。
+  try {
+    final String? amap = await amapReverseGeocode(latitude, longitude);
+    if (amap != null && amap.isNotEmpty) return amap;
+  } catch (_) {
+    // 继续走平台原生。
+  }
+  // 2) 平台原生 geocoding（无 key / 高德失败 / 境外）。
   try {
     final List<Placemark> marks =
         await Geocoding().placemarkFromCoordinates(latitude, longitude);

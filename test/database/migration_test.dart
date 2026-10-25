@@ -22,7 +22,17 @@ void main() {
   });
 
   tearDown(() {
-    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+    if (!tmp.existsSync()) return;
+    // Windows 上 sqlite 文件句柄偶发延迟释放，deleteSync 会报 errno=32（文件被占用）；
+    // 重试几次即可，避免本地运行误报失败（Linux CI 无此问题）。
+    for (int i = 0; i < 5; i++) {
+      try {
+        tmp.deleteSync(recursive: true);
+        return;
+      } on FileSystemException {
+        sleep(const Duration(milliseconds: 100));
+      }
+    }
   });
 
   String dbPath() => p.join(tmp.path, 'pocket_ledger.db');
@@ -152,6 +162,60 @@ void main() {
         reason: 'v6→当前版本 升级后 user_version 必须推进到当前 schemaVersion',);
     // v8 迁移同时补齐本地模板表。
     expect(tableExists('record_templates'), isTrue);
+  });
+
+  test('v39 流水新增 source 列（来源标记）：升级幂等 + 按 sourceModule 回填',
+      () async {
+    await createCurrentSchema();
+
+    // 先在 v39（含 source 列）下写入两类流水：储蓄（source_module=4）与普通（=0）。
+    final raw.Database seed = raw.sqlite3.open(dbPath());
+    seed.execute(
+      'INSERT INTO transactions(id, book_id, type, amount_minor, account_id, '
+      'occurred_at, source_module, updated_at) '
+      "VALUES('s1','b1',0,100,'a1',0,4,0)",
+    );
+    seed.execute(
+      'INSERT INTO transactions(id, book_id, type, amount_minor, account_id, '
+      'occurred_at, source_module, updated_at) '
+      "VALUES('l1','b1',0,200,'a1',0,0,0)",
+    );
+    // 模拟已发布 v38 库：摘掉 source 列，回退 user_version。
+    seed.execute('ALTER TABLE transactions DROP COLUMN source');
+    seed.execute('PRAGMA user_version = 38');
+    seed.dispose();
+
+    expect(transactionColumns(), isNot(contains('source')));
+
+    final AppDatabase db = AppDatabase(NativeDatabase(File(dbPath())));
+    await db.booksDao.watchAll().first; // 触发 onUpgrade 38→39
+    await db.close();
+
+    expect(transactionColumns(), contains('source'));
+    expect(userVersion(), AppDatabase.kSchemaVersion);
+
+    // 回填：储蓄流水 → 『存钱计划』；普通流水保持默认『手动记账』。
+    final raw.Database post = raw.sqlite3.open(dbPath());
+    final String? savedSrc = post
+        .select("SELECT source FROM transactions WHERE id='s1'")
+        .first['source'] as String?;
+    final String? ledgerSrc = post
+        .select("SELECT source FROM transactions WHERE id='l1'")
+        .first['source'] as String?;
+    // 默认值：新增行未显式给 source 时回填为『手动记账』。
+    post.execute(
+      'INSERT INTO transactions(id, book_id, type, amount_minor, account_id, '
+      'occurred_at, source_module, updated_at) '
+      "VALUES('n1','b1',0,300,'a1',0,0,0)",
+    );
+    final String? newSrc = post
+        .select("SELECT source FROM transactions WHERE id='n1'")
+        .first['source'] as String?;
+    post.dispose();
+
+    expect(savedSrc, '存钱计划');
+    expect(ledgerSrc, '手动记账');
+    expect(newSrc, '手动记账');
   });
 
   test('新建库（user_version=0）走 onCreate，不应触发迁移', () async {

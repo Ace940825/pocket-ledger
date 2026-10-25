@@ -45,6 +45,7 @@ class SyncState {
   final int? lastSyncedAt;
   final int pendingCount;
   final String adapterName;
+
   /// 待解决的字段级冲突数（[ConflictPolicy.prompt] 下产生）。
   final int pendingConflicts;
   final String? error;
@@ -74,6 +75,7 @@ class _PullStats {
 
   final int applied;
   final int overwrote;
+
   /// 因 [ConflictPolicy.prompt] 被挂起、需用户逐字段解决的冲突数。
   final int suspended;
 }
@@ -223,18 +225,55 @@ class SyncEngine {
 
   /// 推送本地待同步操作（可按 [scope] 限定区间 / 表）。
   ///
-  /// 返回本次实际发送的待同步条数（用于历史记录展示）。
+  /// 返回本次实际从队列移除的待同步条数（用于历史记录与面板展示）。
+  ///
+  /// **整轮排空（修复「清空账单后云端残留」根因）**：旧实现每轮只取前 200 条
+  /// FIFO 推送，队列被历史重复 op 撑到 3 万+ 后，清空账单产生的 delete 被埋在队尾
+  /// 永远轮不到推送，云端数据因此残留。现改为循环分批（每批最多 500）：
+  /// - 每批推送后从队列移除「已确认 / 冲突」的 op；
+  /// - 推送失败（重试）的 op 加入 [skip]，下一轮不再卡在队首空转；
+  /// - 队列清空、达到安全上限（max）或连续整批零推进时退出，杜绝死循环。
   Future<int> _push([SyncScope? scope]) async {
-    final List<PendingOp> ops = await _db.pendingOpsDao.pending();
-    if (ops.isEmpty) return 0;
+    final Set<int> skip = <int>{};
+    int totalRemoved = 0;
+    int iterations = 0;
+    const int batch = 500;
+    const int max = 20000;
 
-    final List<PendingOp> scoped = (scope == null || scope.isFull)
-        ? ops
-        : ops
-            .where((PendingOp o) => scope.matches(o.targetTable, o.updatedAt))
-            .toList(growable: false);
-    if (scoped.isEmpty) return 0;
+    while (totalRemoved < max && iterations < 200) {
+      final List<PendingOp> ops =
+          await _db.pendingOpsDao.pending(limit: batch, exclude: skip);
+      if (ops.isEmpty) break;
 
+      final List<PendingOp> scoped = (scope == null || scope.isFull)
+          ? ops
+          : ops
+              .where((PendingOp o) => scope.matches(o.targetTable, o.updatedAt))
+              .toList(growable: false);
+
+      if (scoped.isEmpty) {
+        // 本批没有命中 scope 的 op。若是满批，说明队首一整批都不在范围内，跳过
+        // 这批避免卡死（更深的命中 op 会在下一轮浮现）；若已是末批则直接结束。
+        if (ops.length < batch) break;
+        skip.addAll(ops.map((PendingOp o) => o.localSeq));
+        iterations++;
+        continue;
+      }
+
+      final int removed = await _pushBatch(scoped, skip);
+      totalRemoved += removed;
+      iterations++;
+      // 满批却零推进（全部失败/冲突），再循环只会空转，退出。
+      if (ops.length >= batch && removed == 0) break;
+    }
+    return totalRemoved;
+  }
+
+  /// 推送一批 op 到云端，返回本次从队列成功移除的条数（已确认 + 冲突）。
+  ///
+  /// 失败的 op 递增重试计数并加入 [skip]，由 [_push] 在下一轮排空时跳过，避免
+  /// 始终卡在队首反复推送必然失败的操作（例如本地已物理删除、无法重建 payload 的行）。
+  Future<int> _pushBatch(List<PendingOp> scoped, Set<int> skip) async {
     final List<SyncOp> payload = <SyncOp>[];
     for (final PendingOp op in scoped) {
       payload.add(
@@ -254,9 +293,10 @@ class SyncEngine {
     );
 
     if (result.appliedIds.isEmpty && result.conflictedIds.isEmpty) {
-      await _db.pendingOpsDao.incrementRetry(
-        scoped.map((PendingOp o) => o.localSeq).toList(),
-      );
+      // 整批都没被服务端接纳：全部标记重试，下一轮跳过，避免空转。
+      final List<int> all = scoped.map((PendingOp o) => o.localSeq).toList();
+      await _db.pendingOpsDao.incrementRetry(all);
+      skip.addAll(all);
       return 0;
     }
 
@@ -296,9 +336,10 @@ class SyncEngine {
 
     if (failedSeqs.isNotEmpty) {
       await _db.pendingOpsDao.incrementRetry(failedSeqs);
+      skip.addAll(failedSeqs);
     }
 
-    return scoped.length;
+    return doneSeqs.length + conflictedSeqs.length;
   }
 
   /// 构造要推送的 payload。
@@ -355,9 +396,7 @@ class SyncEngine {
     String? syncId,
     ConflictPolicy conflictPolicy = ConflictPolicy.auto,
   }) async {
-    int since = advanceCursor
-        ? await lastPulledAt()
-        : (scope?.fromMs ?? 0);
+    int since = advanceCursor ? await lastPulledAt() : (scope?.fromMs ?? 0);
     String afterId = advanceCursor ? await lastPulledId() : '';
 
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -494,7 +533,14 @@ class SyncEngine {
     );
     if (companion == null) return;
 
-    await _db.syncUpsert(record.tableName, companion);
+    // 云端新增的流水标记来源为「自动同步」：本地原本没有该 id（before == null），
+    // 说明它来自其他设备同步拉取，而非本机推送的回声（回声会命中本地已有行、保留原来源）。
+    final dynamic finalCompanion =
+        (before == null && record.tableName == SyncTables.transactions)
+            ? (companion as TransactionsCompanion)
+                .copyWith(source: const Value<String?>('自动同步'))
+            : companion;
+    await _db.syncUpsert(record.tableName, finalCompanion);
     onApplied();
   }
 
@@ -553,7 +599,11 @@ class SyncEngine {
         ),
       );
     } else {
-      await _db.syncMarkSynced(conflict.table, <String>[conflict.recordId], now);
+      await _db.syncMarkSynced(
+        conflict.table,
+        <String>[conflict.recordId],
+        now,
+      );
     }
 
     await _db.markConflictResolved(id, merged, choices);

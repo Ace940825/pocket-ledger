@@ -8,6 +8,7 @@ import '../features/accounts/presentation/account_edit_page.dart';
 import '../features/accounts/presentation/account_ledger_page.dart';
 import '../features/accounts/presentation/accounts_page.dart';
 import '../features/accounts/presentation/add_account_page.dart';
+import '../features/accounts/presentation/credit_card_repay_page.dart';
 import '../features/budget/presentation/budget_page.dart';
 import '../features/categories/presentation/add_category_page.dart';
 import '../features/categories/presentation/add_subcategory_page.dart';
@@ -45,7 +46,6 @@ import '../features/settings/presentation/settings_page.dart';
 import '../features/settings/presentation/sync_conflict_page.dart';
 import '../features/settings/presentation/sync_control_page.dart';
 import '../features/shell/app_shell.dart';
-import '../features/transfer/presentation/transfer_page.dart';
 
 /// 路由路径常量集中管理，避免到处硬编码字符串。
 abstract final class Routes {
@@ -55,6 +55,7 @@ abstract final class Routes {
   static const String me = '/me';
   static const String accountManage = '/accounts/manage';
   static const String accountAdd = '/accounts/add';
+  static const String accountCreditCardRepay = '/accounts/credit-card-repay';
   static const String accountLedger = '/accounts/:id/transactions';
   static const String accountEdit = '/accounts/:id/edit';
   static const String budget = '/budget';
@@ -70,7 +71,6 @@ abstract final class Routes {
   static const String editSubcategory = '/categories/edit-subcategory';
   static const String migrateCategory = '/categories/migrate';
   static const String categoryTransactions = '/categories/:id/transactions';
-  static const String transfer = '/transfer';
   static const String lend = '/lend';
   static const String refund = '/refund';
   static const String reimbursement = '/reimbursement';
@@ -170,6 +170,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: Routes.accountAdd,
         builder: (_, __) => const AddAccountPage(),
       ),
+      // 信用卡还款页（账户设置 → 信用卡管理进入）。
+      GoRoute(
+        path: Routes.accountCreditCardRepay,
+        builder: (_, __) => const CreditCardRepayPage(),
+      ),
       // 资产总览页（原底部账户 Tab，现全屏路由，从「我的 → 资产」/首页进入）。
       GoRoute(
         path: Routes.accounts,
@@ -232,10 +237,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         builder: (_, GoRouterState state) => CategoryTransactionsPage(
           categoryId: state.pathParameters['id'] ?? '',
         ),
-      ),
-      GoRoute(
-        path: Routes.transfer,
-        builder: (_, __) => const TransferPage(),
       ),
       GoRoute(
         path: Routes.lend,
@@ -355,6 +356,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           final String? reimburseSourceId;
           final int? initialAmountMinor;
           final String? initialNote;
+          final String? initialTransferToAccountId;
           final VoidCallback? onSaved;
           if (extra is RecordSheetLaunchArgs) {
             initialTab = extra.initialTab;
@@ -364,6 +366,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             reimburseSourceId = extra.reimburseSourceId;
             initialAmountMinor = extra.initialAmountMinor;
             initialNote = extra.initialNote;
+            initialTransferToAccountId = extra.initialTransferToAccountId;
             onSaved = extra.onSaved;
           } else if (extra is RecordTab) {
             initialTab = extra;
@@ -373,6 +376,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             reimburseSourceId = null;
             initialAmountMinor = null;
             initialNote = null;
+            initialTransferToAccountId = null;
             onSaved = null;
           } else {
             initialTab = RecordTab.expense;
@@ -382,6 +386,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             reimburseSourceId = null;
             initialAmountMinor = null;
             initialNote = null;
+            initialTransferToAccountId = null;
             onSaved = null;
           }
           return RecordSheet(
@@ -392,6 +397,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             reimburseSourceId: reimburseSourceId,
             initialAmountMinor: initialAmountMinor,
             initialNote: initialNote,
+            initialTransferToAccountId: initialTransferToAccountId,
             onSaved: onSaved,
           );
         },

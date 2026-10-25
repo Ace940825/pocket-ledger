@@ -53,6 +53,11 @@ class Accounts extends Table with SyncColumns {
   IntColumn get billingDay => integer().nullable()();
   IntColumn get dueDay => integer().nullable()();
 
+  /// 免息期（天）：账单日后 N 天为还款日。与 [dueDay] 互斥二选一——
+  /// 用户选「免息期」模式时本列填值、[dueDay] 置空；选「固定日期」模式时
+  /// 本列置空、[dueDay] 填每月 X 日。展示层统一用 [nextDueDate] 推算还款日。
+  IntColumn get dueGraceDays => integer().nullable()();
+
   /// 备注
   TextColumn get note => text().nullable()();
 
@@ -120,6 +125,13 @@ class Transactions extends Table with SyncColumns {
   /// 与 [categoryId] 解耦：分类是结构化类目、参与统计归集，子分类只是可选项签，
   /// 不影响任何聚合。列可空，存量库经 v35 幂等迁移补齐。
   TextColumn get subcategory => text().nullable()();
+
+  /// 流水来源标记（创建口径，与 [sourceModule] 正交）：
+  /// 「手动记账 / 存钱计划 / 分期记账 / 导入 / 自动同步」。
+  /// 用于账单页「账单来源」筛选。列可空、默认『手动记账』——DB 层自愈合（存量行 /
+  /// 未显式标记的行回填为『手动记账』），Dart 构造器保持可选、不强制调用方传值。
+  TextColumn get source =>
+      text().nullable().withDefault(const Constant('手动记账'))();
 
   /// 业务发生时间（UTC 毫秒）
   IntColumn get occurredAt => integer()();

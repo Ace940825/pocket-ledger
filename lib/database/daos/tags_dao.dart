@@ -67,23 +67,23 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   Stream<List<Tag>> watchTags(TagScope scope, String bookId) {
     return (select(tags)
           ..where(
-            ($TagsTable tbl) =>
+            (Tags tbl) =>
                 tbl.scope.equals(scope.index) &
                 tbl.bookId.equals(bookId) &
                 tbl.deleted.equals(false),
           )
-          ..orderBy([($TagsTable tbl) => OrderingTerm.asc(tbl.sortOrder)]))
+          ..orderBy([(Tags tbl) => OrderingTerm.asc(tbl.sortOrder)]))
         .watch();
   }
 
   Future<TagCategory?> getCategoryById(String id) {
     return (select(tagCategories)
-          ..where(($TagCategoriesTable tbl) => tbl.id.equals(id)))
+          ..where((TagCategories tbl) => tbl.id.equals(id)))
         .getSingleOrNull();
   }
 
   Future<Tag?> getTagById(String id) {
-    return (select(tags)..where(($TagsTable tbl) => tbl.id.equals(id)))
+    return (select(tags)..where((Tags tbl) => tbl.id.equals(id)))
         .getSingleOrNull();
   }
 
@@ -98,7 +98,7 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   Future<int> updateCategory(TagCategoriesCompanion companion) {
     return (update(tagCategories)
           ..where(
-            ($TagCategoriesTable tbl) => tbl.id.equals(companion.id.value),
+            (TagCategories tbl) => tbl.id.equals(companion.id.value),
           ))
         .write(companion);
   }
@@ -134,7 +134,7 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   ) {
     return (update(tags)
           ..where(
-            ($TagsTable tbl) =>
+            (Tags tbl) =>
                 tbl.categoryId.equals(fromCategoryId) &
                 tbl.deleted.equals(false),
           ))
@@ -150,7 +150,7 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   /// 重命名分组（仅改 name / updatedAt / dirty）。
   Future<int> renameCategory(String id, String name, int updatedAt) {
     return (update(tagCategories)
-          ..where(($TagCategoriesTable tbl) => tbl.id.equals(id)))
+          ..where((TagCategories tbl) => tbl.id.equals(id)))
         .write(
       TagCategoriesCompanion(
         name: Value<String>(name),
@@ -201,13 +201,13 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   /// 会把缺省列写成默认值，必需列缺失时直接抛 InvalidDataException。
   Future<int> updateTag(TagsCompanion companion) {
     return (update(tags)
-          ..where(($TagsTable tbl) => tbl.id.equals(companion.id.value)))
+          ..where((Tags tbl) => tbl.id.equals(companion.id.value)))
         .write(companion);
   }
 
   /// 软删除单个标签。
   Future<int> softDeleteTag(String id, int updatedAt) {
-    return (update(tags)..where(($TagsTable tbl) => tbl.id.equals(id))).write(
+    return (update(tags)..where((Tags tbl) => tbl.id.equals(id))).write(
       const TagsCompanion(
         deleted: Value<bool>(true),
         dirty: Value<bool>(true),
@@ -217,7 +217,7 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
 
   /// 重命名标签（仅改 name / updatedAt / dirty）。
   Future<int> renameTag(String id, String name, int updatedAt) {
-    return (update(tags)..where(($TagsTable tbl) => tbl.id.equals(id))).write(
+    return (update(tags)..where((Tags tbl) => tbl.id.equals(id))).write(
       TagsCompanion(
         name: Value<String>(name),
         updatedAt: Value<int>(updatedAt),
@@ -263,7 +263,7 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   Future<Tag?> findTagByName(String categoryId, String name) {
     return (select(tags)
           ..where(
-            ($TagsTable tbl) =>
+            (Tags tbl) =>
                 tbl.categoryId.equals(categoryId) &
                 tbl.name.equals(name) &
                 tbl.deleted.equals(false),

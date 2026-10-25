@@ -28,8 +28,7 @@ final Provider<ImportRecordRepository> importRecordRepositoryProvider =
 /// 据此自动重发，列表即时刷新。
 final AutoDisposeStreamProvider<List<ImportRecord>> importRecordsProvider =
     StreamProvider.autoDispose<List<ImportRecord>>((Ref ref) {
-  final ImportRecordRepository repo =
-      ref.watch(importRecordRepositoryProvider);
+  final ImportRecordRepository repo = ref.watch(importRecordRepositoryProvider);
   return repo.watchAll();
 });
 
@@ -298,8 +297,8 @@ final AutoDisposeStreamProvider<List<Transaction>> periodTransactionsProvider =
 /// - [minMinor]/[maxMinor] 按「实付金额」（amount − discount，分）比较；
 /// - [flowTypes] 收支类型多选（支出/收入）；
 /// - [billTypes] 账单类型多选（普通收支/转账/退款/借款/报销/报销收入）；
-/// - [sources] 账单来源多选（导入/手动记账/自动同步/存钱计划/分期记账，
-///   其中「导入/自动同步」暂无可判定的来源字段，不参与匹配）；
+/// - [sources] 账单来源多选（手动记账/存钱计划/分期记账/导入/自动同步，
+///   按流水 source 标记直接匹配）；
 /// - [statsExclude]/[budgetExclude] true=仅看不计入项，false=仅看计入项，null=不过滤。
 @immutable
 class LedgerAdvancedFilter {
@@ -457,8 +456,7 @@ LedgerPeriod? ledgerPeriodOfFilter(LedgerAdvancedFilter? f) {
   final DateTime? rs = f.rangeStart;
   if (rs != null) {
     final DateTime start = day0(rs);
-    final DateTime rawEnd =
-        day0(f.rangeEnd ?? rs.add(const Duration(days: 1)));
+    final DateTime rawEnd = day0(f.rangeEnd ?? rs.add(const Duration(days: 1)));
     return LedgerPeriod(
       mode: f.rangeMode ?? LedgerPeriodMode.custom,
       start: start,
@@ -539,10 +537,9 @@ List<Transaction> applyLedgerAdvancedFilter(
 ) {
   if (f == null || f.isEmpty) return List<Transaction>.of(all);
 
-  // 账单来源里「导入/自动同步」暂无可判定的来源字段，不参与匹配。
-  final Set<String> mappedSources = f.sources
-      .where((String s) => s == '手动记账' || s == '存钱计划' || s == '分期记账')
-      .toSet();
+  // 账单来源：直接按流水 source 标记匹配（手动记账/存钱计划/分期记账/导入/自动同步）。
+  // 这 5 个标签与写入时打的 source 完全一致，无需再映射到 sourceModule。
+  final Set<String> mappedSources = f.sources.toSet();
 
   bool match(Transaction t) {
     // 时间：周期区间（周/月/年/自定义，start 含 end 不含）优先，
@@ -605,20 +602,10 @@ List<Transaction> applyLedgerAdvancedFilter(
       }
       if (!ok) return false;
     }
-    // 账单来源（任一命中即可；导入/自动同步暂不参与）。
-    if (mappedSources.isNotEmpty) {
-      bool ok = false;
-      for (final String s in mappedSources) {
-        switch (s) {
-          case '手动记账':
-            ok = ok || t.sourceModule == SourceModule.ledger;
-          case '存钱计划':
-            ok = ok || t.sourceModule == SourceModule.savings;
-          case '分期记账':
-            ok = ok || t.sourceModule == SourceModule.installment;
-        }
-      }
-      if (!ok) return false;
+    // 账单来源（任一命中即可；直接按流水 source 标记匹配：手动记账 / 存钱计划 /
+    // 分期记账 / 导入 / 自动同步）。
+    if (mappedSources.isNotEmpty && !mappedSources.contains(t.source)) {
+      return false;
     }
     // 账本限定（与当前账本相同时恒真，视为不限）。
     if (f.bookId != null && t.bookId != f.bookId) return false;

@@ -38,7 +38,7 @@ class CategoryRepository {
     final String trimmed = name.trim();
     final List<Category> all = await (_db.select(_db.categories)
           ..where(
-            ($CategoriesTable tbl) =>
+            (Categories tbl) =>
                 tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
           ))
         .get();
@@ -76,7 +76,7 @@ class CategoryRepository {
     final String trimmed = name.trim();
     final List<Category> all = await (_db.select(_db.categories)
           ..where(
-            ($CategoriesTable tbl) =>
+            (Categories tbl) =>
                 tbl.bookId.equals(bookId) & tbl.deleted.equals(false),
           ))
         .get();

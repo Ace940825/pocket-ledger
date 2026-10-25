@@ -11,15 +11,15 @@ class BooksDao extends DatabaseAccessor<AppDatabase> with _$BooksDaoMixin {
 
   Stream<List<Book>> watchAll() {
     return (select(books)
-          ..where(($BooksTable tbl) => tbl.deleted.equals(false))
+          ..where((Books tbl) => tbl.deleted.equals(false))
           ..orderBy([
-            ($BooksTable tbl) => OrderingTerm.asc(tbl.sortOrder),
+            (Books tbl) => OrderingTerm.asc(tbl.sortOrder),
           ]))
         .watch();
   }
 
   Future<Book?> getById(String id) {
-    return (select(books)..where(($BooksTable tbl) => tbl.id.equals(id)))
+    return (select(books)..where((Books tbl) => tbl.id.equals(id)))
         .getSingleOrNull();
   }
 
@@ -31,12 +31,12 @@ class BooksDao extends DatabaseAccessor<AppDatabase> with _$BooksDaoMixin {
   /// 会把缺省列写成默认值，必需列缺失时直接抛 InvalidDataException。
   Future<int> updateBook(BooksCompanion companion) {
     return (update(books)
-          ..where(($BooksTable tbl) => tbl.id.equals(companion.id.value)))
+          ..where((Books tbl) => tbl.id.equals(companion.id.value)))
         .write(companion);
   }
 
   Future<int> softDelete(String id, int updatedAt) {
-    return (update(books)..where(($BooksTable tbl) => tbl.id.equals(id))).write(
+    return (update(books)..where((Books tbl) => tbl.id.equals(id))).write(
       BooksCompanion(
         deleted: const Value<bool>(true),
         dirty: const Value<bool>(true),

@@ -548,6 +548,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             creditLimitMinor: a.creditLimitMinor,
             billingDay: a.billingDay,
             dueDay: a.dueDay,
+            dueGraceDays: a.dueGraceDays,
             note: a.note,
             cardNumber: a.cardNumber,
             status: a.status,

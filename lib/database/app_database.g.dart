@@ -569,6 +569,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   late final GeneratedColumn<int> dueDay = GeneratedColumn<int>(
       'due_day', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _dueGraceDaysMeta =
+      const VerificationMeta('dueGraceDays');
+  @override
+  late final GeneratedColumn<int> dueGraceDays = GeneratedColumn<int>(
+      'due_grace_days', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
@@ -632,6 +638,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         creditLimitMinor,
         billingDay,
         dueDay,
+        dueGraceDays,
         note,
         cardNumber,
         status,
@@ -720,6 +727,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       context.handle(_dueDayMeta,
           dueDay.isAcceptableOrUnknown(data['due_day']!, _dueDayMeta));
     }
+    if (data.containsKey('due_grace_days')) {
+      context.handle(
+          _dueGraceDaysMeta,
+          dueGraceDays.isAcceptableOrUnknown(
+              data['due_grace_days']!, _dueGraceDaysMeta));
+    }
     if (data.containsKey('note')) {
       context.handle(
           _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
@@ -785,6 +798,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           .read(DriftSqlType.int, data['${effectivePrefix}billing_day']),
       dueDay: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}due_day']),
+      dueGraceDays: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}due_grace_days']),
       note: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}note']),
       cardNumber: attachedDatabase.typeMapping
@@ -837,6 +852,11 @@ class Account extends DataClass implements Insertable<Account> {
   final int? billingDay;
   final int? dueDay;
 
+  /// 免息期（天）：账单日后 N 天为还款日。与 [dueDay] 互斥二选一——
+  /// 用户选「免息期」模式时本列填值、[dueDay] 置空；选「固定日期」模式时
+  /// 本列置空、[dueDay] 填每月 X 日。展示层统一用 [nextDueDate] 推算还款日。
+  final int? dueGraceDays;
+
   /// 备注
   final String? note;
 
@@ -869,6 +889,7 @@ class Account extends DataClass implements Insertable<Account> {
       this.creditLimitMinor,
       this.billingDay,
       this.dueDay,
+      this.dueGraceDays,
       this.note,
       this.cardNumber,
       required this.status,
@@ -906,6 +927,9 @@ class Account extends DataClass implements Insertable<Account> {
     }
     if (!nullToAbsent || dueDay != null) {
       map['due_day'] = Variable<int>(dueDay);
+    }
+    if (!nullToAbsent || dueGraceDays != null) {
+      map['due_grace_days'] = Variable<int>(dueGraceDays);
     }
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
@@ -951,6 +975,9 @@ class Account extends DataClass implements Insertable<Account> {
           : Value(billingDay),
       dueDay:
           dueDay == null && nullToAbsent ? const Value.absent() : Value(dueDay),
+      dueGraceDays: dueGraceDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueGraceDays),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       cardNumber: cardNumber == null && nullToAbsent
           ? const Value.absent()
@@ -982,6 +1009,7 @@ class Account extends DataClass implements Insertable<Account> {
       creditLimitMinor: serializer.fromJson<int?>(json['creditLimitMinor']),
       billingDay: serializer.fromJson<int?>(json['billingDay']),
       dueDay: serializer.fromJson<int?>(json['dueDay']),
+      dueGraceDays: serializer.fromJson<int?>(json['dueGraceDays']),
       note: serializer.fromJson<String?>(json['note']),
       cardNumber: serializer.fromJson<String?>(json['cardNumber']),
       status: $AccountsTable.$converterstatus
@@ -1011,6 +1039,7 @@ class Account extends DataClass implements Insertable<Account> {
       'creditLimitMinor': serializer.toJson<int?>(creditLimitMinor),
       'billingDay': serializer.toJson<int?>(billingDay),
       'dueDay': serializer.toJson<int?>(dueDay),
+      'dueGraceDays': serializer.toJson<int?>(dueGraceDays),
       'note': serializer.toJson<String?>(note),
       'cardNumber': serializer.toJson<String?>(cardNumber),
       'status': serializer
@@ -1037,6 +1066,7 @@ class Account extends DataClass implements Insertable<Account> {
           Value<int?> creditLimitMinor = const Value.absent(),
           Value<int?> billingDay = const Value.absent(),
           Value<int?> dueDay = const Value.absent(),
+          Value<int?> dueGraceDays = const Value.absent(),
           Value<String?> note = const Value.absent(),
           Value<String?> cardNumber = const Value.absent(),
           AccountStatus? status,
@@ -1061,6 +1091,8 @@ class Account extends DataClass implements Insertable<Account> {
             : this.creditLimitMinor,
         billingDay: billingDay.present ? billingDay.value : this.billingDay,
         dueDay: dueDay.present ? dueDay.value : this.dueDay,
+        dueGraceDays:
+            dueGraceDays.present ? dueGraceDays.value : this.dueGraceDays,
         note: note.present ? note.value : this.note,
         cardNumber: cardNumber.present ? cardNumber.value : this.cardNumber,
         status: status ?? this.status,
@@ -1091,6 +1123,9 @@ class Account extends DataClass implements Insertable<Account> {
       billingDay:
           data.billingDay.present ? data.billingDay.value : this.billingDay,
       dueDay: data.dueDay.present ? data.dueDay.value : this.dueDay,
+      dueGraceDays: data.dueGraceDays.present
+          ? data.dueGraceDays.value
+          : this.dueGraceDays,
       note: data.note.present ? data.note.value : this.note,
       cardNumber:
           data.cardNumber.present ? data.cardNumber.value : this.cardNumber,
@@ -1122,6 +1157,7 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('creditLimitMinor: $creditLimitMinor, ')
           ..write('billingDay: $billingDay, ')
           ..write('dueDay: $dueDay, ')
+          ..write('dueGraceDays: $dueGraceDays, ')
           ..write('note: $note, ')
           ..write('cardNumber: $cardNumber, ')
           ..write('status: $status, ')
@@ -1149,6 +1185,7 @@ class Account extends DataClass implements Insertable<Account> {
         creditLimitMinor,
         billingDay,
         dueDay,
+        dueGraceDays,
         note,
         cardNumber,
         status,
@@ -1175,6 +1212,7 @@ class Account extends DataClass implements Insertable<Account> {
           other.creditLimitMinor == this.creditLimitMinor &&
           other.billingDay == this.billingDay &&
           other.dueDay == this.dueDay &&
+          other.dueGraceDays == this.dueGraceDays &&
           other.note == this.note &&
           other.cardNumber == this.cardNumber &&
           other.status == this.status &&
@@ -1199,6 +1237,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int?> creditLimitMinor;
   final Value<int?> billingDay;
   final Value<int?> dueDay;
+  final Value<int?> dueGraceDays;
   final Value<String?> note;
   final Value<String?> cardNumber;
   final Value<AccountStatus> status;
@@ -1222,6 +1261,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.creditLimitMinor = const Value.absent(),
     this.billingDay = const Value.absent(),
     this.dueDay = const Value.absent(),
+    this.dueGraceDays = const Value.absent(),
     this.note = const Value.absent(),
     this.cardNumber = const Value.absent(),
     this.status = const Value.absent(),
@@ -1246,6 +1286,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.creditLimitMinor = const Value.absent(),
     this.billingDay = const Value.absent(),
     this.dueDay = const Value.absent(),
+    this.dueGraceDays = const Value.absent(),
     this.note = const Value.absent(),
     this.cardNumber = const Value.absent(),
     this.status = const Value.absent(),
@@ -1274,6 +1315,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? creditLimitMinor,
     Expression<int>? billingDay,
     Expression<int>? dueDay,
+    Expression<int>? dueGraceDays,
     Expression<String>? note,
     Expression<String>? cardNumber,
     Expression<int>? status,
@@ -1298,6 +1340,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (creditLimitMinor != null) 'credit_limit_minor': creditLimitMinor,
       if (billingDay != null) 'billing_day': billingDay,
       if (dueDay != null) 'due_day': dueDay,
+      if (dueGraceDays != null) 'due_grace_days': dueGraceDays,
       if (note != null) 'note': note,
       if (cardNumber != null) 'card_number': cardNumber,
       if (status != null) 'status': status,
@@ -1324,6 +1367,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       Value<int?>? creditLimitMinor,
       Value<int?>? billingDay,
       Value<int?>? dueDay,
+      Value<int?>? dueGraceDays,
       Value<String?>? note,
       Value<String?>? cardNumber,
       Value<AccountStatus>? status,
@@ -1347,6 +1391,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       creditLimitMinor: creditLimitMinor ?? this.creditLimitMinor,
       billingDay: billingDay ?? this.billingDay,
       dueDay: dueDay ?? this.dueDay,
+      dueGraceDays: dueGraceDays ?? this.dueGraceDays,
       note: note ?? this.note,
       cardNumber: cardNumber ?? this.cardNumber,
       status: status ?? this.status,
@@ -1406,6 +1451,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (dueDay.present) {
       map['due_day'] = Variable<int>(dueDay.value);
     }
+    if (dueGraceDays.present) {
+      map['due_grace_days'] = Variable<int>(dueGraceDays.value);
+    }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
@@ -1449,6 +1497,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('creditLimitMinor: $creditLimitMinor, ')
           ..write('billingDay: $billingDay, ')
           ..write('dueDay: $dueDay, ')
+          ..write('dueGraceDays: $dueGraceDays, ')
           ..write('note: $note, ')
           ..write('cardNumber: $cardNumber, ')
           ..write('status: $status, ')
@@ -2236,6 +2285,13 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> subcategory = GeneratedColumn<String>(
       'subcategory', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('手动记账'));
   static const VerificationMeta _occurredAtMeta =
       const VerificationMeta('occurredAt');
   @override
@@ -2367,6 +2423,7 @@ class $TransactionsTable extends Transactions
         toAccountId,
         categoryId,
         subcategory,
+        source,
         occurredAt,
         note,
         attachmentUrls,
@@ -2459,6 +2516,10 @@ class $TransactionsTable extends Transactions
           _subcategoryMeta,
           subcategory.isAcceptableOrUnknown(
               data['subcategory']!, _subcategoryMeta));
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
     }
     if (data.containsKey('occurred_at')) {
       context.handle(
@@ -2578,6 +2639,8 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.string, data['${effectivePrefix}category_id']),
       subcategory: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}subcategory']),
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source']),
       occurredAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}occurred_at'])!,
       note: attachedDatabase.typeMapping
@@ -2653,6 +2716,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// 不影响任何聚合。列可空，存量库经 v35 幂等迁移补齐。
   final String? subcategory;
 
+  /// 流水来源标记（创建口径，与 [sourceModule] 正交）：
+  /// 「手动记账 / 存钱计划 / 分期记账 / 导入 / 自动同步」。
+  /// 用于账单页「账单来源」筛选。列可空、默认『手动记账』——DB 层自愈合（存量行 /
+  /// 未显式标记的行回填为『手动记账』），Dart 构造器保持可选、不强制调用方传值。
+  final String? source;
+
   /// 业务发生时间（UTC 毫秒）
   final int occurredAt;
   final String? note;
@@ -2719,6 +2788,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.toAccountId,
       this.categoryId,
       this.subcategory,
+      this.source,
       required this.occurredAt,
       this.note,
       this.attachmentUrls,
@@ -2762,6 +2832,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     }
     if (!nullToAbsent || subcategory != null) {
       map['subcategory'] = Variable<String>(subcategory);
+    }
+    if (!nullToAbsent || source != null) {
+      map['source'] = Variable<String>(source);
     }
     map['occurred_at'] = Variable<int>(occurredAt);
     if (!nullToAbsent || note != null) {
@@ -2830,6 +2903,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       subcategory: subcategory == null && nullToAbsent
           ? const Value.absent()
           : Value(subcategory),
+      source:
+          source == null && nullToAbsent ? const Value.absent() : Value(source),
       occurredAt: Value(occurredAt),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       attachmentUrls: attachmentUrls == null && nullToAbsent
@@ -2884,6 +2959,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       toAccountId: serializer.fromJson<String?>(json['toAccountId']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
       subcategory: serializer.fromJson<String?>(json['subcategory']),
+      source: serializer.fromJson<String?>(json['source']),
       occurredAt: serializer.fromJson<int>(json['occurredAt']),
       note: serializer.fromJson<String?>(json['note']),
       attachmentUrls: serializer.fromJson<String?>(json['attachmentUrls']),
@@ -2923,6 +2999,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'toAccountId': serializer.toJson<String?>(toAccountId),
       'categoryId': serializer.toJson<String?>(categoryId),
       'subcategory': serializer.toJson<String?>(subcategory),
+      'source': serializer.toJson<String?>(source),
       'occurredAt': serializer.toJson<int>(occurredAt),
       'note': serializer.toJson<String?>(note),
       'attachmentUrls': serializer.toJson<String?>(attachmentUrls),
@@ -2959,6 +3036,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<String?> toAccountId = const Value.absent(),
           Value<String?> categoryId = const Value.absent(),
           Value<String?> subcategory = const Value.absent(),
+          Value<String?> source = const Value.absent(),
           int? occurredAt,
           Value<String?> note = const Value.absent(),
           Value<String?> attachmentUrls = const Value.absent(),
@@ -2990,6 +3068,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
         categoryId: categoryId.present ? categoryId.value : this.categoryId,
         subcategory: subcategory.present ? subcategory.value : this.subcategory,
+        source: source.present ? source.value : this.source,
         occurredAt: occurredAt ?? this.occurredAt,
         note: note.present ? note.value : this.note,
         attachmentUrls:
@@ -3032,6 +3111,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           data.categoryId.present ? data.categoryId.value : this.categoryId,
       subcategory:
           data.subcategory.present ? data.subcategory.value : this.subcategory,
+      source: data.source.present ? data.source.value : this.source,
       occurredAt:
           data.occurredAt.present ? data.occurredAt.value : this.occurredAt,
       note: data.note.present ? data.note.value : this.note,
@@ -3085,6 +3165,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('toAccountId: $toAccountId, ')
           ..write('categoryId: $categoryId, ')
           ..write('subcategory: $subcategory, ')
+          ..write('source: $source, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
@@ -3121,6 +3202,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         toAccountId,
         categoryId,
         subcategory,
+        source,
         occurredAt,
         note,
         attachmentUrls,
@@ -3156,6 +3238,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.toAccountId == this.toAccountId &&
           other.categoryId == this.categoryId &&
           other.subcategory == this.subcategory &&
+          other.source == this.source &&
           other.occurredAt == this.occurredAt &&
           other.note == this.note &&
           other.attachmentUrls == this.attachmentUrls &&
@@ -3189,6 +3272,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> toAccountId;
   final Value<String?> categoryId;
   final Value<String?> subcategory;
+  final Value<String?> source;
   final Value<int> occurredAt;
   final Value<String?> note;
   final Value<String?> attachmentUrls;
@@ -3221,6 +3305,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAccountId = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.subcategory = const Value.absent(),
+    this.source = const Value.absent(),
     this.occurredAt = const Value.absent(),
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
@@ -3254,6 +3339,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAccountId = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.subcategory = const Value.absent(),
+    this.source = const Value.absent(),
     required int occurredAt,
     this.note = const Value.absent(),
     this.attachmentUrls = const Value.absent(),
@@ -3294,6 +3380,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? toAccountId,
     Expression<String>? categoryId,
     Expression<String>? subcategory,
+    Expression<String>? source,
     Expression<int>? occurredAt,
     Expression<String>? note,
     Expression<String>? attachmentUrls,
@@ -3327,6 +3414,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (toAccountId != null) 'to_account_id': toAccountId,
       if (categoryId != null) 'category_id': categoryId,
       if (subcategory != null) 'subcategory': subcategory,
+      if (source != null) 'source': source,
       if (occurredAt != null) 'occurred_at': occurredAt,
       if (note != null) 'note': note,
       if (attachmentUrls != null) 'attachment_urls': attachmentUrls,
@@ -3363,6 +3451,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<String?>? toAccountId,
       Value<String?>? categoryId,
       Value<String?>? subcategory,
+      Value<String?>? source,
       Value<int>? occurredAt,
       Value<String?>? note,
       Value<String?>? attachmentUrls,
@@ -3395,6 +3484,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       toAccountId: toAccountId ?? this.toAccountId,
       categoryId: categoryId ?? this.categoryId,
       subcategory: subcategory ?? this.subcategory,
+      source: source ?? this.source,
       occurredAt: occurredAt ?? this.occurredAt,
       note: note ?? this.note,
       attachmentUrls: attachmentUrls ?? this.attachmentUrls,
@@ -3459,6 +3549,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     }
     if (subcategory.present) {
       map['subcategory'] = Variable<String>(subcategory.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
     }
     if (occurredAt.present) {
       map['occurred_at'] = Variable<int>(occurredAt.value);
@@ -3535,6 +3628,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('toAccountId: $toAccountId, ')
           ..write('categoryId: $categoryId, ')
           ..write('subcategory: $subcategory, ')
+          ..write('source: $source, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('note: $note, ')
           ..write('attachmentUrls: $attachmentUrls, ')
@@ -13412,6 +13506,7 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<int?> creditLimitMinor,
   Value<int?> billingDay,
   Value<int?> dueDay,
+  Value<int?> dueGraceDays,
   Value<String?> note,
   Value<String?> cardNumber,
   Value<AccountStatus> status,
@@ -13436,6 +13531,7 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int?> creditLimitMinor,
   Value<int?> billingDay,
   Value<int?> dueDay,
+  Value<int?> dueGraceDays,
   Value<String?> note,
   Value<String?> cardNumber,
   Value<AccountStatus> status,
@@ -13501,6 +13597,9 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<int> get dueDay => $composableBuilder(
       column: $table.dueDay, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get dueGraceDays => $composableBuilder(
+      column: $table.dueGraceDays, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnFilters(column));
@@ -13580,6 +13679,10 @@ class $$AccountsTableOrderingComposer
   ColumnOrderings<int> get dueDay => $composableBuilder(
       column: $table.dueDay, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get dueGraceDays => $composableBuilder(
+      column: $table.dueGraceDays,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnOrderings(column));
 
@@ -13654,6 +13757,9 @@ class $$AccountsTableAnnotationComposer
   GeneratedColumn<int> get dueDay =>
       $composableBuilder(column: $table.dueDay, builder: (column) => column);
 
+  GeneratedColumn<int> get dueGraceDays => $composableBuilder(
+      column: $table.dueGraceDays, builder: (column) => column);
+
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
 
@@ -13711,6 +13817,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<int?> creditLimitMinor = const Value.absent(),
             Value<int?> billingDay = const Value.absent(),
             Value<int?> dueDay = const Value.absent(),
+            Value<int?> dueGraceDays = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<String?> cardNumber = const Value.absent(),
             Value<AccountStatus> status = const Value.absent(),
@@ -13735,6 +13842,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             creditLimitMinor: creditLimitMinor,
             billingDay: billingDay,
             dueDay: dueDay,
+            dueGraceDays: dueGraceDays,
             note: note,
             cardNumber: cardNumber,
             status: status,
@@ -13759,6 +13867,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<int?> creditLimitMinor = const Value.absent(),
             Value<int?> billingDay = const Value.absent(),
             Value<int?> dueDay = const Value.absent(),
+            Value<int?> dueGraceDays = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<String?> cardNumber = const Value.absent(),
             Value<AccountStatus> status = const Value.absent(),
@@ -13783,6 +13892,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             creditLimitMinor: creditLimitMinor,
             billingDay: billingDay,
             dueDay: dueDay,
+            dueGraceDays: dueGraceDays,
             note: note,
             cardNumber: cardNumber,
             status: status,
@@ -14127,6 +14237,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<String?> toAccountId,
   Value<String?> categoryId,
   Value<String?> subcategory,
+  Value<String?> source,
   required int occurredAt,
   Value<String?> note,
   Value<String?> attachmentUrls,
@@ -14161,6 +14272,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<String?> toAccountId,
   Value<String?> categoryId,
   Value<String?> subcategory,
+  Value<String?> source,
   Value<int> occurredAt,
   Value<String?> note,
   Value<String?> attachmentUrls,
@@ -14230,6 +14342,9 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get subcategory => $composableBuilder(
       column: $table.subcategory, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get occurredAt => $composableBuilder(
       column: $table.occurredAt, builder: (column) => ColumnFilters(column));
@@ -14339,6 +14454,9 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get subcategory => $composableBuilder(
       column: $table.subcategory, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get occurredAt => $composableBuilder(
       column: $table.occurredAt, builder: (column) => ColumnOrderings(column));
 
@@ -14447,6 +14565,9 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<String> get subcategory => $composableBuilder(
       column: $table.subcategory, builder: (column) => column);
 
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
   GeneratedColumn<int> get occurredAt => $composableBuilder(
       column: $table.occurredAt, builder: (column) => column);
 
@@ -14539,6 +14660,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> toAccountId = const Value.absent(),
             Value<String?> categoryId = const Value.absent(),
             Value<String?> subcategory = const Value.absent(),
+            Value<String?> source = const Value.absent(),
             Value<int> occurredAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<String?> attachmentUrls = const Value.absent(),
@@ -14572,6 +14694,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAccountId: toAccountId,
             categoryId: categoryId,
             subcategory: subcategory,
+            source: source,
             occurredAt: occurredAt,
             note: note,
             attachmentUrls: attachmentUrls,
@@ -14605,6 +14728,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> toAccountId = const Value.absent(),
             Value<String?> categoryId = const Value.absent(),
             Value<String?> subcategory = const Value.absent(),
+            Value<String?> source = const Value.absent(),
             required int occurredAt,
             Value<String?> note = const Value.absent(),
             Value<String?> attachmentUrls = const Value.absent(),
@@ -14638,6 +14762,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAccountId: toAccountId,
             categoryId: categoryId,
             subcategory: subcategory,
+            source: source,
             occurredAt: occurredAt,
             note: note,
             attachmentUrls: attachmentUrls,

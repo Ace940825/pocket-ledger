@@ -86,6 +86,7 @@ Future<ScreenshotBillSaveOutcome> saveScreenshotBillRows({
             );
 
       final String tid = await txnRepo.add(
+        source: '导入',
         bookId: bookId,
         type: row.type,
         amountMinor: row.amountMinor,
@@ -127,7 +128,8 @@ Future<String?> copyScreenshotToAttachments(XFile file) async {
     final Directory docs = await getApplicationDocumentsDirectory();
     final Directory dir = Directory('${docs.path}/attachments');
     if (!await dir.exists()) await dir.create(recursive: true);
-    final String ext = file.path.toLowerCase().endsWith('.png') ? '.png' : '.jpg';
+    final String ext =
+        file.path.toLowerCase().endsWith('.png') ? '.png' : '.jpg';
     final String fileName = '${const Uuid().v7()}$ext';
     final File dst = File('${dir.path}/$fileName');
     final File src = File(file.path);

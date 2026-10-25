@@ -24,6 +24,7 @@ class AccountRow {
     this.creditLimitMinor,
     this.billingDay,
     this.dueDay,
+    this.dueGraceDays,
     this.note,
     this.cardNumber,
     this.status = AccountStatus.active,
@@ -56,7 +57,13 @@ class AccountRow {
 
   /// 账单日 / 还款日（1-31）。
   final int? billingDay;
+
+  /// 还款方式：固定日期（[dueDay] 每月 X 日）或免息期（[dueGraceDays] 账单日后 N 天），
+  /// 二者互斥——免息期非空时 [dueDay] 为空。导入/导出按原值搬运。
   final int? dueDay;
+
+  /// 免息期（天）：账单日后 N 天为还款日；与 [dueDay] 互斥。
+  final int? dueGraceDays;
 
   final String? note;
 
@@ -84,6 +91,7 @@ const List<String> kAccountCsvHeader = <String>[
   '信用卡额度',
   '账单日',
   '还款日',
+  '免息期',
   '备注',
   '卡号',
   '状态',
@@ -103,6 +111,7 @@ const List<String> kAccountJsonKeys = <String>[
   'creditLimit',
   'billingDay',
   'dueDay',
+  'dueGraceDays',
   'note',
   'cardNumber',
   'status',
@@ -142,6 +151,7 @@ List<dynamic> accountRowToCsvCells(AccountRow a) => <dynamic>[
           : _moneyLabel(a.creditLimitMinor!, a.currency),
       a.billingDay?.toString() ?? '',
       a.dueDay?.toString() ?? '',
+      a.dueGraceDays?.toString() ?? '',
       a.note ?? '',
       a.cardNumber ?? '',
       accountStatusExportValue(a.status),
@@ -163,6 +173,7 @@ Map<String, dynamic> accountRowToJson(AccountRow a) => <String, dynamic>{
           : Money.fromMinor(a.creditLimitMinor!, currency: a.currency).decimal,
       'billingDay': a.billingDay,
       'dueDay': a.dueDay,
+      'dueGraceDays': a.dueGraceDays,
       'note': a.note ?? '',
       'cardNumber': a.cardNumber ?? '',
       'status': accountStatusExportValue(a.status),
@@ -228,6 +239,15 @@ int? parseDayOfMonth(String raw) {
   return v;
 }
 
+/// 解析免息期天数（0-60；0 = 账单日当天还款）。空 → null；越界 / 非法 → -1。
+int? parseGraceDays(String raw) {
+  final String s = raw.trim();
+  if (s.isEmpty) return null;
+  final int? v = int.tryParse(s);
+  if (v == null || v < 0 || v > 60) return -1;
+  return v;
+}
+
 /// CSV 数据行（已按下标取好单元格）→ [AccountRow]；[errors] 收集逐格错误。
 ///
 /// [nameIndex] 为「账户名」列下标，其余列按下标传入（-1 表示无此列）。
@@ -244,6 +264,7 @@ AccountRow? parseAccountCsvRow({
   required int iCreditLimit,
   required int iBilling,
   required int iDue,
+  required int iGrace,
   required int iNote,
   required int iCard,
   required int iStatus,
@@ -278,6 +299,11 @@ AccountRow? parseAccountCsvRow({
     errors.add('$lineNo：还款日应为 1-31 的整数');
     return null;
   }
+  final int? grace = parseGraceDays(cell(iGrace));
+  if (grace == -1) {
+    errors.add('$lineNo：免息期应为 0-60 的整数');
+    return null;
+  }
   final String colorRaw = cell(iColor);
   final int? color = parseAccountColor(colorRaw);
   if (colorRaw.isNotEmpty && color == null) {
@@ -302,6 +328,7 @@ AccountRow? parseAccountCsvRow({
         : Money.tryParse(cell(iCreditLimit)).minor,
     billingDay: billing,
     dueDay: due,
+    dueGraceDays: grace,
     note: orNull(cell(iNote)),
     cardNumber: orNull(cell(iCard)),
     status: status,
@@ -341,6 +368,11 @@ AccountRow? parseAccountJsonRow(
     errors.add('$lineNo：还款日应为 1-31 的整数');
     return null;
   }
+  final int? grace = _parseGraceJson(m['dueGraceDays']);
+  if (grace == -1) {
+    errors.add('$lineNo：免息期应为 0-60 的整数');
+    return null;
+  }
   final dynamic colorRaw = m['color'];
   final int? color = colorRaw == null
       ? null
@@ -370,6 +402,7 @@ AccountRow? parseAccountJsonRow(
         : Money.tryParse(orEmpty(m['creditLimit'])).minor,
     billingDay: billing,
     dueDay: due,
+    dueGraceDays: grace,
     note: orNull(m['note']),
     cardNumber: orNull(m['cardNumber']),
     status: status,
@@ -381,6 +414,11 @@ AccountRow? parseAccountJsonRow(
 int? _parseDayJson(Object? v) {
   if (v == null) return null;
   return parseDayOfMonth(v.toString());
+}
+
+int? _parseGraceJson(Object? v) {
+  if (v == null) return null;
+  return parseGraceDays(v.toString());
 }
 
 bool _parseBool(String raw) {

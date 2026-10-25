@@ -12,6 +12,8 @@ import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/day_pick_sheet.dart';
 import '../../../shared/widgets/line_icon_map.dart';
+import '../data/repay_date.dart';
+import 'widgets/repay_date_picker_sheet.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../data/account_icon.dart';
@@ -47,7 +49,11 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
   final TextEditingController _balanceController = TextEditingController();
   final TextEditingController _creditLimitController = TextEditingController();
   final TextEditingController _billingDayController = TextEditingController();
-  final TextEditingController _dueDayController = TextEditingController();
+
+  /// 还款日设定：两种模式互斥（固定日期 / 免息期）。
+  RepayMode _repayMode = RepayMode.fixedDay;
+  int? _dueDayValue = 10;
+  int? _dueGraceDaysValue;
 
   bool _saving = false;
   bool _includeInTotal = true;
@@ -96,7 +102,6 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
     _bankName = widget.initialBank;
     _syncBill = _isSyncBillVisible;
     _billingDayController.text = '1';
-    _dueDayController.text = '10';
   }
 
   @override
@@ -107,7 +112,6 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
     _balanceController.dispose();
     _creditLimitController.dispose();
     _billingDayController.dispose();
-    _dueDayController.dispose();
     super.dispose();
   }
 
@@ -130,7 +134,9 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 ? null
                 : Money.tryParse(_creditLimitController.text).minor,
             billingDay: int.tryParse(_billingDayController.text),
-            dueDay: int.tryParse(_dueDayController.text),
+            dueDay: _repayMode == RepayMode.fixedDay ? _dueDayValue : null,
+            dueGraceDays:
+                _repayMode == RepayMode.graceDays ? _dueGraceDaysValue : null,
             note: _noteController.text.isEmpty ? null : _noteController.text,
             cardNumber: _cardNumberController.text.isEmpty
                 ? null
@@ -176,8 +182,10 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
       title: title,
       initialDay: current ?? 1,
     );
-    if (selected != null) {
-      controller.text = selected.toString();
+    // 必须触发重建：suffix（每月 X 日）在 build 中按 controller.text 渲染，
+    // 不调用 setState 会导致选完日期后展示仍停在旧值，看起来「改不了」。
+    if (selected != null && mounted) {
+      setState(() => controller.text = selected.toString());
     }
   }
 
@@ -352,7 +360,9 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
   /// 账单 / 还款日期卡片，信用卡与负债非信用卡均显示。
   List<Widget> _billDateFields() {
     final int billDay = int.tryParse(_billingDayController.text) ?? 1;
-    final int dueDay = int.tryParse(_dueDayController.text) ?? 10;
+    final String repaySuffix = _repayMode == RepayMode.fixedDay
+        ? '每月${_dueDayValue ?? 10}日'
+        : '账单后${_dueGraceDaysValue ?? 0}天';
     return <Widget>[
       _DayPickerField(
         label: '账单日期',
@@ -362,10 +372,27 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
       const Divider(height: 1, indent: AppDimens.md),
       _DayPickerField(
         label: '还款日期',
-        suffix: '每月$dueDay日',
-        onTap: () => _pickDay(_dueDayController, '选择还款日期'),
+        suffix: repaySuffix,
+        onTap: _pickRepayDate,
       ),
     ];
+  }
+
+  /// 打开「还款日」弹窗（固定日期 / 免息期 并行）。
+  Future<void> _pickRepayDate() async {
+    final RepayDateResult? result = await showRepayDatePickerSheet(
+      context,
+      initialBillingDay: int.tryParse(_billingDayController.text),
+      initialDueDay: _dueDayValue,
+      initialDueGraceDays: _dueGraceDaysValue,
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _repayMode = result.mode;
+        _dueDayValue = result.dueDay;
+        _dueGraceDaysValue = result.dueGraceDays;
+      });
+    }
   }
 
   @override

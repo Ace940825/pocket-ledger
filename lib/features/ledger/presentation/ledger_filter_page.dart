@@ -470,15 +470,13 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
               onTap: () => setState(() {
                 final bool all = tops.isNotEmpty &&
                     tops.every((Category c) => _catIds.contains(c.id));
-                // 全选/取消连同子分类一起，保证 (n/m) 计数同步。
+                // 一级只存父级 id（查询时父级即覆盖其子分类），不重复存子项，
+                // 避免「父级 + 子项」并存导致计数与命中口径不一致。
                 for (final Category c in tops) {
-                  final List<Category> subs = _subCategories(cats, c.id);
                   if (all) {
                     _catIds.remove(c.id);
-                    _catIds.removeAll(subs.map((Category s) => s.id));
                   } else {
                     _catIds.add(c.id);
-                    _catIds.addAll(subs.map((Category s) => s.id));
                   }
                 }
               }),
@@ -626,10 +624,12 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
   Widget _categoryExpandRow(List<Category> cats, Category top) {
     final List<Category> subs = _subCategories(cats, top.id);
     final bool expanded = _expanded.contains(top.id);
-    final int subSel =
-        subs.where((Category c) => _catIds.contains(c.id)).length;
+    final bool parentSel = _catIds.contains(top.id);
+    final int subSel = parentSel
+        ? subs.length
+        : subs.where((Category c) => _catIds.contains(c.id)).length;
     final bool checked =
-        _catIds.contains(top.id) || (subs.isNotEmpty && subSel == subs.length);
+        parentSel || (subs.isNotEmpty && subSel == subs.length);
 
     return Column(
       children: <Widget>[
@@ -674,13 +674,12 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                 _checkBox(
                   checked,
                   onTap: () => setState(() {
+                    // 一级只存父级 id：勾选=覆盖全部子分类，取消=连同子项清空。
                     if (checked) {
                       _catIds.remove(top.id);
                       _catIds.removeAll(subs.map((Category c) => c.id));
                     } else {
-                      // 勾选一级连同子分类一起，保证 (n/m) 计数同步。
                       _catIds.add(top.id);
-                      _catIds.addAll(subs.map((Category c) => c.id));
                     }
                   }),
                 ),
@@ -712,8 +711,31 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                         _checkBox(
                           _catIds.contains(sub.id),
                           onTap: () => setState(() {
-                            if (!_catIds.remove(sub.id)) {
-                              _catIds.add(sub.id);
+                            if (_catIds.contains(top.id)) {
+                              // 父级全选态下点子项 = 取消该子项：剥掉父级、
+                              // 保留其余子项，避免「父级还在集合里兜住所有子级」。
+                              _catIds.remove(top.id);
+                              _catIds.removeAll(subs.map((Category c) => c.id));
+                              for (final Category other in subs) {
+                                if (other.id != sub.id) _catIds.add(other.id);
+                              }
+                            } else {
+                              if (_catIds.contains(sub.id)) {
+                                _catIds.remove(sub.id);
+                              } else {
+                                _catIds.add(sub.id);
+                              }
+                              // 翻转后若子项全部选中，提升为父级全选态，
+                              // 维持「父级 / 子项子集」二选一的不变量。
+                              final int sel = subs
+                                  .where((Category c) => _catIds.contains(c.id))
+                                  .length;
+                              if (sel == subs.length) {
+                                _catIds.removeAll(
+                                  subs.map((Category c) => c.id),
+                                );
+                                _catIds.add(top.id);
+                              }
                             }
                           }),
                         ),
@@ -1265,11 +1287,11 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
               trailing: Expanded(
                 child: _scrollChips(
                   const <String>[
-                    '导入',
                     '手动记账',
-                    '自动同步',
                     '存钱计划',
                     '分期记账',
+                    '导入',
+                    '自动同步',
                   ],
                   _sources,
                 ),

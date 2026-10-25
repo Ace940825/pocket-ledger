@@ -75,7 +75,7 @@ void main() {
 
     test('模板示例与表头列数严格一致（防错位）', () {
       // 把模板正文（含 # 注释）整体当作数据解析，注释行会被忽略；
-      // v3 双段：非注释区首行是**账户段**表头（15 列），第二行是**账单段**
+      // v3 双段：非注释区首行是**账户段**表头（16 列），第二行是**账单段**
       // 表头（21 列：18 原字段 + 对方/位置/纬度/经度）。示例只在 # 注释里。
       final String csv = buildTemplateCsv();
       final List<String> nonComment = csv
@@ -84,7 +84,7 @@ void main() {
           .where((l) => l.trim().isNotEmpty)
           .toList();
       expect(nonComment.first.split(',').length, kAccountTemplateFields.length);
-      expect(nonComment.first.split(',').length, 15);
+      expect(nonComment.first.split(',').length, 16);
       expect(nonComment[1].split(',').length, 21);
     });
 
@@ -98,7 +98,7 @@ void main() {
       expect(json, contains('"accountFields"'));
       // 21 个账单字段规范（含「对方」、手续费、子分类、位置/纬度/经度）。
       expect(kBillTemplateFields.length, 21);
-      expect(kAccountTemplateFields.length, 15);
+      expect(kAccountTemplateFields.length, 16);
     });
   });
 

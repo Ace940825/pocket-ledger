@@ -41,6 +41,29 @@ List<Account> fundAccountsOnly(List<Account> list) => list
     )
     .toList();
 
+/// 账户余额金额的语义色：按「对净资产的方向」判定，而非存储层的原始正负。
+///
+/// 负债方向账户（信用卡/花呗/借呗/借入等，见 [AccountType.isLiabilitySide]）
+/// **正余额 = 欠款**：若沿用普通账户「正 = 收入绿」的判定，欠款会与现金、
+/// 股票等资产同色（都是绿），完全看不出负债——也与资产页、账户详情页
+/// 「负债金额一律用支出红」的口径分叉。因此负债账户的颜色判定取反：
+/// 欠款（正余额）→ 支出红；溢缴/结余（负余额）→ 收入绿；零值 → 中性文字。
+/// 金额本身不带正负号（UI 铁律：方向全靠语义色）。
+Color accountAmountColor(
+  BuildContext context,
+  Account account,
+  Money money, {
+  required bool selected,
+}) {
+  final bool liability = account.type.isLiabilitySide;
+  // 负债账户的「正向」是欠款（流出方向），普通账户的正向是结余（流入方向）。
+  final bool inflow = liability ? money.isNegative : money.isPositive;
+  final bool outflow = liability ? money.isPositive : money.isNegative;
+  if (inflow) return selected ? _SheetA.selPos : ForestSemantic.income;
+  if (outflow) return selected ? _SheetA.selNeg : ForestSemantic.expense;
+  return Theme.of(context).colorScheme.onSurface;
+}
+
 class _SheetA {
   // 卡片描边 rgba(44,51,41,.07)
   static Color cardBorder = AppPalette.sage900.withValues(alpha: 0.071);
@@ -99,6 +122,13 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
   final String? conflictId;
   final String conflictMessage;
 
+  /// 余额是否含证券账户的持仓市值（默认 true = 现金 + 市值，与资产页口径一致）。
+  ///
+  /// 传 false 时证券账户只展示**现金余额**——供「选中后主页卡展示现金口径」
+  /// 的调用方使用（转账纽带卡、报销账户行均取 `balanceMinor`），否则弹层里
+  /// 显示「现金 + 市值」、选中后主页卡显示现金，两边金额对不上。
+  final bool balanceWithMarket;
+
   const AccountPickerSheet({
     super.key,
     this.filter,
@@ -111,6 +141,7 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
     this.onAdd,
     this.showSettings = true,
     this.showNoneRow = true,
+    this.balanceWithMarket = true,
     this.conflictId,
     this.conflictMessage = '不能选择相同账户',
     required this.onConfirm,
@@ -306,8 +337,12 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
   Widget _buildBody() {
     final List<Account> items = _items;
     // 证券账户的持仓市值聚合（按 accountId）；余额展示 = 现金 + 市值。
-    final Map<String, int> mv =
-        ref.watch(investmentMarketValueByAccountProvider);
+    // balanceWithMarket=false（转账 / 报销等现金口径调用方）时传空 map：
+    // 证券账户市值按 0 计即只展示现金余额，与选中后主页卡金额保持一致；
+    // 同时省掉一次市场值流订阅，市场波动不会驱动弹层重建。
+    final Map<String, int> mv = widget.balanceWithMarket
+        ? ref.watch(investmentMarketValueByAccountProvider)
+        : const <String, int>{};
     if (items.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppDimens.lg),
@@ -349,7 +384,12 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                 account: account,
                 selected: selected,
                 money: money,
-                amountColor: _amountColor(money, selected),
+                amountColor: accountAmountColor(
+                  context,
+                  account,
+                  money,
+                  selected: selected,
+                ),
                 onTap: () => _pick(account.name),
               );
             },
@@ -465,25 +505,22 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
 
   // ── 操作区：资产管理（账户列表实时刷新，无需手动重新加载） ──
   Widget _buildOps() {
+    // _OpBtn 内部是 Expanded，必须直接位于 Flex（Row/Column）内。
+    // 直接塞进 Padding 会触发 ParentDataWidget 断言：debug 下报错被吞、
+    // flex 静默丢失，按钮退化成居中的窄丸（真机截图即此形态）；release 下
+    // 硬转型直接崩。故包一层 Row 让 Expanded 落到 Flex 上，恢复通栏按钮。
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: _OpBtn(
-        label: '资产管理',
-        primary: false,
-        onTap: widget.onManage,
+      child: Row(
+        children: <Widget>[
+          _OpBtn(
+            label: '资产管理',
+            primary: false,
+            onTap: widget.onManage,
+          ),
+        ],
       ),
     );
-  }
-
-  Color _amountColor(Money money, bool selected) {
-    if (selected) {
-      if (money.isPositive) return _SheetA.selPos;
-      if (money.isNegative) return _SheetA.selNeg;
-      return Theme.of(context).colorScheme.onSurface;
-    }
-    if (money.isPositive) return ForestSemantic.income;
-    if (money.isNegative) return ForestSemantic.expense;
-    return Theme.of(context).colorScheme.onSurface;
   }
 }
 
@@ -568,17 +605,6 @@ class _AccountTile extends StatelessWidget {
     required this.onTap,
   });
 
-  Color _amountColor(BuildContext context, Money money) {
-    if (selected) {
-      if (money.isPositive) return _SheetA.selPos;
-      if (money.isNegative) return _SheetA.selNeg;
-      return Theme.of(context).colorScheme.onSurface;
-    }
-    if (money.isPositive) return ForestSemantic.income;
-    if (money.isNegative) return ForestSemantic.expense;
-    return Theme.of(context).colorScheme.onSurface;
-  }
-
   @override
   Widget build(BuildContext context) {
     final Money money = Money.fromMinor(
@@ -604,7 +630,12 @@ class _AccountTile extends StatelessWidget {
         selected: selected,
         mv: mv,
         money: money,
-        amountColor: _amountColor(context, money),
+        amountColor: accountAmountColor(
+          context,
+          account,
+          money,
+          selected: selected,
+        ),
       ),
     );
 
@@ -702,11 +733,15 @@ class _CardInner extends StatelessWidget {
             ),
           ),
         ),
-        // 仅信用卡（有授信额度）显示还款日；借入/借出虽有 dueDay 字段但不展示（定稿规则）
-        if (hasQuota && account.dueDay != null) ...<Widget>[
+        // 仅信用卡（有授信额度）显示还款日；借入/借出虽有 dueDay 字段但不展示（定稿规则）。
+        // 还款日支持「固定日期 / 免息期」两种口径：固定日期沿用「还款 X号」，
+        // 免息期显示「免息 N天」。
+        if (hasQuota && (account.dueDay != null || account.dueGraceDays != null)) ...<Widget>[
           const SizedBox(width: 6),
           Text(
-            '还款 ${account.dueDay}号',
+            account.dueGraceDays != null
+                ? '免息${account.dueGraceDays}天'
+                : '还款 ${account.dueDay}号',
             style: const TextStyle(
               fontSize: 10.5,
               height: 1.2,

@@ -9,10 +9,107 @@ import '../../../providers/asset_stats_settings.dart';
 
 /// 按月聚合的结果。
 class MonthGroup {
-  const MonthGroup({required this.month, required this.transactions});
+  const MonthGroup({
+    required this.month,
+    required this.transactions,
+    this.periodStart,
+    this.periodEnd,
+  });
 
   final DateTime month;
   final List<Transaction> transactions;
+
+  /// 账单周期起（含）。仅「按账单周期分组」（见
+  /// [groupTransactionsByStatement]）的组有值；自然月分组为 `null`。
+  final DateTime? periodStart;
+
+  /// 账单周期止（含）。同上。
+  final DateTime? periodEnd;
+}
+
+/// 第 [year] 年第 [month] 个月的账单周期起止（本地日期，含两端）。
+///
+/// [billingDay] 为账单日：本月周期 = （上个月账单日的次日）～（本月账单日，
+/// 超出当月天数收敛到月末）。例：账单日 1 号 → 10 月账单周期 =
+/// 9月2日～10月1日（与小青账「周期」口径一致）。
+///
+/// 周期在时间轴上**严格首尾相接**（本期起点 = 上期终点次日），任意一天
+/// 恰好属于一个周期。
+({DateTime start, DateTime end}) statementPeriod(
+  int year,
+  int month,
+  int billingDay,
+) {
+  DateTime clampDay(int y, int m, int d) {
+    final int lastDay = DateTime(y, m + 1, 0).day;
+    return DateTime(y, m, d.clamp(1, lastDay));
+  }
+
+  final DateTime end = clampDay(year, month, billingDay);
+  final int prevYear = month == 1 ? year - 1 : year;
+  final int prevMonth = month == 1 ? 12 : month - 1;
+  final DateTime prevEnd = clampDay(prevYear, prevMonth, billingDay);
+  // prevEnd 是当月最后一天时 day+1 会自然进位到下月 1 号。
+  final DateTime start = DateTime(
+    prevEnd.year,
+    prevEnd.month,
+    prevEnd.day + 1,
+  );
+  return (start: start, end: end);
+}
+
+/// 把 [transactions] 按**账单周期**分组（只保留截止月在 [year] 内的 12 个
+/// 周期），按截止月倒序——用于有账单日的负债账户（信用卡/花呗等）资产
+/// 详情页，月份行的「支出 / 收入」即该周期的账单合计。
+///
+/// 传入的流水必须覆盖最早一个周期的起点（1 月周期起点 = 上一年 12 月
+/// 账单日次日），见 `accountTransactionsForStatementProvider` 的取数口径；
+/// 落在 12 个周期之外的交易（上一年 12 月账单日之前、或本年 12 月账单日
+/// 之后属于次年 1 月账单）自然被滤掉。
+List<MonthGroup> groupTransactionsByStatement(
+  List<Transaction> transactions,
+  int billingDay,
+  int year,
+) {
+  final List<({DateTime month, DateTime start, DateTime end})> periods =
+      <({DateTime month, DateTime start, DateTime end})>[];
+  for (int m = 1; m <= 12; m++) {
+    final ({DateTime start, DateTime end}) p =
+        statementPeriod(year, m, billingDay);
+    periods.add((month: DateTime(year, m), start: p.start, end: p.end));
+  }
+
+  final Map<String, List<Transaction>> map = <String, List<Transaction>>{};
+  for (final Transaction t in transactions) {
+    final DateTime local = DateTime.fromMillisecondsSinceEpoch(
+      t.occurredAt,
+      isUtc: true,
+    ).toLocal();
+    final DateTime d = DateTime(local.year, local.month, local.day);
+    for (final p in periods) {
+      if (!d.isBefore(p.start) && !d.isAfter(p.end)) {
+        map.putIfAbsent(monthKey(p.month), () => <Transaction>[]).add(t);
+        break;
+      }
+    }
+  }
+
+  final List<String> keys = map.keys.toList()
+    ..sort((String a, String b) => b.compareTo(a));
+
+  return keys.map((String key) {
+    final ({DateTime month, DateTime start, DateTime end}) p = periods
+        .firstWhere(
+          (({DateTime month, DateTime start, DateTime end}) e) =>
+              monthKey(e.month) == key,
+        );
+    return MonthGroup(
+      month: p.month,
+      transactions: map[key]!,
+      periodStart: p.start,
+      periodEnd: p.end,
+    );
+  }).toList(growable: false);
 }
 
 /// 单月账单的统计结果（分）。口径由 [AssetStatsSettings] 决定。

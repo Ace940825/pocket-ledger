@@ -37,38 +37,48 @@ class AppShell extends StatelessWidget {
           duration: const Duration(milliseconds: 150),
           child: openCount > 0
               ? const SizedBox.shrink(key: ValueKey<String>('nav-hidden'))
-              : NavigationBar(
-                  key: const ValueKey<String>('nav-bar'),
-                  selectedIndex: navigationShell.currentIndex,
-                  onDestinationSelected: (int index) {
-                    // 明细/报销详情等弹层挂在分支导航器上；切 Tab（含回根）
-                    // 时先收起打开中的弹层，落到目标页后各页数据走 Drift 流
-                    // 自动刷新。
-                    ModalSheetRegistry.closeAll();
-                    // 再次点击当前 Tab 时回到该分支的根页面
-                    navigationShell.goBranch(
-                      index,
-                      initialLocation: index == navigationShell.currentIndex,
-                    );
-                  },
-                  destinations: _tabs
-                      .asMap()
-                      .entries
-                      .map(
-                        (MapEntry<int, ({LineIconKind icon, String label})>
-                                entry,) =>
-                            NavigationDestination(
-                          icon: LineIcon(
-                            entry.value.icon,
-                            size: 24,
-                            color: entry.key == navigationShell.currentIndex
-                                ? scheme.primary
-                                : scheme.onSurfaceVariant,
-                          ),
-                          label: entry.value.label,
-                        ),
-                      )
-                      .toList(growable: false),
+              : MediaQuery.removePadding(
+                  context: context,
+                  removeBottom: true,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: NavigationBar(
+                      key: const ValueKey<String>('nav-bar'),
+                      selectedIndex: navigationShell.currentIndex,
+                      onDestinationSelected: (int index) {
+                        // 明细/报销详情等弹层挂在分支导航器上；切 Tab（含回根）
+                        // 时先收起打开中的弹层，落到目标页后各页数据走 Drift 流
+                        // 自动刷新。
+                        ModalSheetRegistry.closeAll();
+                        // 再次点击当前 Tab 时回到该分支的根页面
+                        navigationShell.goBranch(
+                          index,
+                          initialLocation:
+                              index == navigationShell.currentIndex,
+                        );
+                      },
+                      destinations: _tabs
+                          .asMap()
+                          .entries
+                          .map(
+                            (
+                              MapEntry<int, ({LineIconKind icon, String label})>
+                                  entry,
+                            ) =>
+                                NavigationDestination(
+                              icon: LineIcon(
+                                entry.value.icon,
+                                size: 24,
+                                color: entry.key == navigationShell.currentIndex
+                                    ? scheme.primary
+                                    : scheme.onSurfaceVariant,
+                              ),
+                              label: entry.value.label,
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                  ),
                 ),
         ),
       ),

@@ -4,8 +4,14 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:pocket_ledger/database/app_database.dart';
+import 'package:pocket_ledger/features/accounts/data/account_repository.dart';
+import 'package:pocket_ledger/features/installment/data/installment_repository.dart';
+import 'package:pocket_ledger/features/investment/data/investment_repository.dart';
 import 'package:pocket_ledger/features/ledger/data/import_record_repository.dart';
 import 'package:pocket_ledger/features/ledger/data/transaction_repository.dart';
+import 'package:pocket_ledger/features/lend/data/lend_repository.dart';
+import 'package:pocket_ledger/features/reimbursement/data/reimbursement_repository.dart';
+import 'package:pocket_ledger/features/savings/data/savings_repository.dart';
 
 /// 导入记录仓储回归测试：覆盖原生 SQL 表 `import_records` 的写入 / 读取 /
 /// 删除与 JSON 序列化往返（failReasons / txnIds），以及级联删除在「无流水清单」
@@ -95,8 +101,18 @@ void main() {
       createdAt: 1700000000003,
     ),);
     final TransactionRepository txnRepo = TransactionRepository(db);
-
-    await repo.deleteCascade('rec-4', txnRepo);
+    // deleteCascade 需全部台账仓储（级联第 2/3 步用）；本记录无任何
+    // txnIds / 台账 / 账户 ID，故只有记录行被删，不触碰流水。
+    await repo.deleteCascade(
+      'rec-4',
+      txnRepo,
+      AccountRepository(db),
+      LendRepository(db, txnRepo),
+      InvestmentRepository(db, txnRepo),
+      ReimbursementRepository(db),
+      SavingsRepository(db),
+      InstallmentRepository(db, txnRepo),
+    );
     expect((await repo.getAll()).length, 0);
   });
 

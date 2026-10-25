@@ -26,6 +26,7 @@ import '../data/account_group_collapse.dart';
 import '../data/account_group_order.dart';
 import '../data/account_icon.dart';
 import '../providers/accounts_providers.dart';
+import 'widgets/accounts_settings_sheet.dart';
 
 /// 账户列表页（分组卡片布局）。
 ///
@@ -53,9 +54,16 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         title: const Text('账户'),
         actions: <Widget>[
           IconButton(
-            icon: const LineGlyph(Icons.add),
-            tooltip: '新增账户',
-            onPressed: () => context.push(Routes.accountAdd),
+            icon: const LineGlyph(Icons.settings),
+            tooltip: '账户设置',
+            onPressed: () async {
+              // 设置弹层返回所选路由（占位项返回 null），关闭后再跳转——
+              // 用页面 context 跳转，避免弹层 context 关闭后失效。
+              final String? route = await AccountsSettingsSheet.show(context);
+              if (route != null && context.mounted) {
+                await context.push(route);
+              }
+            },
           ),
         ],
       ),
@@ -1015,11 +1023,19 @@ class _NetAssetsHeader extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            '净资产',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: ForestAssetText.primary.withValues(alpha: 0.85),
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  '净资产',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: ForestAssetText.primary.withValues(alpha: 0.85),
+                  ),
+                ),
+              ),
+              const _AddAccountButton(),
+            ],
           ),
           const SizedBox(height: AppDimens.xs),
           Text(
@@ -1060,6 +1076,59 @@ class _NetAssetsHeader extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 净资产卡右上角的「添加账户」入口。
+///
+/// 与卡片同款的半透明白底药丸（同卡内「总资产/总负债」汇总框底色）+ 森林线稿
+/// 加号 + 深橄榄绿文字，弱化但可点；点按进入新增账户页。从顶部 AppBar 移入此处
+/// （2026-10-23 用户反馈：加账户键应落在资产卡片右上角，而非标题栏）。
+class _AddAccountButton extends StatelessWidget {
+  const _AddAccountButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    // 包一层透明 Material：InkWell 需要 Material 祖先承载 ink 水波纹，
+    // 卡片本身是带背景的 Container（非 Material），不插会触发 Flutter ink 断言。
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: () => context.push(Routes.accountAdd),
+        borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimens.sm,
+            vertical: 6,
+          ),
+          decoration: BoxDecoration(
+            // 与卡内汇总框同底（半透明白），视觉统一。
+            color:
+                Colors.white.withValues(alpha: 0.35), // ignore: no_raw_colors
+            borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const LineGlyph(
+                Icons.add,
+                size: 16,
+                color: ForestAssetText.primary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '添加账户',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: ForestAssetText.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

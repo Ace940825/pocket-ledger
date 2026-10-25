@@ -74,6 +74,13 @@
         "desc": "信用卡还款日，1-31；留空为不设"
       },
       {
+        "key": "dueGraceDays",
+        "name": "免息期",
+        "type": "数字",
+        "required": false,
+        "desc": "免息期（天）：账单日后 N 天为还款日，与还款日二选一；留空为不设"
+      },
+      {
         "key": "note",
         "name": "备注",
         "type": "文本",

@@ -6,6 +6,7 @@ import '../../../domain/enums.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../data/account_icon.dart';
+import '../data/account_type_groups.dart';
 import 'account_form_page.dart';
 import 'bank_select_page.dart';
 
@@ -87,7 +88,7 @@ class _AddAccountPageState extends State<AddAccountPage>
         children: List<Widget>.generate(
           _tabs.length,
           (int index) => _TabContent(
-            index: index,
+            category: kAccountCategoryOrder[index],
             onSelect: _onSelectType,
           ),
         ),
@@ -99,16 +100,16 @@ class _AddAccountPageState extends State<AddAccountPage>
 /// 每个分类 Tab 的内容：可选类型列表。
 class _TabContent extends StatelessWidget {
   const _TabContent({
-    required this.index,
+    required this.category,
     required this.onSelect,
   });
 
-  final int index;
+  final AccountCategory category;
   final ValueChanged<AccountType> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    final List<AccountType> types = _typesForTab(index);
+    final List<AccountType> types = accountTypesForCategory(category);
 
     return ListView(
       padding: const EdgeInsets.all(AppDimens.lg),
@@ -207,48 +208,3 @@ class _TypeOption extends StatelessWidget {
   }
 }
 
-/// 根据 Tab 下标返回该分类下可创建的账户类型。
-///
-/// 顺序与 [_tabs] 严格对应：**资金 / 负债 / 投资 / 应收 / 应付**。
-/// 注意：「投资账户」已从列表移除（与基金/股票/期货/现货重复）。
-List<AccountType> _typesForTab(int index) => switch (index) {
-      // 资金
-      0 => <AccountType>[
-          AccountType.cash,
-          AccountType.wechat,
-          AccountType.alipay,
-          AccountType.bankCard,
-          AccountType.providentFund,
-          AccountType.medicalInsurance,
-          AccountType.transitCard,
-          AccountType.giftCard,
-          AccountType.other,
-        ],
-      // 负债
-      1 => <AccountType>[
-          AccountType.huabei,
-          AccountType.jiebei,
-          AccountType.baitiao,
-          AccountType.creditCard,
-          AccountType.meituanMonthly,
-          AccountType.douyinMonthly,
-          AccountType.otherDebt,
-        ],
-      // 投资
-      2 => <AccountType>[
-          AccountType.fund,
-          AccountType.stock,
-          AccountType.futures,
-          AccountType.spot,
-          AccountType.timeDeposit,
-          AccountType.investmentOther,
-        ],
-      // 应收
-      3 => <AccountType>[
-          AccountType.reimbursement,
-          AccountType.lend,
-        ],
-      // 应付
-      4 => <AccountType>[AccountType.borrow],
-      _ => <AccountType>[],
-    };
