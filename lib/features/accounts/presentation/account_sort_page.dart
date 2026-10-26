@@ -192,7 +192,7 @@ class _AccountSortPageState extends ConsumerState<AccountSortPage> {
         onPressed: _saving ? null : _save,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppPalette.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: theme.colorScheme.onPrimary,
           disabledBackgroundColor:
               AppPalette.primary.withValues(alpha: 0.5),
           elevation: 2,
@@ -206,13 +206,13 @@ class _AccountSortPageState extends ConsumerState<AccountSortPage> {
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: theme.colorScheme.onPrimary,
                 ),
               )
             : Text(
                 '保存',
                 style: theme.textTheme.titleSmall?.copyWith(
-                  color: Colors.white,
+                  color: theme.colorScheme.onPrimary,
                   fontWeight: FontWeight.w700,
                 ),
               ),
