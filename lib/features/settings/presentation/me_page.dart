@@ -2,16 +2,16 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:pocket_ledger/theme/app_dimens.dart';
+
 import '../../../database/app_database.dart';
 import '../../../features/record/presentation/record_sheet.dart';
 import '../../../features/record/record_tab.dart';
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/section_header.dart';
-import '../../../shared/widgets/app_toast.dart';
 import '../../../theme/app_colors.dart';
 
 /// 记账天数：当前账本最早一笔流水的【真实记录时刻】所在自然日至今（含首尾），
@@ -338,7 +338,11 @@ class MePage extends ConsumerWidget {
     ),
     (label: '账户管理', icon: Icons.credit_card, route: Routes.accountManage),
     (label: '物品管理', icon: Icons.inventory_2_outlined, route: Routes.inventory),
-    (label: '卡片管理', icon: Icons.credit_score_outlined, route: Routes.cardManage),
+    (
+      label: '卡片管理',
+      icon: Icons.credit_score_outlined,
+      route: Routes.cardManage
+    ),
   ];
 
   static const List<({String label, IconData icon, String route})>

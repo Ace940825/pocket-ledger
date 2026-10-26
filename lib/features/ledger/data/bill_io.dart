@@ -284,15 +284,14 @@ String buildCsv(List<BillRow> rows, {List<AccountRow> accounts = const []}) {
         r.longitude?.toStringAsFixed(6) ?? '',
       ],
   ];
-  final String bills =
-      const ListToCsvConverter(eol: '\n').convert(table);
+  final String bills = const ListToCsvConverter(eol: '\n').convert(table);
   if (accounts.isEmpty) return bills;
   return <String>[
     '$kAccountSectionMarker\n'
         '${const ListToCsvConverter(eol: '\n').convert(<List<dynamic>>[
-              kAccountCsvHeader,
-              for (final AccountRow a in accounts) accountRowToCsvCells(a),
-            ])}',
+          kAccountCsvHeader,
+          for (final AccountRow a in accounts) accountRowToCsvCells(a),
+        ])}',
     '$kBillSectionMarker\n$bills',
   ].join('\n');
 }
@@ -341,7 +340,11 @@ String buildJson(List<BillRow> rows, {List<AccountRow> accounts = const []}) {
 
 /// 解析结果：成功解析的账单行 / 账户行 + 每一条无法解析的记录（带行号 / 原因）。
 class ParseResult {
-  const ParseResult(this.rows, this.errors, {this.accounts = const <AccountRow>[]});
+  const ParseResult(
+    this.rows,
+    this.errors, {
+    this.accounts = const <AccountRow>[],
+  });
 
   final List<BillRow> rows;
 
@@ -539,7 +542,8 @@ ParseResult _parseBillCsvSection(List<String> lines) {
       errors.add('$lineNo：类型无法识别（应为 收入 / 支出 / 转账）');
       continue;
     }
-    final SourceModule module = _parseModule(cell(iModule)) ?? SourceModule.ledger;
+    final SourceModule module =
+        _parseModule(cell(iModule)) ?? SourceModule.ledger;
     final int amount = Money.tryParse(cell(iAmount)).minor;
     final String catTrim = _nullIfEmpty(cell(iCat));
     final String? categoryName = catTrim.isEmpty ? null : catTrim;
@@ -570,7 +574,8 @@ ParseResult _parseBillCsvSection(List<String> lines) {
     final String? book = bookTrim.isEmpty ? null : bookTrim;
     final bool isReimbursable = _parseBool(cell(iReimb));
     final String reimbAccTrim = _nullIfEmpty(cell(iReimbAcc));
-    final String? reimbursementAccount = reimbAccTrim.isEmpty ? null : reimbAccTrim;
+    final String? reimbursementAccount =
+        reimbAccTrim.isEmpty ? null : reimbAccTrim;
     final bool excludeFromBudget = _parseBool(cell(iExclBudget));
     final bool excludeFromStats = _parseBool(cell(iExclStats));
     final String noteTrim = _nullIfEmpty(cell(iNote));
@@ -685,7 +690,8 @@ ParseResult _parseJson(String content) {
       final int discount = _parseDiscount((m['discount'] ?? '').toString());
       final int fee = _parseFee((m['fee'] ?? '').toString());
       final List<String> tags = _parseJsonTags(m['tags']);
-      final String subcatRaw = _nullIfEmpty((m['subcategory'] ?? '').toString());
+      final String subcatRaw =
+          _nullIfEmpty((m['subcategory'] ?? '').toString());
       final String? subcategoryName = subcatRaw.isEmpty ? null : subcatRaw;
       final String bookRaw = _nullIfEmpty((m['book'] ?? '').toString());
       final String? book = bookRaw.isEmpty ? null : bookRaw;
@@ -812,9 +818,8 @@ List<BillRow> reorderLendRowsForImport(List<BillRow> rows) {
   final List<BillRow> addRows = <BillRow>[];
   final List<BillRow> rest = <BillRow>[];
   for (final BillRow row in rows) {
-    final LendOp? op = row.module == SourceModule.lend
-        ? parseLendOp(row.categoryName)
-        : null;
+    final LendOp? op =
+        row.module == SourceModule.lend ? parseLendOp(row.categoryName) : null;
     if (op == LendOp.borrowAdd || op == LendOp.lendAdd) {
       addRows.add(row);
     } else {

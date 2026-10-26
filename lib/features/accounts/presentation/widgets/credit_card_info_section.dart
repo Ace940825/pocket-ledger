@@ -105,8 +105,7 @@ class CreditCardInfoSection extends StatelessWidget {
                       const SizedBox(height: 4),
                       // 用度进度条：超额（可用<0）转红、满格。
                       ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(AppDimens.radiusSm),
+                        borderRadius: BorderRadius.circular(AppDimens.radiusSm),
                         child: LinearProgressIndicator(
                           value: usedRatio,
                           minHeight: 4,
@@ -171,8 +170,7 @@ class CreditCardInfoSection extends StatelessWidget {
             Expanded(
               child: _DateCell(
                 label: '免息天数',
-                value:
-                    nextDue == null ? '—' : '剩${_daysUntil(nextDue, now)}天',
+                value: nextDue == null ? '—' : '剩${_daysUntil(nextDue, now)}天',
               ),
             ),
           ],
@@ -300,9 +298,8 @@ class _DateCell extends StatelessWidget {
             // 可见）；空间富余时封顶不起作用，槽位即最长日期宽，两行小签
             // 落点不变。小签占位 = 左 margin 4 + 容器水平 padding 8 +
             // 文字实测宽（'当期' / '下期' 等宽）。
-            final double tagRoom = tag == null
-                ? 0
-                : 4 + 8 + _textWidth(context, tagStyle, '当期');
+            final double tagRoom =
+                tag == null ? 0 : 4 + 8 + _textWidth(context, tagStyle, '当期');
             final double slot = math.min(
               _dateSlotWidth(context, valueStyle),
               math.max(0, constraints.maxWidth - tagRoom - 0.5),
@@ -325,7 +322,8 @@ class _DateCell extends StatelessWidget {
                 if (tag != null)
                   Container(
                     margin: const EdgeInsets.only(left: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                     decoration: BoxDecoration(
                       color: AppPalette.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),

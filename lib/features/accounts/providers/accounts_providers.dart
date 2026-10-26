@@ -62,16 +62,15 @@ final AutoDisposeStreamProviderFamily<List<Transaction>,
 /// 交易属于次年 1 月账单，由账单周期分组（[groupTransactionsByStatement]）
 /// 自然滤掉，不会串到本年列表。
 final AutoDisposeStreamProviderFamily<List<Transaction>,
-        ({String accountId, int year})> accountTransactionsForStatementProvider =
-    StreamProvider.autoDispose
+        ({String accountId, int year})>
+    accountTransactionsForStatementProvider = StreamProvider.autoDispose
         .family<List<Transaction>, ({String accountId, int year})>(
   (Ref ref, ({String accountId, int year}) params) {
     final String bookId = ref.watch(currentBookIdProvider);
     // 上一年 12 月 1 日 00:00（本地）～ 下一年 1 月 1 日（排他）。
     final int startAt =
         DateTime(params.year - 1, 12).toUtc().millisecondsSinceEpoch;
-    final int endAt =
-        DateTime(params.year + 1).toUtc().millisecondsSinceEpoch;
+    final int endAt = DateTime(params.year + 1).toUtc().millisecondsSinceEpoch;
 
     return ref
         .watch(transactionsDaoProvider)
@@ -115,6 +114,7 @@ final AutoDisposeStreamProvider<List<Account>> sealedAccountsProvider =
       .watch(accountsDaoProvider)
       .watchByStatus(bookId, AccountStatus.sealed);
 });
+
 /// 指定账户的**全部**流水（不限年份，含转账转入侧，已去重、排除软删）。
 ///
 /// 用途：账户详情页「账单迁移 / 账单清理 / 金额校验」需要跨年全量流水，

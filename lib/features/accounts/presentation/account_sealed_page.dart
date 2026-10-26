@@ -89,8 +89,7 @@ class _AccountSealedPageState extends ConsumerState<AccountSealedPage> {
 
   @override
   Widget build(BuildContext context) {
-    final AsyncValue<List<Account>> sealed =
-        ref.watch(sealedAccountsProvider);
+    final AsyncValue<List<Account>> sealed = ref.watch(sealedAccountsProvider);
     final Map<String, int> mv =
         ref.watch(investmentMarketValueByAccountProvider);
 
@@ -162,8 +161,8 @@ class _AccountSealedPageState extends ConsumerState<AccountSealedPage> {
             icon: Icons.swap_vert,
             iconColor: AppPalette.blueTint,
             subtitle: '将资产整理顺序，常用可至前。',
-            onTap: () =>
-                Navigator.of(context, rootNavigator: true).pop(Routes.accountSort),
+            onTap: () => Navigator.of(context, rootNavigator: true)
+                .pop(Routes.accountSort),
           ),
         ],
       ),
@@ -654,14 +653,16 @@ class _SealedAccountRow extends StatelessWidget {
       child: Column(
         children: <Widget>[
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: AppDimens.md),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: AppDimens.md),
             leading: ClayIconTile(
               size: 40,
               color: iconColor,
               child: LineIcon(
                 accountLineKind(account.type) ?? LineIconKind.star,
                 size: 20,
-                color: Color.lerp(iconColor, theme.colorScheme.onSurface, 0.22)!,
+                color:
+                    Color.lerp(iconColor, theme.colorScheme.onSurface, 0.22)!,
               ),
             ),
             title: Text(

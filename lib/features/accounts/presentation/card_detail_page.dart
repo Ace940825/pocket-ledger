@@ -51,7 +51,11 @@ class CardDetailPage extends ConsumerWidget {
     // 还款日程仅信用卡参与计算，其余类型（证券/储蓄等）显示占位。
     final CardSchedule? schedule = card.cardType == CardType.credit
         ? computeCardSchedule(
-            card.billDay, card.repayMode, card.repayValue, DateTime.now())
+            card.billDay,
+            card.repayMode,
+            card.repayValue,
+            DateTime.now(),
+          )
         : null;
 
     return Scaffold(
@@ -162,7 +166,8 @@ class CardDetailPage extends ConsumerWidget {
                     backgroundColor: theme.colorScheme.surface,
                     foregroundColor: theme.colorScheme.primary,
                     elevation: 3,
-                    shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.26),
+                    shadowColor:
+                        theme.colorScheme.shadow.withValues(alpha: 0.26),
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -192,14 +197,15 @@ class CardDetailPage extends ConsumerWidget {
                     );
                     if (confirm == true) {
                       ref.read(cardStoreProvider.notifier).delete(card.id);
-                      context.pop();
+                      if (context.mounted) context.pop();
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.error,
                     foregroundColor: theme.colorScheme.onError,
                     elevation: 3,
-                    shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.26),
+                    shadowColor:
+                        theme.colorScheme.shadow.withValues(alpha: 0.26),
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),

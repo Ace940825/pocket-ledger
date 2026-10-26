@@ -690,8 +690,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
       padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
       child: Text(label),
     );
-    final BorderRadius radius =
-        BorderRadius.circular(AppDimens.radiusChip);
+    final BorderRadius radius = BorderRadius.circular(AppDimens.radiusChip);
     if (filled) {
       return FilledButton(
         onPressed: onPressed,

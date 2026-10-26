@@ -536,8 +536,9 @@ class _GroupCard extends StatelessWidget {
     final Color iconColor = isDebt ? AppPalette.expense : AppPalette.primary;
 
     // 占比百分比：开关打开且分母不为 0 时显示。
-    final double percentage =
-        showPercentage && totalGross != 0 ? totalMinor.abs() / totalGross * 100 : 0;
+    final double percentage = showPercentage && totalGross != 0
+        ? totalMinor.abs() / totalGross * 100
+        : 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(

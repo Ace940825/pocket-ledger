@@ -44,8 +44,7 @@ class _AccountSortPageState extends ConsumerState<AccountSortPage> {
 
   /// 扁平列表初始的「分类先后顺序」，与账户页默认分组顺序一致：
   /// 资金类 → 负债类 → 投资类 → 应收类 → 应付类。
-  static const Map<AccountCategory, int> _categoryRank =
-      <AccountCategory, int>{
+  static const Map<AccountCategory, int> _categoryRank = <AccountCategory, int>{
     AccountCategory.capital: 0,
     AccountCategory.debt: 1,
     AccountCategory.investment: 2,
@@ -123,8 +122,7 @@ class _AccountSortPageState extends ConsumerState<AccountSortPage> {
       appBar: AppBar(title: Text(title)),
       body: accountsAv.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (Object e, StackTrace _) =>
-            Center(child: Text('加载失败：$e')),
+        error: (Object e, StackTrace _) => Center(child: Text('加载失败：$e')),
         data: (List<Account> list) {
           // 首次进入用当前账户顺序初始化；之后保留用户拖动结果。
           _items ??= _initList(list);
@@ -193,15 +191,14 @@ class _AccountSortPageState extends ConsumerState<AccountSortPage> {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppPalette.primary,
           foregroundColor: theme.colorScheme.onPrimary,
-          disabledBackgroundColor:
-              AppPalette.primary.withValues(alpha: 0.5),
+          disabledBackgroundColor: AppPalette.primary.withValues(alpha: 0.5),
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           ),
         ),
         child: _saving
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(

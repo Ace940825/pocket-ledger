@@ -113,9 +113,8 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
     // 账单维度（收入 / 支出）对本类文件无意义，不展示。
     if (_isAccountOnly) {
       final TemplateCheckResult? c = widget.check;
-      final int willCreate = c == null
-          ? widget.parsed.accounts.length
-          : c.restoredAccounts.length;
+      final int willCreate =
+          c == null ? widget.parsed.accounts.length : c.restoredAccounts.length;
       final int willUpdate = c?.updatedAccounts.length ?? 0;
       return _card(
         label: '总览',
@@ -136,14 +135,15 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
             subtitle: '$willCreate 个（已存在则跳过）',
             onTap: willCreate == 0
                 ? () {}
-                : () => _showNameSheet('将新建账户', c?.restoredAccounts ?? const <String>[]),
+                : () => _showNameSheet(
+                      '将新建账户',
+                      c?.restoredAccounts ?? const <String>[],
+                    ),
           ),
           _divider(),
           _overviewRow(
             title: '将覆盖',
-            subtitle: willUpdate == 0
-                ? '0 个'
-                : '$willUpdate 个（覆盖模式生效）',
+            subtitle: willUpdate == 0 ? '0 个' : '$willUpdate 个（覆盖模式生效）',
             onTap: willUpdate == 0
                 ? () {}
                 : () => _showNameSheet('将覆盖账户', c!.updatedAccounts),
@@ -371,8 +371,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
 
   /// 右上类型筛选胶囊（对标小青账：支出 / 收入 / 其他，选中深色胶囊）。
   Widget _tabPills() {
-    final Color unselected =
-        Theme.of(context).colorScheme.onSurfaceVariant;
+    final Color unselected = Theme.of(context).colorScheme.onSurfaceVariant;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -408,12 +407,12 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
       TxnType.expense => AppPalette.expense,
       TxnType.transfer => AppPalette.transferBlueGray,
     };
-    final String title = (r.categoryName != null &&
-            r.categoryName!.trim().isNotEmpty)
-        ? r.categoryName!.trim()
-        : (r.note != null && r.note!.trim().isNotEmpty
-            ? r.note!.trim()
-            : r.accountName);
+    final String title =
+        (r.categoryName != null && r.categoryName!.trim().isNotEmpty)
+            ? r.categoryName!.trim()
+            : (r.note != null && r.note!.trim().isNotEmpty
+                ? r.note!.trim()
+                : r.accountName);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
       child: Row(
@@ -460,8 +459,9 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
   /// 账户段预览行：名称 + 类型 / 卡号末四位 / 额度（信用卡）副标题。
   Widget _accountRow(AccountRow a) {
     final String? card = a.cardNumber?.replaceAll(RegExp(r'\D'), '');
-    final String last4 =
-        (card != null && card.length >= 4) ? card.substring(card.length - 4) : '';
+    final String last4 = (card != null && card.length >= 4)
+        ? card.substring(card.length - 4)
+        : '';
     final List<String> subs = <String>[
       a.type.label,
       if (last4.isNotEmpty) '尾号$last4',
@@ -529,7 +529,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
               child: Center(
                 child: Text(
                   _isAccountOnly ? '确认导入账户' : '确认导入账单',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppPalette.white,
@@ -601,7 +601,8 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
     );
   }
 
-  Widget _divider() => const Divider(height: 1, indent: 16, color: AppPalette.divider);
+  Widget _divider() =>
+      const Divider(height: 1, indent: 16, color: AppPalette.divider);
 
   /// 名称清单弹层（涉及分类 / 账户）。
   void _showNameSheet(String title, List<String> names) {
@@ -689,11 +690,15 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
       _aggBlock('按月', c.byMonth, 4),
       _aggBlock('按模块', c.byModule, 6),
       const SizedBox(height: 6),
-      if (c.restoredAccounts.isNotEmpty || c.updatedAccounts.isNotEmpty) ...<Widget>[
+      if (c.restoredAccounts.isNotEmpty ||
+          c.updatedAccounts.isNotEmpty) ...<Widget>[
         Text(
           '账户段复原：新建 ${c.restoredAccounts.length} 个'
           '${c.updatedAccounts.isEmpty ? '' : '、覆盖 ${c.updatedAccounts.length} 个'}'
-          '（${<String>[...c.restoredAccounts, ...c.updatedAccounts].join('、')}），'
+          '（${<String>[
+            ...c.restoredAccounts,
+            ...c.updatedAccounts,
+          ].join('、')}），'
           '导入完成后余额按段内「余额」列校正。',
           style: TextStyle(
             fontSize: 12,

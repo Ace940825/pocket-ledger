@@ -161,8 +161,7 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
 
   /// 软删除
   Future<int> softDelete(String id, int updatedAt) {
-    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
-        .write(
+    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id))).write(
       AccountsCompanion(
         deleted: const Value<bool>(true),
         isArchived: const Value<bool>(true),
@@ -179,8 +178,7 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   /// 注意：必须一并写 `status`，否则「隐藏资产列表」按 [watchByStatus]（按
   /// `status` 过滤）会抓不到被隐藏的账户——左滑隐藏走的就是本方法。
   Future<int> archive(String id, int updatedAt) {
-    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
-        .write(
+    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id))).write(
       AccountsCompanion(
         status: const Value<AccountStatus>(AccountStatus.hidden),
         isArchived: const Value<bool>(true),
@@ -192,8 +190,7 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
 
   /// 取消隐藏（撤销 [archive]）。不会改 `deleted` 字段。
   Future<int> unarchive(String id, int updatedAt) {
-    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
-        .write(
+    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id))).write(
       AccountsCompanion(
         isArchived: const Value<bool>(false),
         dirty: const Value<bool>(true),
@@ -208,8 +205,7 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   /// 注意：[unarchive] 只翻 `isArchived`，但 [watchByStatus] 按 `status` 过滤，
   /// 故仅翻 [isArchived] 不足以让账户离开隐藏 / 封存列表——必须一并复位 `status`。
   Future<int> restore(String id, int updatedAt) {
-    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
-        .write(
+    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id))).write(
       AccountsCompanion(
         status: const Value<AccountStatus>(AccountStatus.active),
         isArchived: const Value<bool>(false),

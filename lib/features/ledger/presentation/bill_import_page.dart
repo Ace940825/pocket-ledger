@@ -767,9 +767,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     ImportConflictMode mode = ImportConflictMode.merge,
     int existingCount = 0,
   }) async {
-    if (_importing ||
-        _parsed == null ||
-        !hasImportableContent(_parsed!)) {
+    if (_importing || _parsed == null || !hasImportableContent(_parsed!)) {
       return;
     }
     setState(() {
@@ -1026,7 +1024,10 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           }
           // 账户段进度：每复原一个账户推进一步（纯账户文件的进度反馈全靠它）。
           if (mounted) {
-            setState(() => _progressDone = _parsed!.rows.length + existingCount + i + 1);
+            setState(
+              () =>
+                  _progressDone = _parsed!.rows.length + existingCount + i + 1,
+            );
           }
           balanceFixups.add(
             (
@@ -1314,18 +1315,16 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
             (await snapIds('transactions')).difference(preTxns).toList();
         final List<String> newLends =
             (await snapIds('lend_records')).difference(preLends).toList();
-        final List<String> newInvests =
-            (await snapIds('investment_holdings'))
-                .difference(preInvests)
-                .toList();
+        final List<String> newInvests = (await snapIds('investment_holdings'))
+            .difference(preInvests)
+            .toList();
         final List<String> newReimbs =
             (await snapIds('reimbursements')).difference(preReimbs).toList();
         final List<String> newSavings =
             (await snapIds('savings_goals')).difference(preSavings).toList();
-        final List<String> newInstPlans =
-            (await snapIds('installment_plans'))
-                .difference(preInstPlans)
-                .toList();
+        final List<String> newInstPlans = (await snapIds('installment_plans'))
+            .difference(preInstPlans)
+            .toList();
 
         // 写入导入记录：入口页可查看 / 左滑删除级联删除本批账单。
         final ImportRecordRepository importRepo =

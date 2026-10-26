@@ -47,8 +47,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
     super.initState();
     final String? id = widget.cardId;
     if (id != null) {
-      final CardInfo? card =
-          ref.read(cardStoreProvider.notifier).getById(id);
+      final CardInfo? card = ref.read(cardStoreProvider.notifier).getById(id);
       if (card != null) {
         _cardNumber.text = card.cardNumber;
         _bankName = card.bankName;
@@ -69,11 +68,11 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
       }
     }
     // 兜底：若未被存储数据覆盖，给账单日/还款日一个合法默认值。
-    if (_billDay.text.isEmpty) _billDay.text = '每月${_billDayValue}日';
+    if (_billDay.text.isEmpty) _billDay.text = '每月$_billDayValue日';
     if (_repayDays.text.isEmpty) {
       _repayDays.text = _repayMode == CardRepayMode.fixedDay
-          ? '每月${_repayValue}日'
-          : '${_repayValue}天';
+          ? '每月$_repayValue日'
+          : '$_repayValue天';
     }
   }
 
@@ -81,7 +80,8 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
   Future<void> _pickBillDay(BuildContext context) async {
     final RegExp reg = RegExp(r'(\d+)');
     final Match? match = reg.firstMatch(_billDay.text);
-    final int initialDay = match != null ? int.tryParse(match.group(1)!) ?? 1 : 1;
+    final int initialDay =
+        match != null ? int.tryParse(match.group(1)!) ?? 1 : 1;
 
     final int? result = await showAppModalSheet<int>(
       context,
@@ -91,7 +91,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
     if (result != null && mounted) {
       setState(() {
         _billDayValue = result;
-        _billDay.text = '每月${result}日';
+        _billDay.text = '每月$result日';
       });
     }
   }
@@ -114,8 +114,8 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
         _repayMode = result.$1;
         _repayValue = result.$2;
         _repayDays.text = _repayMode == CardRepayMode.fixedDay
-            ? '每月${_repayValue}日'
-            : '${_repayValue}天';
+            ? '每月$_repayValue日'
+            : '$_repayValue天';
       });
     }
   }
@@ -882,7 +882,7 @@ class _OptionsPickerSheet extends StatelessWidget {
                   selected: option == initial,
                   onSelected: (_) => Navigator.pop(context, option),
                 ),
-          ],
+            ],
           ),
           const SizedBox(height: AppDimens.sm),
           Align(

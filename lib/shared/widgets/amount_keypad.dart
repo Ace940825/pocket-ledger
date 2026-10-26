@@ -479,9 +479,9 @@ Future<String?> showAmountKeypad({
   final List<(double, String?, String, bool)> history =
       <(double, String?, String, bool)>[];
 
-  double _parse(String s) => double.tryParse(s) ?? 0.0;
+  double parse(String s) => double.tryParse(s) ?? 0.0;
 
-  String _fmt(double v) {
+  String fmt(double v) {
     // 去掉多余的小数尾零：2.50 → 2.5，2.00 → 2
     String str = v.toStringAsFixed(maxDecimalDigits);
     if (str.contains('.')) {
@@ -530,7 +530,7 @@ Future<String?> showAmountKeypad({
                   // 第一行：表达式（累计值 + 运算符），仅在运算模式下显示
                   if (hasOp && pendingOp != null)
                     Text(
-                      '${_fmt(accumulated)} $pendingOp',
+                      '${fmt(accumulated)} $pendingOp',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -565,7 +565,7 @@ Future<String?> showAmountKeypad({
               onConfirm: () {
                 // 保存前结算：如果还有待执行的运算符，把当前输入算进累计值
                 if (hasOp && pendingOp != null && value.isNotEmpty) {
-                  final double current = _parse(value);
+                  final double current = parse(value);
                   if (pendingOp == '+') {
                     accumulated += current;
                   } else if (pendingOp == '-') {
@@ -574,7 +574,7 @@ Future<String?> showAmountKeypad({
                   pendingOp = null;
                 }
                 final String result =
-                    hasOp ? _fmt(accumulated) : (value.isEmpty ? '0' : value);
+                    hasOp ? fmt(accumulated) : (value.isEmpty ? '0' : value);
                 Navigator.of(ctx).pop(result);
               },
               onOperator: (String op) {
@@ -582,7 +582,7 @@ Future<String?> showAmountKeypad({
                   // 按运算符前，先保存当前状态到历史栈（用于撤销）
                   history.add((accumulated, pendingOp, value, hasOp));
 
-                  final double current = _parse(value);
+                  final double current = parse(value);
                   if (!hasOp) {
                     // 第一次按运算符：当前值作为累计值起点
                     accumulated = current;

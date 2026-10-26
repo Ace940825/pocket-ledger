@@ -105,18 +105,22 @@ void main() {
 
       final List<PendingOp> ops = await db.select(db.pendingOps).get();
       expect(
-        ops.any((PendingOp o) =>
-            o.targetTable == 'accounts' &&
-            o.recordId == accId &&
-            o.opType == SyncOpType.delete),
+        ops.any(
+          (PendingOp o) =>
+              o.targetTable == 'accounts' &&
+              o.recordId == accId &&
+              o.opType == SyncOpType.delete,
+        ),
         isTrue,
         reason: '随导入新建的账户应入队同步 delete',
       );
       expect(
-        ops.any((PendingOp o) =>
-            o.targetTable == 'transactions' &&
-            o.recordId == tid &&
-            o.opType == SyncOpType.delete),
+        ops.any(
+          (PendingOp o) =>
+              o.targetTable == 'transactions' &&
+              o.recordId == tid &&
+              o.opType == SyncOpType.delete,
+        ),
         isTrue,
       );
       expect(await importRepo.getById(recId), isNull);
@@ -170,8 +174,11 @@ void main() {
 
       expect((await txn(batchTxn))!.deleted, isTrue);
       expect((await txn(externalTxn))!.deleted, isFalse);
-      expect((await acc(accId))!.deleted, isFalse,
-          reason: '仍被外部流水引用，账户应保留');
+      expect(
+        (await acc(accId))!.deleted,
+        isFalse,
+        reason: '仍被外部流水引用，账户应保留',
+      );
     });
   });
 

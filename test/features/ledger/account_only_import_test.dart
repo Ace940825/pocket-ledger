@@ -57,8 +57,7 @@ void main() {
       expect(ic.dueGraceDays, isNull);
       expect(ic.billingDay, 15);
       // 免息期卡：免息期 = 20、还款日留空（还款日期由账单日 + 免息期推算）。
-      final AccountRow dream =
-          r.accounts.firstWhere((a) => a.name == '梦卡白金卡');
+      final AccountRow dream = r.accounts.firstWhere((a) => a.name == '梦卡白金卡');
       expect(dream.dueGraceDays, 20);
       expect(dream.dueDay, isNull);
       expect(dream.billingDay, 19);
@@ -151,14 +150,18 @@ void main() {
     });
 
     testWidgets('账单文件仍走账单口径（不回归）', (tester) async {
-      final ParseResult billsOnly = ParseResult(<BillRow>[
-        BillRow(
-          occurredAt: DateTime(2026, 10, 25, 12, 30),
-          type: TxnType.expense,
-          amountMinor: 2550,
-          accountName: '微信',
-        ),
-      ], <String>[]);      await tester.pumpWidget(
+      final ParseResult billsOnly = ParseResult(
+        <BillRow>[
+          BillRow(
+            occurredAt: DateTime(2026, 10, 25, 12, 30),
+            type: TxnType.expense,
+            amountMinor: 2550,
+            accountName: '微信',
+          ),
+        ],
+        <String>[],
+      );
+      await tester.pumpWidget(
         MaterialApp(
           home: BillImportPreviewPage(parsed: billsOnly),
         ),

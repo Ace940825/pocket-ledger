@@ -154,13 +154,13 @@ class CardInfo {
   /// 还款日文案，如 "每月1日" / "50天"。
   String get repayLabel {
     if (repayMode == CardRepayMode.fixedDay) {
-      return '每月${repayValue}日';
+      return '每月$repayValue日';
     }
-    return '${repayValue}天';
+    return '$repayValue天';
   }
 
   /// 账单日文案，如 "每月1日"。
-  String get billDayLabel => '每月${billDay}日';
+  String get billDayLabel => '每月$billDay日';
 
   /// 序列化为 JSON（供 SharedPreferences 持久化）。
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -313,8 +313,7 @@ CardSchedule computeCardSchedule(
       m -= 12;
       y += 1;
     }
-    final DateTime? repay =
-        _repayDateForBill(y, m, billDay, mode, repayValue);
+    final DateTime? repay = _repayDateForBill(y, m, billDay, mode, repayValue);
     if (repay == null || repay.isBefore(today)) continue;
     if (soonestRepay == null || repay.isBefore(soonestRepay)) {
       soonestRepay = repay;
@@ -331,8 +330,7 @@ CardSchedule computeCardSchedule(
       m -= 12;
       y += 1;
     }
-    final DateTime? repay =
-        _repayDateForBill(y, m, billDay, mode, repayValue);
+    final DateTime? repay = _repayDateForBill(y, m, billDay, mode, repayValue);
     if (repay != null && repay.isAfter(repayDate)) {
       nextRepay = repay;
       break;

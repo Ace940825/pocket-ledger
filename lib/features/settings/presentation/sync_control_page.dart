@@ -272,10 +272,9 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                       value: Text(
                         s.lastSyncedAt == null || s.lastSyncedAt == 0
                             ? '从未同步'
-                            : DateTime.fromMillisecondsSinceEpoch(s.lastSyncedAt!)
-                                .toLocal()
-                                .toString()
-                                .substring(0, 19),
+                            : DateTime.fromMillisecondsSinceEpoch(
+                                s.lastSyncedAt!,
+                              ).toLocal().toString().substring(0, 19),
                       ),
                     ),
                     InfoKVRow(label: '待同步', value: Text('${s.pendingCount} 条')),
@@ -321,7 +320,8 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                 data: (List<({String table, int count})> rows) {
                   if (rows.isEmpty) {
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: AppDimens.md),
                       child: Text(
                         '暂无待同步数据',
                         style: context.text.bodyMedium
@@ -331,7 +331,8 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                   }
                   return Column(
                     children: <Widget>[
-                      for (final (table: String table, count: int count) in rows)
+                      for (final (table: String table, count: int count)
+                          in rows)
                         Padding(
                           padding: const EdgeInsets.only(bottom: AppDimens.xs),
                           child: Row(
@@ -348,8 +349,9 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: context.colors.surfaceContainerHighest,
-                                  borderRadius:
-                                      BorderRadius.circular(AppDimens.radiusChip),
+                                  borderRadius: BorderRadius.circular(
+                                    AppDimens.radiusChip,
+                                  ),
                                 ),
                                 child: Text(
                                   '$count 条',
@@ -515,7 +517,8 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                       ),
                       decoration: BoxDecoration(
                         color: context.colors.errorContainer,
-                        borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+                        borderRadius:
+                            BorderRadius.circular(AppDimens.radiusChip),
                       ),
                       child: Text(
                         '$pending',
@@ -580,7 +583,8 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
           const SizedBox(height: AppDimens.sm),
           Text(
             '数据范围',
-            style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            style:
+                context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: AppDimens.sm),
           SingleChildScrollView(
@@ -594,14 +598,14 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                     ),
                     child: FilterChip(
                       label: Text(_scopeGroups[i].label),
-                      selected: _scopeGroups[i].tables
+                      selected: _scopeGroups[i]
+                          .tables
                           .every(_selectedTables.contains),
                       onSelected: (bool selected) => setState(() {
                         if (selected) {
                           _selectedTables.addAll(_scopeGroups[i].tables);
                         } else {
-                          _selectedTables
-                              .removeAll(_scopeGroups[i].tables);
+                          _selectedTables.removeAll(_scopeGroups[i].tables);
                         }
                       }),
                       visualDensity: VisualDensity.compact,
