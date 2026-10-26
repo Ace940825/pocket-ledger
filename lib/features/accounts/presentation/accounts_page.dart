@@ -10,6 +10,7 @@ import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
+import '../../../providers/asset_stats_settings.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -183,6 +184,9 @@ class _Body extends ConsumerWidget {
     // 证券/投资类账户的持仓市值聚合（按 accountId）；展示余额 = 现金 + 此值。
     final Map<String, int> mv =
         ref.watch(investmentMarketValueByAccountProvider);
+    // 「资产统计显示」开关：控制分组卡片是否显示占比百分比。
+    final bool showPercentage =
+        ref.watch(assetStatsSettingsProvider).showGroupPercentage;
 
     return accounts.when(
       data: (List<Account> list) {
@@ -224,6 +228,12 @@ class _Body extends ConsumerWidget {
           mv: mv,
         );
 
+        // 计算可见分组的总金额绝对值之和，用于算占比百分比。
+        int totalGross = 0;
+        for (final _GroupConfig g in visible) {
+          totalGross += g.totalMinor.abs();
+        }
+
         return CustomScrollView(
           slivers: <Widget>[
             SliverToBoxAdapter(
@@ -243,6 +253,8 @@ class _Body extends ConsumerWidget {
                       .read(accountGroupCollapsedProvider.notifier)
                       .toggle(g.title),
                   isDebt: g.isDebt,
+                  showPercentage: showPercentage,
+                  totalGross: totalGross,
                   child: _buildGroupBody(
                     g.title,
                     ref: ref,
@@ -483,6 +495,8 @@ class _GroupCard extends StatelessWidget {
     required this.collapsed,
     required this.onToggle,
     required this.isDebt,
+    required this.showPercentage,
+    required this.totalGross,
     required this.child,
   });
 
@@ -492,6 +506,13 @@ class _GroupCard extends StatelessWidget {
   final bool collapsed;
   final VoidCallback onToggle;
   final bool isDebt;
+
+  /// 是否在金额下方显示占比百分比小字。
+  final bool showPercentage;
+
+  /// 所有可见分组金额绝对值之和，用于算占比分母。
+  final int totalGross;
+
   final Widget child;
 
   /// 分组头部小图标：一眼区分五类资产属性。
@@ -512,9 +533,11 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final Color amountColor =
-        isDebt ? AppPalette.expense : Theme.of(context).colorScheme.onSurface;
     final Color iconColor = isDebt ? AppPalette.expense : AppPalette.primary;
+
+    // 占比百分比：开关打开且分母不为 0 时显示。
+    final double percentage =
+        showPercentage && totalGross != 0 ? totalMinor.abs() / totalGross * 100 : 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -559,12 +582,27 @@ class _GroupCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    MoneyText(
-                      Money.fromMinor(totalMinor),
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: amountColor,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    // 金额 + 可选百分比（右对齐列）
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        MoneyText(
+                          Money.fromMinor(totalMinor),
+                          // 负债类强制用支出红（欠款/负债警示色），不被 MoneyText 的
+                          // 自动正负着色覆盖；其余分组按正负自动着色（正绿/负红）。
+                          color: isDebt ? AppPalette.expense : null,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (showPercentage)
+                          Text(
+                            '${percentage.toStringAsFixed(2)}%',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -695,13 +733,14 @@ class _AccountBody extends StatelessWidget {
                     subtitle: _accountSubtitle(context, accounts[i]),
                     trailing: MoneyText(
                       Money.fromMinor(_accountDisplay(accounts[i])),
+                      // 零展示余额弱化为弱文字；负债（信用卡/借入）强制支出红，
+                      // 避免被 MoneyText 的自动正负着色渲染成收入绿；其余按正负自动。
+                      color: _accountDisplay(accounts[i]) == 0
+                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          : isDebt
+                              ? AppPalette.expense
+                              : null,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            // 零展示余额弱化为弱文字，突出有结余的账户
-                            color: _accountDisplay(accounts[i]) == 0
-                                ? Theme.of(context).colorScheme.onSurfaceVariant
-                                : isDebt
-                                    ? AppPalette.expense
-                                    : Theme.of(context).colorScheme.onSurface,
                             fontWeight: FontWeight.w600,
                           ),
                     ),

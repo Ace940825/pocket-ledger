@@ -232,15 +232,15 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
         padding: const EdgeInsets.all(AppDimens.lg),
         children: <Widget>[
           _buildStatusSection(),
-          const SizedBox(height: AppDimens.lg),
+          const SizedBox(height: AppDimens.md),
           _buildCloudDataSection(),
-          const SizedBox(height: AppDimens.lg),
+          const SizedBox(height: AppDimens.md),
           _buildModeSection(settings),
-          const SizedBox(height: AppDimens.lg),
+          const SizedBox(height: AppDimens.md),
           _buildDirectionSection(settings),
-          const SizedBox(height: AppDimens.lg),
+          const SizedBox(height: AppDimens.md),
           _buildConflictSection(settings),
-          const SizedBox(height: AppDimens.lg),
+          const SizedBox(height: AppDimens.md),
           _buildScopeSection(),
           const SizedBox(height: AppDimens.md),
           _buildSyncButton(),
@@ -255,42 +255,45 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
   /// 模式 / 上次同步 / 待同步一眼可见；操作功能全在本页下方与历史区。
   Widget _buildStatusSection() {
     final ThemeData theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SectionHeader(title: '同步状态'),
-        const SizedBox(height: AppDimens.sm),
-        ref.watch(syncControllerProvider).when(
-              data: (SyncState s) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  InfoKVRow(label: '模式', value: Text(s.adapterName)),
-                  InfoKVRow(
-                    label: '上次同步',
-                    value: Text(
-                      s.lastSyncedAt == null || s.lastSyncedAt == 0
-                          ? '从未同步'
-                          : DateTime.fromMillisecondsSinceEpoch(s.lastSyncedAt!)
-                              .toLocal()
-                              .toString()
-                              .substring(0, 19),
-                    ),
-                  ),
-                  InfoKVRow(label: '待同步', value: Text('${s.pendingCount} 条')),
-                  if (s.error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppDimens.sm),
-                      child: Text(
-                        s.error!,
-                        style: TextStyle(color: theme.colorScheme.error),
+    return HairlineCard(
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SectionHeader(title: '同步状态'),
+          const SizedBox(height: AppDimens.sm),
+          ref.watch(syncControllerProvider).when(
+                data: (SyncState s) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    InfoKVRow(label: '模式', value: Text(s.adapterName)),
+                    InfoKVRow(
+                      label: '上次同步',
+                      value: Text(
+                        s.lastSyncedAt == null || s.lastSyncedAt == 0
+                            ? '从未同步'
+                            : DateTime.fromMillisecondsSinceEpoch(s.lastSyncedAt!)
+                                .toLocal()
+                                .toString()
+                                .substring(0, 19),
                       ),
                     ),
-                ],
+                    InfoKVRow(label: '待同步', value: Text('${s.pendingCount} 条')),
+                    if (s.error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppDimens.sm),
+                        child: Text(
+                          s.error!,
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ),
+                  ],
+                ),
+                loading: () => const LinearProgressIndicator(),
+                error: (Object e, _) => Text('状态加载失败：$e'),
               ),
-              loading: () => const LinearProgressIndicator(),
-              error: (Object e, _) => Text('状态加载失败：$e'),
-            ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -299,139 +302,148 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
   /// 本地不保存云端全量副本，这里以「待推送队列按业务表分布」近似展示即将
   /// 同步到云端的数据范围与量级，让用户对「同步了什么 / 还有多少在排队」一目了然。
   Widget _buildCloudDataSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SectionHeader(title: '云端同步数据（本地镜像）'),
-        const SizedBox(height: AppDimens.sm),
-        Text(
-          '本地不保存云端全量副本；下方为「待推送队列按表分布」，即本次同步将上传的数据范围与量级。',
-          style: context.text.bodySmall
-              ?.copyWith(color: context.colors.onSurfaceVariant),
-        ),
-        const SizedBox(height: AppDimens.sm),
-        ref.watch(pendingByTableProvider).when(
-              loading: () => const LinearProgressIndicator(),
-              error: (Object e, _) => Text('读取失败：$e'),
-              data: (List<({String table, int count})> rows) {
-                if (rows.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
-                    child: Text(
-                      '暂无待同步数据',
-                      style: context.text.bodyMedium
-                          ?.copyWith(color: context.colors.onSurfaceVariant),
-                    ),
-                  );
-                }
-                return Column(
-                  children: <Widget>[
-                    for (final (table: String table, count: int count) in rows)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppDimens.sm),
-                        child: Row(
-                          children: <Widget>[
-                            Text(
-                              _tableLabels[table] ?? table,
-                              style: context.text.bodyMedium,
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 2,
+    return HairlineCard(
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SectionHeader(title: '云端同步数据（本地镜像）'),
+          const SizedBox(height: AppDimens.sm),
+          Text(
+            '本地不保存云端全量副本；下方为「待推送队列按表分布」，即本次同步将上传的数据范围与量级。',
+            style: context.text.bodySmall
+                ?.copyWith(color: context.colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: AppDimens.sm),
+          ref.watch(pendingByTableProvider).when(
+                loading: () => const LinearProgressIndicator(),
+                error: (Object e, _) => Text('读取失败：$e'),
+                data: (List<({String table, int count})> rows) {
+                  if (rows.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
+                      child: Text(
+                        '暂无待同步数据',
+                        style: context.text.bodyMedium
+                            ?.copyWith(color: context.colors.onSurfaceVariant),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: <Widget>[
+                      for (final (table: String table, count: int count) in rows)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppDimens.xs),
+                          child: Row(
+                            children: <Widget>[
+                              Text(
+                                _tableLabels[table] ?? table,
+                                style: context.text.bodyMedium,
                               ),
-                              decoration: BoxDecoration(
-                                color: context.colors.surfaceContainerHighest,
-                                borderRadius:
-                                    BorderRadius.circular(AppDimens.radiusChip),
-                              ),
-                              child: Text(
-                                '$count 条',
-                                style: context.text.bodySmall?.copyWith(
-                                  color: context.colors.onSurfaceVariant,
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: context.colors.surfaceContainerHighest,
+                                  borderRadius:
+                                      BorderRadius.circular(AppDimens.radiusChip),
+                                ),
+                                child: Text(
+                                  '$count 条',
+                                  style: context.text.bodySmall?.copyWith(
+                                    color: context.colors.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
-                );
-              },
-            ),
-      ],
+                    ],
+                  );
+                },
+              ),
+        ],
+      ),
     );
   }
 
   Widget _buildModeSection(SyncSettings? settings) {
     final SyncMode mode = settings?.mode ?? SyncMode.auto;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SectionHeader(title: '同步模式'),
-        const SizedBox(height: AppDimens.sm),
-        SegmentedRow<SyncMode>(
-          options: const <SegmentOption<SyncMode>>[
-            SegmentOption<SyncMode>(value: SyncMode.auto, label: '自动'),
-            SegmentOption<SyncMode>(value: SyncMode.manual, label: '手动'),
-          ],
-          value: mode,
-          onChanged: (SyncMode v) =>
-              ref.read(syncSettingsProvider.notifier).setMode(v),
-        ),
-        const SizedBox(height: AppDimens.sm),
-        Text(
-          mode == SyncMode.auto
-              ? '自动：开启后在后台自动全量同步（与旧版一致，无需手动操作）。'
-              : '手动：关闭后台自动触发，只在下方点「立即同步」时同步。',
-          style: context.text.bodySmall
-              ?.copyWith(color: context.colors.onSurfaceVariant),
-        ),
-      ],
+    return HairlineCard(
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SectionHeader(title: '同步模式'),
+          const SizedBox(height: AppDimens.sm),
+          SegmentedRow<SyncMode>(
+            options: const <SegmentOption<SyncMode>>[
+              SegmentOption<SyncMode>(value: SyncMode.auto, label: '自动'),
+              SegmentOption<SyncMode>(value: SyncMode.manual, label: '手动'),
+            ],
+            value: mode,
+            onChanged: (SyncMode v) =>
+                ref.read(syncSettingsProvider.notifier).setMode(v),
+          ),
+          const SizedBox(height: AppDimens.sm),
+          Text(
+            mode == SyncMode.auto
+                ? '自动：开启后在后台自动全量同步（与旧版一致，无需手动操作）。'
+                : '手动：关闭后台自动触发，只在下方点「立即同步」时同步。',
+            style: context.text.bodySmall
+                ?.copyWith(color: context.colors.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildDirectionSection(SyncSettings? settings) {
     final SyncDirection dir = settings?.defaultDirection ?? SyncDirection.merge;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SectionHeader(title: '默认方向'),
-        const SizedBox(height: AppDimens.sm),
-        SegmentedRow<SyncDirection>(
-          options: const <SegmentOption<SyncDirection>>[
-            SegmentOption<SyncDirection>(
-              value: SyncDirection.merge,
-              label: '合并',
-              leading: LineGlyph(Icons.sync, size: 16),
-            ),
-            SegmentOption<SyncDirection>(
-              value: SyncDirection.pushOnly,
-              label: '仅上传',
-              leading: LineGlyph(Icons.cloud_upload_outlined, size: 16),
-            ),
-            SegmentOption<SyncDirection>(
-              value: SyncDirection.pullOnly,
-              label: '仅下载',
-              leading: LineGlyph(Icons.cloud_download_outlined, size: 16),
-            ),
-          ],
-          value: dir,
-          onChanged: (SyncDirection v) =>
-              ref.read(syncSettingsProvider.notifier).setDirection(v),
-        ),
-        const SizedBox(height: AppDimens.sm),
-        Text(
-          switch (dir) {
-            SyncDirection.merge => '合并：本地与云端互相同步，冲突以时间戳决胜（最后写入胜出）。',
-            SyncDirection.pushOnly => '仅上传：本地覆盖云端，跳过下载（适合「以这台设备为准」）。',
-            SyncDirection.pullOnly => '仅下载：云端覆盖本地，跳过上传（适合「拉取其他设备的最新数据」）。',
-          },
-          style: context.text.bodySmall
-              ?.copyWith(color: context.colors.onSurfaceVariant),
-        ),
-      ],
+    return HairlineCard(
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SectionHeader(title: '默认方向'),
+          const SizedBox(height: AppDimens.sm),
+          SegmentedRow<SyncDirection>(
+            options: const <SegmentOption<SyncDirection>>[
+              SegmentOption<SyncDirection>(
+                value: SyncDirection.merge,
+                label: '合并',
+                leading: LineGlyph(Icons.sync, size: 16),
+              ),
+              SegmentOption<SyncDirection>(
+                value: SyncDirection.pushOnly,
+                label: '仅上传',
+                leading: LineGlyph(Icons.cloud_upload_outlined, size: 16),
+              ),
+              SegmentOption<SyncDirection>(
+                value: SyncDirection.pullOnly,
+                label: '仅下载',
+                leading: LineGlyph(Icons.cloud_download_outlined, size: 16),
+              ),
+            ],
+            value: dir,
+            onChanged: (SyncDirection v) =>
+                ref.read(syncSettingsProvider.notifier).setDirection(v),
+          ),
+          const SizedBox(height: AppDimens.sm),
+          Text(
+            switch (dir) {
+              SyncDirection.merge => '合并：本地与云端互相同步，冲突以时间戳决胜（最后写入胜出）。',
+              SyncDirection.pushOnly => '仅上传：本地覆盖云端，跳过下载（适合「以这台设备为准」）。',
+              SyncDirection.pullOnly => '仅下载：云端覆盖本地，跳过上传（适合「拉取其他设备的最新数据」）。',
+            },
+            style: context.text.bodySmall
+                ?.copyWith(color: context.colors.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 
@@ -446,148 +458,160 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
       error: (_, __) => 0,
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SectionHeader(title: '冲突处理'),
-        const SizedBox(height: AppDimens.sm),
-        SegmentedRow<ConflictPolicy>(
-          options: const <SegmentOption<ConflictPolicy>>[
-            SegmentOption<ConflictPolicy>(
-              value: ConflictPolicy.auto,
-              label: '自动(LWW)',
-              leading: LineGlyph(Icons.sync, size: 16),
-            ),
-            SegmentOption<ConflictPolicy>(
-              value: ConflictPolicy.prompt,
-              label: '逐字段选择',
-              leading: LineGlyph(Icons.gpp_maybe_outlined, size: 16),
-            ),
-          ],
-          value: policy,
-          onChanged: (ConflictPolicy v) =>
-              ref.read(syncSettingsProvider.notifier).setConflictPolicy(v),
-        ),
-        const SizedBox(height: AppDimens.sm),
-        Text(
-          policy == ConflictPolicy.auto
-              ? '自动：冲突以时间戳决胜（最后写入胜出），无需人工介入。'
-              : '逐字段选择：本地与云端都改过的不一致记录会暂存，由你逐字段决定保留哪边。',
-          style: context.text.bodySmall
-              ?.copyWith(color: context.colors.onSurfaceVariant),
-        ),
-        const SizedBox(height: AppDimens.md),
-        InkWell(
-          onTap: () => context.push(Routes.conflictResolve),
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppDimens.sm),
-            child: Row(
-              children: <Widget>[
-                LineGlyph(
-                  Icons.gpp_maybe_outlined,
-                  size: 20,
-                  color: context.colors.primary,
-                ),
-                const SizedBox(width: AppDimens.md),
-                Expanded(
-                  child: Text('待解决冲突', style: context.text.bodyLarge),
-                ),
-                if (pending > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.colors.errorContainer,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusChip),
-                    ),
-                    child: Text(
-                      '$pending',
-                      style: context.text.bodySmall?.copyWith(
-                        color: context.colors.onErrorContainer,
-                        fontWeight: FontWeight.w600,
+    return HairlineCard(
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SectionHeader(title: '冲突处理'),
+          const SizedBox(height: AppDimens.sm),
+          SegmentedRow<ConflictPolicy>(
+            options: const <SegmentOption<ConflictPolicy>>[
+              SegmentOption<ConflictPolicy>(
+                value: ConflictPolicy.auto,
+                label: '自动(LWW)',
+                leading: LineGlyph(Icons.sync, size: 16),
+              ),
+              SegmentOption<ConflictPolicy>(
+                value: ConflictPolicy.prompt,
+                label: '逐字段选择',
+                leading: LineGlyph(Icons.gpp_maybe_outlined, size: 16),
+              ),
+            ],
+            value: policy,
+            onChanged: (ConflictPolicy v) =>
+                ref.read(syncSettingsProvider.notifier).setConflictPolicy(v),
+          ),
+          const SizedBox(height: AppDimens.sm),
+          Text(
+            policy == ConflictPolicy.auto
+                ? '自动：冲突以时间戳决胜（最后写入胜出），无需人工介入。'
+                : '逐字段选择：本地与云端都改过的不一致记录会暂存，由你逐字段决定保留哪边。',
+            style: context.text.bodySmall
+                ?.copyWith(color: context.colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: AppDimens.sm),
+          InkWell(
+            onTap: () => context.push(Routes.conflictResolve),
+            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppDimens.xs),
+              child: Row(
+                children: <Widget>[
+                  LineGlyph(
+                    Icons.gpp_maybe_outlined,
+                    size: 20,
+                    color: context.colors.primary,
+                  ),
+                  const SizedBox(width: AppDimens.md),
+                  Expanded(
+                    child: Text('待解决冲突', style: context.text.bodyLarge),
+                  ),
+                  if (pending > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.colors.errorContainer,
+                        borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+                      ),
+                      child: Text(
+                        '$pending',
+                        style: context.text.bodySmall?.copyWith(
+                          color: context.colors.onErrorContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
+                  const SizedBox(width: AppDimens.sm),
+                  LineGlyph(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: context.colors.onSurfaceVariant,
                   ),
-                const SizedBox(width: AppDimens.sm),
-                LineGlyph(
-                  Icons.chevron_right,
-                  size: 18,
-                  color: context.colors.onSurfaceVariant,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildScopeSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SectionHeader(title: '本次同步范围（可选）'),
-        const SizedBox(height: AppDimens.sm),
-        Text(
-          '不填则同步全部数据。范围仅在下方点「立即同步」时生效，且不会推进自动同步的增量游标。',
-          style: context.text.bodySmall
-              ?.copyWith(color: context.colors.onSurfaceVariant),
-        ),
-        const SizedBox(height: AppDimens.md),
-        _buildTimeRangeChips(),
-        if (_timeRange == _TimeRangeKind.custom) ...<Widget>[
+    return HairlineCard(
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SectionHeader(title: '本次同步范围（可选）'),
           const SizedBox(height: AppDimens.sm),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _DateField(
-                  label: '起始',
-                  value: _from == null ? '选择日期' : _fmtDate(_from!),
-                  onTap: () => _pickDate(true),
+          Text(
+            '不填则同步全部数据。范围仅在下方点「立即同步」时生效，且不会推进自动同步的增量游标。',
+            style: context.text.bodySmall
+                ?.copyWith(color: context.colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: AppDimens.sm),
+          _buildTimeRangeChips(),
+          if (_timeRange == _TimeRangeKind.custom) ...<Widget>[
+            const SizedBox(height: AppDimens.sm),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _DateField(
+                    label: '起始',
+                    value: _from == null ? '选择日期' : _fmtDate(_from!),
+                    onTap: () => _pickDate(true),
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppDimens.md),
-              Expanded(
-                child: _DateField(
-                  label: '结束',
-                  value: _to == null ? '选择日期' : _fmtDate(_to!),
-                  onTap: () => _pickDate(false),
+                const SizedBox(width: AppDimens.md),
+                Expanded(
+                  child: _DateField(
+                    label: '结束',
+                    value: _to == null ? '选择日期' : _fmtDate(_to!),
+                    onTap: () => _pickDate(false),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+          ],
+          const SizedBox(height: AppDimens.sm),
+          Text(
+            '数据范围',
+            style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppDimens.sm),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: <Widget>[
+                for (int i = 0; i < _scopeGroups.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      right: i < _scopeGroups.length - 1 ? AppDimens.sm : 0,
+                    ),
+                    child: FilterChip(
+                      label: Text(_scopeGroups[i].label),
+                      selected: _scopeGroups[i].tables
+                          .every(_selectedTables.contains),
+                      onSelected: (bool selected) => setState(() {
+                        if (selected) {
+                          _selectedTables.addAll(_scopeGroups[i].tables);
+                        } else {
+                          _selectedTables
+                              .removeAll(_scopeGroups[i].tables);
+                        }
+                      }),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
-        const SizedBox(height: AppDimens.md),
-        Text(
-          '数据范围',
-          style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: AppDimens.sm),
-        Wrap(
-          spacing: AppDimens.sm,
-          runSpacing: AppDimens.sm,
-          children: <Widget>[
-            for (final group in _scopeGroups)
-              FilterChip(
-                label: Text(group.label),
-                selected: group.tables.every(_selectedTables.contains),
-                onSelected: (bool selected) => setState(() {
-                  if (selected) {
-                    _selectedTables.addAll(group.tables);
-                  } else {
-                    _selectedTables.removeAll(group.tables);
-                  }
-                }),
-                // 底色/文字/勾选色全部走全局 chipTheme（未选中 paper2+墨字，
-                // 选中 sage100+sage700），不再页内覆盖。
-                visualDensity: VisualDensity.compact,
-              ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 

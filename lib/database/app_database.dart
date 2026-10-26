@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 抽出为顶层常量，便于测试在不实例化 [AppDatabase] 的情况下引用当前版本，
   /// 避免迁移回归测试把版本号写死导致每次升级都要手动同步。
-  static const int kSchemaVersion = 40;
+  static const int kSchemaVersion = 41;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -538,6 +538,25 @@ class AppDatabase extends _$AppDatabase {
             // （每月固定还款日）互斥二选一。存量库该列为 null（即沿用旧的固定
             // 还款日模式，due_day 已存值），无需回填，展示层按非空优先推算。
             await _addColumnIfMissing(m, accounts, accounts.dueGraceDays);
+          }
+
+          if (from < 41) {
+            // v41：修复旧版「左滑隐藏」留下的脏数据。
+            //
+            // 旧 [AccountsDao.archive] 只翻 `is_archived = 1`、不动 `status`，
+            // 导致被隐藏的账户 `status` 仍停留为 `active`（或早期列缺失为 NULL），
+            // 既不在主列表（watchByBook 过滤 is_archived=false）、也不在隐藏页
+            // （watchByStatus 按 status=hidden 过滤）——在 UI 里彻底消失。
+            //
+            // 不变量：`is_archived = !status.isVisible`。因此
+            // `is_archived = 1 AND (status IS NULL OR status = 0)` 必然是脏数据，
+            // 一键修正为 `status = hidden(1)`（同时符合不变量，is_archived 已为真）。
+            // 幂等：已正确置位的 hidden/sealed 行不在匹配范围内。
+            await customStatement(
+              'UPDATE accounts SET status = 1 '
+              'WHERE is_archived = 1 AND (status IS NULL OR status = 0) '
+              'AND deleted = 0',
+            );
           }
 
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等

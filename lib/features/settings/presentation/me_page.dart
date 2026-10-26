@@ -11,6 +11,7 @@ import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/section_header.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../theme/app_colors.dart';
 
 /// 记账天数：当前账本最早一笔流水的【真实记录时刻】所在自然日至今（含首尾），
@@ -337,6 +338,7 @@ class MePage extends ConsumerWidget {
     ),
     (label: '账户管理', icon: Icons.credit_card, route: Routes.accountManage),
     (label: '物品管理', icon: Icons.inventory_2_outlined, route: Routes.inventory),
+    (label: '卡片管理', icon: Icons.credit_score_outlined, route: Routes.cardManage),
   ];
 
   static const List<({String label, IconData icon, String route})>
@@ -384,6 +386,9 @@ class MePage extends ConsumerWidget {
         // 「存钱」宫格直达记一笔的存钱（投资/储蓄存入）Tab，而非计划列表页。
         if (item.label == '存钱') {
           openRecordSheet(context, initialTab: RecordTab.savings);
+        } else if (item.route.isEmpty) {
+          // 占位入口：功能开发中。
+          showAppToast(context, '${item.label}功能开发中');
         } else {
           context.push(item.route);
         }

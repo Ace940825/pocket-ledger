@@ -6,6 +6,7 @@ import '../../../shared/models/money.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
+import '../data/account_io.dart';
 import '../data/bill_io.dart';
 import '../data/bill_template.dart';
 
@@ -15,6 +16,10 @@ import '../data/bill_template.dart';
 /// 展示部分账单 + 被跳过行原因）→ 账单列表（支出 / 收入 / 其他筛选）→
 /// 底部「确认导入账单」。确认后 `pop(true)` 回配置页执行真实导入——
 /// 本页即「写入前确认环节」，替代原确认弹窗。
+///
+/// 纯账户文件（v3 双段中只有 `# [账户]` 段、账单段为空）时整页切为账户口径：
+/// 标题「账户导入预览」、总览展账户段新建/覆盖预告、清单列账户（名称 +
+/// 类型 + 尾号 + 额度）、底部「确认导入账户」——见 [_isAccountOnly]。
 class BillImportPreviewPage extends StatefulWidget {
   const BillImportPreviewPage({super.key, required this.parsed, this.check});
 
@@ -35,6 +40,11 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
   static const int _maxShown = 100;
 
   List<BillRow> get _rows => widget.parsed.rows;
+
+  /// 纯账户文件（v3 账户段、无账单行）：预览页整体切为账户口径——
+  /// 标题 / 总览 / 清单 / 确认按钮全部以账户为主体，避免进去一片空白。
+  bool get _isAccountOnly =>
+      widget.parsed.rows.isEmpty && widget.parsed.accounts.isNotEmpty;
 
   int get _expenseCount =>
       _rows.where((BillRow r) => r.type == TxnType.expense).length;
@@ -67,7 +77,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('账单导入预览'),
+        title: Text(_isAccountOnly ? '账户导入预览' : '账单导入预览'),
         centerTitle: true,
         leading: const BackButton(),
       ),
@@ -99,6 +109,48 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
   // ── 总览 ─────────────────────────────────────────────────────
 
   Widget _overviewCard() {
+    // 纯账户文件：总览改展账户段口径（段内总数 + 新建 / 覆盖预告），
+    // 账单维度（收入 / 支出）对本类文件无意义，不展示。
+    if (_isAccountOnly) {
+      final TemplateCheckResult? c = widget.check;
+      final int willCreate = c == null
+          ? widget.parsed.accounts.length
+          : c.restoredAccounts.length;
+      final int willUpdate = c?.updatedAccounts.length ?? 0;
+      return _card(
+        label: '总览',
+        children: <Widget>[
+          _overviewRow(
+            title: '账户段',
+            subtitle: '${widget.parsed.accounts.length} 个账户',
+            onTap: () => _showNameSheet(
+              '账户段清单',
+              <String>[
+                for (final AccountRow a in widget.parsed.accounts) a.name,
+              ],
+            ),
+          ),
+          _divider(),
+          _overviewRow(
+            title: '将新建',
+            subtitle: '$willCreate 个（已存在则跳过）',
+            onTap: willCreate == 0
+                ? () {}
+                : () => _showNameSheet('将新建账户', c?.restoredAccounts ?? const <String>[]),
+          ),
+          _divider(),
+          _overviewRow(
+            title: '将覆盖',
+            subtitle: willUpdate == 0
+                ? '0 个'
+                : '$willUpdate 个（覆盖模式生效）',
+            onTap: willUpdate == 0
+                ? () {}
+                : () => _showNameSheet('将覆盖账户', c!.updatedAccounts),
+          ),
+        ],
+      );
+    }
     return _card(
       label: '总览',
       children: <Widget>[
@@ -190,7 +242,9 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
           _cardLabel('提示'),
           const SizedBox(height: 4),
           Text(
-            '下方为预览，仅显示部分账单，实际以导入为准~',
+            _isAccountOnly
+                ? '下方为账户段预览，仅显示前 $_maxShown 个，实际以导入为准~'
+                : '下方为预览，仅显示部分账单，实际以导入为准~',
             style: TextStyle(
               fontSize: 12.5,
               height: 1.5,
@@ -238,6 +292,42 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
   // ── 账单列表 ─────────────────────────────────────────────────
 
   Widget _billsCard() {
+    // 纯账户文件：清单卡改展账户段（名称 + 类型 + 卡号末四位），
+    // 与账单文件共用同一张卡，仅内容与筛选胶囊不同。
+    if (_isAccountOnly) {
+      final List<AccountRow> accs = widget.parsed.accounts;
+      return _card(
+        label: '账户',
+        children: <Widget>[
+          if (accs.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Text(
+                '账户段为空',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            )
+          else ...<Widget>[
+            for (int i = 0; i < accs.length && i < _maxShown; i++)
+              _accountRow(accs[i]),
+            if (accs.length > _maxShown)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                child: Text(
+                  '… 仅显示前 $_maxShown 个',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        ],
+      );
+    }
     final TxnType filter = switch (_tab) {
       0 => TxnType.expense,
       1 => TxnType.income,
@@ -367,6 +457,50 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
     );
   }
 
+  /// 账户段预览行：名称 + 类型 / 卡号末四位 / 额度（信用卡）副标题。
+  Widget _accountRow(AccountRow a) {
+    final String? card = a.cardNumber?.replaceAll(RegExp(r'\D'), '');
+    final String last4 =
+        (card != null && card.length >= 4) ? card.substring(card.length - 4) : '';
+    final List<String> subs = <String>[
+      a.type.label,
+      if (last4.isNotEmpty) '尾号$last4',
+      if (a.creditLimitMinor != null && a.creditLimitMinor! > 0)
+        Money.fromMinor(a.creditLimitMinor!, currency: a.currency).format(),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  a.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subs.join(' · '),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── 底部确认栏 ───────────────────────────────────────────────
 
   Widget _confirmBar() {
@@ -392,9 +526,9 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
             child: InkWell(
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               onTap: () => Navigator.of(context).pop(true),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  '确认导入账单',
+                  _isAccountOnly ? '确认导入账户' : '确认导入账单',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

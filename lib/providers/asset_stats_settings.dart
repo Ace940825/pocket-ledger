@@ -7,15 +7,24 @@ const String _kStatsKey = 'asset_stats_settings';
 
 /// 资产页「资产月消费统计」口径设置（对齐小青账设置面板）。
 ///
-/// 只影响资产详情页账单列表的**总金额统计方式与分组方式**，不改动任何流水数据。
+/// 影响两处：
+/// - [showGroupPercentage]：账户页分组卡片是否显示占比百分比；
+/// - 其余字段：资产详情页账单列表的**总金额统计方式与分组方式**。
 class AssetStatsSettings {
   const AssetStatsSettings({
+    this.showGroupPercentage = false,
     this.expenseWithTransfer = false,
     this.incomeWithTransfer = false,
     this.noOffset = false,
     this.groupByMonthAsset = true,
     this.groupByMonthReimburse = false,
   });
+
+  /// 账户页分组卡片是否显示资产占比百分比。
+  ///
+  /// - `false`（默认）= 分组头部只显示分类名 + 金额；
+  /// - `true` = 金额下方加一行小字百分比（各分类金额 / 总金额）。
+  final bool showGroupPercentage;
 
   /// 支出流水统计。
   ///
@@ -52,6 +61,7 @@ class AssetStatsSettings {
   final bool groupByMonthReimburse;
 
   AssetStatsSettings copyWith({
+    bool? showGroupPercentage,
     bool? expenseWithTransfer,
     bool? incomeWithTransfer,
     bool? noOffset,
@@ -59,6 +69,7 @@ class AssetStatsSettings {
     bool? groupByMonthReimburse,
   }) {
     return AssetStatsSettings(
+      showGroupPercentage: showGroupPercentage ?? this.showGroupPercentage,
       expenseWithTransfer: expenseWithTransfer ?? this.expenseWithTransfer,
       incomeWithTransfer: incomeWithTransfer ?? this.incomeWithTransfer,
       noOffset: noOffset ?? this.noOffset,
@@ -69,6 +80,7 @@ class AssetStatsSettings {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
+        'showGroupPercentage': showGroupPercentage,
         'expenseWithTransfer': expenseWithTransfer,
         'incomeWithTransfer': incomeWithTransfer,
         'noOffset': noOffset,
@@ -78,6 +90,7 @@ class AssetStatsSettings {
 
   factory AssetStatsSettings.fromJson(Map<String, Object?> json) {
     return AssetStatsSettings(
+      showGroupPercentage: json['showGroupPercentage'] == true,
       expenseWithTransfer: json['expenseWithTransfer'] == true,
       incomeWithTransfer: json['incomeWithTransfer'] == true,
       noOffset: json['noOffset'] == true,
@@ -90,6 +103,7 @@ class AssetStatsSettings {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AssetStatsSettings &&
+          other.showGroupPercentage == showGroupPercentage &&
           other.expenseWithTransfer == expenseWithTransfer &&
           other.incomeWithTransfer == incomeWithTransfer &&
           other.noOffset == noOffset &&
@@ -98,6 +112,7 @@ class AssetStatsSettings {
 
   @override
   int get hashCode => Object.hash(
+        showGroupPercentage,
         expenseWithTransfer,
         incomeWithTransfer,
         noOffset,
@@ -106,8 +121,9 @@ class AssetStatsSettings {
       );
 
   @override
-  String toString() => 'AssetStatsSettings(expense+transfer: '
-      '$expenseWithTransfer, income+transfer: $incomeWithTransfer, '
+  String toString() => 'AssetStatsSettings(showPct: $showGroupPercentage, '
+      'expense+transfer: $expenseWithTransfer, '
+      'income+transfer: $incomeWithTransfer, '
       'noOffset: $noOffset, groupAsset: $groupByMonthAsset, '
       'groupReimburse: $groupByMonthReimburse)';
 }

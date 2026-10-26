@@ -352,6 +352,15 @@ class ParseResult {
   bool get hasErrors => errors.isNotEmpty;
 }
 
+/// 文件是否含可导入内容：账单行或账户段任一非空即算「已识别」。
+///
+/// v3 起导出文件是双段结构，**纯账户文件**（只有 `# [账户]` 段、账单段为空，
+/// 如「33 张卡片截图整理」的账户数据文件）同样应当可导入。旧门禁只看
+/// `rows.isEmpty`，纯账户文件会被「请先选择账单文件」挡死——即实机反馈的
+/// 「识别不到」。导入链路（预览 / 冲突 / 进度 / 结果文案）均以本函数为准。
+bool hasImportableContent(ParseResult r) =>
+    r.rows.isNotEmpty || r.accounts.isNotEmpty;
+
 /// 自动识别 CSV / JSON 并把内容解析成 [BillRow] 列表。
 ///
 /// 以 `[` 或 `{` 开头视为 JSON，否则按 CSV 处理。空内容返回空结果。

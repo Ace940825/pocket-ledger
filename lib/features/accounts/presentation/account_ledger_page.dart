@@ -774,18 +774,18 @@ class _AccountCardHeader extends ConsumerWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(AppDimens.lg),
+          padding: const EdgeInsets.all(AppDimens.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Row(
                 children: <Widget>[
                   ClayIconTile(
-                    size: 40,
+                    size: 36,
                     color: AppPalette.primary,
                     child: LineIcon(
                       accountLineKind(account.type) ?? LineIconKind.star,
-                      size: 20,
+                      size: 18,
                       color: Color.lerp(
                         AppPalette.primary,
                         Theme.of(context).colorScheme.onSurface,
@@ -793,7 +793,7 @@ class _AccountCardHeader extends ConsumerWidget {
                       )!,
                     ),
                   ),
-                  const SizedBox(width: AppDimens.md),
+                  const SizedBox(width: AppDimens.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -843,7 +843,7 @@ class _AccountCardHeader extends ConsumerWidget {
                 ],
               ),
               if (statementMode) ...<Widget>[
-                const SizedBox(height: AppDimens.lg),
+                const SizedBox(height: AppDimens.md),
                 // 欠款/可用额度 + 日期宫格 + 分期记账（与信用卡还款页共用）。
                 CreditCardInfoSection(
                   account: account,
@@ -851,7 +851,7 @@ class _AccountCardHeader extends ConsumerWidget {
                   onInstallment: onInstallment,
                 ),
               ] else ...<Widget>[
-                const SizedBox(height: AppDimens.lg),
+                const SizedBox(height: AppDimens.md),
                 Text(
                   switch (account.type) {
                     // 借出/借入账户按小青账口径展示本金净额（= 名下未结清合计）
@@ -900,11 +900,15 @@ class _CrossYearNoticeCard extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppDimens.lg,
-        vertical: AppDimens.sm,
+      margin: const EdgeInsets.only(
+        left: AppDimens.lg,
+        right: AppDimens.lg,
+        top: AppDimens.sm,
       ),
-      padding: const EdgeInsets.all(AppDimens.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.sm,
+        vertical: AppDimens.xs,
+      ),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -914,17 +918,17 @@ class _CrossYearNoticeCard extends StatelessWidget {
         children: <Widget>[
           LineGlyph(
             Icons.info_outline,
-            size: 16,
+            size: 14,
             color: scheme.onSurfaceVariant,
           ),
-          const SizedBox(width: AppDimens.sm),
+          const SizedBox(width: AppDimens.xs),
           Expanded(
             child: Text(
               '信用卡、花呗等会出现跨年的账单，当月账单下月才会出账单，'
               '如2022年出现2021年12月份账单。',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
-                height: 1.5,
+                height: 1.3,
               ),
             ),
           ),
@@ -949,9 +953,11 @@ class _YearSelectorRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.lg,
-        vertical: AppDimens.md,
+      padding: const EdgeInsets.only(
+        left: AppDimens.lg,
+        right: AppDimens.lg,
+        top: AppDimens.sm,
+        bottom: AppDimens.xs,
       ),
       child: Row(
         children: <Widget>[
@@ -1038,7 +1044,7 @@ class _MonthSection extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimens.lg,
-              vertical: AppDimens.md,
+              vertical: AppDimens.xs,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1074,7 +1080,7 @@ class _MonthSection extends StatelessWidget {
                   ],
                 ),
                 if (periodStart != null && periodEnd != null) ...<Widget>[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   // 与月标题左缘对齐（折叠箭头 20 + 间距 4）。
                   Padding(
                     padding: const EdgeInsets.only(left: 24),
@@ -1140,7 +1146,7 @@ class _DayHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.lg,
-        AppDimens.md,
+        AppDimens.xs,
         AppDimens.lg,
         AppDimens.xs,
       ),
@@ -1179,7 +1185,7 @@ class _MonthSummary extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimens.lg,
-        vertical: AppDimens.sm,
+        vertical: AppDimens.xs,
       ),
       child: Text(
         text,

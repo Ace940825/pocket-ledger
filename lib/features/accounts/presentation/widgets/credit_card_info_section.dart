@@ -73,10 +73,10 @@ class CreditCardInfoSection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   _fieldLabel(context, '当前欠款(元)'),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     Money.fromMinor(debt).format(showSymbol: false),
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: theme.textTheme.titleLarge?.copyWith(
                       color: AppPalette.expense,
                       fontWeight: FontWeight.w700,
                     ),
@@ -92,7 +92,7 @@ class CreditCardInfoSection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     _fieldLabel(context, '可用额度'),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       Money.fromMinor(available ?? 0).format(showSymbol: false),
                       style: theme.textTheme.titleMedium?.copyWith(
@@ -102,14 +102,14 @@ class CreditCardInfoSection extends StatelessWidget {
                       ),
                     ),
                     if (limit > 0) ...<Widget>[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       // 用度进度条：超额（可用<0）转红、满格。
                       ClipRRect(
                         borderRadius:
                             BorderRadius.circular(AppDimens.radiusSm),
                         child: LinearProgressIndicator(
                           value: usedRatio,
-                          minHeight: 6,
+                          minHeight: 4,
                           color: overLimit
                               ? AppPalette.expense
                               : AppPalette.primary,
@@ -122,7 +122,7 @@ class CreditCardInfoSection extends StatelessWidget {
               ),
           ],
         ),
-        const Divider(height: AppDimens.lg),
+        const Divider(height: AppDimens.md),
         // 日期宫格第一行：账单日期 / 出账日期 / 出账天数
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +150,7 @@ class CreditCardInfoSection extends StatelessWidget {
             ),
           ],
         ),
-        const Divider(height: AppDimens.lg),
+        const Divider(height: AppDimens.md),
         // 日期宫格第二行：还款日 / 还款日期 / 免息天数
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +178,7 @@ class CreditCardInfoSection extends StatelessWidget {
           ],
         ),
         if (showInstallment) ...<Widget>[
-          const SizedBox(height: AppDimens.sm),
+          const SizedBox(height: AppDimens.xs),
           // 「分期记账」入口（右下，参考稿同款浅绿胶囊）
           Align(
             alignment: Alignment.centerRight,

@@ -114,7 +114,11 @@ class AccountRepository {
     });
   }
 
-  /// 隐藏账户：仅置 `isArchived = true`，数据保留，可通过 [unarchive] 恢复。
+  /// 隐藏账户：置 `status = [AccountStatus.hidden]` 且 `isArchived = true`，
+  /// 数据保留，可通过 [restore] 恢复。
+  ///
+  /// 注意：必须一并写 `status`，否则「隐藏资产列表」按 `status` 过滤会抓不到
+  /// （见 [AccountsDao.archive]）。[unarchive] 已不再用于隐藏场景，统一走 [restore]。
   Future<void> archive(String id) async {
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
     await _db.transaction<void>(() async {
@@ -125,7 +129,10 @@ class AccountRepository {
           recordId: Value<String>(id),
           opType: const Value<SyncOpType>(SyncOpType.update),
           payload: Value<String>(
-            jsonEncode(<String, Object?>{'isArchived': true}),
+            jsonEncode(<String, Object?>{
+              'status': AccountStatus.hidden.index,
+              'isArchived': true,
+            }),
           ),
           updatedAt: Value<int>(now),
           createdAt: Value<int>(now),
@@ -146,6 +153,31 @@ class AccountRepository {
           opType: const Value<SyncOpType>(SyncOpType.update),
           payload: Value<String>(
             jsonEncode(<String, Object?>{'isArchived': false}),
+          ),
+          updatedAt: Value<int>(now),
+          createdAt: Value<int>(now),
+        ),
+      );
+    });
+  }
+
+  /// 恢复（隐藏 / 封存 → 使用中）：同时复位 [AccountStatus.active] 与
+  /// `isArchived = false`，使账户重新进入主列表、离开隐藏 / 封存列表。
+  /// 详见 [AccountsDao.restore]（[unarchive] 仅翻 `isArchived` 不够）。
+  Future<void> restore(String id) async {
+    final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await _db.transaction<void>(() async {
+      await _db.accountsDao.restore(id, now);
+      await _db.pendingOpsDao.enqueue(
+        PendingOpsCompanion(
+          targetTable: const Value<String>('accounts'),
+          recordId: Value<String>(id),
+          opType: const Value<SyncOpType>(SyncOpType.update),
+          payload: Value<String>(
+            jsonEncode(<String, Object?>{
+              'status': AccountStatus.active.index,
+              'isArchived': false,
+            }),
           ),
           updatedAt: Value<int>(now),
           createdAt: Value<int>(now),

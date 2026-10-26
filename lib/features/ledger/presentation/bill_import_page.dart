@@ -421,6 +421,10 @@ class BillImportConfigPage extends ConsumerStatefulWidget {
 class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   /// 已读取的文件文本内容（无粘贴框，仅文件通道；CSV / JSON 由解析器自动识别）。
   String _rawContent = '';
+
+  /// 已选择的文件名（用于配置行副标题回显）；未选择时为 null。
+  String? _fileName;
+
   ParseResult? _parsed;
 
   /// 模板系统（2026-10-18）：解析成功后的匹配校验与三维归集报告。
@@ -470,8 +474,13 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       if (mounted) showAppToast(context, '无法读取该文件');
       return;
     }
+    // 提取文件名（去掉路径），用于配置行副标题回显。
+    final String fileName = filePath.split(Platform.pathSeparator).last;
     // 字节级解码：UTF-8 优先，失败回退 GBK（支付宝 / 云闪付导出）。
     _rawContent = decodeBillFileBytes(await File(filePath).readAsBytes());
+    if (mounted) {
+      setState(() => _fileName = fileName);
+    }
     // 本 App / 空白模板选择下自动嗅探第三方表头，命中即切换来源并回显。
     if (_source == ImportSource.pocketLedger ||
         _source == ImportSource.blankTemplate) {
@@ -488,7 +497,9 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   Future<void> _parse() async {
     final ParseResult parsed = parseSource(_source, _rawContent);
     TemplateCheckResult? check;
-    if (parsed.rows.isNotEmpty) {
+    // 纯账户文件（0 账单行）同样需要校验报告：预览页的「账户段复原：
+    // 新建 / 覆盖 N 个」与重名阻断提示全部来自 checkRows 的账户段归集。
+    if (parsed.rows.isNotEmpty || parsed.accounts.isNotEmpty) {
       // 与当前账本的账户 / 分类 / 账本做匹配校验（模板系统：不再静默自动创建，
       // 未知项在报告中显式列出）。
       final List<Account> accounts = await ref.read(accountsProvider.future);
@@ -692,7 +703,9 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   /// 底部「开始导入」：跳转预览页（对标小青账），确认后回本页执行真实导入。
   Future<void> _startImport() async {
     if (_importing) return;
-    if (_parsed == null || _parsed!.rows.isEmpty) {
+    // 双段文件：账单行或账户段任一非空即可导入（纯账户文件修复，见
+    // [hasImportableContent]）——旧门禁只看 rows，纯账户文件被误拒。
+    if (_parsed == null || !hasImportableContent(_parsed!)) {
       showAppToast(context, '请先选择账单文件');
       return;
     }
@@ -703,8 +716,11 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     );
     if (confirmed != true || !mounted) return;
     // 数据库中已有数据 → 冲突处理三选一（2026-10-22：合并 / 覆盖 / 取消）。
+    // 纯账户导入（无账单行）不碰任何流水：跳过冲突对话框——其文案围绕
+    // 「删除流水」，对账户导入既误导、误选覆盖更会白删用户流水。
     final String bookId = ref.read(currentBookIdProvider);
-    final int existing = await _countBookTxns(bookId);
+    final int existing =
+        _parsed!.rows.isEmpty ? 0 : await _countBookTxns(bookId);
     if (!mounted) return;
     ImportConflictMode mode = ImportConflictMode.merge;
     if (existing > 0) {
@@ -751,11 +767,17 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     ImportConflictMode mode = ImportConflictMode.merge,
     int existingCount = 0,
   }) async {
-    if (_importing || _parsed == null || _parsed!.rows.isEmpty) return;
+    if (_importing ||
+        _parsed == null ||
+        !hasImportableContent(_parsed!)) {
+      return;
+    }
     setState(() {
       _importing = true;
       // 覆盖模式的进度基数含「先删除的旧流水量」，删除与导入共用一个进度条。
-      _progressTotal = _parsed!.rows.length + existingCount;
+      // 账户段复原也计入总量：纯账户文件（0 账单）同样有完整进度反馈。
+      _progressTotal =
+          _parsed!.rows.length + existingCount + _parsed!.accounts.length;
       _progressDone = 0;
     });
     try {
@@ -1001,6 +1023,10 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
             accCreated++;
           } else {
             accUpdated++;
+          }
+          // 账户段进度：每复原一个账户推进一步（纯账户文件的进度反馈全靠它）。
+          if (mounted) {
+            setState(() => _progressDone = _parsed!.rows.length + existingCount + i + 1);
           }
           balanceFixups.add(
             (
@@ -1329,9 +1355,19 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           : (accUpdated == 0
               ? '，复原账户 $accCreated 个'
               : '，复原账户 $accCreated 个（覆盖 $accUpdated 个）');
-      final String msg = skipped == 0
-          ? '成功导入 $imported 笔账单$accMsg'
-          : '导入 $imported 笔，跳过 $skipped 笔$accMsg';
+      // 纯账户文件（0 账单行）：结果文案以账户为主体，避免「成功导入 0 笔」。
+      final String msg;
+      if (imported > 0) {
+        msg = skipped == 0
+            ? '成功导入 $imported 笔账单$accMsg'
+            : '导入 $imported 笔，跳过 $skipped 笔$accMsg';
+      } else if (accCreated + accUpdated > 0) {
+        msg = accUpdated == 0
+            ? '成功复原账户 $accCreated 个'
+            : '成功复原账户 $accCreated 个（覆盖 $accUpdated 个）';
+      } else {
+        msg = skipped == 0 ? '没有可导入的新内容' : '跳过 $skipped 笔，无可导入内容';
+      }
       // 记录最近一次导入的跳过明细（结果栏「查看问题」复用）。
       _lastSkipped = skipped;
       _lastReasons = List<String>.from(reasons);
@@ -2028,7 +2064,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                   children: <Widget>[
                     _configRow(
                       title: '导入账单',
-                      subtitle: '选择文件开始导入',
+                      subtitle: _fileName ?? '选择文件开始导入',
                       onTap: _pickFile,
                     ),
                     const Divider(

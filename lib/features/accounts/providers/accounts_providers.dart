@@ -95,6 +95,26 @@ final AutoDisposeStreamProvider<List<Account>> accountsProvider =
   final String bookId = ref.watch(currentBookIdProvider);
   return ref.watch(accountsDaoProvider).watchByBook(bookId);
 });
+
+/// 隐藏资产列表（账户设置 → 隐藏资产列表进入）：实时监听当前账本下
+/// 状态为 [AccountStatus.hidden] 的账户，恢复（取消隐藏）后自动从列表消失。
+final AutoDisposeStreamProvider<List<Account>> hiddenAccountsProvider =
+    StreamProvider.autoDispose<List<Account>>((Ref ref) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref
+      .watch(accountsDaoProvider)
+      .watchByStatus(bookId, AccountStatus.hidden);
+});
+
+/// 封存资产列表（账户设置 → 封存资产列表进入）：实时监听当前账本下
+/// 状态为 [AccountStatus.sealed] 的账户，恢复（取消封存）后自动从列表消失。
+final AutoDisposeStreamProvider<List<Account>> sealedAccountsProvider =
+    StreamProvider.autoDispose<List<Account>>((Ref ref) {
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref
+      .watch(accountsDaoProvider)
+      .watchByStatus(bookId, AccountStatus.sealed);
+});
 /// 指定账户的**全部**流水（不限年份，含转账转入侧，已去重、排除软删）。
 ///
 /// 用途：账户详情页「账单迁移 / 账单清理 / 金额校验」需要跨年全量流水，

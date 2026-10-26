@@ -9,6 +9,10 @@ import '../../shared/widgets/modal_sheet_registry.dart';
 /// 使用 [StatefulShellRoute.indexedStack] 的好处：
 /// 切换 Tab 时各分支保持自己的导航栈、滚动位置与页面状态，
 /// 从详情页返回后列表不会重新加载、不会跳回顶部。
+///
+/// 冷启动默认进入首页由 [GoRouter.initialLocation] = /home 保证；
+/// 从后台切回前台时保持 iOS 默认多任务行为（停留在上次浏览的 Tab / 页面），
+/// 不强制跳回首页。
 class AppShell extends StatelessWidget {
   const AppShell({required this.navigationShell, super.key});
 

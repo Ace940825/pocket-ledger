@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/enums.dart';
 import '../app_database.dart';
 
 part 'accounts_dao.g.dart';
@@ -16,6 +17,24 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
           ..where(
             (Accounts tbl) =>
                 tbl.bookId.equals(bookId) & tbl.isArchived.equals(false),
+          )
+          ..orderBy([
+            (Accounts tbl) => OrderingTerm.asc(tbl.sortOrder),
+          ]))
+        .watch();
+  }
+
+  /// 实时监听指定状态的账户（隐藏 / 封存等），用于「隐藏资产列表」等管理页。
+  ///
+  /// 与 [watchByBook] 的区别：不过滤 isArchived，而是按 [AccountStatus] 精确过滤，
+  /// 因为 hidden 与 sealed 都会置 isArchived = true，需要靠 status 列区分。
+  Stream<List<Account>> watchByStatus(String bookId, AccountStatus status) {
+    return (select(accounts)
+          ..where(
+            (Accounts tbl) =>
+                tbl.bookId.equals(bookId) &
+                tbl.status.equals(status.index) &
+                tbl.deleted.equals(false),
           )
           ..orderBy([
             (Accounts tbl) => OrderingTerm.asc(tbl.sortOrder),
@@ -154,12 +173,16 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// 隐藏（不计入资产/列表展示，但保留数据与流水关联）。
-  /// 与 [softDelete] 区别：隐藏只置 `isArchived = true`、`deleted = false`，
-  /// 后续可调用 [unarchive] 恢复。
+  /// 与 [softDelete] 区别：隐藏置 `status = [AccountStatus.hidden]`、
+  /// `isArchived = true`、`deleted = false`，后续可调用 [restore] 恢复。
+  ///
+  /// 注意：必须一并写 `status`，否则「隐藏资产列表」按 [watchByStatus]（按
+  /// `status` 过滤）会抓不到被隐藏的账户——左滑隐藏走的就是本方法。
   Future<int> archive(String id, int updatedAt) {
     return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
         .write(
       AccountsCompanion(
+        status: const Value<AccountStatus>(AccountStatus.hidden),
         isArchived: const Value<bool>(true),
         dirty: const Value<bool>(true),
         updatedAt: Value<int>(updatedAt),
@@ -172,6 +195,23 @@ class AccountsDao extends DatabaseAccessor<AppDatabase>
     return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
         .write(
       AccountsCompanion(
+        isArchived: const Value<bool>(false),
+        dirty: const Value<bool>(true),
+        updatedAt: Value<int>(updatedAt),
+      ),
+    );
+  }
+
+  /// 恢复（隐藏 / 封存 → 使用中）：同时把 [AccountStatus] 复位为 [active]
+  /// 并将 `isArchived` 置回 false，使账户重新进入主列表、离开隐藏 / 封存列表。
+  ///
+  /// 注意：[unarchive] 只翻 `isArchived`，但 [watchByStatus] 按 `status` 过滤，
+  /// 故仅翻 [isArchived] 不足以让账户离开隐藏 / 封存列表——必须一并复位 `status`。
+  Future<int> restore(String id, int updatedAt) {
+    return (update(accounts)..where((Accounts tbl) => tbl.id.equals(id)))
+        .write(
+      AccountsCompanion(
+        status: const Value<AccountStatus>(AccountStatus.active),
         isArchived: const Value<bool>(false),
         dirty: const Value<bool>(true),
         updatedAt: Value<int>(updatedAt),

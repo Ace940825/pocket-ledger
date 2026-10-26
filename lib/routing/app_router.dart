@@ -5,9 +5,15 @@ import 'package:go_router/go_router.dart';
 import '../database/app_database.dart';
 import '../domain/enums.dart';
 import '../features/accounts/presentation/account_edit_page.dart';
+import '../features/accounts/presentation/account_hidden_page.dart';
 import '../features/accounts/presentation/account_ledger_page.dart';
+import '../features/accounts/presentation/account_sealed_page.dart';
+import '../features/accounts/presentation/account_sort_page.dart';
 import '../features/accounts/presentation/accounts_page.dart';
 import '../features/accounts/presentation/add_account_page.dart';
+import '../features/accounts/presentation/card_manage_page.dart';
+import '../features/accounts/presentation/card_detail_page.dart';
+import '../features/accounts/presentation/card_edit_page.dart';
 import '../features/accounts/presentation/credit_card_repay_page.dart';
 import '../features/budget/presentation/budget_page.dart';
 import '../features/categories/presentation/add_category_page.dart';
@@ -54,10 +60,16 @@ abstract final class Routes {
   static const String accounts = '/accounts';
   static const String me = '/me';
   static const String accountManage = '/accounts/manage';
+  static const String cardManage = '/cards/manage';
+  static const String cardDetail = '/cards/detail';
+  static const String cardEdit = '/cards/edit';
   static const String accountAdd = '/accounts/add';
   static const String accountCreditCardRepay = '/accounts/credit-card-repay';
   static const String accountLedger = '/accounts/:id/transactions';
   static const String accountEdit = '/accounts/:id/edit';
+  static const String accountSort = '/accounts/sort';
+  static const String accountHidden = '/accounts/hidden';
+  static const String accountSealed = '/accounts/sealed';
   static const String budget = '/budget';
   static const String report = '/report';
 
@@ -185,6 +197,22 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         builder: (_, __) => const AccountsPage(),
       ),
       GoRoute(
+        path: Routes.cardManage,
+        builder: (_, __) => const CardManagePage(),
+      ),
+      GoRoute(
+        path: Routes.cardDetail,
+        builder: (_, GoRouterState state) => CardDetailPage(
+          cardId: state.uri.queryParameters['cardId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: Routes.cardEdit,
+        builder: (_, GoRouterState state) => CardEditPage(
+          cardId: state.uri.queryParameters['cardId'],
+        ),
+      ),
+      GoRoute(
         path: Routes.accountLedger,
         builder: (_, GoRouterState state) =>
             AccountLedgerPage(accountId: state.pathParameters['id'] ?? ''),
@@ -195,6 +223,25 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         builder: (_, GoRouterState state) => AccountEditPage(
           accountId: state.pathParameters['id'] ?? '',
         ),
+      ),
+      // 资产排序页（账户设置 / 隐藏资产设置 / 封存资产设置 → 资产排序进入）：
+      // 扁平列出对应范围的账户，长按拖动后保存。通过 extra 传入 AccountStatus
+      // 区分来源页（null = 账户页 active，hidden / sealed = 对应隐藏/封存页）。
+      GoRoute(
+        path: Routes.accountSort,
+        builder: (_, GoRouterState state) => AccountSortPage(
+          filterStatus: state.extra as AccountStatus?,
+        ),
+      ),
+      // 隐藏资产列表页（账户设置 → 隐藏资产列表进入）：分组展示隐藏账户，可一键恢复。
+      GoRoute(
+        path: Routes.accountHidden,
+        builder: (_, __) => const AccountHiddenPage(),
+      ),
+      // 封存资产列表页（账户设置 → 封存资产列表进入）：分组展示封存账户，可一键恢复。
+      GoRoute(
+        path: Routes.accountSealed,
+        builder: (_, __) => const AccountSealedPage(),
       ),
       GoRoute(
         path: Routes.categories,

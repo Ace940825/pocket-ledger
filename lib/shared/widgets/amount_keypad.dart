@@ -399,6 +399,8 @@ class NumKeypad extends StatelessWidget {
     this.maxDecimalDigits = 2,
     this.confirmLabel = '完成',
     this.replaceOnFirstInput = true,
+    this.onOperator,
+    this.onBackspace,
   });
 
   final String value;
@@ -422,6 +424,12 @@ class NumKeypad extends StatelessWidget {
   /// 「首键替换」透传（语义见 [AmountKeypad.replaceOnFirstInput]）。
   final bool replaceOnFirstInput;
 
+  /// 运算键回调（收到 '+' / '-'）；传 null 时 − / + 键灰显不可点。
+  final ValueChanged<String>? onOperator;
+
+  /// 输入框为空时按删除键的回调（用于撤销运算符等场景）。
+  final VoidCallback? onBackspace;
+
   @override
   Widget build(BuildContext context) {
     return AmountKeypad(
@@ -433,6 +441,8 @@ class NumKeypad extends StatelessWidget {
       replaceOnFirstInput: replaceOnFirstInput,
       showSave: true,
       fourColumns: true,
+      onOperator: onOperator,
+      onBackspace: onBackspace,
     );
   }
 }
@@ -447,8 +457,9 @@ class NumKeypad extends StatelessWidget {
 /// 第 45 批确认要全局开启：所有金额录入首键即替换预填。个别需要追加的场景
 /// （如纯追加输入）显式传 false 关闭即可。
 ///
-/// 键盘本体已统一为工程标准 [AmountKeypad] 4 列布局
-/// （右列 删除 / − / + 占位 / 保存，− / + 灰显）。
+/// **内置计算器**：键盘右列 − / + 键可直接做加减运算，顶部显示实时表达式
+/// （如 `100 + 50`），按「完成」结算最终结果。连续按运算符会链式计算
+/// （如 `100 + 50 − 30 = 120`）。
 Future<String?> showAmountKeypad({
   required BuildContext context,
   String initial = '',
@@ -459,6 +470,26 @@ Future<String?> showAmountKeypad({
   bool replaceOnFirstInput = true,
 }) async {
   String value = initial;
+  // ── 计算器状态 ──
+  double accumulated = 0.0; // 累计值（已完成的运算结果）
+  String? pendingOp; // 待执行运算符（'+' / '-' / null）
+  bool hasOp = false; // 是否已经按过至少一次运算符
+  // 历史栈：每次按运算符前 push 当前状态，删除键撤销时 pop 恢复。
+  // 元素结构：(accumulated, pendingOp, value, hasOp)
+  final List<(double, String?, String, bool)> history =
+      <(double, String?, String, bool)>[];
+
+  double _parse(String s) => double.tryParse(s) ?? 0.0;
+
+  String _fmt(double v) {
+    // 去掉多余的小数尾零：2.50 → 2.5，2.00 → 2
+    String str = v.toStringAsFixed(maxDecimalDigits);
+    if (str.contains('.')) {
+      str = str.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+    }
+    return str.isEmpty ? '0' : str;
+  }
+
   return showAppModalSheet<String>(
     context,
     isScrollControlled: true,
@@ -492,15 +523,32 @@ Future<String?> showAmountKeypad({
                 color: AppPalette.surfaceMist,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                value.isEmpty ? (title.isEmpty ? '请输入' : title) : value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: value.isEmpty
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
-                      : Theme.of(ctx).colorScheme.onSurface,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  // 第一行：表达式（累计值 + 运算符），仅在运算模式下显示
+                  if (hasOp && pendingOp != null)
+                    Text(
+                      '${_fmt(accumulated)} $pendingOp',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  // 第二行：当前输入值（大字）
+                  Text(
+                    value.isEmpty ? (title.isEmpty ? '请输入' : title) : value,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: value.isEmpty
+                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          : Theme.of(ctx).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 8),
@@ -514,7 +562,57 @@ Future<String?> showAmountKeypad({
               replaceOnFirstInput: replaceOnFirstInput,
               onChanged: (String v) => set(() => value = v),
               onHide: () => Navigator.of(ctx).pop(null),
-              onConfirm: () => Navigator.of(ctx).pop(value),
+              onConfirm: () {
+                // 保存前结算：如果还有待执行的运算符，把当前输入算进累计值
+                if (hasOp && pendingOp != null && value.isNotEmpty) {
+                  final double current = _parse(value);
+                  if (pendingOp == '+') {
+                    accumulated += current;
+                  } else if (pendingOp == '-') {
+                    accumulated -= current;
+                  }
+                  pendingOp = null;
+                }
+                final String result =
+                    hasOp ? _fmt(accumulated) : (value.isEmpty ? '0' : value);
+                Navigator.of(ctx).pop(result);
+              },
+              onOperator: (String op) {
+                set(() {
+                  // 按运算符前，先保存当前状态到历史栈（用于撤销）
+                  history.add((accumulated, pendingOp, value, hasOp));
+
+                  final double current = _parse(value);
+                  if (!hasOp) {
+                    // 第一次按运算符：当前值作为累计值起点
+                    accumulated = current;
+                    hasOp = true;
+                  } else if (pendingOp != null && value.isNotEmpty) {
+                    // 连续按运算符：先把上一个输入算进累计值
+                    if (pendingOp == '+') {
+                      accumulated += current;
+                    } else if (pendingOp == '-') {
+                      accumulated -= current;
+                    }
+                  }
+                  pendingOp = op;
+                  // 运算符按下后，清空输入框，准备输入下一个数
+                  value = '';
+                });
+              },
+              onBackspace: () {
+                // 输入框为空时按删除键：撤销刚按的运算符，回到上一轮状态
+                set(() {
+                  if (history.isNotEmpty) {
+                    final (double acc, String? op, String val, bool opned) =
+                        history.removeLast();
+                    accumulated = acc;
+                    pendingOp = op;
+                    value = val;
+                    hasOp = opned;
+                  }
+                });
+              },
             ),
             const SizedBox(height: 16),
           ],
