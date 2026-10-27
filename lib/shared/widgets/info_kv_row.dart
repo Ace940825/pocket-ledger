@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 /// 信息键值行（全应用统一）：左标签 + 右值，可选点击。
 ///
@@ -25,16 +26,16 @@ class InfoKVRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     // 自定义样式未显式给色时必须并入主题色：裸 TextStyle(fontWeight:…) 经
     // DefaultTextStyle 下传后取不到 Material 默认墨色，值会渲染成几乎不可见
     // 的浅灰（成交回执「数量/单价/手续费」不可见，2026-10-16 第 43 批）。
     final TextStyle effectiveLabelStyle =
         (labelStyle ?? const TextStyle(fontSize: 14))
-            .copyWith(color: labelStyle?.color ?? scheme.onSurfaceVariant);
+            .copyWith(color: labelStyle?.color ?? context.forest.onSurfaceVariant);
     final TextStyle effectiveValueStyle = (valueStyle ??
             const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))
-        .copyWith(color: valueStyle?.color ?? scheme.onSurface);
+        .copyWith(color: valueStyle?.color ?? context.forest.onSurface);
     final Widget labelText = Text(label, style: effectiveLabelStyle);
     final Widget valueText = DefaultTextStyle(
       style: effectiveValueStyle,

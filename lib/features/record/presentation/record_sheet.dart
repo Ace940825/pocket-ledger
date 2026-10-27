@@ -26,7 +26,6 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/config/env.dart';
 import '../../../core/errors/failures.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/geo_utils.dart';
 import '../../../database/app_database.dart';
@@ -161,7 +160,7 @@ class _Sage {
   static const Color greenSoft = ForestGreen.soft; // #E6F2E9 浅绿选中底
   static const Color greenSoftBd = ForestGreen.softBorder; // #BFE0C9 浅绿描边
 
-  // 发丝线（已全量迁移到 context.colors.outline，无残留私有别名）
+  // 发丝线（已全量迁移到 context.forest.outline，无残留私有别名）
 
   // 选中态渐变（同 context.app.sageGradient）
   static const LinearGradient sage = AppPalette.sageGradient;
@@ -1933,7 +1932,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
             child: Text(
               '还没有账户，请先到「账户」页添加',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+              style: TextStyle(color: context.forest.error),
             ),
           );
         }
@@ -1971,7 +1970,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
             child: Text(
               '还没有分类，请先到「分类」页添加',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+              style: TextStyle(color: context.forest.error),
             ),
           );
         }
@@ -2084,7 +2083,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -2092,7 +2091,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     '去「储蓄」页选择模式创建',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -2101,7 +2100,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             LineGlyph(
               Icons.chevron_right,
               size: 20,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),
@@ -2139,14 +2138,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ),
               LineGlyph(
                 Icons.chevron_right,
                 size: 20,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ],
           ),
@@ -2502,7 +2501,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
               letterSpacing: 0.5,
             ),
             maxLines: 1,
@@ -2514,7 +2513,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
               letterSpacing: 0.3,
               fontFeatures: const <FontFeature>[
                 FontFeature.tabularFigures(),
@@ -2547,8 +2546,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       child: SizedBox(
         height: height,
         child: HairlineCard(
-          backgroundColor: context.colors.surface,
-          borderColor: Theme.of(context).colorScheme.outline,
+          backgroundColor: context.forest.surface,
+          borderColor: context.forest.outline,
           radius: ForestRadius.md,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           shadows: <BoxShadow>[
@@ -2587,7 +2586,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: <Color>[
-                  context.colors.surfaceBright,
+                  Theme.of(context).colorScheme.surfaceBright,
                   AppPalette.sandPale,
                 ],
               ),
@@ -2595,7 +2594,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         border: Border.all(
           color: picked
               ? Colors.transparent
-              : Theme.of(context).colorScheme.surface.withValues(alpha: 0.6),
+              : context.forest.surface.withValues(alpha: 0.6),
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
@@ -2625,7 +2624,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         .colorScheme
                         .surface
                         .withValues(alpha: picked ? 0.35 : 0.9),
-                    Theme.of(context).colorScheme.surface.withValues(alpha: 0),
+                    context.forest.surface.withValues(alpha: 0),
                   ],
                 ),
               ),
@@ -2636,8 +2635,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               icon ?? LineIconKind.star,
               size: 22,
               color: picked
-                  ? Theme.of(context).colorScheme.onPrimary
-                  : Theme.of(context).colorScheme.onSurface,
+                  ? context.forest.onPrimary
+                  : context.forest.onSurface,
             ),
           ),
         ],
@@ -2660,7 +2659,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           decoration: BoxDecoration(
             gradient: context.app.sageGradient,
             shape: BoxShape.circle,
-            border: Border.all(color: context.colors.surface, width: 3),
+            border: Border.all(color: context.forest.surface, width: 3),
             boxShadow: <BoxShadow>[
               BoxShadow(
                 color: AppPalette.sage600.withValues(alpha: 0.451),
@@ -2672,7 +2671,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           child: LineGlyph(
             Icons.sync_alt,
             size: 20,
-            color: Theme.of(context).colorScheme.onPrimary,
+            color: context.forest.onPrimary,
           ),
         ),
       ),
@@ -2832,20 +2831,20 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
   }) {
     final bool hasVal = value != null && value.isNotEmpty;
     final Color fg =
-        hasVal ? ForestGreen.deep : Theme.of(context).colorScheme.onSurface;
+        hasVal ? ForestGreen.deep : context.forest.onSurface;
     return Container(
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 11),
       // baseline Row 高度只到文字高，需显式居中，否则内容贴顶。
       alignment: Alignment.centerLeft,
       decoration: BoxDecoration(
-        color: hasVal ? ForestGreen.soft : context.colors.surface,
+        color: hasVal ? ForestGreen.soft : context.forest.surface,
         border: Border.all(
           color: active
               ? ForestGreen.softBorder
               : hasVal
                   ? ForestGreen.softBorder
-                  : Theme.of(context).colorScheme.outline,
+                  : context.forest.outline,
           width: active ? 1.5 : 1,
         ),
         borderRadius: BorderRadius.circular(999),
@@ -2952,7 +2951,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           LineGlyph(
             Icons.info_outline,
             size: 16,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
           const SizedBox(width: AppDimens.sm),
           Expanded(
@@ -2961,7 +2960,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               '转出账户 = 转出金额 + 手续费\n'
               '转出账户 = 转出金额 - 优惠',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
             ),
           ),
@@ -3033,9 +3032,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   : Matrix4.identity(),
               decoration: BoxDecoration(
                 gradient: selected ? _Sage.sage : null,
-                color: selected ? null : context.colors.surface,
+                color: selected ? null : context.forest.surface,
                 border: Border.all(
-                  color: selected ? Colors.transparent : context.colors.outline,
+                  color: selected ? Colors.transparent : context.forest.outline,
                 ),
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: selected
@@ -3052,8 +3051,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 action.icon(_lendDir),
                 size: 20,
                 color: selected
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ? context.forest.onPrimary
+                    : context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 5),
@@ -3064,7 +3063,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 color: selected
                     ? _Sage.greenDeep
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                    : context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 5),
@@ -3156,9 +3155,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           child: Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: context.colors.surface,
+              color: context.forest.surface,
               border: Border.all(
-                color: picked ? _Sage.greenSoftBd : context.colors.outline,
+                color: picked ? _Sage.greenSoftBd : context.forest.outline,
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: picked ? _Sage.pickShadow : _Sage.shadow,
@@ -3188,7 +3187,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                               : Icons.account_box_outlined,
                           size: 17,
                           color: picked
-                              ? Theme.of(context).colorScheme.onPrimary
+                              ? context.forest.onPrimary
                               : _Sage.greenDeep,
                         ),
                       ),
@@ -3215,7 +3214,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     color:
-                                        Theme.of(context).colorScheme.onSurface,
+                                        context.forest.onSurface,
                                   ),
                                 ),
                               ],
@@ -3246,7 +3245,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         size: 20,
                         color: picked
                             ? _Sage.greenDeep
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                            : context.forest.onSurfaceVariant,
                       ),
                     ],
                   ),
@@ -3280,7 +3279,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               text,
               style: TextStyle(
                 fontSize: 11.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
                 height: 1.5,
               ),
             ),
@@ -3310,9 +3309,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: context.colors.surface,
+          color: context.forest.surface,
           border: Border.all(
-            color: picked ? _Sage.greenSoftBd : context.colors.outline,
+            color: picked ? _Sage.greenSoftBd : context.forest.outline,
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: picked ? _Sage.pickShadow : _Sage.shadow,
@@ -3339,7 +3338,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       Icons.account_box_outlined,
                       size: 17,
                       color: picked
-                          ? Theme.of(context).colorScheme.onPrimary
+                          ? context.forest.onPrimary
                           : _Sage.greenDeep,
                     ),
                   ),
@@ -3365,7 +3364,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
+                                color: context.forest.onSurface,
                               ),
                             ),
                           ],
@@ -3394,7 +3393,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     size: 20,
                     color: picked
                         ? _Sage.greenDeep
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                        : context.forest.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -3495,7 +3494,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: context.forest.onPrimary,
                       ),
                     ),
                   ),
@@ -3515,7 +3514,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -3612,7 +3611,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return Container(
       padding: const EdgeInsets.all(2.5),
       decoration: BoxDecoration(
-        color: context.colors.surfaceContainerHighest,
+        color: context.forest.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -3654,8 +3653,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           style: TextStyle(
             fontSize: 12.5,
             color: selected
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                ? context.forest.onPrimary
+                : context.forest.onSurfaceVariant,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
@@ -3681,9 +3680,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           padding: const EdgeInsets.symmetric(horizontal: 18),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: context.colors.surface,
+            color: context.forest.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: context.colors.outline),
+            border: Border.all(color: context.forest.outline),
             boxShadow: enabled ? _Sage.shadow : null,
           ),
           child: Row(
@@ -3694,7 +3693,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 size: 15,
                 color: enabled
                     ? _Sage.greenDeep
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                    : context.forest.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
               Text(
@@ -3703,8 +3702,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
                   color: enabled
-                      ? Theme.of(context).colorScheme.onSurface
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ? context.forest.onSurface
+                      : context.forest.onSurfaceVariant,
                 ),
               ),
             ],
@@ -3847,7 +3846,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -3891,7 +3890,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               '免息期',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -3903,14 +3902,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
               decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
                 hintText: '0',
                 hintStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -3920,7 +3919,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             '天',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],
@@ -3950,7 +3949,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return Container(
       padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.651),
+        color: context.forest.surface.withValues(alpha: 0.651),
         border: Border.all(color: AppPalette.sage100.withValues(alpha: 0.8)),
         borderRadius: BorderRadius.circular(13),
       ),
@@ -3995,7 +3994,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         style: TextStyle(
           fontSize: 11.5,
           height: 1.6,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       );
     }
@@ -4009,7 +4008,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 11.5,
               height: 1.6,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -4018,7 +4017,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 11.5,
               height: 1.6,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],
@@ -4348,7 +4347,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               label,
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 4),
@@ -4374,7 +4373,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         hintText: hint,
         hintStyle: TextStyle(
           fontSize: 15,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       );
 
@@ -4391,7 +4390,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           label,
           style: TextStyle(
             fontSize: 13,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
         Text(
@@ -4414,7 +4413,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         text,
         style: TextStyle(
           fontSize: 13,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       ),
     );
@@ -4425,7 +4424,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     return Container(
       height: 0.6,
       margin: const EdgeInsets.only(top: 10),
-      color: context.colors.outline,
+      color: context.forest.outline,
     );
   }
 
@@ -4434,7 +4433,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       children: <Widget>[
         Expanded(
           child: Container(
-            color: context.colors.surface,
+            color: context.forest.surface,
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(
@@ -4512,9 +4511,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
-          color: context.colors.surface,
+          color: context.forest.surface,
           border: Border.all(
-            color: picked ? _Sage.greenSoftBd : context.colors.outline,
+            color: picked ? _Sage.greenSoftBd : context.forest.outline,
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: picked ? _Sage.pickShadow : _Sage.shadow,
@@ -4533,7 +4532,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 Icons.show_chart_outlined,
                 size: 17,
                 color: picked
-                    ? Theme.of(context).colorScheme.onPrimary
+                    ? context.forest.onPrimary
                     : _Sage.greenDeep,
               ),
             ),
@@ -4547,7 +4546,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -4557,7 +4556,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       fontSize: 12,
                       color: picked
                           ? _Sage.greenDeep
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                          : context.forest.onSurfaceVariant,
                       fontWeight: picked ? FontWeight.w500 : FontWeight.normal,
                     ),
                     maxLines: 1,
@@ -4569,7 +4568,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             LineGlyph(
               Icons.chevron_right,
               size: 20,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),
@@ -4662,7 +4661,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       style: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w600,
-        color: Theme.of(context).colorScheme.onSurface,
+        color: context.forest.onSurface,
       ),
       decoration: _invDeco(hint: '0.0000'),
       onChanged: (_) => setState(() {}),
@@ -4691,7 +4690,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               fontSize: 16,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.2,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
             decoration: _invDeco(hint: '0.00'),
             onChanged: (_) => setState(() {}),
@@ -4739,7 +4738,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.2,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
                 decoration: _invDeco(hint: '0'),
                 onChanged: (_) => setState(() {}),
@@ -4754,7 +4753,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             sub,
             style: TextStyle(
               fontSize: 11,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],
@@ -4791,7 +4790,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
             decoration: _invDeco(hint: '0.00'),
             onChanged: (_) => setState(() {}),
@@ -4842,7 +4841,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         decoration: BoxDecoration(
           color: _Sage.greenSoft,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: context.colors.outline),
+          border: Border.all(color: context.forest.outline),
         ),
         child: const Text(
           '全部',
@@ -4873,7 +4872,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         controller: _invNoteController,
         style: TextStyle(
           fontSize: 13,
-          color: Theme.of(context).colorScheme.onSurface,
+          color: context.forest.onSurface,
         ),
         decoration: _invDeco(hint: '选填'),
       ),
@@ -4899,7 +4898,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               style: TextStyle(
                 fontSize: 12,
                 height: 1.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -5123,7 +5122,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       children: <Widget>[
         Expanded(
           child: Container(
-            color: context.colors.surface,
+            color: context.forest.surface,
             child: GestureDetector(
               // 点击表单空白处：收起工程内键盘（保存栏随之恢复）。
               behavior: HitTestBehavior.translucent,
@@ -5223,7 +5222,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           style: TextStyle(
             fontSize: 11,
             letterSpacing: 1.5,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -5259,7 +5258,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 fontSize: 14.5,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             const Spacer(),
@@ -5283,7 +5282,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             Icons.grid_view_outlined,
                             size: 13,
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
                         ],
@@ -5292,7 +5291,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                       ],
@@ -5342,10 +5341,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 decoration: BoxDecoration(
                   color: picked
                       ? _Sage.greenSoft
-                      : context.colors.surfaceContainerHighest,
+                      : context.forest.surfaceContainerHighest,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: picked ? _Sage.greenSoftBd : context.colors.outline,
+                    color: picked ? _Sage.greenSoftBd : context.forest.outline,
                   ),
                 ),
                 child: LineIcon(
@@ -5356,7 +5355,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   size: 16,
                   color: picked
                       ? _Sage.greenDeep
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                      : context.forest.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 12),
@@ -5373,8 +5372,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         fontSize: 15.5,
                         fontWeight: FontWeight.w700,
                         color: picked
-                            ? Theme.of(context).colorScheme.onSurface
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ? context.forest.onSurface
+                            : context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -5382,7 +5381,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       selected?.type.label ?? '报销',
                       style: TextStyle(
                         fontSize: 11.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -5446,7 +5445,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             child: LineGlyph(
               Icons.check,
               size: 14,
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: context.forest.onPrimary,
             ),
           ),
         ),
@@ -5472,7 +5471,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             ? LineGlyph(
                 Icons.check,
                 size: 13,
-                color: Theme.of(context).colorScheme.onPrimary,
+                color: context.forest.onPrimary,
               )
             : null,
       );
@@ -5484,7 +5483,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     bool picked = false,
   }) =>
       Material(
-        color: context.colors.surface,
+        color: context.forest.surface,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -5494,7 +5493,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: picked ? _Sage.sageA : context.colors.outline,
+                color: picked ? _Sage.sageA : context.forest.outline,
               ),
               // 设计稿 --shadow 常驻：让奶油卡从纸底上「浮」起来，
               // 否则 #FFFCF5 与 #FBF6EA 只差数个色阶，整页发白。
@@ -5556,7 +5555,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       label,
                       style: TextStyle(
                         fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -5566,8 +5565,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       style: TextStyle(
                         fontSize: 15,
                         color: picked
-                            ? Theme.of(context).colorScheme.onSurface
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ? context.forest.onSurface
+                            : context.forest.onSurfaceVariant,
                         fontWeight: picked ? FontWeight.w600 : FontWeight.w500,
                       ),
                     ),
@@ -5638,7 +5637,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   '请选择需要报销的账单',
                   style: TextStyle(
                     fontSize: 13.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -5653,7 +5652,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -5717,7 +5716,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 height: 1.2,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
-                  color: i.isEven ? context.colors.outline : Colors.transparent,
+                  color: i.isEven ? context.forest.outline : Colors.transparent,
                   borderRadius: BorderRadius.circular(1),
                 ),
               ),
@@ -5791,7 +5790,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
+                                color: context.forest.onSurface,
                               ),
                             ),
                           ),
@@ -5822,14 +5821,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         DateFormat('M月d日').format(occurred),
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                       Text(
                         DateFormat('HH:mm').format(occurred),
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -5845,12 +5844,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: finish
-                            ? Theme.of(context).colorScheme.onSurfaceVariant
-                            : Theme.of(context).colorScheme.onSurface,
+                            ? context.forest.onSurfaceVariant
+                            : context.forest.onSurface,
                         // 勾选「完成报销」后金额划掉。
                         decoration: finish ? TextDecoration.lineThrough : null,
                         decorationColor:
-                            Theme.of(context).colorScheme.onSurfaceVariant,
+                            context.forest.onSurfaceVariant,
                         decorationThickness: 1.6,
                       ),
                     ),
@@ -5894,7 +5893,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     fontSize: 12.5,
                     color: finish
                         ? _Sage.greenDeep
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                        : context.forest.onSurfaceVariant,
                     fontWeight: finish ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
@@ -5930,7 +5929,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -5938,7 +5937,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       '拍照或从相册补充票据',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -5989,7 +5988,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 票据缩略图：64×64 圆角方图片预览，点击打开图片管理弹窗。
   Widget _rbPhotoThumb(String path) => Material(
-        color: context.colors.surface,
+        color: context.forest.surface,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: _onAddImage,
@@ -5999,7 +5998,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             height: 64,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: context.colors.outline),
+              border: Border.all(color: context.forest.outline),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(11),
@@ -6010,7 +6009,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   child: LineIcon(
                     LineIconKind.photo,
                     size: 20,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -6104,7 +6103,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onPrimary,
+                    color: context.forest.onPrimary,
                   ),
                 ),
               ),
@@ -6132,7 +6131,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       hintText: '报销金额',
                       hintStyle: TextStyle(
                         fontSize: 15,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                         fontWeight: FontWeight.w500,
                       ),
                       border: InputBorder.none,
@@ -6148,7 +6147,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                     maxLines: 1,
                   ),
@@ -6172,7 +6171,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             '账本',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const Spacer(),
@@ -6180,14 +6179,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             book.valueOrNull?.name ?? '账本',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: 6),
           LineIcon(
             LineIconKind.chevronRight,
             size: 14,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ],
       ),
@@ -6210,7 +6209,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     '日期',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -6219,7 +6218,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     _rbDateLabel(),
                     style: TextStyle(
                       fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -6229,7 +6228,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               _isSameDay(_occurredAt, DateTime.now()) ? '今天' : '',
               style: TextStyle(
                 fontSize: 11.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ],
@@ -6256,7 +6255,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     '不计入收支',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -6265,7 +6264,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     '确需计入日常收支时可手动关闭',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -6305,7 +6304,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
+                    color: context.forest.surface,
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: <BoxShadow>[
                       BoxShadow(
@@ -6338,7 +6337,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   hintText: '补充报销说明…',
                   hintStyle: TextStyle(
                     fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -6352,7 +6351,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 ),
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
                 maxLines: 1,
               ),
@@ -6419,7 +6418,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Theme.of(context).colorScheme.onPrimary,
+                    color: context.forest.onPrimary,
                   ),
                 )
               : const Text('保存'),
@@ -6499,7 +6498,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 fontSize: 14.5,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
         ),
         if (note != null) ...<Widget>[
@@ -6508,7 +6507,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             note,
             style: TextStyle(
               fontSize: 11,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],
@@ -6532,10 +6531,10 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           decoration: BoxDecoration(
-            color: primary ? null : context.colors.surfaceContainerHighest,
+            color: primary ? null : context.forest.surfaceContainerHighest,
             gradient: primary ? context.app.sageGradient : null,
             borderRadius: BorderRadius.circular(13),
-            border: primary ? null : Border.all(color: context.colors.outline),
+            border: primary ? null : Border.all(color: context.forest.outline),
             boxShadow: primary
                 ? <BoxShadow>[
                     BoxShadow(
@@ -6552,8 +6551,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: primary
-                  ? Theme.of(context).colorScheme.onPrimary
-                  : Theme.of(context).colorScheme.onSurface,
+                  ? context.forest.onPrimary
+                  : context.forest.onSurface,
             ),
           ),
         ),
@@ -6597,8 +6596,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               style: TextStyle(
                 fontSize: 14,
                 color: txns.isEmpty
-                    ? Theme.of(context).colorScheme.onSurfaceVariant
-                    : Theme.of(context).colorScheme.onSurface,
+                    ? context.forest.onSurfaceVariant
+                    : context.forest.onSurface,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -6657,7 +6656,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
-            color: context.colors.surface,
+            color: context.forest.surface,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
@@ -6665,7 +6664,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
         ),
@@ -6728,7 +6727,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   child: LineIcon(
                     LineIconKind.account,
                     size: 17,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -6748,7 +6747,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                       height: 34,
                       padding: const EdgeInsets.only(left: 14, right: 4),
                       decoration: BoxDecoration(
-                        color: context.colors.surfaceContainerHighest,
+                        color: context.forest.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(13),
                         border: selected == null
                             ? null
@@ -6768,7 +6767,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                                     ? Theme.of(context)
                                         .colorScheme
                                         .onSurfaceVariant
-                                    : Theme.of(context).colorScheme.onSurface,
+                                    : context.forest.onSurface,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -6890,12 +6889,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                     colors: <Color>[_Sage.sageA, _Sage.sageB],
                   )
                 : null,
-            color: selected ? null : context.colors.surface,
+            color: selected ? null : context.forest.surface,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: selected
                   ? Colors.transparent
-                  : Theme.of(context).colorScheme.outline,
+                  : context.forest.outline,
               width: selected ? 0 : 1,
             ),
           ),
@@ -6905,8 +6904,8 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               fontSize: 12,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
               color: selected
-                  ? Theme.of(context).colorScheme.onPrimary
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ? context.forest.onPrimary
+                  : context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -6928,7 +6927,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const Spacer(),
@@ -6971,7 +6970,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           decoration: BoxDecoration(
-            color: on ? context.colors.surface : Colors.transparent,
+            color: on ? context.forest.surface : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
             boxShadow: on
                 ? <BoxShadow>[
@@ -6993,7 +6992,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               fontWeight: FontWeight.w600,
               color: on
                   ? _Sage.sageB
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                  : context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -7038,7 +7037,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.2,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         )
                       : KeypadField(
@@ -7048,7 +7047,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.2,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                           decoration: InputDecoration(
                             isDense: true,
@@ -7128,7 +7127,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               child: LineIcon(
                 LineIconKind.info,
                 size: 17,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -7159,12 +7158,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         hintText: '备注（选填）',
                         hintStyle: TextStyle(
                           fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                       style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                       maxLines: 2,
                       minLines: 1,
@@ -7199,7 +7198,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               child: LineIcon(
                 LineIconKind.calendar,
                 size: 17,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -7214,7 +7213,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -7222,7 +7221,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   DateFormat('yyyy-MM-dd HH:mm').format(_occurredAt),
                   style: TextStyle(
                     fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -7231,7 +7230,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           LineIcon(
             LineIconKind.chevronRight,
             size: 15,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ],
       ),
@@ -7270,7 +7269,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const Spacer(),
@@ -7278,14 +7277,14 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
             book.valueOrNull?.name ?? '账本',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: 4),
           LineIcon(
             LineIconKind.chevronRight,
             size: 14,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ],
       ),
@@ -7326,7 +7325,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
           return _CategoryItem(
             label: '设置',
             lineKind: LineIconKind.settings,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
             onTap: () => context.push('/categories'),
           );
         }
@@ -7521,9 +7520,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     // 深绿墨 --deep(#2E6B49) + w700；底/描边为浅绿 soft/softBorder。
     final Color labelColor = active
         ? ForestGreen.deep
-        : Theme.of(context).colorScheme.onSurfaceVariant;
+        : context.forest.onSurfaceVariant;
     final Color iconColor =
-        active ? ForestGreen.deep : Theme.of(context).colorScheme.onSurface;
+        active ? ForestGreen.deep : context.forest.onSurface;
     return InkWell(
       onTap: item.onTap,
       borderRadius: BorderRadius.circular(999),
@@ -7531,12 +7530,12 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           // A3 设计稿：功能 pill = 奶油卡 + 发丝线；激活 = 浅绿选中底。
-          color: active ? ForestGreen.soft : context.colors.surface,
+          color: active ? ForestGreen.soft : context.forest.surface,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: active
                 ? ForestGreen.softBorder
-                : Theme.of(context).colorScheme.outline,
+                : context.forest.outline,
           ),
         ),
         child: Row(
@@ -7668,7 +7667,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
 
   /// 图片功能键弹窗：复刻「森林手账·鼠尾草绿」账单图片模板（对齐小青账）。
   /// 暖纸皮肤（与设计交付模板 bill-photo-sheet-forest.html FINAL 同源）：
-  ///   · 纸底 context.colors.surface ｜ 奶油卡 context.colors.surface ｜ 沙底关闭钮 context.colors.surfaceContainerHighest
+  ///   · 纸底 context.forest.surface ｜ 奶油卡 context.forest.surface ｜ 沙底关闭钮 context.forest.surfaceContainerHighest
   ///   · 选中态 = 鼠尾草绿渐变 context.app.sageGradient(#93BF9A→#5F9A6E) + 白字
   /// 半屏贴底（高度 = 屏幕 50%），照片/拍照可切换选中；照片支持多选（最多 9 张）。
   ///
@@ -8223,7 +8222,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.bodySmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        color: context.forest.onSurfaceVariant,
         height: 1,
       ),
     );
@@ -8235,7 +8234,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       padding: const EdgeInsets.symmetric(horizontal: AppDimens.md),
       decoration: BoxDecoration(
         // A3 设计稿：日期备注行 = 深沙底、无边框。
-        color: context.colors.surfaceContainerHighest,
+        color: context.forest.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
       child: Row(
@@ -8248,7 +8247,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 LineGlyph(
                   Icons.calendar_today_outlined,
                   size: 16,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: context.forest.primary,
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -8368,9 +8367,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
     final ThemeData theme = Theme.of(context);
     return Scaffold(
       // A3 设计稿：整页暖纸底（此前漏设，落成主题默认白底）。
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.forest.surface,
       appBar: AppBar(
-        backgroundColor: context.colors.surface,
+        backgroundColor: context.forest.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -8456,9 +8455,9 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                         ],
                       ),
                       indicatorSize: TabBarIndicatorSize.tab,
-                      labelColor: Theme.of(context).colorScheme.onPrimary,
+                      labelColor: context.forest.onPrimary,
                       unselectedLabelColor:
-                          Theme.of(context).colorScheme.onSurfaceVariant,
+                          context.forest.onSurfaceVariant,
                       labelStyle: theme.textTheme.bodyMedium?.copyWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -8609,13 +8608,13 @@ class _CategoryItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(2, 8, 2, 6),
         decoration: BoxDecoration(
-          color: selected ? null : context.colors.surface,
+          color: selected ? null : context.forest.surface,
           gradient: selected ? context.app.sageGradient : null,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
                 ? Colors.transparent
-                : Theme.of(context).colorScheme.outline,
+                : context.forest.outline,
           ),
           boxShadow: selected
               ? <BoxShadow>[
@@ -8659,8 +8658,8 @@ class _CategoryItem extends StatelessWidget {
                 // 白字对比达标；此前浅粉彩渐变下用 ForestSage.ink 属权宜之计）
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 color: selected
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurface,
+                    ? context.forest.onPrimary
+                    : context.forest.onSurface,
               ),
             ),
           ],
@@ -8672,8 +8671,8 @@ class _CategoryItem extends StatelessWidget {
   Widget _buildIcon(BuildContext context) {
     // 未选中描边加深：向暖墨色收敛 22%，避免 22px 线稿在高光斑上被冲淡
     final Color iconColor = selected
-        ? Theme.of(context).colorScheme.onPrimary
-        : Color.lerp(color, Theme.of(context).colorScheme.onSurface, 0.22)!;
+        ? context.forest.onPrimary
+        : Color.lerp(color, context.forest.onSurface, 0.22)!;
     return LineIcon(lineKind ?? LineIconKind.star, size: 22, color: iconColor);
   }
 }
@@ -8691,7 +8690,7 @@ class _ViewToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
+
 
     Widget buildOption({
       required bool value,
@@ -8701,7 +8700,7 @@ class _ViewToggle extends StatelessWidget {
       final bool selected = listView == value;
       return Material(
         color:
-            selected ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+            selected ? context.forest.primaryContainer : context.forest.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -8714,13 +8713,13 @@ class _ViewToggle extends StatelessWidget {
                 LineGlyph(
                   icon,
                   size: 16,
-                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                  color: selected ? context.forest.primary : context.forest.onSurfaceVariant,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   label,
                   style: theme.textTheme.labelLarge?.copyWith(
-                    color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                    color: selected ? context.forest.primary : context.forest.onSurfaceVariant,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
@@ -8785,7 +8784,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
         // 与主网格未选中态同口径：向暖墨色收敛 22%，避免线稿在渐变高光上被冲淡。
         color: Color.lerp(
           color,
-          Theme.of(context).colorScheme.onSurface,
+          context.forest.onSurface,
           0.22,
         )!,
       ),
@@ -8877,7 +8876,7 @@ class _SubcategorySheetState extends State<_SubcategorySheet> {
                   child: Text(
                     '暂无子分类，可选择上方「${widget.parent.name}」，或点右上角「添加」新建',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -9168,14 +9167,14 @@ class _DiscountSheetState extends State<DiscountSheet> {
             LineGlyph(
               Icons.info_outline,
               size: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 '支出可以使用这个功能哦。如使用招商信用卡，消费20元笔笔返现0.5元，实际扣款19.5 = 消费金额(20) − 优惠金额(0.5)',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -9201,7 +9200,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: on ? ForestGreen.soft : context.colors.surfaceContainerHighest,
+          color: on ? ForestGreen.soft : context.forest.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: on ? ForestGreen.softBorder : Colors.transparent,
@@ -9214,7 +9213,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
             fontWeight: FontWeight.w600,
             color: on
                 ? ForestGreen.deep
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -9240,13 +9239,13 @@ class _DiscountSheetState extends State<DiscountSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           gradient: selected ? context.app.sageGradient : null,
-          color: selected ? null : context.colors.surface,
+          color: selected ? null : context.forest.surface,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? AppPalette.sage800
                     .withValues(alpha: 0.251) // rgba(46,91,57,.25)
-                : Theme.of(context).colorScheme.outline,
+                : context.forest.outline,
             width: 1.5,
           ),
           boxShadow: selected
@@ -9268,7 +9267,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
               decoration: BoxDecoration(
                 color: selected
                     ? ForestGreen.deep
-                    : context.colors.surfaceContainerHighest,
+                    : context.forest.surfaceContainerHighest,
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -9276,14 +9275,14 @@ class _DiscountSheetState extends State<DiscountSheet> {
                     ? LineGlyph(
                         Icons.check,
                         size: 12,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: context.forest.onPrimary,
                       )
                     : Text(
                         '¥',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
               ),
@@ -9295,8 +9294,8 @@ class _DiscountSheetState extends State<DiscountSheet> {
                 fontSize: 15,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                 color: selected
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ? context.forest.onPrimary
+                    : context.forest.onSurfaceVariant,
               ),
             ),
             if (algoLabel != null) ...<Widget>[
@@ -9354,7 +9353,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                     width: 30,
                     height: 30,
                     decoration: BoxDecoration(
-                      color: context.colors.surfaceContainerHighest,
+                      color: context.forest.surfaceContainerHighest,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -9362,7 +9361,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                         '✕',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -9391,8 +9390,8 @@ class _DiscountSheetState extends State<DiscountSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
             child: HairlineCard(
-              backgroundColor: context.colors.surface,
-              borderColor: Theme.of(context).colorScheme.outline,
+              backgroundColor: context.forest.surface,
+              borderColor: context.forest.outline,
               radius: 16,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               shadows: <BoxShadow>[
@@ -9417,7 +9416,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                             fontWeight: FontWeight.w700,
                             letterSpacing: .3,
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -9522,7 +9521,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
             margin: const EdgeInsets.symmetric(horizontal: 12),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: context.colors.surfaceContainerHighest,
+              color: context.forest.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(16),
             ),
             child: AmountKeypad(
@@ -9700,7 +9699,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                       child: LineGlyph(
                         Icons.close,
                         size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -9710,7 +9709,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                   style: TextStyle(
                     fontSize: 16.5,
                     fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                     letterSpacing: 0.02,
                   ),
                 ),
@@ -9730,7 +9729,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                         style: TextStyle(
                           fontSize: 13.5,
                           height: 1.8,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     )
@@ -9766,7 +9765,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
             _paths.isEmpty ? '最多选择9张图片' : '已选 ${_paths.length}/9 张图片',
             style: TextStyle(
               fontSize: 11.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 8),
@@ -9884,11 +9883,11 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
               File(path),
               fit: BoxFit.cover,
               errorBuilder: (_, Object e, StackTrace? st) => Container(
-                color: context.colors.surfaceContainerHighest,
+                color: context.forest.surfaceContainerHighest,
                 child: LineGlyph(
                   Icons.broken_image_outlined,
                   size: 22,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -9908,12 +9907,12 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
               decoration: BoxDecoration(
                 color: ForestGreen.deep,
                 shape: BoxShape.circle,
-                border: Border.all(color: context.colors.surface, width: 1.5),
+                border: Border.all(color: context.forest.surface, width: 1.5),
               ),
               child: LineGlyph(
                 Icons.close,
                 size: 12,
-                color: Theme.of(context).colorScheme.onPrimary,
+                color: context.forest.onPrimary,
               ),
             ),
           ),
@@ -9958,7 +9957,7 @@ class _ImageSourceSheetState extends State<ImageSourceSheet> {
                 fontSize: selected ? 15.5 : 14.5,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                 color: selected
-                    ? Theme.of(context).colorScheme.onPrimary
+                    ? context.forest.onPrimary
                     : ForestSage.label,
                 letterSpacing: selected ? 0.06 : 0.04,
               ),
@@ -10334,7 +10333,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                     LineIcon(
                       LineIconKind.person,
                       size: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -10362,7 +10361,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           Positioned(
@@ -10376,13 +10375,13 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: context.colors.surfaceContainerHighest,
+                    color: context.forest.surfaceContainerHighest,
                     shape: BoxShape.circle,
                   ),
                   child: LineIcon(
                     LineIconKind.close,
                     size: 17,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -10414,7 +10413,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                     '总金额',
                     style: TextStyle(
                       fontSize: 12.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -10433,7 +10432,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: context.forest.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -10442,7 +10441,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                       '每人均',
                       style: TextStyle(
                         fontSize: 11.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -10464,7 +10463,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
             '本次收款(约)',
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 6),
@@ -10477,7 +10476,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                   decoration: const InputDecoration(
                     isDense: true,
@@ -10497,7 +10496,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
               Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: context.forest.surface,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
@@ -10534,7 +10533,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
             fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
             color: selected
                 ? _Sage.greenDeep
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -10546,7 +10545,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
         style: TextStyle(
           fontSize: 14.5,
           fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.onSurface,
+          color: context.forest.onSurface,
         ),
       );
 
@@ -10565,12 +10564,12 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
           duration: const Duration(milliseconds: 160),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? _Sage.greenSoft : context.colors.surface,
+            color: selected ? _Sage.greenSoft : context.forest.surface,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: selected
                   ? _Sage.sageB
-                  : Theme.of(context).colorScheme.outline,
+                  : context.forest.outline,
               width: selected ? 1.4 : 1,
             ),
           ),
@@ -10581,7 +10580,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
               fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
               color: selected
                   ? _Sage.greenDeep
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                  : context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -10667,7 +10666,7 @@ class _AaPaymentSheetState extends State<_AaPaymentSheet> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: context.forest.onPrimary,
             ),
           ),
         ),
@@ -10931,7 +10930,7 @@ class _InvestHoldingPickerSheetState
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             const SizedBox(width: 8),
@@ -10942,7 +10941,7 @@ class _InvestHoldingPickerSheetState
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -10950,14 +10949,14 @@ class _InvestHoldingPickerSheetState
               investmentTypeLabel(h.type, h.symbol, name: h.name, all: _items),
               style: TextStyle(
                 fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 6),
             LineGlyph(
               Icons.north_west,
               size: 14,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),
@@ -11076,7 +11075,7 @@ class _InvestHoldingPickerSheetState
               fontSize: 17,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.02,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const Spacer(),
@@ -11110,7 +11109,7 @@ class _InvestHoldingPickerSheetState
           style: Theme.of(context)
               .textTheme
               .bodyMedium
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ?.copyWith(color: context.forest.onSurfaceVariant),
         ),
       );
     }
@@ -11241,7 +11240,7 @@ class _InvestHoldingPickerSheetState
                 '请先选择品种',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ],
@@ -11287,10 +11286,10 @@ class _InvestHoldingPickerSheetState
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             gradient: selected ? _Sage.sage : null,
-            color: selected ? null : context.colors.surface,
+            color: selected ? null : context.forest.surface,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: selected ? Colors.transparent : context.colors.outline,
+              color: selected ? Colors.transparent : context.forest.outline,
             ),
           ),
           child: Text(
@@ -11299,8 +11298,8 @@ class _InvestHoldingPickerSheetState
               fontSize: 13,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               color: selected
-                  ? Theme.of(context).colorScheme.onPrimary
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ? context.forest.onPrimary
+                  : context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -11340,14 +11339,14 @@ class _PickerIconBtn extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: context.colors.surface,
+            color: context.forest.surface,
             borderRadius: BorderRadius.circular(17),
-            border: Border.all(color: context.colors.outline, width: 1),
+            border: Border.all(color: context.forest.outline, width: 1),
           ),
           child: LineGlyph(
             icon,
             size: 15,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
       );
@@ -11378,9 +11377,9 @@ class _PickerPillBtn extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 13),
         decoration: BoxDecoration(
           gradient: isPrimary ? _Sage.sage : null,
-          color: isPrimary ? null : context.colors.surface,
+          color: isPrimary ? null : context.forest.surface,
           border: Border.all(
-            color: isPrimary ? Colors.transparent : context.colors.outline,
+            color: isPrimary ? Colors.transparent : context.forest.outline,
             width: 1,
           ),
           borderRadius: BorderRadius.circular(999),
@@ -11393,7 +11392,7 @@ class _PickerPillBtn extends StatelessWidget {
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
               color: isPrimary
-                  ? Theme.of(context).colorScheme.onPrimary
+                  ? context.forest.onPrimary
                   : _Sage.greenDeep,
             ),
           ),
@@ -11419,8 +11418,8 @@ class _PickerManageBtn extends StatelessWidget {
           child: Container(
             height: 42,
             decoration: BoxDecoration(
-              color: context.colors.surface,
-              border: Border.all(color: context.colors.outline, width: 1),
+              color: context.forest.surface,
+              border: Border.all(color: context.forest.outline, width: 1),
               borderRadius: BorderRadius.circular(13),
             ),
             alignment: Alignment.center,
@@ -11461,7 +11460,7 @@ class _PickerConfirmBtn extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: context.forest.onPrimary,
             ),
           ),
         ),
@@ -11498,9 +11497,9 @@ class _HoldingTile extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
       decoration: BoxDecoration(
         gradient: selected ? _Sage.sage : null,
-        color: selected ? null : context.colors.surface,
+        color: selected ? null : context.forest.surface,
         border: Border.all(
-          color: selected ? _Sage.greenSoftBd : context.colors.outline,
+          color: selected ? _Sage.greenSoftBd : context.forest.outline,
           width: 1,
         ),
         borderRadius: BorderRadius.circular(16),
@@ -11516,8 +11515,8 @@ class _HoldingTile extends StatelessWidget {
               height: 1.2,
               fontWeight: FontWeight.w700,
               color: selected
-                  ? Theme.of(context).colorScheme.onPrimary
-                  : Theme.of(context).colorScheme.onSurface,
+                  ? context.forest.onPrimary
+                  : context.forest.onSurface,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -11538,10 +11537,10 @@ class _HoldingTile extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 color: pending || cleared
                     ? (selected
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurfaceVariant)
+                        ? context.forest.onPrimary
+                        : context.forest.onSurfaceVariant)
                     : (selected
-                        ? Theme.of(context).colorScheme.onPrimary
+                        ? context.forest.onPrimary
                         : _Sage.greenDeep),
                 fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
               ),
@@ -11569,7 +11568,7 @@ class _HoldingTile extends StatelessWidget {
                     height: 1.2,
                     fontWeight: FontWeight.w600,
                     color: selected
-                        ? Theme.of(context).colorScheme.onPrimary
+                        ? context.forest.onPrimary
                         : _Sage.greenDeep,
                   ),
                 ),
@@ -11585,7 +11584,7 @@ class _HoldingTile extends StatelessWidget {
                           .colorScheme
                           .onPrimary
                           .withValues(alpha: 0.85)
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                      : context.forest.onSurfaceVariant,
                   fontFeatures: const <FontFeature>[
                     FontFeature.tabularFigures(),
                   ],
@@ -11616,7 +11615,7 @@ class _HoldingTile extends StatelessWidget {
             child: LineGlyph(
               Icons.check_circle,
               size: 18,
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: context.forest.onPrimary,
             ),
           ),
         ],
@@ -11673,7 +11672,7 @@ class _HoldingRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -11690,7 +11689,7 @@ class _HoldingRow extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: pending || cleared
-                    ? Theme.of(context).colorScheme.onSurfaceVariant
+                    ? context.forest.onSurfaceVariant
                     : _Sage.greenDeep,
                 fontFeatures: const <FontFeature>[
                   FontFeature.tabularFigures(),
@@ -11762,7 +11761,7 @@ class _InvestmentReceiptCard extends StatelessWidget {
               children: <Widget>[
                 LineGlyph(
                   Icons.receipt_long_outlined,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
                 const SizedBox(width: AppDimens.sm),
                 Text(
@@ -11813,7 +11812,7 @@ class _InvestmentReceiptCard extends StatelessWidget {
             Text(
               '$accountName · 现金 + 市值',
               style: theme.textTheme.labelMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: AppDimens.sm),
@@ -11876,7 +11875,7 @@ class _ReceiptStat extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
           ),
           const SizedBox(height: 2),

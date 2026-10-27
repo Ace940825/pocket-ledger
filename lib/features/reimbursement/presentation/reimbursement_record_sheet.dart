@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/badges.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
@@ -87,7 +86,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -100,7 +99,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: reimbursed
                             ? ForestGreen.label.withValues(alpha: 0.12)
-                            : context.colors.surfaceContainerHighest,
+                            : context.forest.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
@@ -110,7 +109,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                           color: reimbursed
                               ? ForestGreen.label
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                              : context.forest.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -122,7 +121,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                     meta.join(' · '),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -160,7 +159,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
                               Divider(
                                 height: 1,
                                 thickness: 0.8,
-                                color: Theme.of(context).colorScheme.outline,
+                                color: context.forest.outline,
                               ),
                             _IncomeRow(
                               key: ValueKey<String>('income-${incomeIds[i]}'),
@@ -199,7 +198,7 @@ class _ReimbursementRecordSheet extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 14.5,
                 fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ],
@@ -347,7 +346,7 @@ class _OriginBillRow extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                       ),
@@ -364,7 +363,7 @@ class _OriginBillRow extends StatelessWidget {
                     DateFormat('HH:mm').format(occurred),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -380,7 +379,7 @@ class _OriginBillRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
                 if (received > 0)
@@ -428,7 +427,7 @@ class _IncomeRow extends ConsumerWidget {
               '加载中…',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -481,7 +480,7 @@ class _IncomeRow extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -536,7 +535,7 @@ class _EmptyHint extends StatelessWidget {
           text,
           style: TextStyle(
             fontSize: 13,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
       );

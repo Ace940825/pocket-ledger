@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 import '../../theme/app_dimens.dart';
 
@@ -29,13 +30,13 @@ class BottomActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     final Widget bar = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: backgroundColor ?? scheme.surface,
+        color: backgroundColor ?? context.forest.surface,
         border: Border(
-          top: BorderSide(color: borderColor ?? scheme.outline, width: 1),
+          top: BorderSide(color: borderColor ?? context.forest.outline, width: 1),
         ),
       ),
       child: child,

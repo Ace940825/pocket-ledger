@@ -114,7 +114,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
+                              color: context.forest.onPrimary,
                             ),
                           )
                         : const Text('保存'),
@@ -137,7 +137,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           Text(
             '所属一级分类',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const Spacer(),
@@ -149,7 +149,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
               size: 20,
               color: Color.lerp(
                 color,
-                Theme.of(context).colorScheme.onSurface,
+                context.forest.onSurface,
                 0.22,
               )!,
             ),
@@ -186,14 +186,14 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
           LineGlyph(
             Icons.info_outline,
             size: 16,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
           const SizedBox(width: AppDimens.sm),
           Expanded(
             child: Text(
               '分类名称需手动输入，选择图标后不会自动填充名称。',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -227,7 +227,7 @@ class _AddSubcategoryPageState extends ConsumerState<AddSubcategoryPage> {
                   : AppPalette.surfaceLight,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               border: Border.all(
-                color: selected ? color : Theme.of(context).colorScheme.outline,
+                color: selected ? color : context.forest.outline,
               ),
             ),
             child: Center(

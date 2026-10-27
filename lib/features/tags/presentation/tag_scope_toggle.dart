@@ -51,7 +51,7 @@ class TagScopeToggle extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       color: s == scope
                           ? _onFg
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                          : context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),

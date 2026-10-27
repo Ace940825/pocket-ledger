@@ -84,12 +84,11 @@ class SegmentedRow<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool sage = variant == SegmentVariant.sageGradient;
     final Color trackBg =
-        trackColor ?? (sage ? scheme.surface : scheme.surfaceContainerHighest);
+        trackColor ?? (sage ? context.forest.surface : context.forest.surfaceContainerHighest);
     final Color? trackBorder =
-        trackBorderColor ?? (sage ? scheme.outline : null);
+        trackBorderColor ?? (sage ? context.forest.outline : null);
 
     return Container(
       padding: padding,
@@ -151,10 +150,9 @@ class _SegmentButton<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color fg = selected
-        ? (selectedTextColor ?? (sage ? scheme.onPrimary : AppPalette.white))
-        : (unselectedTextColor ?? scheme.onSurfaceVariant);
+        ? (selectedTextColor ?? (sage ? context.forest.onPrimary : AppPalette.white))
+        : (unselectedTextColor ?? context.forest.onSurfaceVariant);
 
     final Decoration decoration;
     if (selected && sage) {
@@ -165,7 +163,7 @@ class _SegmentButton<T> extends StatelessWidget {
       );
     } else if (selected) {
       decoration = BoxDecoration(
-        color: selectedColor ?? scheme.primary,
+        color: selectedColor ?? context.forest.primary,
         borderRadius: BorderRadius.circular(itemRadius),
       );
     } else {

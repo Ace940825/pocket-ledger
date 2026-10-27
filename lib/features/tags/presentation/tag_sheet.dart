@@ -7,7 +7,6 @@ import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 import 'package:pocket_ledger/shared/widgets/tag_chip.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../database/daos/tags_dao.dart';
 import '../../../domain/enums.dart';
@@ -213,7 +212,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       child: LineGlyph(
                         Icons.close,
                         size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -223,7 +222,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                     letterSpacing: 0.02,
                   ),
                 ),
@@ -245,7 +244,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
@@ -253,7 +252,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: context.colors.surfaceContainerLow,
+                          color: Theme.of(context).colorScheme.surfaceContainerLow,
                         ),
                       ),
                     ),
@@ -286,7 +285,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                 LineGlyph(
                   Icons.search,
                   size: 18,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -300,7 +299,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                       hintText: '搜索标签',
                       hintStyle: TextStyle(
                         fontSize: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                       border: InputBorder.none,
                       isCollapsed: true,
@@ -318,7 +317,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                     child: LineGlyph(
                       Icons.close,
                       size: 16,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
               ],
@@ -413,7 +412,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 13.5,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
       );
@@ -478,7 +477,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ),
@@ -498,7 +497,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -527,14 +526,14 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                 vertical: 7,
               ),
               decoration: BoxDecoration(
-                color: context.colors.surfaceContainerHighest,
+                color: context.forest.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 'ⓘ「${g.category.name}」为标签分组，请添加具体的标签再使用哦~',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                   height: 1.7,
                 ),
               ),
@@ -562,7 +561,7 @@ class _DashedDivider extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -578,7 +577,7 @@ class _HorizontalDashed extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _HDashedPainter(color: Theme.of(context).colorScheme.outline),
+      painter: _HDashedPainter(color: context.forest.outline),
     );
   }
 }

@@ -114,7 +114,7 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
+                              color: context.forest.onPrimary,
                             ),
                           )
                         : const Text('保存'),
@@ -150,14 +150,14 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
           LineGlyph(
             Icons.info_outline,
             size: 16,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
           const SizedBox(width: AppDimens.sm),
           Expanded(
             child: Text(
               '分类名称需手动输入，选择图标后不会自动填充名称。',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -173,7 +173,7 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
         Text(
           '分类颜色',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppDimens.sm),
@@ -209,7 +209,7 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
         Text(
           '分类图标',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppDimens.sm),
@@ -239,7 +239,7 @@ class _EditCategoryPageState extends ConsumerState<EditCategoryPage> {
                   border: Border.all(
                     color: selected
                         ? color
-                        : Theme.of(context).colorScheme.outline,
+                        : context.forest.outline,
                   ),
                 ),
                 child: Center(

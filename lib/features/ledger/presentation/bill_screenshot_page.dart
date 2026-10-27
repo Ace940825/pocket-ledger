@@ -89,7 +89,7 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
                   '确认即可入账。截图仅用于本次识别，服务端不长期存储。',
                   style: TextStyle(
                     fontSize: 12.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                     height: 1.5,
                   ),
                 ),
@@ -138,7 +138,7 @@ class _BillScreenshotPageState extends State<BillScreenshotPage> {
         child: Text(
           '还没有选择截图',
           style:
-              TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              TextStyle(color: context.forest.onSurfaceVariant),
         ),
       );
     }

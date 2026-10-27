@@ -6,7 +6,6 @@ import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../routing/app_router.dart';
@@ -122,7 +121,7 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> {
           Text(
             '显示封存',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
           ),
           const SizedBox(width: AppDimens.sm),
@@ -553,7 +552,7 @@ class _CategoryRow extends StatelessWidget {
                 category.iconKey,
                 color: Color.lerp(
                   color,
-                  Theme.of(context).colorScheme.onSurface,
+                  context.forest.onSurface,
                   0.22,
                 )!,
                 size: 22,
@@ -576,13 +575,13 @@ class _CategoryRow extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.outline,
+                  color: context.forest.outline,
                   borderRadius: BorderRadius.circular(AppDimens.radiusSm),
                 ),
                 child: Text(
                   '已封存',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                         fontSize: 11,
                       ),
                 ),
@@ -591,7 +590,7 @@ class _CategoryRow extends StatelessWidget {
               onPressed: onMore,
               icon: LineGlyph(
                 Icons.more_horiz,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ],
@@ -639,15 +638,15 @@ class _SubcategoryChip extends StatelessWidget {
             ClayIconTile(
               size: 48,
               color: isAdd
-                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  ? context.forest.onSurfaceVariant
                   : color,
               child: isAdd
                   ? LineIcon(
                       LineIconKind.add,
                       size: 24,
                       color: Color.lerp(
-                        Theme.of(context).colorScheme.onSurfaceVariant,
-                        Theme.of(context).colorScheme.onSurface,
+                        context.forest.onSurfaceVariant,
+                        context.forest.onSurface,
                         0.22,
                       )!,
                     )
@@ -655,7 +654,7 @@ class _SubcategoryChip extends StatelessWidget {
                       category!.iconKey,
                       color: Color.lerp(
                         color,
-                        Theme.of(context).colorScheme.onSurface,
+                        context.forest.onSurface,
                         0.22,
                       )!,
                       size: 24,
@@ -669,7 +668,7 @@ class _SubcategoryChip extends StatelessWidget {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: isAdd
-                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        ? context.forest.onSurfaceVariant
                         : null,
                     fontSize: 12,
                   ),
@@ -830,7 +829,7 @@ class _SortTile extends StatelessWidget {
           category.iconKey,
           color: Color.lerp(
             color,
-            Theme.of(context).colorScheme.onSurface,
+            context.forest.onSurface,
             0.22,
           )!,
           size: 22,
@@ -839,7 +838,7 @@ class _SortTile extends StatelessWidget {
       title: Text(category.name),
       trailing: LineGlyph(
         Icons.drag_handle,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        color: context.forest.onSurfaceVariant,
       ),
     );
   }
@@ -892,7 +891,7 @@ Future<void> _showChangeParentSheet(
               t.iconKey,
               color: Color.lerp(
                 color,
-                Theme.of(context).colorScheme.onSurface,
+                context.forest.onSurface,
                 0.22,
               )!,
               size: 22,

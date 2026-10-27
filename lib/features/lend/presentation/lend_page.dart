@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 
 import '../../../core/errors/failures.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../routing/app_router.dart';
@@ -84,15 +83,15 @@ class _LendPageState extends ConsumerState<LendPage> {
 
     return Scaffold(
       backgroundColor: isDark
-          ? Theme.of(context).colorScheme.surface
-          : context.colors.surface,
+          ? context.forest.surface
+          : context.forest.surface,
       appBar: AppBar(
         backgroundColor: isDark
-            ? Theme.of(context).colorScheme.surface
-            : context.colors.surface,
+            ? context.forest.surface
+            : context.forest.surface,
         foregroundColor: isDark
-            ? Theme.of(context).colorScheme.onSurface
-            : Theme.of(context).colorScheme.onSurface,
+            ? context.forest.onSurface
+            : context.forest.onSurface,
         elevation: 0,
         centerTitle: true,
         title: const Text('借还'),
@@ -154,15 +153,15 @@ class _LendPageState extends ConsumerState<LendPage> {
   /// 次级「新建账户」直达账户页（第 46 批改名，原「去账户页新建」）。
   Widget _bottomBar(BuildContext context, bool isDark) {
     final Color ghostBg =
-        isDark ? Theme.of(context).colorScheme.surface : context.colors.surface;
+        isDark ? context.forest.surface : context.forest.surface;
     final Color ghostBorder = isDark
-        ? Theme.of(context).colorScheme.outline
+        ? context.forest.outline
         : ForestNeutral.hairlineStrong;
     return SafeArea(
       child: Container(
         color: isDark
-            ? Theme.of(context).colorScheme.surface
-            : context.colors.surface,
+            ? context.forest.surface
+            : context.forest.surface,
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
         child: Row(
           children: <Widget>[
@@ -175,8 +174,8 @@ class _LendPageState extends ConsumerState<LendPage> {
                 backgroundColor: ghostBg,
                 border: Border.all(color: ghostBorder),
                 textColor: isDark
-                    ? Theme.of(context).colorScheme.onSurface
-                    : Theme.of(context).colorScheme.onSurface,
+                    ? context.forest.onSurface
+                    : context.forest.onSurface,
                 label: '新建账户',
               ),
             ),
@@ -187,11 +186,11 @@ class _LendPageState extends ConsumerState<LendPage> {
                 onPressed: () =>
                     openRecordSheet(context, initialTab: RecordTab.lend),
                 gradient: ForestGradients.button,
-                textColor: Theme.of(context).colorScheme.onPrimary,
+                textColor: context.forest.onPrimary,
                 icon: LineGlyph(
                   Icons.add,
                   size: 18,
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  color: context.forest.onPrimary,
                 ),
                 label: '记一笔借还',
               ),
@@ -275,7 +274,7 @@ class _LendAccountCard extends StatelessWidget {
                       size: 20,
                       color: Color.lerp(
                         isDark ? ForestGreen.brand : ForestGreen.deep,
-                        Theme.of(context).colorScheme.onSurface,
+                        context.forest.onSurface,
                         0.22,
                       )!,
                     ),
@@ -348,8 +347,8 @@ class _LendAccountCard extends StatelessWidget {
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: isDark
-                          ? Theme.of(context).colorScheme.onSurface
-                          : Theme.of(context).colorScheme.onSurface,
+                          ? context.forest.onSurface
+                          : context.forest.onSurface,
                       fontFeatures: const <FontFeature>[
                         FontFeature.tabularFigures(),
                       ],
@@ -360,7 +359,7 @@ class _LendAccountCard extends StatelessWidget {
                     isLendOut ? '待收回' : '待归还',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -386,7 +385,7 @@ class _LendAccountCard extends StatelessWidget {
                   LineGlyph(
                     Icons.chevron_right,
                     size: 18,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -496,7 +495,7 @@ class _LendEmptyTitle extends StatelessWidget {
       style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: Theme.of(context).colorScheme.onSurface,
+        color: context.forest.onSurface,
       ),
     );
   }
@@ -516,7 +515,7 @@ class _LendEmptyHint extends StatelessWidget {
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 12,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        color: context.forest.onSurfaceVariant,
       ),
     );
   }

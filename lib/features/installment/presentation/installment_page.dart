@@ -9,7 +9,6 @@ import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
 
 import '../../../core/errors/failures.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
@@ -154,10 +153,10 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
   /// 一致——单个深绿渐变胶囊「+ 记一笔分期」；第 46 批改跳记一笔的分期
   /// Tab（与报销 / 借还主按钮同口径，直达记一笔页）。
   Widget _bottomBar(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return SafeArea(
       child: Container(
-        color: scheme.surface,
+        color: context.forest.surface,
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
         child: SizedBox(
           width: double.infinity,
@@ -178,7 +177,7 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
                   LineGlyph(
                     Icons.add,
                     size: 18,
-                    color: scheme.onPrimary,
+                    color: context.forest.onPrimary,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -186,7 +185,7 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: scheme.onPrimary,
+                      color: context.forest.onPrimary,
                     ),
                   ),
                 ],
@@ -226,7 +225,7 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? Theme.of(context).colorScheme.surface
+              ? context.forest.surface
               : Colors.transparent,
           borderRadius: BorderRadius.circular(9),
           boxShadow: selected
@@ -248,7 +247,7 @@ class _InstallmentPageState extends ConsumerState<InstallmentPage> {
             fontWeight: FontWeight.w600,
             color: selected
                 ? AppPalette.sage700
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -366,7 +365,7 @@ class _PlanCard extends StatelessWidget {
             ? '有逾期'
             : '进行中';
     final Color statusColor = plan.isFinished
-        ? Theme.of(context).colorScheme.onSurfaceVariant
+        ? context.forest.onSurfaceVariant
         : hasOverdue
             ? AppPalette.danger
             : AppPalette.primary;
@@ -422,7 +421,7 @@ class _PlanCard extends StatelessWidget {
                         textAlign: TextAlign.end,
                         style: t.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -436,7 +435,7 @@ class _PlanCard extends StatelessWidget {
                     if (accountName != null) accountName!,
                   ].join(' · '),
                   style: t.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -450,7 +449,7 @@ class _PlanCard extends StatelessWidget {
                           '应还总额',
                           style: t.bodySmall?.copyWith(
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -458,7 +457,7 @@ class _PlanCard extends StatelessWidget {
                           Money.fromMinor(plan.totalMinor + totalFee).format(),
                           style: t.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                       ],
@@ -471,7 +470,7 @@ class _PlanCard extends StatelessWidget {
                           '待入账',
                           style: t.bodySmall?.copyWith(
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -479,7 +478,7 @@ class _PlanCard extends StatelessWidget {
                           Money.fromMinor(remainingMinor).format(),
                           style: t.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                       ],
@@ -498,7 +497,7 @@ class _PlanCard extends StatelessWidget {
                 Text(
                   '已入账 ${plan.paidPeriods}/${plan.totalPeriods} 期',
                   style: t.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -570,7 +569,7 @@ class _SlideAction extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
+
 import 'line_icon_map.dart';
 
 /// 分类类型切换标签（下划线选中态）。
@@ -23,7 +24,7 @@ class TypeTab extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final Color color = selected
         ? theme.colorScheme.onSurface
-        : Theme.of(context).colorScheme.onSurfaceVariant;
+        : context.forest.onSurfaceVariant;
     final FontWeight weight = selected ? FontWeight.w600 : FontWeight.normal;
 
     return GestureDetector(

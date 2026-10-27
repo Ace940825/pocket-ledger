@@ -28,7 +28,7 @@ class ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
+
     final bool isDark = theme.brightness == Brightness.dark;
     return InkWell(
       onTap: onTap,
@@ -37,7 +37,7 @@ class ActionRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 14),
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: scheme.outline),
+            top: BorderSide(color: context.forest.outline),
           ),
         ),
         child: Row(
@@ -73,7 +73,7 @@ class ActionRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: danger ? ForestSemantic.expense : scheme.onSurface,
+                      color: danger ? ForestSemantic.expense : context.forest.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -81,7 +81,7 @@ class ActionRow extends StatelessWidget {
                     subtitle,
                     style: TextStyle(
                       fontSize: 11,
-                      color: scheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -90,7 +90,7 @@ class ActionRow extends StatelessWidget {
             LineGlyph(
               Icons.chevron_right,
               size: 16,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),

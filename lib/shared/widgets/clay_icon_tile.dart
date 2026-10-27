@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 /// 黏土方糖图标容器（全应用统一，A3 视觉）：白→分类彩双色渐变软糖底 +
 /// 左上高光斑 + 长投影。选中态转实体分类色、去高光。
 ///
 /// 由记一笔主网格的 `_ClayIconTile` 提升而来（2026-10-14 真机反馈：
 /// 图标风格全局统一为黏土方糖）。分类/账户/借还等行内图标统一用本组件，
-/// 线稿配色走约定：`Color.lerp(color, scheme.onSurface, 0.22)`。
+/// 线稿配色走约定：`Color.lerp(color, context.forest.onSurface, 0.22)`。
 class ClayIconTile extends StatelessWidget {
   const ClayIconTile({
     super.key,
@@ -55,14 +56,14 @@ class ClayIconTile extends StatelessWidget {
         border: Border.all(
           color: selected
               ? Colors.transparent
-              : Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+              : context.forest.surface.withValues(alpha: 0.5),
         ),
         boxShadow: <BoxShadow>[
           // 未选中：设计稿 5px 7px 14px rgba(74,66,46,.20)（微收敛防格间溢出）
           // 选中：0 6px 14px rgba(74,66,46,.22)
           BoxShadow(
             color:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                context.forest.onSurface.withValues(alpha: 0.2),
             offset: selected ? const Offset(0, 6) : const Offset(3, 4),
             blurRadius: selected ? 14 : 10,
           ),

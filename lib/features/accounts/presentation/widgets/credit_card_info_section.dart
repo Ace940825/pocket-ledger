@@ -45,7 +45,6 @@ class CreditCardInfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     final DateTime now = this.now ?? DateTime.now();
 
     // 负债方向账户正余额 = 当前欠款；展示按参考稿取正数红色表意。
@@ -97,7 +96,7 @@ class CreditCardInfoSection extends StatelessWidget {
                       Money.fromMinor(available ?? 0).format(showSymbol: false),
                       style: theme.textTheme.titleMedium?.copyWith(
                         color:
-                            overLimit ? AppPalette.expense : scheme.onSurface,
+                            overLimit ? AppPalette.expense : context.forest.onSurface,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -112,7 +111,7 @@ class CreditCardInfoSection extends StatelessWidget {
                           color: overLimit
                               ? AppPalette.expense
                               : AppPalette.primary,
-                          backgroundColor: scheme.surfaceContainerHighest,
+                          backgroundColor: context.forest.surfaceContainerHighest,
                         ),
                       ),
                     ],
@@ -234,7 +233,7 @@ Widget _fieldLabel(BuildContext context, String text) {
   return Text(
     text,
     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
   );
 }
@@ -254,10 +253,9 @@ class _DateCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     // 日期值样式：槽位量宽与正文渲染共用同一样式，保证实测宽度即渲染宽度。
     final TextStyle? valueStyle = theme.textTheme.bodyMedium?.copyWith(
-      color: scheme.onSurface,
+      color: context.forest.onSurface,
       fontWeight: FontWeight.w600,
     );
     // 小签样式（须与下方 Container 内 Text 完全一致，实测占位才准）。
@@ -277,7 +275,7 @@ class _DateCell extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),

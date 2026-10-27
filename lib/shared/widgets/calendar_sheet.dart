@@ -5,7 +5,6 @@ import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
-import '../../core/theme/forest_design_tokens.dart';
 import '../../core/utils/date_utils.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
@@ -758,7 +757,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             ? LineGlyph(
                 Icons.gps_fixed,
                 size: 17,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               )
             : null,
       ),
@@ -1004,7 +1003,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                               style: TextStyle(
                                 fontSize: _narrow ? 19 : 21,
                                 fontWeight: FontWeight.w800,
-                                color: Theme.of(context).colorScheme.onPrimary,
+                                color: context.forest.onPrimary,
                                 letterSpacing: 1,
                               ),
                             ),
@@ -1046,7 +1045,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
   Widget _buildHeroSeg(BuildContext context) => Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.22),
+          color: context.forest.surface.withValues(alpha: 0.22),
           borderRadius: BorderRadius.circular(11),
         ),
         child: Row(
@@ -1067,7 +1066,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color:
-              on ? Theme.of(context).colorScheme.surface : Colors.transparent,
+              on ? context.forest.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(9),
         ),
         child: Text(
@@ -1179,12 +1178,12 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             gradient: on ? context.app.sageGradient : null,
-            color: on ? null : context.colors.surface,
+            color: on ? null : context.forest.surface,
             borderRadius: BorderRadius.circular(13),
             border: Border.all(
               color: on
                   ? Colors.transparent
-                  : Theme.of(context).colorScheme.outline,
+                  : context.forest.outline,
             ),
             boxShadow: on ? ForestElevation.card : ForestElevation.flat,
           ),
@@ -1202,7 +1201,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                             .colorScheme
                             .onPrimary
                             .withValues(alpha: 0.7)
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                        : context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1211,8 +1210,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: on
-                  ? Theme.of(context).colorScheme.onPrimary
-                  : Theme.of(context).colorScheme.onSurface,
+                  ? context.forest.onPrimary
+                  : context.forest.onSurface,
             ),
           ),
         ),
@@ -1279,7 +1278,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   const SizedBox(width: 5),
@@ -1287,7 +1286,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                     '▾',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1315,8 +1314,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               fontSize: 20,
               height: 1,
               color: enabled
-                  ? Theme.of(context).colorScheme.onSurface
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ? context.forest.onSurface
+                  : context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -1346,7 +1345,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -1405,10 +1404,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
     final Color textColor = selected
         ? AppPalette.white
         : dim
-            ? Theme.of(context).colorScheme.onSurfaceVariant
+            ? context.forest.onSurfaceVariant
             : isToday
                 ? AppPalette.ctaGreen
-                : Theme.of(context).colorScheme.onSurface;
+                : context.forest.onSurface;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: enabled
@@ -1493,7 +1492,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                   ),
@@ -1533,7 +1532,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
         ),
@@ -1576,7 +1575,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                   style: TextStyle(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
                 const SizedBox(width: 5),
@@ -1584,7 +1583,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                   '▾',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1600,7 +1599,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             style: TextStyle(
               fontSize: fontSize,
               fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
         );
@@ -1618,7 +1617,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                   '▾',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1650,7 +1649,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             child: _footerPill(
               label: '取消',
               background: AppPalette.paper2,
-              foreground: Theme.of(context).colorScheme.onSurfaceVariant,
+              foreground: context.forest.onSurfaceVariant,
               onTap: () => Navigator.of(context).pop(),
             ),
           ),
@@ -1703,9 +1702,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
       Container(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
         decoration: BoxDecoration(
-          color: context.colors.surface,
+          color: context.forest.surface,
           border: Border(
-            top: BorderSide(color: Theme.of(context).colorScheme.outline),
+            top: BorderSide(color: context.forest.outline),
           ),
         ),
         child: Column(
@@ -1797,10 +1796,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             fontSize: 14,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             color: disabled
-                ? Theme.of(context).colorScheme.onSurfaceVariant
+                ? context.forest.onSurfaceVariant
                 : (selected
                     ? AppPalette.white
-                    : Theme.of(context).colorScheme.onSurface),
+                    : context.forest.onSurface),
           ),
         ),
       ),
@@ -1877,10 +1876,10 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
             fontSize: 14,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             color: outOfRange
-                ? Theme.of(context).colorScheme.onSurfaceVariant
+                ? context.forest.onSurfaceVariant
                 : (selected
                     ? AppPalette.white
-                    : Theme.of(context).colorScheme.onSurface),
+                    : context.forest.onSurface),
           ),
         ),
       ),
@@ -1912,7 +1911,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ),
@@ -2273,7 +2272,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                       .colorScheme
                                       .onSurfaceVariant
                                   : selected
-                                      ? Theme.of(context).colorScheme.onSurface
+                                      ? context.forest.onSurface
                                       : Theme.of(context)
                                           .colorScheme
                                           .onSurfaceVariant,
@@ -2370,12 +2369,12 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                 ? null
                                 : (disabled
                                     ? AppPalette.paper2
-                                    : context.colors.surface),
+                                    : context.forest.surface),
                             borderRadius: BorderRadius.circular(13),
                             border: Border.all(
                               color: disabled
                                   ? Colors.transparent
-                                  : Theme.of(context).colorScheme.outline,
+                                  : context.forest.outline,
                             ),
                           ),
                           child: Text(
@@ -2389,7 +2388,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                       .colorScheme
                                       .onSurfaceVariant
                                   : (selected
-                                      ? Theme.of(c).colorScheme.onPrimary
+                                      ? c.forest.onPrimary
                                       : Theme.of(context)
                                           .colorScheme
                                           .onSurface),
@@ -2473,12 +2472,12 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                 ? null
                                 : (disabled
                                     ? AppPalette.paper2
-                                    : context.colors.surface),
+                                    : context.forest.surface),
                             borderRadius: BorderRadius.circular(13),
                             border: Border.all(
                               color: disabled
                                   ? Colors.transparent
-                                  : Theme.of(context).colorScheme.outline,
+                                  : context.forest.outline,
                             ),
                           ),
                           child: Text(
@@ -2492,7 +2491,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                       .colorScheme
                                       .onSurfaceVariant
                                   : (selected
-                                      ? Theme.of(c).colorScheme.onPrimary
+                                      ? c.forest.onPrimary
                                       : Theme.of(context)
                                           .colorScheme
                                           .onSurface),
@@ -2600,8 +2599,8 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
               color: selected
                   ? AppPalette.white
                   : enabled
-                      ? Theme.of(context).colorScheme.onSurface
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ? context.forest.onSurface
+                      : context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -2669,12 +2668,12 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                 ? null
                                 : (disabled
                                     ? AppPalette.paper2
-                                    : context.colors.surface),
+                                    : context.forest.surface),
                             borderRadius: BorderRadius.circular(13),
                             border: Border.all(
                               color: disabled
                                   ? Colors.transparent
-                                  : Theme.of(context).colorScheme.outline,
+                                  : context.forest.outline,
                             ),
                           ),
                           child: Text(
@@ -2688,7 +2687,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                       .colorScheme
                                       .onSurfaceVariant
                                   : (selected
-                                      ? Theme.of(c).colorScheme.onPrimary
+                                      ? c.forest.onPrimary
                                       : Theme.of(context)
                                           .colorScheme
                                           .onSurface),
@@ -2765,12 +2764,12 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                 ? null
                                 : (disabled
                                     ? AppPalette.paper2
-                                    : context.colors.surface),
+                                    : context.forest.surface),
                             borderRadius: BorderRadius.circular(13),
                             border: Border.all(
                               color: disabled
                                   ? Colors.transparent
-                                  : Theme.of(context).colorScheme.outline,
+                                  : context.forest.outline,
                             ),
                           ),
                           child: Text(
@@ -2784,7 +2783,7 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
                                       .colorScheme
                                       .onSurfaceVariant
                                   : (selected
-                                      ? Theme.of(c).colorScheme.onPrimary
+                                      ? c.forest.onPrimary
                                       : Theme.of(context)
                                           .colorScheme
                                           .onSurface),
@@ -2841,9 +2840,9 @@ class _CalendarSheetBodyState extends State<_CalendarSheetBody> {
         // 不统一（月/年选择器顶栏），改与弹层同底色 + 底部发丝线分隔，
         // 与 AppModalSheet 标题栏口径一致；顶部圆角由弹层外壳统一负责。
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: context.forest.surface,
           border: Border(
-            bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
+            bottom: BorderSide(color: context.forest.outline),
           ),
         ),
         padding: const EdgeInsets.symmetric(
@@ -2934,8 +2933,8 @@ class _TimeDial extends StatelessWidget {
                 hourMode: hourMode,
                 hour: hour,
                 minute: minute,
-                surface: Theme.of(context).colorScheme.surface,
-                onSurface: Theme.of(context).colorScheme.onSurface,
+                surface: context.forest.surface,
+                onSurface: context.forest.onSurface,
               ),
             ),
             Center(
@@ -2949,7 +2948,7 @@ class _TimeDial extends StatelessWidget {
                     style: TextStyle(
                       fontSize: size >= 106 ? 22 : 19,
                       fontWeight: FontWeight.w800,
-                      color: Theme.of(context).colorScheme.onPrimary,
+                      color: context.forest.onPrimary,
                       fontFeatures: const <FontFeature>[
                         FontFeature.tabularFigures(),
                       ],
@@ -3063,15 +3062,15 @@ class _CloseButton extends StatelessWidget {
         width: 34,
         height: 34,
         child: HairlineCard(
-          backgroundColor: context.colors.surface,
-          borderColor: Theme.of(context).colorScheme.outline,
+          backgroundColor: context.forest.surface,
+          borderColor: context.forest.outline,
           radius: 17,
           padding: EdgeInsets.zero,
           child: IconButton(
             icon: LineGlyph(
               Icons.close,
               size: 18,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
             padding: EdgeInsets.zero,
             onPressed: onPressed,
@@ -3105,7 +3104,7 @@ class _ConfirmButton extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: context.forest.onPrimary,
               letterSpacing: 2,
             ),
           ),
@@ -3134,7 +3133,7 @@ class _Arrow extends StatelessWidget {
           icon: LineGlyph(
             icon,
             size: 16,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
@@ -3178,7 +3177,7 @@ class _WeekdayRow extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                         color: (label == '日' || label == '六')
                             ? _sageAccent
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                            : context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -3210,10 +3209,10 @@ class _DayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     // 设计稿：选中=白字；置灰=浅字；今天=默认字+底部 4px 圆点（选中今天时圆点隐藏）
     final Color textColor = isSelected
-        ? Theme.of(context).colorScheme.onPrimary
+        ? context.forest.onPrimary
         : isMuted
-            ? Theme.of(context).colorScheme.onSurfaceVariant
-            : Theme.of(context).colorScheme.onSurface;
+            ? context.forest.onSurfaceVariant
+            : context.forest.onSurface;
     return Center(
       child: InkWell(
         onTap: isEnabled ? onTap : null,

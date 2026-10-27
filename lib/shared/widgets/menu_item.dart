@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -50,8 +51,8 @@ class MenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = context.colors;
-    final Color tint = iconColor ?? scheme.primary;
+
+    final Color tint = iconColor ?? context.forest.primary;
     final Widget leadingW = leading ??
         (icon == null
             ? const SizedBox.shrink()
@@ -76,7 +77,7 @@ class MenuItem extends StatelessWidget {
                       child: Text(
                         value!,
                         style: context.text.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -84,7 +85,7 @@ class MenuItem extends StatelessWidget {
                     LineGlyph(
                       Icons.chevron_right,
                       size: 18,
-                      color: scheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                 ],
               ));
@@ -112,7 +113,7 @@ class MenuItem extends StatelessWidget {
             : Text(
                 subtitle!,
                 style: context.text.bodySmall?.copyWith(
-                  color: subtitleColor ?? scheme.onSurfaceVariant,
+                  color: subtitleColor ?? context.forest.onSurfaceVariant,
                 ),
               ),
         trailing: trailingW,

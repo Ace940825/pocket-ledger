@@ -147,7 +147,7 @@ class MePage extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -208,7 +208,7 @@ class MePage extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -287,7 +287,7 @@ class MePage extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -297,7 +297,7 @@ class MePage extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -411,7 +411,7 @@ class MePage extends ConsumerWidget {
             child: LineGlyph(
               item.icon,
               size: 22,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const SizedBox(height: 7),
@@ -421,7 +421,7 @@ class MePage extends ConsumerWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
         ],

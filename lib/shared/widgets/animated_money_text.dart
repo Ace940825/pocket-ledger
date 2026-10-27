@@ -75,7 +75,7 @@ class _AnimatedMoneyTextState extends State<AnimatedMoneyText>
 
   Color _resolveColor() {
     final Money money = widget.money;
-    if (money.isZero) return Theme.of(context).colorScheme.onSurfaceVariant;
+    if (money.isZero) return context.forest.onSurfaceVariant;
     return money.isPositive ? AppPalette.income : AppPalette.expense;
   }
 

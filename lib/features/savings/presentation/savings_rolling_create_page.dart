@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/app_toast.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
@@ -220,7 +219,7 @@ class _SavingsRollingCreatePageState
                       thickness: 1,
                       indent: 16,
                       endIndent: 16,
-                      color: Theme.of(context).colorScheme.outline,
+                      color: context.forest.outline,
                     ),
                     SwitchListTile(
                       title: const Text('滚存阶段继续每月追投'),
@@ -278,7 +277,7 @@ class _SavingsRollingCreatePageState
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
       );
@@ -308,7 +307,7 @@ class _SavingsRollingCreatePageState
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -323,7 +322,7 @@ class _SavingsRollingCreatePageState
                   hintStyle: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   isDense: dense,
                   prefixIcon: prefix == null
@@ -343,7 +342,7 @@ class _SavingsRollingCreatePageState
                       const BoxConstraints(minWidth: 0, minHeight: 0),
                   filled: true,
                   fillColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                      context.forest.surfaceContainerHighest,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
@@ -360,19 +359,19 @@ class _SavingsRollingCreatePageState
                 style: TextStyle(
                   fontSize: dense ? 14 : 15,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
                 decoration: InputDecoration(
                   hintText: hint,
                   hintStyle: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   isDense: dense,
                   filled: true,
                   fillColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                      context.forest.surfaceContainerHighest,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
@@ -406,12 +405,12 @@ class _SavingsRollingCreatePageState
                 decoration: BoxDecoration(
                   color: items[i].$1 == selected
                       ? AppPalette.softGreen
-                      : context.colors.surface,
+                      : context.forest.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: items[i].$1 == selected
                         ? AppPalette.sage300
-                        : Theme.of(context).colorScheme.outline,
+                        : context.forest.outline,
                   ),
                 ),
                 alignment: Alignment.center,
@@ -436,7 +435,7 @@ class _SavingsRollingCreatePageState
                             : FontWeight.w500,
                         color: items[i].$1 == selected
                             ? AppPalette.deepGreen
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                            : context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -506,7 +505,7 @@ class _PreviewCard extends StatelessWidget {
             '（共模拟 ${result.simulatedMonths} 个月）',
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],
@@ -530,7 +529,7 @@ class _PreviewCard extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             Text(
@@ -538,7 +537,7 @@ class _PreviewCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: bold ? 16 : 14,
                 fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-                color: color ?? Theme.of(context).colorScheme.onSurface,
+                color: color ?? context.forest.onSurface,
               ),
             ),
           ],

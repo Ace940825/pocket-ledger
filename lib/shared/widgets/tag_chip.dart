@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/forest_design_tokens.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -38,7 +37,7 @@ class TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
 
     final List<Widget> leading = <Widget>[
       if (showHash && color == null)
@@ -67,7 +66,7 @@ class TagChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 12.5,
           fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-          color: selected ? ForestSage.ink : scheme.onSurface,
+          color: selected ? ForestSage.ink : context.forest.onSurface,
         ),
       ),
       if (deletable)
@@ -79,7 +78,7 @@ class TagChip extends StatelessWidget {
             child: LineGlyph(
               Icons.close,
               size: 14,
-              color: selected ? ForestSage.ink : scheme.onSurfaceVariant,
+              color: selected ? ForestSage.ink : context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -92,9 +91,9 @@ class TagChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
           gradient: selected ? context.app.sageGradientMid : null,
-          color: selected ? null : scheme.surfaceContainerHighest,
+          color: selected ? null : context.forest.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(AppDimens.radiusChip),
-          border: selected ? null : Border.all(color: scheme.outline),
+          border: selected ? null : Border.all(color: context.forest.outline),
           boxShadow: selected
               ? <BoxShadow>[
                   BoxShadow(

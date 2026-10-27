@@ -45,8 +45,8 @@ class SectionHeader extends StatelessWidget {
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: isDark
-                    ? Theme.of(context).colorScheme.onSurface
-                    : Theme.of(context).colorScheme.onSurface,
+                    ? context.forest.onSurface
+                    : context.forest.onSurface,
               ),
             ),
           ),

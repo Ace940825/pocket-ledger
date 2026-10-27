@@ -668,7 +668,7 @@ class _PageDots extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color inactive = Theme.of(context).colorScheme.outline;
+    final Color inactive = context.forest.outline;
     const Color active = AppPalette.primary;
 
     return AnimatedBuilder(

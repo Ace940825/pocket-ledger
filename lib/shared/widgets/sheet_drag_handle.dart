@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 import '../../theme/app_dimens.dart';
 
@@ -22,13 +23,13 @@ class SheetDragHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return Container(
       margin: margin,
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: color ?? scheme.outline,
+        color: color ?? context.forest.outline,
         borderRadius: BorderRadius.circular(AppDimens.radiusChip),
       ),
     );

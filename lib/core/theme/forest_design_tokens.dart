@@ -7,22 +7,20 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
-
 // ───────────────────────── 配色 Color ─────────────────────────
 
 /// 背景色
 class ForestBg {
   static const Color paper = Color(0xFFFBF6EA); // 主纸底（暖米黄）
-  static const Color sunken = AppPalette
-      .sunkenCream; // 单源化：别名 AppPalette.sunkenCream（同值 0xFFF3EAD8），旧名仅兼容
+  static const Color sunken =
+      Color(0xFFF3EAD8); // 单源化：同 AppPalette.sunkenCream（旧名仅兼容）
   static const Color raised = Color(0xFFFFFDF8); // 弹层/浮起（近白暖）
 }
 
 /// 卡片表面
 class ForestSurface {
   static const Color card =
-      AppPalette.cream; // 奶油卡面（方案 A 统一：直接别名 AppPalette.cream，旧名仅兼容）
+      Color(0xFFFBF8F0); // 奶油卡面（方案 A 统一：同 AppPalette.cream，旧名仅兼容）
   static const Color cardAlt = Color(0xFFF6EFE0); // 次级卡面
   static const Color raised = Color(0xFFFFFDF8); // 弹层/浮起（近白暖，同 ForestBg.raised）
 }
@@ -83,7 +81,7 @@ class ForestNeutral {
   static const Color onSage = Color(0xFF2E5B39); // 绿卡上的文字
   static const Color onGreen = Color(0xFFFFFFFF); // 绿色按钮上的文字
   static const Color hairline =
-      AppPalette.hairline; // 发丝线/描边（方案 A 统一：直接别名 AppPalette.hairline，旧名仅兼容）
+      Color(0xFFECE3D1); // 发丝线/描边（方案 A 统一：同 AppPalette.hairline，旧名仅兼容）
   static const Color hairlineStrong = Color(0xFFDDD0B8);
   static const Color hairlineOnSage =
       Color(0x2E5B3929); // 绿卡内深绿发丝线 rgba(46,91,57,.16)
@@ -231,4 +229,111 @@ class ForestGradients {
     stops: <double>[0.0, 0.55, 1.0],
     colors: ForestSage.button,
   );
+}
+
+// ───────────────────────── 语义角色全集（亮 / 暗）─────────────────────────
+//
+// Forest 作为「唯一色彩事实来源（SSOT）」：Material ColorScheme 由本集合派生
+// （见 app_colors.dart 的 lightScheme / darkScheme），业务代码优先用
+// `context.forest.*` 直接取用，不再经由 Material ColorScheme 中转。
+//
+// 取值全部来自上方 Forest* 颜色类，确保全应用只有这一处定义颜色。
+
+/// 与 Material ColorScheme 一一对应的语义角色（亮 / 暗成对）。
+class ForestPalette {
+  const ForestPalette({
+    required this.primary,
+    required this.onPrimary,
+    required this.primaryContainer,
+    required this.onPrimaryContainer,
+    required this.secondary,
+    required this.onSecondary,
+    required this.secondaryContainer,
+    required this.onSecondaryContainer,
+    required this.surface,
+    required this.onSurface,
+    required this.onSurfaceVariant,
+    required this.surfaceContainer,
+    required this.surfaceContainerHighest,
+    required this.outline,
+    required this.error,
+    required this.onError,
+    required this.surfaceTint,
+    required this.isDark,
+  });
+
+  final Color primary;
+  final Color onPrimary;
+  final Color primaryContainer;
+  final Color onPrimaryContainer;
+  final Color secondary;
+  final Color onSecondary;
+  final Color secondaryContainer;
+  final Color onSecondaryContainer;
+  final Color surface;
+  final Color onSurface;
+  final Color onSurfaceVariant;
+  final Color surfaceContainer;
+  final Color surfaceContainerHighest;
+  final Color outline;
+  final Color error;
+  final Color onError;
+  final Color surfaceTint;
+  final bool isDark;
+
+  /// 亮色（暖纸皮肤）。
+  /// 取值**字节级镜像原 AppPalette.lightScheme**，确保本次重构零视觉回退；
+  /// Forest 自有设计值（ForestGreen.cta / ForestSemantic.expense 等）作为后续
+  /// 有意视觉刷新的目标，不在此强制落到 Material 组件。
+  static const ForestPalette light = ForestPalette(
+    primary: Color(0xFF41823B),
+    onPrimary: Color(0xFFFBF8F0),
+    primaryContainer: Color(0xFFE2EBDC),
+    onPrimaryContainer: Color(0xFF4E6A45),
+    secondary: Color(0xFF7C9E72),
+    onSecondary: Color(0xFF4F5F2F),
+    secondaryContainer: Color(0xFFE2EBDC),
+    onSecondaryContainer: Color(0xFF4E6A45),
+    surface: Color(0xFFFBF8F0),
+    onSurface: Color(0xFF4F5F2F),
+    onSurfaceVariant: Color(0xFF6B7A4F),
+    surfaceContainer: Color(0xFFF4EEDE),
+    surfaceContainerHighest: Color(0xFFF4EEDE),
+    outline: Color(0xFFECE3D1),
+    error: Color(0xFFB84A3A),
+    onError: Color(0xFFFBF8F0),
+    surfaceTint: Color(0xFFFBF8F0),
+    isDark: false,
+  );
+
+  /// 暗色（暖绿调暗底；字节级镜像原 darkScheme）
+  static const ForestPalette dark = ForestPalette(
+    primary: Color(0xFF8FB883),
+    onPrimary: Color(0xFF1A2114),
+    primaryContainer: Color(0xFF2B3A25),
+    onPrimaryContainer: Color(0xFFC9DCC0),
+    secondary: Color(0xFF9FBE92),
+    onSecondary: Color(0xFF1A2114),
+    secondaryContainer: Color(0xFF33402C),
+    onSecondaryContainer: Color(0xFFC9DCC0),
+    surface: Color(0xFF26291F),
+    onSurface: Color(0xFFD6E3C8),
+    onSurfaceVariant: Color(0xFFB8C6A8),
+    surfaceContainer: Color(0xFF2D3025),
+    surfaceContainerHighest: Color(0xFF33332A),
+    outline: Color(0xFF4A4A3C),
+    error: Color(0xFFED9480),
+    onError: Color(0xFF2A140D),
+    surfaceTint: Color(0xFF26291F),
+    isDark: true,
+  );
+}
+
+/// BuildContext 取用捷径：亮度感知，直接拿到当前模式的 Forest 语义角色。
+/// 用法：`final c = context.forest;` → `c.primary` / `c.onSurface` / `c.error`
+extension ForestTokensX on BuildContext {
+  ForestPalette get forest =>
+      Theme.of(this).brightness == Brightness.dark
+          ? ForestPalette.dark
+          : ForestPalette.light;
 }

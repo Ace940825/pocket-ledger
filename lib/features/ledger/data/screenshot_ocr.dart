@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/config/secrets.dart';
+import '../../../core/utils/geo_utils.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import 'bill_io.dart';
@@ -125,6 +127,38 @@ class ScreenshotOcrService {
       if (rows.isEmpty && errors.isEmpty) {
         errors.add('模型未返回可识别的账单，请换一张更清晰的截图');
       }
+
+      // 截图识别成功后，自动获取当前 GPS 位置，附加到每一行账单中
+      // （仅当该行没有位置信息时）
+      if (rows.isNotEmpty) {
+        try {
+          final Position pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 5),
+            ),
+          );
+          // 调用逆地理编码获取地名
+          final String? placeName = await reverseGeocodeSemantic(
+            pos.latitude,
+            pos.longitude,
+          );
+          // 把位置信息附加到每一行账单中（仅当该行没有位置信息时）
+          for (int i = 0; i < rows.length; i++) {
+            final BillRow row = rows[i];
+            if (row.placeName == null || row.placeName!.isEmpty) {
+              rows[i] = row.copyWith(
+                placeName: placeName,
+                latitude: pos.latitude,
+                longitude: pos.longitude,
+              );
+            }
+          }
+        } catch (_) {
+          // 定位失败，不阻断识别结果
+        }
+      }
+
       return ParseResult(rows, errors);
     } on DioException catch (e) {
       return ParseResult(

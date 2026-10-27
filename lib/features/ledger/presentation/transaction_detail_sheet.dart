@@ -14,10 +14,8 @@ import 'package:pocket_ledger/shared/widgets/info_kv_row.dart';
 import 'package:pocket_ledger/shared/widgets/location_map_sheet.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../core/errors/failures.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -244,7 +242,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                         size: 22,
                         color: Color.lerp(
                           heroTint,
-                          Theme.of(ctx).colorScheme.onSurface,
+                          ctx.forest.onSurface,
                           0.22,
                         )!,
                       ),
@@ -266,7 +264,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                           height: 1.25,
                         ),
                       ),
@@ -289,7 +287,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                 summary,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
               if (chips.isNotEmpty) ...<Widget>[
@@ -473,7 +471,7 @@ class TransactionDetailSheet extends ConsumerWidget {
         width: 76,
         height: 76,
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outline),
+          border: Border.all(color: context.forest.outline),
         ),
         child: image,
       ),
@@ -636,7 +634,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                 '无退款账单',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -659,8 +657,8 @@ class TransactionDetailSheet extends ConsumerWidget {
             margin: const EdgeInsets.symmetric(vertical: 8),
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             decoration: BoxDecoration(
-              color: context.colors.surface,
-              border: Border.all(color: Theme.of(context).colorScheme.outline),
+              color: context.forest.surface,
+              border: Border.all(color: context.forest.outline),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -709,7 +707,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                         time,
                         style: TextStyle(
                           fontSize: 11,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -774,7 +772,7 @@ class TransactionDetailSheet extends ConsumerWidget {
             '加载失败：$e',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -921,7 +919,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -930,7 +928,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 11,
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -949,7 +947,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                     LineIcon(
                       LineIconKind.chevronRight,
                       size: 14,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ],
                 ],
@@ -1078,7 +1076,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1087,7 +1085,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 11,
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -1128,7 +1126,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                   LineIcon(
                     LineIconKind.chevronRight,
                     size: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -1180,7 +1178,7 @@ class TransactionDetailSheet extends ConsumerWidget {
               LineIcon(
                 LineIconKind.chevronRight,
                 size: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ],
           ],
@@ -1200,7 +1198,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                   label,
                   style: TextStyle(
                     fontSize: _kBody,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -1224,7 +1222,7 @@ class TransactionDetailSheet extends ConsumerWidget {
           Divider(
             height: 1,
             thickness: 1,
-            color: Theme.of(context).colorScheme.outline,
+            color: context.forest.outline,
           ),
         );
       }
@@ -1413,15 +1411,15 @@ class _CircleBtn extends StatelessWidget {
         width: 36,
         height: 36,
         child: HairlineCard(
-          backgroundColor: context.colors.surface,
-          borderColor: Theme.of(context).colorScheme.outline,
+          backgroundColor: context.forest.surface,
+          borderColor: context.forest.outline,
           radius: ForestRadius.pill,
           padding: EdgeInsets.zero,
           child: Center(
             child: LineIcon(
               icon,
               size: 15,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
         ),
@@ -1487,7 +1485,7 @@ class _JumpNav extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onPrimary,
+            color: context.forest.onPrimary,
             letterSpacing: 0.4,
           ),
         ),
@@ -1551,7 +1549,7 @@ class _SegmentItem extends StatelessWidget {
         margin: EdgeInsets.zero,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: BoxDecoration(
-          color: active ? context.colors.surface : Colors.transparent,
+          color: active ? context.forest.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(ForestRadius.pill),
           boxShadow: active ? ForestElevation.xs : null,
         ),
@@ -1562,7 +1560,7 @@ class _SegmentItem extends StatelessWidget {
             fontWeight: active ? FontWeight.w600 : FontWeight.w400,
             color: active
                 ? ForestGreen.deep
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -1636,7 +1634,7 @@ class _LocationRowState extends ConsumerState<_LocationRow> {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     final String display =
         (_place == null || _place!.isEmpty) ? '已定位' : _place!;
     // 长按复制地名（点按走小地图改点，互不冲突）。
@@ -1656,7 +1654,7 @@ class _LocationRowState extends ConsumerState<_LocationRow> {
                 height: 13,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: scheme.primary,
+                  color: context.forest.primary,
                 ),
               )
             else
@@ -1672,7 +1670,7 @@ class _LocationRowState extends ConsumerState<_LocationRow> {
             LineIcon(
               LineIconKind.chevronRight,
               size: 14,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),

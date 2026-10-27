@@ -75,7 +75,7 @@ class _DayPickSheetState extends State<_DayPickSheet> {
                       child: LineGlyph(
                         Icons.close,
                         size: 18,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -87,7 +87,7 @@ class _DayPickSheetState extends State<_DayPickSheet> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -116,7 +116,7 @@ class _DayPickSheetState extends State<_DayPickSheet> {
                 onPressed: () => Navigator.of(context).pop(),
                 style: TextButton.styleFrom(
                   foregroundColor:
-                      Theme.of(context).colorScheme.onSurfaceVariant,
+                      context.forest.onSurfaceVariant,
                   textStyle: const TextStyle(fontSize: 15),
                 ),
                 child: const Text('取消'),
@@ -175,7 +175,7 @@ class _DayPickSheetState extends State<_DayPickSheet> {
               fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
               color: selected
                   ? AppPalette.white
-                  : Theme.of(context).colorScheme.onSurface,
+                  : context.forest.onSurface,
             ),
           ),
         ),

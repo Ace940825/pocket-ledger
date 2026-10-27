@@ -13,7 +13,6 @@ import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 import 'package:pocket_ledger/shared/widgets/tag_chip.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../database/daos/tags_dao.dart';
 import '../../../domain/enums.dart';
@@ -80,7 +79,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
     final List<TagGroupRow> groups = _filter(libAsync.value ?? <TagGroupRow>[]);
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.forest.surface,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -120,7 +119,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
   Widget _navBar(TagScope scope) => Container(
         // body 已有 SafeArea，这里只需留出返回键上方的呼吸空间。
         padding: const EdgeInsets.only(top: 4),
-        color: context.colors.surface,
+        color: context.forest.surface,
         child: Column(
           children: <Widget>[
             // 返回键独立一行，让分段键独占下一整行 ——
@@ -130,7 +129,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const LineGlyph(Icons.chevron_left, size: 26),
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -159,8 +158,8 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
   // ───────────────────── 头部大卡（标题+说明+开关+搜索，单卡） ─────────────────────
 
   Widget _headCard(TagScope scope) => HairlineCard(
-        backgroundColor: context.colors.surface,
-        borderColor: Theme.of(context).colorScheme.outline,
+        backgroundColor: context.forest.surface,
+        borderColor: context.forest.outline,
         radius: 16,
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -179,7 +178,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -189,7 +188,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ],
@@ -200,7 +199,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: context.colors.surfaceContainerHighest,
+                color: context.forest.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -208,7 +207,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.8,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -224,7 +223,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                       fontWeight: _enabled ? FontWeight.w700 : FontWeight.w400,
                       color: _enabled
                           ? AppPalette.deepGreen
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                          : context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -247,7 +246,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                   LineGlyph(
                     Icons.search,
                     size: 18,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -261,7 +260,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                         hintText: '搜索标签',
                         hintStyle: TextStyle(
                           fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                         border: InputBorder.none,
                         isCollapsed: true,
@@ -288,8 +287,8 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
   // ───────────────────────── 分组卡 ─────────────────────────
 
   Widget _groupCard(TagGroupRow g) => HairlineCard(
-        backgroundColor: context.colors.surface,
-        borderColor: Theme.of(context).colorScheme.outline,
+        backgroundColor: context.forest.surface,
+        borderColor: context.forest.outline,
         radius: 16,
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -312,7 +311,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -328,7 +327,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -602,7 +601,7 @@ class _AddTagChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -637,7 +636,7 @@ class _FeatureSwitch extends StatelessWidget {
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
+              color: context.forest.surface,
               shape: BoxShape.circle,
               boxShadow: <BoxShadow>[
                 BoxShadow(
@@ -712,7 +711,7 @@ class _NameSheet extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   gradient: v ? context.app.sageGradientMid : null,
-                  color: v ? null : context.colors.surfaceContainerHighest,
+                  color: v ? null : context.forest.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -722,7 +721,7 @@ class _NameSheet extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                     color: v
                         ? ForestSage.ink
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                        : context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -805,7 +804,7 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
                 '类别',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 12),
@@ -815,7 +814,7 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ),
@@ -859,8 +858,8 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
                           color: v
-                              ? Theme.of(context).colorScheme.onSurface
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                              ? context.forest.onSurface
+                              : context.forest.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -882,7 +881,7 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
                       decoration: BoxDecoration(
                         gradient: v ? context.app.sageGradientMid : null,
                         color:
-                            v ? null : context.colors.surfaceContainerHighest,
+                            v ? null : context.forest.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -892,7 +891,7 @@ class _AddTagSheetState extends ConsumerState<_AddTagSheet> {
                           fontWeight: FontWeight.w800,
                           color: v
                               ? ForestSage.ink
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                              : context.forest.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -1008,15 +1007,15 @@ class _TagCategoryReorderPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.forest.surface,
       appBar: AppBar(
-        backgroundColor: context.colors.surface,
+        backgroundColor: context.forest.surface,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
           icon: LineGlyph(
             Icons.chevron_left,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
         title: const Text('类别排序'),
@@ -1068,8 +1067,8 @@ class _TagCategoryReorderPageState
                   ),
                   child: HairlineCard(
                     margin: const EdgeInsets.only(bottom: 10),
-                    backgroundColor: context.colors.surface,
-                    borderColor: Theme.of(context).colorScheme.outline,
+                    backgroundColor: context.forest.surface,
+                    borderColor: context.forest.outline,
                     radius: 14,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -1083,7 +1082,7 @@ class _TagCategoryReorderPageState
                             style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                           ),
                         ),
@@ -1203,15 +1202,15 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.forest.surface,
       appBar: AppBar(
-        backgroundColor: context.colors.surface,
+        backgroundColor: context.forest.surface,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
           icon: LineGlyph(
             Icons.chevron_left,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
         title: Text('${widget.category.name} · 标签排序'),
@@ -1223,7 +1222,7 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
                 '该分组暂无标签',
                 style: TextStyle(
                   fontSize: 13.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             )
@@ -1273,8 +1272,8 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
                         ),
                         child: HairlineCard(
                           margin: const EdgeInsets.only(bottom: 10),
-                          backgroundColor: context.colors.surface,
-                          borderColor: Theme.of(context).colorScheme.outline,
+                          backgroundColor: context.forest.surface,
+                          borderColor: context.forest.outline,
                           radius: 14,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
@@ -1289,7 +1288,7 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w600,
                                     color:
-                                        Theme.of(context).colorScheme.onSurface,
+                                        context.forest.onSurface,
                                   ),
                                 ),
                               ),

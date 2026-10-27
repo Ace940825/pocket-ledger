@@ -176,7 +176,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 Text(
                   '由名下未结清借还记录自动计算，不可手动修改',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                 ),
               ],
@@ -228,7 +228,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     ? '现金 ${Money.fromMinor(account.balanceMinor)} · 持仓市值 ${Money.fromMinor(market)}（不可手动修改）'
                     : '暂无持仓，显示当前账户现金余额',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
               ),
             ],
@@ -265,7 +265,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     suffixIcon: LineGlyph(
                       Icons.account_balance_wallet_outlined,
                       size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -309,7 +309,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     suffixIcon: LineGlyph(
                       Icons.account_balance_wallet_outlined,
                       size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -365,7 +365,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     LineGlyph(
                       Icons.info_outline,
                       size: 14,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
@@ -598,7 +598,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           text,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
         ),
       );
@@ -610,7 +610,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           text,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
         ),
       );
@@ -620,14 +620,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
         ),
       );
 
   InputDecoration _filledDecoration() => InputDecoration(
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        fillColor: context.forest.surfaceContainerHighest,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppDimens.md,
           vertical: AppDimens.sm + 2,
@@ -662,7 +662,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         child: Text(
           balanceMinor == null ? '—' : Money.fromMinor(balanceMinor).format(),
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
                 fontWeight: FontWeight.w500,
               ),
         ),
@@ -680,7 +680,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         Text(
           '资产状态',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
         ),
         const SizedBox(width: AppDimens.md),
@@ -717,14 +717,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                 Text(
                   '计入总资产',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '是否加入总资产计算',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                 ),
               ],
@@ -1025,8 +1025,8 @@ class _StatusPill extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             color: selected
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                ? context.forest.onPrimary
+                : context.forest.onSurfaceVariant,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 import '../../shared/widgets/line_icons.dart';
 import '../../shared/widgets/modal_sheet_registry.dart';
@@ -29,7 +30,7 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: navigationShell,
       // 登记弹层（流水/报销详情等）打开期间隐藏底栏（2026-10-14 反馈：
@@ -74,8 +75,8 @@ class AppShell extends StatelessWidget {
                                 entry.value.icon,
                                 size: 24,
                                 color: entry.key == navigationShell.currentIndex
-                                    ? scheme.primary
-                                    : scheme.onSurfaceVariant,
+                                    ? context.forest.primary
+                                    : context.forest.onSurfaceVariant,
                               ),
                               label: entry.value.label,
                             ),

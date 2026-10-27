@@ -269,9 +269,9 @@ class _BillSelectionPageState extends ConsumerState<BillSelectionPage> {
         AppDimens.lg + MediaQuery.paddingOf(context).bottom,
       ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: context.forest.surface,
         border: Border(
-          top: BorderSide(color: Theme.of(context).colorScheme.outline),
+          top: BorderSide(color: context.forest.outline),
         ),
       ),
       child: SizedBox(
@@ -348,7 +348,7 @@ class _BillTile extends ConsumerWidget {
         : AppPalette.expense;
     final Color leadColor = Color.lerp(
       tint,
-      Theme.of(context).colorScheme.onSurface,
+      context.forest.onSurface,
       0.22,
     )!;
     final Widget leadIcon = billCatKey != null && billCatKey.isNotEmpty
@@ -395,13 +395,13 @@ class _BillTile extends ConsumerWidget {
                   Text(
                     DateFormat('M月d日').format(occurred),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                   Text(
                     DateFormat('HH:mm').format(occurred),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -422,10 +422,10 @@ class _BillTile extends ConsumerWidget {
                         '-${Money.fromMinor(transaction.amountMinor).format()}',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                           decoration: TextDecoration.lineThrough,
                           decorationColor:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                              context.forest.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -496,7 +496,7 @@ class _SelectionCircle extends StatelessWidget {
         border: Border.all(
           color: selected
               ? AppPalette.primary
-              : Theme.of(context).colorScheme.onSurfaceVariant,
+              : context.forest.onSurfaceVariant,
           width: 1.5,
         ),
       ),
@@ -504,7 +504,7 @@ class _SelectionCircle extends StatelessWidget {
           ? LineGlyph(
               Icons.check,
               size: 14,
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: context.forest.onPrimary,
             )
           : null,
     );

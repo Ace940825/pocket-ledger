@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/shared/widgets/app_button.dart';
 
 import '../../theme/app_dimens.dart';
@@ -25,7 +26,7 @@ class LoadingIndicator extends StatelessWidget {
       height: size,
       child: CircularProgressIndicator(
         strokeWidth: strokeWidth,
-        color: Theme.of(context).colorScheme.primary,
+        color: context.forest.primary,
       ),
     );
   }

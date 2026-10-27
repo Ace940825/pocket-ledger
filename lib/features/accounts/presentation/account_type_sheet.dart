@@ -80,7 +80,7 @@ class _AccountTypeSheetBodyState extends State<_AccountTypeSheetBody> {
             trailing: LineGlyph(
               Icons.chevron_right,
               size: 22,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
             onTap: () => setState(() => _category = category),
           ),
@@ -175,14 +175,14 @@ class _BackRow extends StatelessWidget {
             LineGlyph(
               Icons.arrow_back_ios_new,
               size: 18,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
             const SizedBox(width: AppDimens.sm),
             Text(
               label,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
             ),
           ],

@@ -12,6 +12,12 @@
 
 import 'package:flutter/material.dart';
 
+import '../core/theme/forest_design_tokens.dart';
+
+// Forest 令牌（ForestPalette + context.forest 亮度感知访问器）随本模块一并导出，
+// 任何 import 'app_colors.dart' 的文件都可直接使用 context.forest.*。
+export '../core/theme/forest_design_tokens.dart';
+
 /// 颜色标准（森林手账·鼠尾草绿 暖纸皮肤）
 @immutable
 class AppPalette {
@@ -139,54 +145,57 @@ class AppPalette {
   // L2 · 主题装配（亮 / 暗一次性解析，组件不关心当前模式）
   // =====================================================================
 
-  /// 由调色板生成 Material ColorScheme（亮色）
+  /// 由 Forest 令牌派生 Material ColorScheme（亮色）。
+  /// **Forest 为唯一色彩事实来源**；此处仅把 Forest 语义角色投影给 Material
+  /// 组件（按钮 / 输入框 / 卡片等内部读 colorScheme），业务代码应优先用
+  /// `context.forest.*` 直接取用，不再经由 ColorScheme 中转。
   static ColorScheme get lightScheme => const ColorScheme.light().copyWith(
-        primary: ctaGreen,
-        onPrimary: cream,
-        primaryContainer: sage100,
-        onPrimaryContainer: sage700,
-        secondary: sage500,
-        onSecondary: ink,
-        secondaryContainer: sage100,
-        onSecondaryContainer: sage700,
-        surface: cream,
-        onSurface: ink,
+        primary: ForestPalette.light.primary,
+        onPrimary: ForestPalette.light.onPrimary,
+        primaryContainer: ForestPalette.light.primaryContainer,
+        onPrimaryContainer: ForestPalette.light.onPrimaryContainer,
+        secondary: ForestPalette.light.secondary,
+        onSecondary: ForestPalette.light.onSecondary,
+        secondaryContainer: ForestPalette.light.secondaryContainer,
+        onSecondaryContainer: ForestPalette.light.onSecondaryContainer,
+        surface: ForestPalette.light.surface,
+        onSurface: ForestPalette.light.onSurface,
         // 框内底色（sunken/分组内衬）必须显式定义：缺省时 M3 基线回退
         // 0xFFECECE4 泥灰，与全应用暖纸色系冲突（报销/存钱/借还等页
-        // 「框内颜色不一致」，2026-10-16 第 43 批）。统一取 paper2。
-        surfaceContainer: paper2,
-        surfaceContainerHighest: paper2,
-        onSurfaceVariant: ink2,
-        outline: hairline,
-        error: expense,
-        onError: cream,
+        // 「框内颜色不一致」，2026-10-16 第 43 批）。统一取 surfaceContainer。
+        surfaceContainer: ForestPalette.light.surfaceContainer,
+        surfaceContainerHighest: ForestPalette.light.surfaceContainerHighest,
+        onSurfaceVariant: ForestPalette.light.onSurfaceVariant,
+        outline: ForestPalette.light.outline,
+        error: ForestPalette.light.error,
+        onError: ForestPalette.light.onError,
         // M3 基线的 surfaceTint 是紫色（0xFF6750A4），不显式覆盖会在
         // AppBar「scrolled under」（含下拉过载）时叠出淡紫色调。
-        surfaceTint: cream,
+        surfaceTint: ForestPalette.light.surfaceTint,
       );
 
-  /// 由调色板生成 Material ColorScheme（暗色）
+  /// 由 Forest 令牌派生 Material ColorScheme（暗色）。见 [lightScheme] 说明。
   static ColorScheme get darkScheme => const ColorScheme.dark().copyWith(
-        primary: const Color(0xFF8FB883), // D1 暗：CTA 森林绿
-        onPrimary: const Color(0xFF1A2114),
-        primaryContainer: sage900,
-        onPrimaryContainer: const Color(0xFFC9DCC0),
-        secondary: const Color(0xFF9FBE92),
-        secondaryContainer: const Color(0xFF33402C),
-        onSecondaryContainer: const Color(0xFFC9DCC0),
-        onSecondary: const Color(0xFF1A2114),
-        surface: const Color(0xFF26291F), // D4 暗：暖绿调暗底（asset 去白派生）
-        onSurface: const Color(0xFFD6E3C8), // D5 暗：淡鼠尾草字（绿调墨派生）
+        primary: ForestPalette.dark.primary,
+        onPrimary: ForestPalette.dark.onPrimary,
+        primaryContainer: ForestPalette.dark.primaryContainer,
+        onPrimaryContainer: ForestPalette.dark.onPrimaryContainer,
+        secondary: ForestPalette.dark.secondary,
+        onSecondary: ForestPalette.dark.onSecondary,
+        secondaryContainer: ForestPalette.dark.secondaryContainer,
+        onSecondaryContainer: ForestPalette.dark.onSecondaryContainer,
+        surface: ForestPalette.dark.surface,
+        onSurface: ForestPalette.dark.onSurface,
         // 框内底色：介于 surface 与 highest 之间的暖绿中间层（同亮色，缺省会
         // 回退 M3 冷灰基线）。
-        surfaceContainer: const Color(0xFF2D3025),
-        surfaceContainerHighest: const Color(0xFF33332A),
-        onSurfaceVariant: const Color(0xFFB8C6A8), // D5 暗：次文字绿调
-        outline: const Color(0xFF4A4A3C),
-        error: expenseDark,
-        onError: const Color(0xFF2A140D),
+        surfaceContainer: ForestPalette.dark.surfaceContainer,
+        surfaceContainerHighest: ForestPalette.dark.surfaceContainerHighest,
+        onSurfaceVariant: ForestPalette.dark.onSurfaceVariant,
+        outline: ForestPalette.dark.outline,
+        error: ForestPalette.dark.error,
+        onError: ForestPalette.dark.onError,
         // 同亮色：压掉 M3 基线紫色 surfaceTint。
-        surfaceTint: const Color(0xFF26291F),
+        surfaceTint: ForestPalette.dark.surfaceTint,
       );
 
   // =====================================================================

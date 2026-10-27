@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
+
 import '../../../providers/app_providers.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -29,7 +30,7 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final Color error = Theme.of(context).colorScheme.error;
+    final Color error = context.forest.error;
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
       body: ListView(

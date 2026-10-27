@@ -6,7 +6,6 @@ import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/sunken_box.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../features/accounts/providers/accounts_providers.dart';
 import '../../../providers/app_providers.dart';
@@ -196,11 +195,11 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           gradient: on ? context.app.sageGradientMid : null,
-          color: on ? null : context.colors.surface,
+          color: on ? null : context.forest.surface,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color:
-                on ? Colors.transparent : Theme.of(context).colorScheme.outline,
+                on ? Colors.transparent : context.forest.outline,
           ),
           boxShadow: on
               ? <BoxShadow>[
@@ -218,8 +217,8 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
             fontSize: 12.5,
             fontWeight: on ? FontWeight.w700 : FontWeight.w500,
             color: on
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                ? context.forest.onPrimary
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -272,7 +271,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
         .toList();
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.forest.surface,
       // 点击空白处收起键盘
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
@@ -291,7 +290,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                     end: Alignment.bottomCenter,
                     colors: <Color>[
                       AppPalette.mintWhisper,
-                      context.colors.surface,
+                      context.forest.surface,
                     ],
                   ),
                 ),
@@ -314,14 +313,14 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                 .withValues(alpha: 0.8),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.outline,
+                              color: context.forest.outline,
                             ),
                           ),
                           child: LineGlyph(
                             Icons.close,
                             size: 18,
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -329,8 +328,8 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                     const SizedBox(height: 6),
                     // 头卡：徽章 + 标题/副标题 + 帮助钮
                     HairlineCard(
-                      backgroundColor: context.colors.surface,
-                      borderColor: Theme.of(context).colorScheme.outline,
+                      backgroundColor: context.forest.surface,
+                      borderColor: context.forest.outline,
                       radius: 20,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -366,7 +365,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                     fontSize: 17,
                                     fontWeight: FontWeight.w800,
                                     color:
-                                        Theme.of(context).colorScheme.onSurface,
+                                        context.forest.onSurface,
                                   ),
                                 ),
                                 const SizedBox(height: 3),
@@ -482,7 +481,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                       LineGlyph(
                         Icons.search,
                         size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                       const SizedBox(width: 9),
                       Expanded(
@@ -516,7 +515,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                             Icons.close,
                             size: 15,
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                     ],
@@ -534,7 +533,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -632,7 +631,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                         _editTemplate(t),
                                     backgroundColor: AppPalette.sageLeaf,
                                     foregroundColor:
-                                        Theme.of(context).colorScheme.onPrimary,
+                                        context.forest.onPrimary,
                                     icon: Icons.edit_outlined,
                                     label: '编辑',
                                     spacing: 2,
@@ -641,7 +640,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                                     onPressed: (BuildContext _) => _remove(t),
                                     backgroundColor: ForestSemantic.expense,
                                     foregroundColor:
-                                        Theme.of(context).colorScheme.onPrimary,
+                                        context.forest.onPrimary,
                                     icon: Icons.delete_outline,
                                     label: '删除',
                                     spacing: 2,
@@ -651,7 +650,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                               // 卡片未选中为透明底，包一层纸底避免
                               // 左滑时操作块从透明区透出。
                               child: Container(
-                                color: context.colors.surface,
+                                color: context.forest.surface,
                                 child: RecordTemplateCard(
                                   template: t,
                                   radius: 18,
@@ -699,7 +698,7 @@ class _RecordTemplatePageState extends ConsumerState<RecordTemplatePage> {
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
+                              color: context.forest.onPrimary,
                             ),
                           ),
                         ),
@@ -802,7 +801,7 @@ class RecordTemplateCard extends ConsumerWidget {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       );
     }
@@ -820,7 +819,7 @@ class RecordTemplateCard extends ConsumerWidget {
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
     };
@@ -911,11 +910,11 @@ class RecordTemplateCard extends ConsumerWidget {
             const <String, Category>{};
     final (Widget icon, Color tint) = _iconStyle(categories);
     final Color onCard = selected
-        ? Theme.of(context).colorScheme.onPrimary
-        : Theme.of(context).colorScheme.onSurface;
+        ? context.forest.onPrimary
+        : context.forest.onSurface;
     final Color faintOnCard = selected
-        ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.8)
-        : Theme.of(context).colorScheme.onSurfaceVariant;
+        ? context.forest.surface.withValues(alpha: 0.8)
+        : context.forest.onSurfaceVariant;
 
     // 副行与流水条目同构：「账户（或摘要）  MM-dd HH:mm  备注」。
     final DateTime created = DateTime.fromMillisecondsSinceEpoch(
@@ -933,7 +932,7 @@ class RecordTemplateCard extends ConsumerWidget {
           height: iconEdge,
           decoration: BoxDecoration(
             color: selected
-                ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.22)
+                ? context.forest.surface.withValues(alpha: 0.22)
                 : tint.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(iconRadius),
           ),
@@ -972,7 +971,7 @@ class RecordTemplateCard extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  color: context.forest.onPrimary,
                 ),
               )
             : _amountWidget(context),
@@ -992,7 +991,7 @@ class RecordTemplateCard extends ConsumerWidget {
               ? Border.all(color: Colors.transparent)
               : Border(
                   bottom:
-                      BorderSide(color: Theme.of(context).colorScheme.outline),
+                      BorderSide(color: context.forest.outline),
                 ),
           boxShadow: selected
               ? <BoxShadow>[

@@ -5,13 +5,15 @@
 //   import 'package:pocket_ledger/theme/theme.dart';
 //
 // 业务代码取用约定：
-//   颜色   → AppPalette.xxx           或  context.colors.primary (Material 语义)
+//   颜色   → AppPalette.xxx           或  context.forest.primary (Material 语义)
 //   文字   → AppTextStyles.xxx
 //   尺寸   → AppDimens.xxx / AppShadows.xxx
 //   图标   → AppIcons.xxx
 //   非M令牌→ context.app.xxx  (渐变/阴影/圆角)
 //   主题   → AppThemeData.light / .dark
 
+// Forest 令牌（ForestPalette + context.forest 亮度感知访问器）随桶文件导出，全局可用。
+export '../core/theme/forest_design_tokens.dart';
 export 'app_colors.dart';
 export 'app_dimens.dart';
 export 'app_icons.dart';

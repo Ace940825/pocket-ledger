@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 import 'calendar_sheet.dart';
 import 'line_icon_map.dart';
@@ -37,7 +38,7 @@ class DateField extends StatelessWidget {
             leading: LineIcon(
               LineIconKind.calendar,
               size: 20,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
             title: Text(label),
             subtitle: Text(

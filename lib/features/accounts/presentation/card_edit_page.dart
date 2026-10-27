@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_dimens.dart';
@@ -38,9 +39,14 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
   String _currency = '人民币';
   bool _repayReminder = true;
   CardRepayMode _repayMode = CardRepayMode.graceDays;
-  int _repayValue = 50;
+  // 需求③：固定还款日初始值设为 1（页面显示「点击选择」，弹窗默认选中 1 号）。
+  int _repayValue = 1;
   int _billDayValue = 1;
+  // 当前表单仅信用卡一种类型；账单日/还款日按信用卡规则必填。
   CardType _cardType = CardType.credit;
+  bool _billDayPicked = false; // 账单日是否真正点击选择过
+  bool _repayPicked = false; // 还款日是否真正点击选择过
+  bool _bankManuallySet = false; // 银行是否被用户手动选择（优先于卡号自动识别）
 
   @override
   void initState() {
@@ -65,15 +71,46 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
         _remark.text = card.remark;
         _cardOrg = card.cardOrg;
         _cardType = card.cardType;
+        // 编辑既有卡片：账单日/还款日已存在，视为已选。
+        _billDayPicked = true;
+        _repayPicked = true;
       }
     }
-    // 兜底：若未被存储数据覆盖，给账单日/还款日一个合法默认值。
-    if (_billDay.text.isEmpty) _billDay.text = '每月$_billDayValue日';
-    if (_repayDays.text.isEmpty) {
-      _repayDays.text = _repayMode == CardRepayMode.fixedDay
-          ? '每月$_repayValue日'
-          : '$_repayValue天';
+    // 新建：账单日/还款日不预填，由用户点击选择（信用卡为必填）；
+    // 若已载入卡号（如编辑），尝试按卡号自动识别银行。
+    if (_bankName.isEmpty) {
+      final String? bank = identifyBank(_cardNumber.text);
+      if (bank != null) _bankName = bank;
     }
+    _cardNumber.addListener(_onCardNumberChanged);
+  }
+
+  @override
+  void dispose() {
+    _cardNumber.removeListener(_onCardNumberChanged);
+    super.dispose();
+  }
+
+  /// 卡号变化时：若用户未手动指定银行，则实时按卡号自动识别银行。
+  void _onCardNumberChanged() {
+    if (_bankManuallySet) return;
+    final String? bank = identifyBank(_cardNumber.text);
+    if (bank != null && bank != _bankName && mounted) {
+      setState(() => _bankName = bank);
+    }
+  }
+
+  /// 表单必填校验。返回 null 表示通过；否则返回缺失项提示文案。
+  String? _validate() {
+    final List<String> missing = <String>[];
+    if (_cardNumber.text.trim().isEmpty) missing.add('卡号');
+    // 信用卡：账单日、还款日均为必填（其余类型无还款约束）。
+    if (_cardType == CardType.credit) {
+      if (!_billDayPicked) missing.add('账单日');
+      if (!_repayPicked) missing.add('还款日');
+    }
+    if (missing.isEmpty) return null;
+    return '请完善必填项：${missing.join('、')}';
   }
 
   /// 弹出账单日选择器（选择每月几号）。
@@ -92,6 +129,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
       setState(() {
         _billDayValue = result;
         _billDay.text = '每月$result日';
+        _billDayPicked = true;
       });
     }
   }
@@ -116,6 +154,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
         _repayDays.text = _repayMode == CardRepayMode.fixedDay
             ? '每月$_repayValue日'
             : '$_repayValue天';
+        _repayPicked = true;
       });
     }
   }
@@ -165,6 +204,8 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
   }
 
   /// 弹出银行选择器（常用银行列表）。
+  ///
+  /// 自动识别失败时可手动选择；选「不选择」则清空银行（允许不填）。
   Future<void> _pickBank(BuildContext context) async {
     final result = await showAppModalSheet<String>(
       context,
@@ -189,12 +230,25 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
           '上海银行',
         ],
         initial: _bankName,
+        clearReturn: '', // 「不选择」返回空串表示清空银行
       ),
     );
 
-    if (result != null && mounted) {
+    if (result == null) return; // 其它方式关闭（如点遮罩）= 不变
+    if (result == '') {
+      // 用户明确选择「不填银行」。
+      if (mounted) {
+        setState(() {
+          _bankName = '';
+          _bankManuallySet = false; // 允许后续按卡号重新自动识别
+        });
+      }
+      return;
+    }
+    if (mounted) {
       setState(() {
         _bankName = result;
+        _bankManuallySet = true; // 手动指定优先于自动识别
       });
     }
   }
@@ -212,6 +266,11 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
           IconButton(
             icon: const Icon(Icons.check_circle_outline),
             onPressed: () {
+              final String? error = _validate();
+              if (error != null) {
+                showAppToast(context, error);
+                return;
+              }
               final String id = widget.cardId ?? const Uuid().v4();
               final CardInfo card = CardInfo(
                 id: id,
@@ -315,7 +374,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
               Expanded(
                 child: _ClickableTile(
                   label: '账单日',
-                  value: _billDay.text,
+                  value: _billDayPicked ? _billDay.text : '点击选择',
                   onTap: () => _pickBillDay(context),
                 ),
               ),
@@ -323,7 +382,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
               Expanded(
                 child: _ClickableTile(
                   label: '还款日',
-                  value: _repayDays.text,
+                  value: _repayPicked ? _repayDays.text : '点击选择',
                   onTap: () => _pickRepayDays(context),
                 ),
               ),
@@ -390,7 +449,7 @@ class _CardPreview extends StatelessWidget {
       height: 200,
       padding: const EdgeInsets.all(AppDimens.lg),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: context.forest.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppDimens.radiusCard),
       ),
       child: Column(
@@ -402,7 +461,7 @@ class _CardPreview extends StatelessWidget {
               Text(
                 bankName,
                 style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
               Container(
@@ -411,13 +470,13 @@ class _CardPreview extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
+                  color: context.forest.surface,
                   borderRadius: BorderRadius.circular(AppDimens.radiusSm),
                 ),
                 child: Text(
                   cardOrg,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -470,7 +529,7 @@ class _TextFieldTile extends StatelessWidget {
         AppDimens.xs,
       ),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: context.forest.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppDimens.radiusCard),
       ),
       child: Column(
@@ -480,7 +539,7 @@ class _TextFieldTile extends StatelessWidget {
           Text(
             label,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
               fontSize: 12,
             ),
           ),
@@ -533,7 +592,7 @@ class _ClickableTile extends StatelessWidget {
           AppDimens.xs,
         ),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
+          color: context.forest.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(AppDimens.radiusCard),
         ),
         child: Column(
@@ -543,7 +602,7 @@ class _ClickableTile extends StatelessWidget {
             Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
                 fontSize: 12,
               ),
             ),
@@ -583,7 +642,7 @@ class _CenteredUnderlineTitle extends StatelessWidget {
           style: theme.textTheme.titleMedium?.copyWith(
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            color: theme.colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
         const SizedBox(height: 6),
@@ -591,7 +650,7 @@ class _CenteredUnderlineTitle extends StatelessWidget {
           width: 40,
           height: 2,
           decoration: BoxDecoration(
-            color: theme.colorScheme.onSurface,
+            color: context.forest.onSurface,
             borderRadius: BorderRadius.circular(1),
           ),
         ),
@@ -608,8 +667,6 @@ class _DayPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -641,7 +698,7 @@ class _DayPickerSheet extends StatelessWidget {
               onPressed: () => Navigator.pop(context),
               child: Text(
                 '不选择',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                style: TextStyle(color: context.forest.onSurfaceVariant),
               ),
             ),
           ),
@@ -674,14 +731,14 @@ class _DayCell extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: selected ? theme.colorScheme.onSurface : Colors.transparent,
+          color: selected ? context.forest.onSurface : Colors.transparent,
         ),
         child: Text(
           '$day',
           style: theme.textTheme.titleMedium?.copyWith(
             color: selected
-                ? theme.colorScheme.surface
-                : theme.colorScheme.onSurface,
+                ? context.forest.surface
+                : context.forest.onSurface,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -724,7 +781,6 @@ class _RepayMethodSheetState extends State<_RepayMethodSheet> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
 
     return SingleChildScrollView(
       child: Padding(
@@ -741,7 +797,7 @@ class _RepayMethodSheetState extends State<_RepayMethodSheet> {
                 Text(
                   '计算方式：',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
                 const Spacer(),
@@ -791,7 +847,7 @@ class _RepayMethodSheetState extends State<_RepayMethodSheet> {
                         '确定',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: scheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -801,7 +857,7 @@ class _RepayMethodSheetState extends State<_RepayMethodSheet> {
                   onPressed: () => Navigator.pop(context),
                   child: Text(
                     '不选择',
-                    style: TextStyle(color: scheme.onSurfaceVariant),
+                    style: TextStyle(color: context.forest.onSurfaceVariant),
                   ),
                 ),
               ],
@@ -828,19 +884,18 @@ class _ModeCapsule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? scheme.onSurface : Colors.transparent,
+          color: selected ? context.forest.onSurface : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           label,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: selected ? scheme.surface : scheme.onSurface,
+            color: selected ? context.forest.surface : context.forest.onSurface,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -855,16 +910,17 @@ class _OptionsPickerSheet extends StatelessWidget {
     required this.title,
     required this.options,
     required this.initial,
+    this.clearReturn,
   });
 
   final String title;
   final List<String> options;
   final String initial;
+  /// 「不选择」按钮的返回值；为 null 时（默认）等同于关闭（无变更）。
+  final String? clearReturn;
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -888,10 +944,10 @@ class _OptionsPickerSheet extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, clearReturn),
               child: Text(
                 '不选择',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                style: TextStyle(color: context.forest.onSurfaceVariant),
               ),
             ),
           ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/shared/widgets/badge_pill.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/theme/app_colors.dart';
@@ -50,17 +49,17 @@ class SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     final TextStyle resolvedLabel = labelStyle ??
         TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w500,
-          color: scheme.onSurface,
+          color: context.forest.onSurface,
         );
     final TextStyle resolvedSub = subStyle ??
         TextStyle(
           fontSize: 12,
-          color: scheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         );
 
     final Widget row = Padding(
@@ -97,7 +96,7 @@ class SettingsTile extends StatelessWidget {
                       SizedBox(width: 6 * scale),
                       BadgePill(
                         text: badge!,
-                        color: badgeColor ?? scheme.primary,
+                        color: badgeColor ?? context.forest.primary,
                         textColor: badgeTextColor,
                         radius: badgeRadius,
                         scale: scale,

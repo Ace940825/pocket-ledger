@@ -89,7 +89,7 @@ class AppModalSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     // 键盘高度避让：弹层内容整体抬到键盘上方（背景延伸到键盘后面，圆角顶仍可见）。
     // 无键盘时为 0，视觉零变化。此前带输入框的弹层（编辑标签/类别等）会被
     // 键盘完全盖住（2026-10-14 真机反馈）。
@@ -120,7 +120,7 @@ class AppModalSheet extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: scheme.outline, width: 1),
+              bottom: BorderSide(color: context.forest.outline, width: 1),
             ),
           ),
           child: Row(
@@ -133,7 +133,7 @@ class AppModalSheet extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
-                        color: scheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
               ),
@@ -193,7 +193,7 @@ class AppModalSheet extends StatelessWidget {
         AppDimens.md,
       ),
       decoration: BoxDecoration(
-        color: surfaceColor ?? scheme.surface,
+        color: surfaceColor ?? context.forest.surface,
         borderRadius: BorderRadius.circular(AppDimens.radiusSheet),
         // 悬浮投影：压住留边区透出的背景内容（幽灵角）+ 悬浮层次感。
         boxShadow: AppShadows.floating,

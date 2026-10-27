@@ -234,7 +234,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
   Widget build(BuildContext context) {
     final int count = _conditionCount();
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.forest.surface,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -297,7 +297,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         children: <Widget>[
           IconButton(
             icon: const LineGlyph(Icons.arrow_back_ios_new, size: 20),
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
             onPressed: () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -328,7 +328,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                             fontWeight: FontWeight.w600,
                             color: _tab == i
                                 ? AppPalette.white
-                                : Theme.of(context).colorScheme.onSurface,
+                                : context.forest.onSurface,
                           ),
                         ),
                       ),
@@ -347,7 +347,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ),
@@ -418,7 +418,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     size: 15,
                     color: active
                         ? AppPalette.sage900
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                        : context.forest.onSurfaceVariant,
                   ),
                   const SizedBox(width: 5),
                   Text(
@@ -428,7 +428,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                       fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                       color: active
                           ? AppPalette.sage900
-                          : Theme.of(context).colorScheme.onSurface,
+                          : context.forest.onSurface,
                     ),
                   ),
                 ],
@@ -505,7 +505,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                 '当前类型暂无分类',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -555,7 +555,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                         _catExpense == flag ? FontWeight.w700 : FontWeight.w500,
                     color: _catExpense == flag
                         ? AppPalette.sage900
-                        : Theme.of(context).colorScheme.onSurface,
+                        : context.forest.onSurface,
                   ),
                 ),
               ),
@@ -586,7 +586,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             fontWeight: allSelected ? FontWeight.w700 : FontWeight.w500,
             color: allSelected
                 ? AppPalette.sage900
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -612,7 +612,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             fontWeight: _subOn ? FontWeight.w700 : FontWeight.w500,
             color: _subOn
                 ? AppPalette.sage900
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -648,7 +648,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                   child: LineGlyph(
                     Icons.chevron_right,
                     size: 20,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -658,7 +658,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -667,7 +667,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                     '($subSel/${subs.length})',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 const SizedBox(width: 10),
@@ -843,7 +843,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
               color: active
                   ? AppPalette.sage900
-                  : Theme.of(context).colorScheme.onSurface,
+                  : context.forest.onSurface,
             ),
           ),
         ),
@@ -902,21 +902,21 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       onChanged: (_) => setState(() {}),
       style: TextStyle(
         fontSize: 15,
-        color: Theme.of(context).colorScheme.onSurface,
+        color: context.forest.onSurface,
       ),
       decoration: InputDecoration(
         hintText: '搜索标签',
         hintStyle: TextStyle(
           fontSize: 15,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
         prefixIcon: LineGlyph(
           Icons.search,
           size: 20,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        fillColor: context.forest.surfaceContainerHighest,
         isDense: true,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -979,7 +979,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                           : FontWeight.w500,
                       color: _tagScope == scope
                           ? AppPalette.sage900
-                          : Theme.of(context).colorScheme.onSurface,
+                          : context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -999,7 +999,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
         const Spacer(),
@@ -1028,7 +1028,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             color: active
                 ? AppPalette.white
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -1088,7 +1088,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
         const Spacer(),
@@ -1125,7 +1125,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             color: active
                 ? AppPalette.sage900
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -1145,7 +1145,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         child: LineIcon(
           LineIconKind.otherDots,
           size: 22,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       ),
       title: '未选择资产',
@@ -1182,7 +1182,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         size: 21,
         color: Color.lerp(
           color,
-          Theme.of(context).colorScheme.onSurface,
+          context.forest.onSurface,
           0.22,
         )!,
       ),
@@ -1216,7 +1216,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                         '至',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -1402,7 +1402,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
         const Spacer(),
@@ -1426,7 +1426,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -1451,7 +1451,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           '帮助',
           style: TextStyle(
             fontSize: 13,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -1473,7 +1473,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
           label,
           style: TextStyle(
             fontSize: 13,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -1541,14 +1541,14 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ),
             LineGlyph(
               Icons.keyboard_arrow_down,
               size: 20,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ],
         ),
@@ -1592,10 +1592,10 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
         hintText: hint,
         hintStyle: TextStyle(
           fontSize: 14,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        fillColor: context.forest.surfaceContainerHighest,
         isDense: true,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1623,16 +1623,16 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
       minLines: 3,
       style: TextStyle(
         fontSize: 15,
-        color: Theme.of(context).colorScheme.onSurface,
+        color: context.forest.onSurface,
       ),
       decoration: InputDecoration(
         hintText: '备注',
         hintStyle: TextStyle(
           fontSize: 15,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        fillColor: context.forest.surfaceContainerHighest,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
@@ -1707,7 +1707,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             color: active
                 ? AppPalette.sage900
-                : Theme.of(context).colorScheme.onSurface,
+                : context.forest.onSurface,
           ),
         ),
       ),
@@ -1738,7 +1738,7 @@ class _LedgerFilterPageState extends ConsumerState<LedgerFilterPage> {
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             color: active
                 ? AppPalette.sage900
-                : Theme.of(context).colorScheme.onSurface,
+                : context.forest.onSurface,
           ),
         ),
       ),

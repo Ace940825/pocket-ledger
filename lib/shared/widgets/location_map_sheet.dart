@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
+import '../../core/utils/amap_geocoder.dart';
 import '../../core/utils/geo_utils.dart';
 import '../../theme/app_dimens.dart';
 import 'line_icon_map.dart';
@@ -70,6 +72,10 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
 
   bool _locating = false;
 
+  /// 附近 POI 列表（餐饮 / 购物类）。
+  List<AmapPoiItem> _nearbyPois = <AmapPoiItem>[];
+  bool _loadingPois = false;
+
   static const double _kZoom = 17;
 
   @override
@@ -77,6 +83,10 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
     super.initState();
     _picked = (widget.initialLat, widget.initialLng);
     _placeName = widget.initialPlace;
+    // 打开小地图时自动定位到当前 GPS 位置
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _locateMe();
+    });
   }
 
   /// 库内 WGS-84 → 高德瓦片 GCJ-02 展示坐标。
@@ -122,10 +132,32 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
       // 地图居中到当前位置（GCJ-02 展示坐标）。
       _mapController.move(_displayCenter, _mapController.camera.zoom);
       await _resolveName();
+      // 定位成功后自动获取附近 POI 列表
+      await _loadNearbyPois();
     } catch (_) {
       // 定位失败（权限 / 超时 / 无 GPS）：保留用户当前选点，不阻断。
     } finally {
       if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  /// 获取附近 POI 列表（餐饮 / 购物类，500m 范围内）。
+  Future<void> _loadNearbyPois() async {
+    if (_loadingPois) return;
+    setState(() => _loadingPois = true);
+    try {
+      final List<AmapPoiItem> pois = await amapSearchNearbyPois(
+        _picked.$1,
+        _picked.$2,
+        radius: 500,
+      );
+      if (!mounted) return;
+      setState(() {
+        _nearbyPois = pois;
+        _loadingPois = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingPois = false);
     }
   }
 
@@ -153,7 +185,7 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: scheme.surface,
+      backgroundColor: context.forest.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppDimens.radiusCard),
         side: BorderSide(color: scheme.outlineVariant),
@@ -169,7 +201,7 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: scheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             const SizedBox(height: AppDimens.sm),
@@ -189,7 +221,7 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                         onMapEvent: _onMapEvent,
                         // 点选地图：把点居中到定位针下（保留当前缩放级别）。
                         onTap: (_, LatLng tapPos) => _mapController.move(
-                            tapPos, _mapController.camera.zoom),
+                            tapPos, _mapController.camera.zoom,),
                       ),
                       children: <Widget>[
                         TileLayer(
@@ -213,9 +245,9 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                                 point: _displayCenter,
                                 radius: _accuracy!,
                                 useRadiusInMeter: true,
-                                color: scheme.primary.withOpacity(0.15),
+                                color: context.forest.primary.withValues(alpha: 0.15),
                                 borderStrokeWidth: 1,
-                                borderColor: scheme.primary,
+                                borderColor: context.forest.primary,
                               ),
                             ],
                           ),
@@ -228,8 +260,8 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                       child: FloatingActionButton.small(
                         heroTag: 'locate_me',
                         tooltip: '定位到当前位置',
-                        backgroundColor: scheme.surface,
-                        foregroundColor: scheme.primary,
+                        backgroundColor: context.forest.surface,
+                        foregroundColor: context.forest.primary,
                         onPressed: _locating ? null : _locateMe,
                         child: _locating
                             ? SizedBox(
@@ -237,7 +269,7 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: scheme.primary,
+                                  color: context.forest.primary,
                                 ),
                               )
                             : const Icon(Icons.my_location),
@@ -254,7 +286,7 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                             LineGlyph(
                               Icons.location_on_rounded,
                               size: 36,
-                              color: scheme.primary,
+                              color: context.forest.primary,
                               semanticLabel: '当前选点',
                             ),
                           ],
@@ -266,6 +298,45 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
               ),
             ),
             const SizedBox(height: AppDimens.sm),
+            // 附近 POI 列表（横向滚动），点击可快速选择店名
+            if (_loadingPois)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppDimens.sm),
+                child: Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else if (_nearbyPois.isNotEmpty)
+              SizedBox(
+                height: 48,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _nearbyPois.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: AppDimens.sm),
+                  itemBuilder: (BuildContext context, int index) {
+                    final AmapPoiItem poi = _nearbyPois[index];
+                    return ActionChip(
+                      label: Text(
+                        poi.name,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _picked = (poi.latitude, poi.longitude);
+                          _placeName = poi.name;
+                          _accuracy = null; // 选择了 POI，清空精度圈
+                        });
+                        _mapController.move(_displayCenter, _mapController.camera.zoom);
+                      },
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: AppDimens.sm),
             // 选点结果：语义化地址（逆地理编码中显示加载态）。
             Row(
               children: <Widget>[
@@ -275,14 +346,14 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: scheme.primary,
+                      color: context.forest.primary,
                     ),
                   )
                 else
                   LineIcon(
                     LineIconKind.location,
                     size: 14,
-                    color: scheme.primary,
+                    color: context.forest.primary,
                   ),
                 const SizedBox(width: AppDimens.xs),
                 Expanded(
@@ -290,7 +361,7 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                     _naming ? '正在解析地址…' : (_placeName ?? '已选坐标（暂无地名）'),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: scheme.onSurface),
+                    style: TextStyle(fontSize: 13, color: context.forest.onSurface),
                   ),
                 ),
               ],
@@ -303,15 +374,15 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(
                     '取消',
-                    style: TextStyle(color: scheme.onSurfaceVariant),
+                    style: TextStyle(color: context.forest.onSurfaceVariant),
                   ),
                 ),
                 const SizedBox(width: AppDimens.sm),
                 FilledButton(
                   onPressed: _confirm,
                   style: FilledButton.styleFrom(
-                    backgroundColor: scheme.primary,
-                    foregroundColor: scheme.onPrimary,
+                    backgroundColor: context.forest.primary,
+                    foregroundColor: context.forest.onPrimary,
                   ),
                   child: const Text('用此位置'),
                 ),

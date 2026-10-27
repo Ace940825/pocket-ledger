@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
+
 import 'line_icon_map.dart';
 
 /// 圆形关闭按钮（全应用统一）。
@@ -24,7 +26,7 @@ class RoundCloseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return InkWell(
       onTap: onTap ?? () => Navigator.of(context).pop(),
       customBorder: const CircleBorder(),
@@ -32,14 +34,14 @@ class RoundCloseButton extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: backgroundColor ?? scheme.surface,
+          color: backgroundColor ?? context.forest.surface,
           shape: BoxShape.circle,
         ),
         alignment: Alignment.center,
         child: LineGlyph(
           Icons.close,
           size: iconSize ?? size * 0.5,
-          color: scheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       ),
     );

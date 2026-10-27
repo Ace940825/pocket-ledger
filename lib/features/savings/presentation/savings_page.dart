@@ -304,7 +304,7 @@ class SavingsGoalTile extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              color: context.forest.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Text(
@@ -519,7 +519,7 @@ class SavingsGoalTile extends ConsumerWidget {
                   ].join(' · '),
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -618,7 +618,7 @@ class _ArchivedTile extends ConsumerWidget {
                 child: LineGlyph(
                   Icons.archive_outlined,
                   size: 18,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
               Expanded(
@@ -646,7 +646,7 @@ class _ArchivedTile extends ConsumerWidget {
               const SizedBox(width: 8),
               TextButton.icon(
                 style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: context.forest.error,
                 ),
                 onPressed: () async {
                   final bool ok = await confirmDelete(

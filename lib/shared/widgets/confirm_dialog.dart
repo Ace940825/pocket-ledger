@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -32,8 +33,8 @@ class ConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = context.colors;
-    final Color confirmColor = danger ? scheme.error : scheme.primary;
+
+    final Color confirmColor = danger ? context.forest.error : context.forest.primary;
     return AlertDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppDimens.radiusCard),
@@ -49,7 +50,7 @@ class ConfirmDialog extends StatelessWidget {
       content: Text(
         content,
         style: context.text.bodyMedium?.copyWith(
-          color: scheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       ),
       actionsPadding: const EdgeInsets.fromLTRB(

@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -253,14 +252,14 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
                     LineGlyph(
                       Icons.keyboard_arrow_down,
                       size: 20,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ],
                 ),
@@ -284,7 +283,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                     size: 18,
                     color: active
                         ? AppPalette.ctaGreen
-                        : Theme.of(context).colorScheme.onSurface,
+                        : context.forest.onSurface,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -294,7 +293,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       fontWeight: FontWeight.w600,
                       color: active
                           ? AppPalette.ctaGreen
-                          : Theme.of(context).colorScheme.onSurface,
+                          : context.forest.onSurface,
                     ),
                   ),
                 ],
@@ -385,7 +384,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                 '${_showExpense ? '  支出 ${Money.fromMinor(onBucketExpense).format()}' : ''}'
                 '${_showIncome ? '  收入 ${Money.fromMinor(onBucketIncome).format()}' : ''}',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -408,7 +407,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     VoidCallback? onTap,
   }) {
     final Color textColor =
-        enabled ? color : Theme.of(context).colorScheme.onSurfaceVariant;
+        enabled ? color : context.forest.onSurfaceVariant;
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: onTap,
@@ -423,7 +422,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
               decoration: BoxDecoration(
                 color: enabled
                     ? color
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                    : context.forest.onSurfaceVariant,
                 shape: BoxShape.circle,
                 border: enabled
                     ? null
@@ -807,8 +806,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         0,
       ),
       child: HairlineCard(
-        backgroundColor: context.colors.surface,
-        borderColor: Theme.of(context).colorScheme.outline,
+        backgroundColor: context.forest.surface,
+        borderColor: context.forest.outline,
         radius: AppDimens.radiusCard,
         padding: const EdgeInsets.symmetric(
           horizontal: AppDimens.lg,
@@ -822,7 +821,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
               '$prefix结余：',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             Flexible(
@@ -847,7 +846,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
               '日均支出：',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             Flexible(
@@ -885,7 +884,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
               '$count笔',
               style: TextStyle(
                 fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 10),
@@ -904,7 +903,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                   _sortByAmount ? '按金额' : '按时间',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),

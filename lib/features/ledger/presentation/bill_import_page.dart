@@ -17,7 +17,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import 'package:uuid/uuid.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -80,7 +79,7 @@ class BillImportPage extends StatelessWidget {
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('账单导入'),
+        title: const Text('数据导入'),
         centerTitle: true,
         leading: const BackButton(),
       ),
@@ -133,7 +132,7 @@ class BillImportPage extends StatelessWidget {
             ),
           ),
           _ImportGradientCta(
-            label: '导入账单',
+            label: '导入数据',
             onTap: () => Navigator.of(context).push<void>(
               MaterialPageRoute<void>(
                 builder: (_) => const BillImportConfigPage(),
@@ -154,13 +153,13 @@ class BillImportPage extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(AppDimens.md),
       child: Text(
-        '系统差异可能导致导入账单需手动调整，请勿过度依赖此功能。仔细核对、'
+        '系统差异可能导致导入数据需手动调整，请勿过度依赖此功能。仔细核对、'
         '分析账单，正是记账本身的乐趣与意义所在。\n'
         '与其耗费时间转换旧账目，不如放下历史记录，轻装上阵，即刻开始全新的'
         '记账体验！',
         style: TextStyle(
           fontSize: 12.5,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
           height: 1.5,
         ),
       ),
@@ -264,7 +263,7 @@ class BillImportPage extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -273,7 +272,7 @@ class BillImportPage extends StatelessWidget {
                         '${record.skippedCount > 0 ? ' · 跳过 ${record.skippedCount} 笔' : ''}',
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -354,7 +353,7 @@ class BillImportPage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12.5,
                     height: 1.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -375,7 +374,7 @@ class BillImportPage extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -385,7 +384,7 @@ class BillImportPage extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ),
@@ -491,7 +490,22 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       }
     }
     await _parse();
-    if (mounted) showAppToast(context, '已解析文件，点击「开始导入」预览');
+    if (mounted && _parsed != null) {
+      // 根据识别结果给不同提示
+      final int rowCount = _parsed!.rows.length;
+      final int accountCount = _parsed!.accounts.length;
+      String msg;
+      if (rowCount == 0 && accountCount == 0) {
+        msg = '未识别到有效内容，请检查文件格式';
+      } else if (rowCount > 0 && accountCount == 0) {
+        msg = '已解析 $rowCount 条账单，点击「开始导入」预览';
+      } else if (rowCount == 0 && accountCount > 0) {
+        msg = '已识别 $accountCount 个账户，点击「开始导入」预览（仅账户）';
+      } else {
+        msg = '已解析 $rowCount 条账单、$accountCount 个账户，点击「开始导入」预览';
+      }
+      showAppToast(context, msg);
+    }
   }
 
   Future<void> _parse() async {
@@ -591,7 +605,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -599,7 +613,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -673,16 +687,27 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     });
   }
 
-  /// 下载空白填写模板（跟随所选来源：第三方来源为对应字段说明模板）。
-  Future<void> _downloadTemplate() async {
-    final String content = buildSourceTemplate(_source);
+  /// 下载空白填写模板（提供账单模板和账户模板两个选择）。
+  Future<void> _downloadTemplate(String type) async {
+    String content;
+    String fileName;
+    if (type == 'account') {
+      // 账户模板
+      content = buildAccountTemplate();
+      fileName = '账户导入模板.csv';
+    } else {
+      // 账单模板
+      content = buildSourceTemplate(_source);
+      fileName = '账单导入模板.csv';
+    }
+
     const String ext = 'csv';
     // file_picker 8.x：Android/iOS 的 saveFile 必须直接传 bytes（由系统
     // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
     final bool isMobile = Platform.isAndroid || Platform.isIOS;
     final String? picked = await FilePicker.platform.saveFile(
-      dialogTitle: '保存账单导入模板',
-      fileName: '账单导入模板.$ext',
+      dialogTitle: '保存导入模板',
+      fileName: fileName,
       allowedExtensions: isMobile ? null : const <String>[ext],
       bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
     );
@@ -2039,7 +2064,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('账单导入'),
+        title: const Text('数据导入'),
         centerTitle: true,
         leading: const BackButton(),
       ),
@@ -2100,7 +2125,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     );
   }
 
-  /// 信息卡（对标小青账）：说明文案 + 右下「模板」胶囊（下载空白填写模板）。
+  /// 信息卡（对标小青账）：说明文案 + 右下两个并排按钮（账单模板 / 账户模板）。
   Widget _configInfoCard() {
     return Container(
       decoration: BoxDecoration(
@@ -2112,7 +2137,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            '系统差异可能导致导入账单需手动调整，请勿过度依赖此功能。仔细核对、'
+            '系统差异可能导致导入数据需手动调整，请勿过度依赖此功能。仔细核对、'
             '分析账单，正是记账本身的乐趣与意义所在。\n'
             '与其耗费时间转换旧账目，不如放下历史记录，轻装上阵，即刻开始全新'
             '的记账体验！\n'
@@ -2121,27 +2146,48 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
             '账户自动匹配校验并给出核对归集报告。',
             style: TextStyle(
               fontSize: 12.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
               height: 1.5,
             ),
           ),
           const SizedBox(height: AppDimens.sm),
           Align(
             alignment: Alignment.centerRight,
-            child: OutlinedButton(
-              onPressed: _downloadTemplate,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppPalette.ctaGreen,
-                side: const BorderSide(color: AppPalette.ctaGreen),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                OutlinedButton(
+                  onPressed: () => _downloadTemplate('bill'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppPalette.ctaGreen,
+                    side: const BorderSide(color: AppPalette.ctaGreen),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+                    ),
+                    minimumSize: Size.zero,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('账单模板', style: TextStyle(fontSize: 13)),
                 ),
-                minimumSize: Size.zero,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text('模板', style: TextStyle(fontSize: 13)),
+                const SizedBox(width: AppDimens.sm),
+                OutlinedButton(
+                  onPressed: () => _downloadTemplate('account'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppPalette.ctaGreen,
+                    side: const BorderSide(color: AppPalette.ctaGreen),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppDimens.radiusChip),
+                    ),
+                    minimumSize: Size.zero,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('账户模板', style: TextStyle(fontSize: 13)),
+                ),
+              ],
             ),
           ),
         ],
@@ -2181,7 +2227,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ],
@@ -2199,7 +2245,6 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -2215,7 +2260,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: scheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -2223,7 +2268,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 12,
-                      color: scheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -2240,7 +2285,6 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
     if (_importing) {
       // 大批量导入（2026-10-22）：确定性进度条 + 已处理行数。长导入期间
       // 界面持续可感知进度，不再"只转圈像卡死"。
-      final ColorScheme scheme = Theme.of(context).colorScheme;
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -2274,7 +2318,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                   '正在导入 $_progressDone / $_progressTotal',
                   style: TextStyle(
                     fontSize: 12,
-                    color: scheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -2301,7 +2345,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ),
@@ -2343,7 +2387,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                       style: TextStyle(
                         fontSize: 13,
                         height: 1.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -2389,7 +2433,7 @@ class _ImportHeaderCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ),

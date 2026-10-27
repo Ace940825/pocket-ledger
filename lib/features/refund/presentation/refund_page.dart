@@ -12,7 +12,6 @@ import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/summary_bar.dart';
-import '../../../theme/app_theme.dart';
 import '../../ledger/presentation/transaction_detail_sheet.dart';
 import '../../ledger/presentation/widgets/transaction_tile.dart';
 import '../../ledger/presentation/widgets/txn_slidable.dart';
@@ -82,7 +81,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
     }
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.forest.surface,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -126,7 +125,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
               icon: LineGlyph(
                 Icons.arrow_back_ios_new,
                 size: 19,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ),
@@ -172,14 +171,14 @@ class _RefundPageState extends ConsumerState<RefundPage> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
                     LineGlyph(
                       Icons.keyboard_arrow_down_rounded,
                       size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -193,7 +192,7 @@ class _RefundPageState extends ConsumerState<RefundPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                color: context.forest.surface,
                 border: Border.all(color: ForestGreen.softBorder),
                 borderRadius: BorderRadius.circular(999),
               ),
@@ -234,10 +233,10 @@ class _RefundPageState extends ConsumerState<RefundPage> {
   /// 底部主操作条：第 46 批从顶部行收敛到此处，与分期 / 借还 / 报销底栏
   /// 口径一致——单个深绿渐变胶囊「+ 记一笔退款」，直达记一笔退款 Tab。
   Widget _bottomBar(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return SafeArea(
       child: Container(
-        color: scheme.surface,
+        color: context.forest.surface,
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
         child: SizedBox(
           width: double.infinity,
@@ -254,14 +253,14 @@ class _RefundPageState extends ConsumerState<RefundPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  LineGlyph(Icons.add, size: 18, color: scheme.onPrimary),
+                  LineGlyph(Icons.add, size: 18, color: context.forest.onPrimary),
                   const SizedBox(width: 4),
                   Text(
                     '记一笔退款',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: scheme.onPrimary,
+                      color: context.forest.onPrimary,
                     ),
                   ),
                 ],
@@ -389,7 +388,7 @@ class _DayGroup extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
                 const SizedBox(width: 5),
@@ -404,7 +403,7 @@ class _DayGroup extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -412,7 +411,7 @@ class _DayGroup extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
+              color: context.forest.surface,
               borderRadius: BorderRadius.circular(16),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -424,7 +423,7 @@ class _DayGroup extends StatelessWidget {
                       Container(
                         height: 0.6,
                         margin: const EdgeInsets.only(left: 52),
-                        color: Theme.of(context).colorScheme.outline,
+                        color: context.forest.outline,
                       ),
                     TxnSlidable(
                       txn: items[i],

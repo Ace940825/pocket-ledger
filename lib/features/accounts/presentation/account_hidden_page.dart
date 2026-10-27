@@ -434,7 +434,7 @@ class _SummaryItem extends StatelessWidget {
           style: Theme.of(context)
               .textTheme
               .labelSmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ?.copyWith(color: context.forest.onSurfaceVariant),
         ),
         const SizedBox(height: 2),
         MoneyText(

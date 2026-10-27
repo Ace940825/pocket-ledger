@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -61,7 +60,7 @@ Color accountAmountColor(
   final bool outflow = liability ? money.isPositive : money.isNegative;
   if (inflow) return selected ? _SheetA.selPos : ForestSemantic.income;
   if (outflow) return selected ? _SheetA.selNeg : ForestSemantic.expense;
-  return Theme.of(context).colorScheme.onSurface;
+  return context.forest.onSurface;
 }
 
 class _SheetA {
@@ -305,7 +304,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
               fontSize: 17,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.02,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const Spacer(),
@@ -352,7 +351,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
           style: Theme.of(context)
               .textTheme
               .bodyMedium
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ?.copyWith(color: context.forest.onSurfaceVariant),
         ),
       );
     }
@@ -443,7 +442,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
           height: 48, // 与列表行同高
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: context.colors.surfaceContainerHighest,
+            color: context.forest.surfaceContainerHighest,
             border: Border.all(
               color: selected
                   ? ForestGreen.deep
@@ -481,7 +480,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                         fontWeight: FontWeight.w700,
                         color: selected
                             ? ForestGreen.deep
-                            : Theme.of(context).colorScheme.onSurface,
+                            : context.forest.onSurface,
                       ),
                     ),
                     if (widget.noneSubtitle != null)
@@ -559,7 +558,7 @@ class _ListRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -617,7 +616,7 @@ class _AccountTile extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
       decoration: BoxDecoration(
         gradient: selected ? context.app.sageGradientMid : null,
-        color: selected ? null : context.colors.surface,
+        color: selected ? null : context.forest.surface,
         border: Border.all(
           color: selected ? _SheetA.selBorder : _SheetA.cardBorder,
           width: 1,
@@ -689,7 +688,7 @@ class _CardInner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color titleColor =
-        selected ? ForestSage.ink : Theme.of(context).colorScheme.onSurface;
+        selected ? ForestSage.ink : context.forest.onSurface;
 
     // 信用卡类负债账户（有授信额度）才显示「可用额度 + 还款日」；
     // 借入/借出无额度字段，天然不渲染——从组件树移除而非隐藏（定稿规则）。
@@ -719,7 +718,7 @@ class _CardInner extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
           decoration: BoxDecoration(
             color: selected
-                ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.549)
+                ? context.forest.surface.withValues(alpha: 0.549)
                 : ForestGreen.soft,
             borderRadius: BorderRadius.circular(999),
           ),
@@ -830,7 +829,7 @@ class _AccountAvatar extends StatelessWidget {
         accountCategoryLineKind(account.type.category),
         color: Color.lerp(
           color,
-          Theme.of(context).colorScheme.onSurface,
+          context.forest.onSurface,
           0.22,
         )!,
         size: 22,
@@ -916,7 +915,7 @@ class _PillBtn extends StatelessWidget {
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
               color: isPrimary
-                  ? Theme.of(context).colorScheme.onPrimary
+                  ? context.forest.onPrimary
                   : ForestGreen.label,
             ),
           ),
@@ -970,7 +969,7 @@ class _OpBtn extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: primary
-                      ? Theme.of(context).colorScheme.onPrimary
+                      ? context.forest.onPrimary
                       : ForestGreen.label,
                 ),
               ),

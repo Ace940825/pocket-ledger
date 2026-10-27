@@ -251,7 +251,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                         const LineGlyph(Icons.expand_more, size: 20),
@@ -266,7 +266,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                   icon: LineGlyph(
                     Icons.schedule,
                     size: 20,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   onPressed: _showSortSheet,
                 ),
@@ -343,7 +343,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
+        color: context.forest.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -553,7 +553,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainer,
+              color: context.forest.surfaceContainer,
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Text('未找到滚存计划配置'),
@@ -652,7 +652,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
             onPressed: () => _showDepositDialog(sign: 1, goal: goal),
             style: TextButton.styleFrom(
               minimumSize: const Size.fromHeight(48),
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              foregroundColor: context.forest.onPrimary,
             ),
             child: const Text(
               '存入一笔',
@@ -1229,7 +1229,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
           fontSize: 14,
         ),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        fillColor: context.forest.surfaceContainerHighest,
         prefixIcon: Container(
           width: 36,
           height: 36,
@@ -1476,7 +1476,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
               leading: LineIcon(
                 categoryLineKind('deposit_in')!,
                 size: 24,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
               title: const Text('存入'),
               onTap: () {
@@ -1489,7 +1489,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                 leading: LineIcon(
                   categoryLineKind('deposit_out')!,
                   size: 24,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
                 title: const Text('取出'),
                 onTap: () {
@@ -1520,11 +1520,11 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
             ListTile(
               leading: LineGlyph(
                 Icons.delete_outline,
-                color: Theme.of(context).colorScheme.error,
+                color: context.forest.error,
               ),
               title: Text(
                 '删除',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                style: TextStyle(color: context.forest.error),
               ),
               onTap: () async {
                 Navigator.of(context).pop();
@@ -1620,7 +1620,7 @@ class _SavingsGoalDetailPageState extends ConsumerState<SavingsGoalDetailPage> {
                           onPressed: () => Navigator.of(ctx).pop(true),
                           style: TextButton.styleFrom(
                             foregroundColor:
-                                Theme.of(ctx).colorScheme.onPrimary,
+                                ctx.forest.onPrimary,
                           ),
                           child: const Text('保存'),
                         ),

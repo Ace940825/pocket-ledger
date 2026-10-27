@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/providers/app_providers.dart';
 import 'package:pocket_ledger/shared/widgets/app_toast.dart';
 import 'package:pocket_ledger/shared/widgets/empty_state.dart';
@@ -120,7 +121,7 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
         children: <Widget>[
           Row(
             children: <Widget>[
-              LineGlyph(Icons.gpp_maybe_outlined, size: 18, color: context.colors.primary),
+              LineGlyph(Icons.gpp_maybe_outlined, size: 18, color: context.forest.primary),
               const SizedBox(width: AppDimens.sm),
               Expanded(
                 child: Text(
@@ -135,7 +136,7 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
                 '${at.hour.toString().padLeft(2, '0')}:'
                 '${at.minute.toString().padLeft(2, '0')}',
                 style: context.text.bodySmall
-                    ?.copyWith(color: context.colors.onSurfaceVariant),
+                    ?.copyWith(color: context.forest.onSurfaceVariant),
               ),
             ],
           ),
@@ -144,7 +145,7 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
             child: Text(
               '记录 ID：${c.recordId}',
               style: context.text.bodySmall
-                  ?.copyWith(color: context.colors.onSurfaceVariant),
+                  ?.copyWith(color: context.forest.onSurfaceVariant),
             ),
           ),
           const Divider(height: AppDimens.md),
@@ -252,11 +253,11 @@ class _Side extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color border = selected
-        ? context.colors.primary
-        : context.colors.outline;
+        ? context.forest.primary
+        : context.forest.outline;
     final Color bg = selected
-        ? context.colors.primaryContainer
-        : context.colors.surfaceContainerHighest;
+        ? context.forest.primaryContainer
+        : context.forest.surfaceContainerHighest;
 
     return InkWell(
       onTap: onTap,
@@ -278,8 +279,8 @@ class _Side extends StatelessWidget {
               tag,
               style: context.text.bodySmall?.copyWith(
                 color: selected
-                    ? context.colors.primary
-                    : context.colors.onSurfaceVariant,
+                    ? context.forest.primary
+                    : context.forest.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),

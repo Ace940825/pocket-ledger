@@ -132,7 +132,7 @@ class _BankPickerBodyState extends State<_BankPickerBody> {
               hintText: '搜索银行',
               prefixIcon: const LineGlyph(Icons.search),
               filled: true,
-              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              fillColor: context.forest.surfaceContainerHighest,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                 borderSide: BorderSide.none,
@@ -177,7 +177,7 @@ class _BankPickerBodyState extends State<_BankPickerBody> {
                                     ?.copyWith(
                                       fontWeight: FontWeight.w600,
                                       color:
-                                          Theme.of(context).colorScheme.onSurface,
+                                          context.forest.onSurface,
                                     ),
                               ),
                             );

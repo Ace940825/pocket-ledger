@@ -21,7 +21,7 @@ class InfoTipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
@@ -34,14 +34,14 @@ class InfoTipRow extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 1),
             child:
-                LineGlyph(icon, size: iconSize, color: scheme.onSurfaceVariant),
+                LineGlyph(icon, size: iconSize, color: context.forest.onSurfaceVariant),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                     height: 1.5,
                   ),
             ),

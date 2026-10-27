@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 import '../../../../shared/widgets/line_icon_map.dart';
 import '../../data/investment_repository.dart';
@@ -21,7 +22,7 @@ class SecurityCandidateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme cs = Theme.of(context).colorScheme;
+
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -33,7 +34,7 @@ class SecurityCandidateTile extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: cs.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             const SizedBox(width: 8),
@@ -42,7 +43,7 @@ class SecurityCandidateTile extends StatelessWidget {
                 candidate.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                style: TextStyle(fontSize: 13, color: context.forest.onSurfaceVariant),
               ),
             ),
             Text(
@@ -51,10 +52,10 @@ class SecurityCandidateTile extends StatelessWidget {
                 candidate.symbol,
                 name: candidate.name,
               ),
-              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+              style: TextStyle(fontSize: 12, color: context.forest.onSurfaceVariant),
             ),
             const SizedBox(width: 6),
-            LineGlyph(Icons.north_west, size: 14, color: cs.onSurfaceVariant),
+            LineGlyph(Icons.north_west, size: 14, color: context.forest.onSurfaceVariant),
           ],
         ),
       ),

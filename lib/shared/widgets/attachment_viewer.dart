@@ -98,7 +98,7 @@ class AttachmentThumb extends StatelessWidget {
                 color: AppPalette.surfaceLight,
                 child: LineGlyph(
                   Icons.broken_image_outlined,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -157,7 +157,7 @@ Future<void> openImageViewer(
                   child: LineGlyph(
                     Icons.broken_image_outlined,
                     size: 48,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),

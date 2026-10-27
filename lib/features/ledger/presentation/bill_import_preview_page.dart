@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
@@ -77,7 +76,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isAccountOnly ? '账户导入预览' : '账单导入预览'),
+        title: Text(_isAccountOnly ? '账户导入预览' : '数据导入预览'),
         centerTitle: true,
         leading: const BackButton(),
       ),
@@ -201,7 +200,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -209,7 +208,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -218,7 +217,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
             Icon(
               Icons.chevron_right,
               size: 20,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),
@@ -248,7 +247,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
             style: TextStyle(
               fontSize: 12.5,
               height: 1.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           if (skipped.isNotEmpty) ...<Widget>[
@@ -270,7 +269,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.4,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -279,7 +278,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                 '… 其余 ${skipped.length - 10} 条略',
                 style: TextStyle(
                   fontSize: 11.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
           ],
@@ -306,7 +305,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                 '账户段为空',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             )
@@ -320,7 +319,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                   '… 仅显示前 $_maxShown 个',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -346,7 +345,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
               '该类型下暂无账单',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           )
@@ -360,7 +359,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                 '… 仅显示前 $_maxShown 笔',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -371,7 +370,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
 
   /// 右上类型筛选胶囊（对标小青账：支出 / 收入 / 其他，选中深色胶囊）。
   Widget _tabPills() {
-    final Color unselected = Theme.of(context).colorScheme.onSurfaceVariant;
+    final Color unselected = context.forest.onSurfaceVariant;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -426,7 +425,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -436,7 +435,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                   '${r.subcategoryName == null ? '' : ' · ${r.subcategoryName}'}',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -481,7 +480,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -490,7 +489,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                   subs.join(' · '),
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -528,7 +527,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
               onTap: () => Navigator.of(context).pop(true),
               child: Center(
                 child: Text(
-                  _isAccountOnly ? '确认导入账户' : '确认导入账单',
+                  _isAccountOnly ? '确认导入账户' : '确认导入数据',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -594,7 +593,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
       ],
@@ -624,7 +623,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                         n,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -658,7 +657,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
   List<Widget> _checkSection(TemplateCheckResult c) {
     final TextStyle hint = TextStyle(
       fontSize: 12,
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      color: context.forest.onSurfaceVariant,
       height: 1.5,
     );
     final bool allMatched = c.newAccounts.isEmpty && c.newCategories.isEmpty;
@@ -703,7 +702,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
           style: TextStyle(
             fontSize: 12,
             height: 1.5,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 4),
@@ -719,7 +718,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
           height: 1.5,
           color: allMatched
               ? AppPalette.ctaGreen
-              : Theme.of(context).colorScheme.onSurfaceVariant,
+              : context.forest.onSurfaceVariant,
         ),
       ),
       if (c.hasErrors) ...<Widget>[
@@ -769,7 +768,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const SizedBox(height: 2),
@@ -784,7 +783,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -792,7 +791,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
                     '${e.value.count} 笔 · ${_aggAmountText(e.value)}',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -803,7 +802,7 @@ class _BillImportPreviewPageState extends State<BillImportPreviewPage> {
               '… 其余 ${entries.length - shownTotal} 项略',
               style: TextStyle(
                 fontSize: 11.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
         ],

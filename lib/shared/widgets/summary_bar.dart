@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 import '../../theme/app_dimens.dart';
 
@@ -24,17 +25,17 @@ class SummaryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: scheme.outline, width: 1)),
+        border: Border(top: BorderSide(color: context.forest.outline, width: 1)),
       ),
       child: Row(
         children: <Widget>[
           Text(
             '共 $count 笔',
-            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            style: TextStyle(fontSize: 13, color: context.forest.onSurfaceVariant),
           ),
           const Spacer(),
           if (trailing != null) ...<Widget>[
@@ -46,7 +47,7 @@ class SummaryBar extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: scheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
         ],

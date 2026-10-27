@@ -259,14 +259,14 @@ class _AkDigit extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     return HairlineCard(
-      backgroundColor: context.colors.surface,
-      borderColor: Theme.of(context).colorScheme.outline,
+      backgroundColor: context.forest.surface,
+      borderColor: context.forest.outline,
       radius: 14,
       padding: EdgeInsets.zero,
       shadows: <BoxShadow>[
         BoxShadow(
           color:
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.059),
+              context.forest.onSurface.withValues(alpha: 0.059),
           offset: const Offset(0, 1),
           blurRadius: 3,
         ),
@@ -278,7 +278,7 @@ class _AkDigit extends StatelessWidget {
           child: Text(
             label,
             style: theme.textTheme.headlineSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -308,25 +308,25 @@ class _AkKey extends StatelessWidget {
     final bool isSave = label == '保存';
     final bool isAgain = label == '再记';
     final Color contentColor = isSave
-        ? Theme.of(context).colorScheme.onPrimary
+        ? context.forest.onPrimary
         : isAgain
             ? (active
-                ? Theme.of(context).colorScheme.onSurfaceVariant
+                ? context.forest.onSurfaceVariant
                 : theme.disabledColor)
             : active
-                ? Theme.of(context).colorScheme.onSurface
+                ? context.forest.onSurface
                 : theme.disabledColor;
     return Container(
       decoration: BoxDecoration(
         color: isSave
             ? null
             : isAgain
-                ? context.colors.surfaceContainerHighest
-                : context.colors.surface,
+                ? context.forest.surfaceContainerHighest
+                : context.forest.surface,
         gradient: isSave ? context.app.sageGradient : null,
         border: isSave || isAgain
             ? null
-            : Border.all(color: Theme.of(context).colorScheme.outline),
+            : Border.all(color: context.forest.outline),
         borderRadius: BorderRadius.circular(14),
         boxShadow: isSave
             ? <BoxShadow>[
@@ -534,7 +534,7 @@ Future<String?> showAmountKeypad({
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                        color: ctx.forest.onSurfaceVariant,
                       ),
                     ),
                   // 第二行：当前输入值（大字）
@@ -544,8 +544,8 @@ Future<String?> showAmountKeypad({
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: value.isEmpty
-                          ? Theme.of(context).colorScheme.onSurfaceVariant
-                          : Theme.of(ctx).colorScheme.onSurface,
+                          ? context.forest.onSurfaceVariant
+                          : ctx.forest.onSurface,
                     ),
                   ),
                 ],
@@ -670,7 +670,7 @@ class KeypadField extends StatelessWidget {
           helperText: helperText,
           border: const OutlineInputBorder(),
           filled: true,
-          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          fillColor: context.forest.surfaceContainerHighest,
         );
     return TextField(
       controller: controller,

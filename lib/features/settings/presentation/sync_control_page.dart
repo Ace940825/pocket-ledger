@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/database/sync_history_access.dart';
 import 'package:pocket_ledger/features/settings/data/sync_settings.dart';
 import 'package:pocket_ledger/features/settings/providers/sync_settings_providers.dart';
@@ -311,7 +312,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
           Text(
             '本地不保存云端全量副本；下方为「待推送队列按表分布」，即本次同步将上传的数据范围与量级。',
             style: context.text.bodySmall
-                ?.copyWith(color: context.colors.onSurfaceVariant),
+                ?.copyWith(color: context.forest.onSurfaceVariant),
           ),
           const SizedBox(height: AppDimens.sm),
           ref.watch(pendingByTableProvider).when(
@@ -325,7 +326,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                       child: Text(
                         '暂无待同步数据',
                         style: context.text.bodyMedium
-                            ?.copyWith(color: context.colors.onSurfaceVariant),
+                            ?.copyWith(color: context.forest.onSurfaceVariant),
                       ),
                     );
                   }
@@ -348,7 +349,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: context.colors.surfaceContainerHighest,
+                                  color: context.forest.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(
                                     AppDimens.radiusChip,
                                   ),
@@ -356,7 +357,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                                 child: Text(
                                   '$count 条',
                                   style: context.text.bodySmall?.copyWith(
-                                    color: context.colors.onSurfaceVariant,
+                                    color: context.forest.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -396,7 +397,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                 ? '自动：开启后在后台自动全量同步（与旧版一致，无需手动操作）。'
                 : '手动：关闭后台自动触发，只在下方点「立即同步」时同步。',
             style: context.text.bodySmall
-                ?.copyWith(color: context.colors.onSurfaceVariant),
+                ?.copyWith(color: context.forest.onSurfaceVariant),
           ),
         ],
       ),
@@ -442,7 +443,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
               SyncDirection.pullOnly => '仅下载：云端覆盖本地，跳过上传（适合「拉取其他设备的最新数据」）。',
             },
             style: context.text.bodySmall
-                ?.copyWith(color: context.colors.onSurfaceVariant),
+                ?.copyWith(color: context.forest.onSurfaceVariant),
           ),
         ],
       ),
@@ -490,7 +491,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                 ? '自动：冲突以时间戳决胜（最后写入胜出），无需人工介入。'
                 : '逐字段选择：本地与云端都改过的不一致记录会暂存，由你逐字段决定保留哪边。',
             style: context.text.bodySmall
-                ?.copyWith(color: context.colors.onSurfaceVariant),
+                ?.copyWith(color: context.forest.onSurfaceVariant),
           ),
           const SizedBox(height: AppDimens.sm),
           InkWell(
@@ -503,7 +504,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                   LineGlyph(
                     Icons.gpp_maybe_outlined,
                     size: 20,
-                    color: context.colors.primary,
+                    color: context.forest.primary,
                   ),
                   const SizedBox(width: AppDimens.md),
                   Expanded(
@@ -516,14 +517,14 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: context.colors.errorContainer,
+                        color: Theme.of(context).colorScheme.errorContainer,
                         borderRadius:
                             BorderRadius.circular(AppDimens.radiusChip),
                       ),
                       child: Text(
                         '$pending',
                         style: context.text.bodySmall?.copyWith(
-                          color: context.colors.onErrorContainer,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -532,7 +533,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
                   LineGlyph(
                     Icons.chevron_right,
                     size: 18,
-                    color: context.colors.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -554,7 +555,7 @@ class _SyncControlPageState extends ConsumerState<SyncControlPage> {
           Text(
             '不填则同步全部数据。范围仅在下方点「立即同步」时生效，且不会推进自动同步的增量游标。',
             style: context.text.bodySmall
-                ?.copyWith(color: context.colors.onSurfaceVariant),
+                ?.copyWith(color: context.forest.onSurfaceVariant),
           ),
           const SizedBox(height: AppDimens.sm),
           _buildTimeRangeChips(),
@@ -718,9 +719,9 @@ class _DateField extends StatelessWidget {
         height: AppDimens.minTouch,
         padding: const EdgeInsets.symmetric(horizontal: AppDimens.md),
         decoration: BoxDecoration(
-          color: context.colors.surfaceContainerHighest,
+          color: context.forest.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          border: Border.all(color: context.colors.outline),
+          border: Border.all(color: context.forest.outline),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -728,7 +729,7 @@ class _DateField extends StatelessWidget {
             Text(
               label,
               style: context.text.bodySmall
-                  ?.copyWith(color: context.colors.onSurfaceVariant),
+                  ?.copyWith(color: context.forest.onSurfaceVariant),
             ),
             Text(
               value,
@@ -805,7 +806,7 @@ class _HistoryTile extends StatelessWidget {
                   _ => Icons.history_outlined,
                 },
                 size: 18,
-                color: context.colors.primary,
+                color: context.forest.primary,
               ),
               const SizedBox(width: AppDimens.sm),
               Text(
@@ -820,7 +821,7 @@ class _HistoryTile extends StatelessWidget {
                 '${at.hour.toString().padLeft(2, '0')}:'
                 '${at.minute.toString().padLeft(2, '0')}',
                 style: context.text.bodySmall
-                    ?.copyWith(color: context.colors.onSurfaceVariant),
+                    ?.copyWith(color: context.forest.onSurfaceVariant),
               ),
             ],
           ),
@@ -832,7 +833,7 @@ class _HistoryTile extends StatelessWidget {
           Text(
             _rangeLabel,
             style: context.text.bodySmall
-                ?.copyWith(color: context.colors.onSurfaceVariant),
+                ?.copyWith(color: context.forest.onSurfaceVariant),
           ),
           const SizedBox(height: AppDimens.sm),
           Row(
@@ -853,7 +854,7 @@ class _HistoryTile extends StatelessWidget {
                 Text(
                   '无需撤回',
                   style: context.text.bodySmall
-                      ?.copyWith(color: context.colors.onSurfaceVariant),
+                      ?.copyWith(color: context.forest.onSurfaceVariant),
                 ),
             ],
           ),
@@ -882,13 +883,13 @@ class _CountChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: context.colors.surfaceContainerHighest,
+        color: context.forest.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppDimens.radiusChip),
       ),
       child: Text(
         '$label $value',
         style: context.text.bodySmall
-            ?.copyWith(color: context.colors.onSurfaceVariant),
+            ?.copyWith(color: context.forest.onSurfaceVariant),
       ),
     );
   }

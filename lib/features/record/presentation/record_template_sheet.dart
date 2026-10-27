@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
 import 'package:pocket_ledger/shared/widgets/empty_state.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../theme/app_colors.dart';
@@ -115,7 +113,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                           letterSpacing: 0.7,
                         ),
                       ),
@@ -186,13 +184,13 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                         .withValues(alpha: 0.75),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Theme.of(context).colorScheme.outline,
+                      color: context.forest.outline,
                     ),
                   ),
                   child: LineGlyph(
                     Icons.close,
                     size: 15,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -202,7 +200,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
                 letterSpacing: 0.02,
               ),
             ),
@@ -240,7 +238,7 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: context.colors.surfaceContainerLow,
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
                     ),
                   ),
                 ),
@@ -304,8 +302,8 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                 decoration: BoxDecoration(
                   // 设计稿 .C .s-foot .go：深墨底 + 米白字。
                   color: enabled
-                      ? Theme.of(context).colorScheme.onSurface
-                      : context.colors.surfaceContainerHighest,
+                      ? context.forest.onSurface
+                      : context.forest.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -314,8 +312,8 @@ class _RecordTemplateSheetState extends ConsumerState<RecordTemplateSheet> {
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800,
                     color: enabled
-                        ? context.colors.surfaceContainerLow
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ? Theme.of(context).colorScheme.surfaceContainerLow
+                        : context.forest.onSurfaceVariant,
                   ),
                 ),
               ),

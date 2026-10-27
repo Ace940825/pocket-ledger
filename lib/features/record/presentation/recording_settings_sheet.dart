@@ -103,7 +103,7 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ),
@@ -111,7 +111,7 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
             onTap: () => Navigator.of(context).pop(),
             child: LineGlyph(
               Icons.close,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],
@@ -151,8 +151,8 @@ class _RecordingSettingsSheetState extends ConsumerState<RecordingSettingsSheet>
   Widget _buildTabBar() {
     return TabBar(
       controller: _tabController,
-      labelColor: Theme.of(context).colorScheme.onSurface,
-      unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+      labelColor: context.forest.onSurface,
+      unselectedLabelColor: context.forest.onSurfaceVariant,
       indicator: const UnderlineTabIndicator(
         borderSide: BorderSide(color: AppPalette.primary, width: 3),
         insets: EdgeInsets.symmetric(horizontal: 48),
@@ -191,7 +191,7 @@ class _VersionButton extends StatelessWidget {
             color: selected
                 ? (isOpt
                     ? AppPalette.primary
-                    : Theme.of(context).colorScheme.surface)
+                    : context.forest.surface)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(17),
             boxShadow: selected
@@ -215,9 +215,9 @@ class _VersionButton extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: selected
                   ? (isOpt
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : Theme.of(context).colorScheme.onSurface)
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ? context.forest.onPrimary
+                      : context.forest.onSurface)
+                  : context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -514,7 +514,7 @@ class _RemovedTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                       decoration: TextDecoration.lineThrough,
                     ),
                   ),
@@ -571,7 +571,7 @@ class _SimpleSettingsSheet extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -579,20 +579,20 @@ class _SimpleSettingsSheet extends StatelessWidget {
                   onTap: () => Navigator.of(context).pop(),
                   child: LineGlyph(
                     Icons.close,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: Theme.of(context).colorScheme.outline),
+          Divider(height: 1, color: context.forest.outline),
           Expanded(
             child: Center(
               child: Text(
                 '「$title」设置页（占位）',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -637,7 +637,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -645,13 +645,13 @@ class _KeyboardThemeSheet extends ConsumerWidget {
                   onTap: () => Navigator.of(context).pop(),
                   child: LineGlyph(
                     Icons.close,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: Theme.of(context).colorScheme.outline),
+          Divider(height: 1, color: context.forest.outline),
           // loose flex：内容矮时收缩贴内容（不留白），内容超高时在
           // ConstrainedBox 的 84% 上限内盒内滚动。
           Flexible(
@@ -687,7 +687,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w800,
-          color: Theme.of(context).colorScheme.onSurface,
+          color: context.forest.onSurface,
         ),
       ),
     );
@@ -747,7 +747,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
               '◎',
               style: TextStyle(
                 fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -756,7 +756,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           Expanded(
@@ -766,7 +766,7 @@ class _KeyboardThemeSheet extends ConsumerWidget {
               max: 1.2,
               divisions: 4,
               activeColor: AppPalette.primary,
-              inactiveColor: Theme.of(context).colorScheme.outline,
+              inactiveColor: context.forest.outline,
               onChanged: (double v) => ref
                   .read(recordingSettingsProvider.notifier)
                   .setHeightScale(double.parse(v.toStringAsFixed(1))),
@@ -807,8 +807,8 @@ class _KeyboardThemeSheet extends ConsumerWidget {
                 fontSize: 13,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                 color: selected
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurface,
+                    ? context.forest.onPrimary
+                    : context.forest.onSurface,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -885,7 +885,7 @@ class _PillRow extends StatelessWidget {
                 _iconFor(label),
                 style: TextStyle(
                   fontSize: 16,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -896,7 +896,7 @@ class _PillRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ),
@@ -927,8 +927,8 @@ class _PillRow extends StatelessWidget {
                         fontWeight:
                             selected ? FontWeight.w600 : FontWeight.normal,
                         color: selected
-                            ? Theme.of(context).colorScheme.onPrimary
-                            : Theme.of(context).colorScheme.onSurface,
+                            ? context.forest.onPrimary
+                            : context.forest.onSurface,
                       ),
                     ),
                   ),
@@ -971,9 +971,9 @@ class _KeyboardPreview extends ConsumerWidget {
     final RecordingSettings settings = ref.watch(recordingSettingsProvider);
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: context.forest.surface,
         border: Border(
-          top: BorderSide(color: Theme.of(context).colorScheme.outline),
+          top: BorderSide(color: context.forest.outline),
         ),
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppDimens.xl),
@@ -1002,25 +1002,25 @@ class _KeyboardPreview extends ConsumerWidget {
         label: '图片',
         icon: Icons.image_outlined,
         color: _funcImage,
-        textColor: Theme.of(context).colorScheme.onPrimary,
+        textColor: context.forest.onPrimary,
       ),
       _FuncBtn(
         label: '标签',
         icon: Icons.label_outlined,
         color: _funcTag,
-        textColor: Theme.of(context).colorScheme.onPrimary,
+        textColor: context.forest.onPrimary,
       ),
       _FuncBtn(
         label: '不计入',
         icon: Icons.block,
         color: _funcExclude,
-        textColor: Theme.of(context).colorScheme.onPrimary,
+        textColor: context.forest.onPrimary,
       ),
       _FuncBtn(
         label: '模板',
         icon: Icons.edit_note,
         color: _funcTemplate,
-        textColor: Theme.of(context).colorScheme.onPrimary,
+        textColor: context.forest.onPrimary,
       ),
     ];
 
@@ -1050,7 +1050,7 @@ class _KeyboardPreview extends ConsumerWidget {
                       b.label,
                       style: TextStyle(
                         fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -1063,7 +1063,7 @@ class _KeyboardPreview extends ConsumerWidget {
                 b.label,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             );
@@ -1072,7 +1072,7 @@ class _KeyboardPreview extends ConsumerWidget {
           LineGlyph(
             Icons.settings_outlined,
             size: 18,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ],
       ),
@@ -1104,7 +1104,7 @@ class _KeyboardPreview extends ConsumerWidget {
           LineGlyph(
             Icons.calendar_today_outlined,
             size: 13,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
           const SizedBox(width: 4),
           Text(
@@ -1113,7 +1113,7 @@ class _KeyboardPreview extends ConsumerWidget {
               fontSize: 13,
               fontWeight: simpleDatePlain ? FontWeight.normal : FontWeight.w600,
               color: simpleDatePlain
-                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  ? context.forest.onSurfaceVariant
                   : AppPalette.primary,
             ),
           ),
@@ -1139,7 +1139,7 @@ class _KeyboardPreview extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -1156,7 +1156,7 @@ class _KeyboardPreview extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -1187,7 +1187,7 @@ class _KeyboardPreview extends ConsumerWidget {
                 LineGlyph(
                   Icons.calendar_today_outlined,
                   size: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
                 const SizedBox(width: 4),
                 const Text(
@@ -1203,7 +1203,7 @@ class _KeyboardPreview extends ConsumerWidget {
                   '请输入备注信息（最多150字）',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1233,7 +1233,7 @@ class _KeyboardPreview extends ConsumerWidget {
                 '请输入备注信息（最多150字）',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
               dateChip,
@@ -1287,8 +1287,8 @@ class _KeyboardPreview extends ConsumerWidget {
                 fontSize: fontSize,
                 fontWeight: FontWeight.w600,
                 color: save
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurface,
+                    ? context.forest.onPrimary
+                    : context.forest.onSurface,
               ),
             ),
           ),
@@ -1402,7 +1402,7 @@ class _KeyboardPreview extends ConsumerWidget {
           color: Colors.transparent,
           border: Border.all(
             color:
-                Theme.of(context).colorScheme.surface.withValues(alpha: 0.25),
+                context.forest.surface.withValues(alpha: 0.25),
           ),
         );
       case KeyboardThemeStyle.flat:
@@ -1412,13 +1412,13 @@ class _KeyboardPreview extends ConsumerWidget {
         );
       case KeyboardThemeStyle.bordered:
         return BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: context.forest.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppPalette.primary, width: 1.5),
         );
       case KeyboardThemeStyle.custom:
         return BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: context.forest.surface,
           borderRadius: BorderRadius.circular(12),
           boxShadow: <BoxShadow>[
             BoxShadow(

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -152,7 +151,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           Positioned(
@@ -163,7 +162,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
               icon: LineGlyph(
                 Icons.arrow_back_ios_new,
                 size: 19,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
               onPressed: () => Navigator.of(context).maybePop(),
             ),
@@ -193,13 +192,13 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   LineGlyph(
                     Icons.keyboard_arrow_down_rounded,
                     size: 20,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -218,7 +217,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                   fontWeight: FontWeight.w600,
                   color: n > 0
                       ? ForestGreen.deep
-                      : Theme.of(context).colorScheme.onSurface,
+                      : context.forest.onSurface,
                 ),
               ),
             ),
@@ -344,7 +343,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
             '共 $count 笔账单',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const Spacer(),
@@ -369,7 +368,7 @@ class _BillCleanPageState extends ConsumerState<BillCleanPage> {
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: count == 0
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      ? context.forest.onSurfaceVariant
                       : ForestGreen.deep,
                 ),
               ),
@@ -501,7 +500,7 @@ class _TipCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ],
@@ -520,7 +519,7 @@ class _TipCard extends StatelessWidget {
                 LineGlyph(
                   Icons.info_outline,
                   size: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
@@ -530,7 +529,7 @@ class _TipCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       height: 1.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -615,7 +614,7 @@ class _CleanTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                           ),
                         ),
@@ -630,7 +629,7 @@ class _CleanTile extends StatelessWidget {
                       dateLabel,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -638,7 +637,7 @@ class _CleanTile extends StatelessWidget {
                       DateFormat('HH:mm').format(occurred),
                       style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -690,7 +689,7 @@ class _CleanTile extends StatelessWidget {
           size: 22,
           color: Color.lerp(
             tint,
-            Theme.of(context).colorScheme.onSurface,
+            context.forest.onSurface,
             0.22,
           )!,
         ),
@@ -717,10 +716,10 @@ class _CleanTile extends StatelessWidget {
                 '−${Money.fromMinor(txn.amountMinor).format()}',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                   decoration: TextDecoration.lineThrough,
                   decorationColor:
-                      Theme.of(context).colorScheme.onSurfaceVariant,
+                      context.forest.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 4),
@@ -750,7 +749,7 @@ class _CleanTile extends StatelessWidget {
                   ? AppPalette.income
                   : txn.type == TxnType.expense
                       ? AppPalette.expense
-                      : Theme.of(context).colorScheme.onSurface,
+                      : context.forest.onSurface,
             ),
           ),
         if (hasDiscount)

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../database/app_database.dart';
 import '../../../shared/models/money.dart';
@@ -733,7 +732,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                   '已存入的存单不受影响（利率 / 本金在存入时锁定），调整从所设期起生效',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -807,7 +806,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const SizedBox(height: 2),
@@ -815,7 +814,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
             '建仓月数与单笔存期（月）；已存入的存单不受影响，调整后重建模拟',
             style: TextStyle(
               fontSize: 11.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
@@ -853,7 +852,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const SizedBox(height: 2),
@@ -861,7 +860,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
             '存单到期后自动续存何时停止；「轮」= 建仓期数个月',
             style: TextStyle(
               fontSize: 11.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
@@ -904,12 +903,12 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                 decoration: BoxDecoration(
                   color: items[i].$1 == selected
                       ? AppPalette.softGreen
-                      : context.colors.surface,
+                      : context.forest.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: items[i].$1 == selected
                         ? AppPalette.sage300
-                        : Theme.of(context).colorScheme.outline,
+                        : context.forest.outline,
                   ),
                 ),
                 alignment: Alignment.center,
@@ -934,7 +933,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                             : FontWeight.w500,
                         color: items[i].$1 == selected
                             ? AppPalette.deepGreen
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                            : context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -970,7 +969,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const SizedBox(height: 2),
@@ -978,7 +977,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
             subtitle,
             style: TextStyle(
               fontSize: 11.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
@@ -989,7 +988,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
                 emptyText,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             )
@@ -1060,7 +1059,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
         hintStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w400,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
         isDense: true,
         prefixIcon: prefix == null
@@ -1078,7 +1077,7 @@ class _RollingAdjustSheetState extends State<RollingAdjustSheet> {
               ),
         prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         filled: true,
-        fillColor: context.colors.surfaceContainerHighest,
+        fillColor: context.forest.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:intl/intl.dart';
 
 /// 金额值对象。
 ///
@@ -127,14 +126,40 @@ class Money extends Equatable implements Comparable<Money> {
   @override
   int compareTo(Money other) => minor.compareTo(other.minor);
 
-  /// 格式化显示，如 `¥1,234.56`
+  /// 单笔金额的合理业务上限（分）。
+  ///
+  /// 取值 1e15 分 = 1e13 元（十万亿元），远超任何真实个人/家庭账单；
+  /// 即便单月数百笔同时顶格，年累计（≈数百 × 1e15 ≪ 9.22e18 int64 上限）
+  /// 也远未触及 SQLite 64 位有符号整数的求和溢出，从而彻底规避
+  /// 旧 SQLite/SQLCipher 静默回绕、sqlite3 3.43+ 抛 integer overflow 的问题。
+  static const int kMaxAmountMinor = 1000000000000000;
+
+  /// 格式化显示，如 `¥1,234.56`。
+  ///
+  /// 用整数（BigInt）运算拆分整数/小数部并手动做千分位分组，
+  /// 避免 `minor / 100` 先转 double 在 `minor > 2^53` 时丢精度
+  /// （实测 `¥92,233,720,368,547,758.07` 会被 double 显示成 `…760.00`）。
   String format({bool showSymbol = true, int decimalDigits = 2}) {
-    final NumberFormat formatter = NumberFormat.currency(
-      locale: 'zh_CN',
-      symbol: showSymbol ? '¥' : '',
-      decimalDigits: decimalDigits,
-    );
-    return formatter.format(minor / 100);
+    final BigInt m = BigInt.from(minor).abs();
+    final BigInt intPart = m ~/ BigInt.from(100);
+    final BigInt fracPart = m % BigInt.from(100);
+    final String intStr = _groupThousands(intPart.toString());
+    final String fracStr = fracPart.toString().padLeft(2, '0');
+    final String body = decimalDigits > 0 ? '$intStr.$fracStr' : intStr;
+    final String sign = minor < 0 ? '-' : '';
+    return '$sign${showSymbol ? '¥' : ''}$body';
+  }
+
+  /// 将无符号整数数字串从右往左每 3 位加一个逗号。
+  static String _groupThousands(String digits) {
+    final StringBuffer sb = StringBuffer();
+    int count = 0;
+    for (int i = digits.length - 1; i >= 0; i--) {
+      if (count != 0 && count % 3 == 0) sb.write(',');
+      sb.write(digits[i]);
+      count++;
+    }
+    return sb.toString().split('').reversed.join();
   }
 
   /// 带正负号的格式化，用于收支明细与报表

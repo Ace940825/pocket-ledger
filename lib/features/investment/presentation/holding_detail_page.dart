@@ -59,7 +59,7 @@ class HoldingDetailPage extends ConsumerWidget {
         ? AppPalette.stock(true, dark: isDark)
         : profit < 0
             ? AppPalette.stock(false, dark: isDark)
-            : Theme.of(context).colorScheme.onSurfaceVariant;
+            : context.forest.onSurfaceVariant;
 
     final String? updatedLabel = holding.priceUpdatedAt == null
         ? null
@@ -100,7 +100,7 @@ class HoldingDetailPage extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ],
@@ -137,7 +137,7 @@ class HoldingDetailPage extends ConsumerWidget {
               child: Text(
                 '现价更新于 $updatedLabel',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -266,14 +266,14 @@ class _InfoCard extends ConsumerWidget {
         ? AppPalette.stock(true, dark: isDark)
         : profitMinor < 0
             ? AppPalette.stock(false, dark: isDark)
-            : Theme.of(context).colorScheme.onSurfaceVariant;
+            : context.forest.onSurfaceVariant;
     // 仓位 = 该持仓市值 ÷ 组合总资产（现金 + 全部持仓市值），见汇总卡口径。
     final PortfolioSummary summary = ref.watch(portfolioSummaryProvider);
     final double positionRatio = summary.totalAssetMinor == 0
         ? 0.0
         : holding.marketValueMinor / summary.totalAssetMinor;
     final Color badgeColor = histView
-        ? Theme.of(context).colorScheme.onSurfaceVariant
+        ? context.forest.onSurfaceVariant
         : AppPalette.primary;
 
     Widget metric(String label, String value, {Color? color}) {
@@ -283,7 +283,7 @@ class _InfoCard extends ConsumerWidget {
           Text(
             label,
             style: t.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 2),
@@ -291,7 +291,7 @@ class _InfoCard extends ConsumerWidget {
             value,
             style: t.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: color ?? Theme.of(context).colorScheme.onSurface,
+              color: color ?? context.forest.onSurface,
             ),
           ),
         ],
@@ -342,7 +342,7 @@ class _InfoCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: t.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -359,7 +359,7 @@ class _InfoCard extends ConsumerWidget {
                       // 历史视图不显持仓市值：大字对 = 累计投入 | 总盈亏。
                       histView ? '累计投入' : '持仓市值',
                       style: t.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -369,7 +369,7 @@ class _InfoCard extends ConsumerWidget {
                       ).format(),
                       style: t.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                   ],
@@ -381,7 +381,7 @@ class _InfoCard extends ConsumerWidget {
                     Text(
                       '总盈亏',
                       style: t.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -546,7 +546,7 @@ class _NoteCard extends StatelessWidget {
             Text(
               '备注',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 4),
@@ -554,7 +554,7 @@ class _NoteCard extends StatelessWidget {
               // 「·」元信息单元不断行：换行只发生在栏目之间，单元内部不拆。
               keepNoteUnitsUnbroken(note),
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ],
@@ -596,16 +596,16 @@ class _FlowList extends ConsumerWidget {
             child: Text(
               '暂无交易流水，买卖后自动记录',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
             ),
           );
         }
         return Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: context.forest.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).colorScheme.outline),
+            border: Border.all(color: context.forest.outline),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: TxnSlidableGroup(
@@ -616,7 +616,7 @@ class _FlowList extends ConsumerWidget {
                     Container(
                       height: 0.6,
                       margin: const EdgeInsets.only(left: 52),
-                      color: Theme.of(context).colorScheme.outline,
+                      color: context.forest.outline,
                     ),
                   TxnSlidable(
                     txn: visible[i],

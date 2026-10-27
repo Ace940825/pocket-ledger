@@ -81,6 +81,23 @@ final AutoDisposeStreamProvider<List<Transaction>>
       );
 });
 
+/// 年视图逐月聚合（SQL `group by` 月份，最多 12 行）。
+///
+/// 无高级筛选时由年视图消费，避免把全年流水载入内存做 Dart 聚合（fix③）；
+/// 高级筛选激活时年视图回退到 [reportCalendarYearTransactionsProvider] +
+/// [_aggregateMonths] 的内存路径（筛选条件无法下推到简单 SQL 聚合）。
+final AutoDisposeStreamProvider<List<YearMonthStat>>
+    reportYearMonthlyStatsProvider =
+    StreamProvider.autoDispose<List<YearMonthStat>>((Ref ref) {
+  final int y = ref.watch(reportCalendarYearProvider);
+  final String bookId = ref.watch(currentBookIdProvider);
+  return ref.watch(transactionsDaoProvider).watchYearMonthlyStats(
+        bookId: bookId,
+        startAt: DateTime(y).toUtc().millisecondsSinceEpoch,
+        endAt: DateTime(y + 1).toUtc().millisecondsSinceEpoch,
+      );
+});
+
 /// 近 [months] 个月的收支趋势，按月升序。
 ///
 /// 只查一次库（SQL 层 group by），不是循环 12 次区间查询。

@@ -21,7 +21,7 @@ import 'bill_io.dart';
 /// v3（2026-10-22）：新增账户段（[kAccountTemplateFields]）——CSV 单文件双段
 /// （`# [账户]` / `# [账单]` 标记分行），JSON 增 `accounts` 键；用于在新系统
 /// 复原账户信息。旧 v2 单段文件仍可导入。
-const String kBillTemplateVersion = 'v3';
+const String kBillTemplateVersion = 'v3.1';
 
 /// 模板单个字段的结构定义。
 class BillTemplateField {
@@ -290,20 +290,6 @@ const List<BillTemplateField> kAccountTemplateFields = <BillTemplateField>[
         '重算、不校正）；留空为 0',
   ),
   BillTemplateField(
-    header: '图标',
-    jsonKey: 'icon',
-    typeLabel: '文本',
-    required: false,
-    desc: '图标 key，留空则按账户类型自动派生',
-  ),
-  BillTemplateField(
-    header: '颜色',
-    jsonKey: 'color',
-    typeLabel: '文本',
-    required: false,
-    desc: '颜色值：0xFF88CC66 / #FF88CC66 / #88CC66 任一形式；留空为不自定义',
-  ),
-  BillTemplateField(
     header: '信用卡额度',
     jsonKey: 'creditLimit',
     typeLabel: '金额',
@@ -430,28 +416,28 @@ const List<List<String>> _sampleRows = <List<String>>[
   ],
 ];
 
-/// 账户段示例（与 [kAccountTemplateFields] 严格 16 列对齐）。
+/// 账户段示例（与 [kAccountTemplateFields] 严格 14 列对齐）。
 ///
-/// 顺序：账本,账户名,类型,币种,余额,图标,颜色,信用卡额度,账单日,还款日,
+/// 顺序：账本,账户名,类型,币种,余额,信用卡额度,账单日,还款日,
 /// 免息期,备注,卡号,状态,计入总资产,排序。
 ///
 /// 还款日与免息期互斥二选一：第 3 行（信用卡）用固定还款日 23 号；
 /// 免息期列留空即表示不使用免息期口径。
 const List<List<String>> _accountSampleRows = <List<String>>[
   <String>[
-    '', '微信', 'wechat', 'CNY', '125.50', '', '', '', '', '', '',
+    '', '微信', 'wechat', 'CNY', '125.50', '', '', '', '', '',
     '日常零钱', '', '使用中', 'Y', '1',
   ],
   <String>[
-    '', '招商银行', 'bankCard', 'CNY', '18620.33', '', '', '', '', '', '',
+    '', '招商银行', 'bankCard', 'CNY', '18620.33', '', '', '', '', '',
     '工资卡', '1234', '使用中', 'Y', '2',
   ],
   <String>[
-    '', '招商信用卡', 'creditCard', 'CNY', '-2300.00', '', '', '20000', '5', '23', '',
+    '', '招商信用卡', 'creditCard', 'CNY', '-2300.00', '20000.00', '5', '23', '', '',
     '', '5678', '使用中', 'Y', '3',
   ],
   <String>[
-    '', '余额宝', 'investmentOther', 'CNY', '3000.00', '', '0xFF88CC66', '', '', '', '',
+    '', '余额宝', 'investmentOther', 'CNY', '3000.00', '', '', '', '', '',
     '货币基金', '', '隐藏', 'N', '4',
   ],
 ];

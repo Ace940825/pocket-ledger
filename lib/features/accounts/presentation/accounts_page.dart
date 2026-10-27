@@ -578,7 +578,7 @@ class _GroupCard extends StatelessWidget {
                       child: Text(
                         title,
                         style: theme.textTheme.titleSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -680,7 +680,7 @@ class _AccountBody extends StatelessWidget {
                 _SlideAction(
                   icon: Icons.visibility_off_outlined,
                   label: '隐藏',
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                   onPressed: () => onArchiveAccount(accounts[i]),
                 ),
                 _SlideAction(
@@ -717,7 +717,7 @@ class _AccountBody extends StatelessWidget {
                         size: 20,
                         color: Color.lerp(
                           isDebt ? AppPalette.expense : AppPalette.primary,
-                          Theme.of(context).colorScheme.onSurface,
+                          context.forest.onSurface,
                           0.22,
                         )!,
                       ),
@@ -737,7 +737,7 @@ class _AccountBody extends StatelessWidget {
                       // 零展示余额弱化为弱文字；负债（信用卡/借入）强制支出红，
                       // 避免被 MoneyText 的自动正负着色渲染成收入绿；其余按正负自动。
                       color: _accountDisplay(accounts[i]) == 0
-                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          ? context.forest.onSurfaceVariant
                           : isDebt
                               ? AppPalette.expense
                               : null,
@@ -773,7 +773,7 @@ class _AccountBody extends StatelessWidget {
           style: Theme.of(context)
               .textTheme
               .bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ?.copyWith(color: context.forest.onSurfaceVariant),
         );
       }
     }
@@ -1000,7 +1000,7 @@ class _SummaryRow extends StatelessWidget {
           size: 20,
           color: Color.lerp(
             amountColor,
-            Theme.of(context).colorScheme.onSurface,
+            context.forest.onSurface,
             0.22,
           )!,
         ),
@@ -1020,7 +1020,7 @@ class _SummaryRow extends StatelessWidget {
           LineGlyph(
             Icons.chevron_right,
             size: 18,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ],
       ),

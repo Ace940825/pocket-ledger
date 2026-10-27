@@ -197,7 +197,7 @@ class InstallmentDetailPage extends ConsumerWidget {
                   '${overdue ? ' · 已逾期' : ''}'
                   '${locked ? ' · 已结束' : ''}',
                   style: overdue
-                      ? TextStyle(color: Theme.of(context).colorScheme.error)
+                      ? TextStyle(color: context.forest.error)
                       : null,
                 ),
                 secondary: Text(
@@ -391,7 +391,7 @@ class _PlanHeaderCard extends StatelessWidget {
             ? '有逾期'
             : '进行中';
     final Color statusColor = finished
-        ? Theme.of(context).colorScheme.onSurfaceVariant
+        ? context.forest.onSurfaceVariant
         : hasOverdue
             ? AppPalette.danger
             : AppPalette.primary;
@@ -430,14 +430,14 @@ class _PlanHeaderCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: t.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
                 if (onEdit != null)
                   _HeaderPill(
                     label: '编辑',
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                     surface: true,
                     onTap: onEdit!,
                   ),
@@ -463,7 +463,7 @@ class _PlanHeaderCard extends StatelessWidget {
                 if (accountName != null) accountName!,
               ].join(' · '),
               style: t.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 8),
@@ -489,7 +489,7 @@ class _PlanHeaderCard extends StatelessWidget {
                   Text(
                     '预计下次入账',
                     style: t.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -498,7 +498,7 @@ class _PlanHeaderCard extends StatelessWidget {
                     style: t.bodySmall?.copyWith(
                       color: hasOverdue
                           ? AppPalette.danger
-                          : Theme.of(context).colorScheme.onSurface,
+                          : context.forest.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -547,21 +547,21 @@ class _PlanHeaderCard extends StatelessWidget {
         Text(
           label,
           style: t.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ?.copyWith(color: context.forest.onSurfaceVariant),
         ),
         const SizedBox(width: 8),
         Text(
           value,
           style: t.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            color: valueColor ?? Theme.of(context).colorScheme.onSurface,
+            color: valueColor ?? context.forest.onSurface,
           ),
         ),
         if (suffix != null)
           Text(
             suffix,
             style: t.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
       ],
@@ -584,7 +584,7 @@ class _PlanHeaderCard extends StatelessWidget {
               fontSize: 11,
               color: highlight
                   ? AppPalette.sage700
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                  : context.forest.onSurfaceVariant,
               fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
             ),
       ),
@@ -618,7 +618,7 @@ class _HeaderPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
           color: surface
-              ? Theme.of(context).colorScheme.surfaceContainerHighest
+              ? context.forest.surfaceContainerHighest
               : color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -676,7 +676,7 @@ class _PlanProgressCard extends StatelessWidget {
                   '已入账：$paidCount / $totalCount 期',
                   style: t.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
                 const Spacer(),
@@ -684,7 +684,7 @@ class _PlanProgressCard extends StatelessWidget {
                   '本金 ${Money.fromMinor(paidPrincipal).format()}'
                   ' + 利息 ${Money.fromMinor(paidFee).format()}',
                   style: t.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -695,7 +695,7 @@ class _PlanProgressCard extends StatelessWidget {
                 Text(
                   '待入账金额',
                   style: t.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
                 const Spacer(),
@@ -703,7 +703,7 @@ class _PlanProgressCard extends StatelessWidget {
                   Money.fromMinor(remainingMinor).format(),
                   style: t.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ],

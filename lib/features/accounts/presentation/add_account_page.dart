@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 
@@ -117,7 +118,7 @@ class _TabContent extends StatelessWidget {
         Text(
           '账户类型',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
         ),
         const SizedBox(height: AppDimens.sm),
@@ -161,7 +162,7 @@ class _NoTypeHint extends StatelessWidget {
       child: Text(
         '该分类没有可新建的账户类型。'
         '应收/应付款项请在「记一笔」里通过报销、借出、借入创建。',
-        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        style: TextStyle(color: context.forest.onSurfaceVariant),
       ),
     );
   }
@@ -192,7 +193,7 @@ class _TypeOption extends StatelessWidget {
             LineIcon(
               accountLineKind(type) ?? LineIconKind.star,
               size: 22,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
             const SizedBox(width: AppDimens.md),
             Expanded(

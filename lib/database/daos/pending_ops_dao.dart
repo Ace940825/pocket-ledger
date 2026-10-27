@@ -57,7 +57,7 @@ class PendingOpsDao extends DatabaseAccessor<AppDatabase>
       if (table != null && id != null) {
         await (delete(pendingOps)
               ..where((PendingOps tbl) =>
-                  tbl.targetTable.equals(table) & tbl.recordId.equals(id)))
+                  tbl.targetTable.equals(table) & tbl.recordId.equals(id),))
             .go();
       }
       await into(pendingOps).insert(companion);

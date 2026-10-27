@@ -421,7 +421,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                           style: TextButton.styleFrom(
                             minimumSize: const Size.fromHeight(48),
                             foregroundColor:
-                                Theme.of(context).colorScheme.onPrimary,
+                                context.forest.onPrimary,
                           ),
                           child: const Text(
                             '保存',
@@ -470,7 +470,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
+        color: context.forest.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -548,11 +548,11 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
           counterText: '',
           hintText: hint,
           hintStyle: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
             fontSize: 14,
           ),
           filled: true,
-          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          fillColor: context.forest.surfaceContainerHighest,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28),
             borderSide: BorderSide.none,
@@ -589,7 +589,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
         ),
         prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        fillColor: context.forest.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
           borderSide: BorderSide.none,
@@ -617,7 +617,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
             '递增系数',
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -649,7 +649,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                       const BoxConstraints(minWidth: 0, minHeight: 0),
                   filled: true,
                   fillColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                      context.forest.surfaceContainerHighest,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(28),
                     borderSide: BorderSide.none,
@@ -696,7 +696,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
   Future<void> _pickElasticMode() async {
     final bool? percent = await showAppModalSheet<bool>(
       context,
-      surfaceColor: Theme.of(context).colorScheme.surfaceContainer,
+      surfaceColor: context.forest.surfaceContainer,
       showHandle: false,
       body: SafeArea(
         child: Column(
@@ -824,7 +824,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 12.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -834,13 +834,13 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
               value,
               style: TextStyle(
                 fontSize: 13.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             LineGlyph(
               Icons.chevron_right,
               size: 22,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),
@@ -902,7 +902,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                       fontSize: 16,
                       color: value.isEmpty
                           ? AppPalette.neutralGray.withValues(alpha: 0.6)
-                          : Theme.of(context).colorScheme.onSurface,
+                          : context.forest.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1004,7 +1004,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                     DateFormat('yyyy年M月d日').format(_startDate),
                     style: TextStyle(
                       fontSize: 12.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1013,7 +1013,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
             LineGlyph(
               Icons.chevron_right,
               size: 22,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),
@@ -1056,7 +1056,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                 '则不会执行，如果选中月末，每月会在最后一天执行',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.outline,
+                  color: context.forest.outline,
                   height: 1.4,
                 ),
               ),
@@ -1069,7 +1069,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
           child: Switch(
             value: _monthEnd,
             onChanged: (bool v) => setState(() => _monthEnd = v),
-            activeThumbColor: Theme.of(context).colorScheme.onPrimary,
+            activeThumbColor: context.forest.onPrimary,
             activeTrackColor: _greenDeep,
           ),
         ),
@@ -1114,7 +1114,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
                 bookName,
                 style: TextStyle(
                   fontSize: 12.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ],
@@ -1123,7 +1123,7 @@ class _SavingsModeCreatePageState extends ConsumerState<SavingsModeCreatePage> {
         LineGlyph(
           Icons.chevron_right,
           size: 22,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       ],
     );

@@ -22,7 +22,7 @@ class AccountSelectPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme cs = Theme.of(context).colorScheme;
+
     final bool selected = accountName != null && accountName!.isNotEmpty;
     return InkWell(
       borderRadius: BorderRadius.circular(24),
@@ -39,7 +39,7 @@ class AccountSelectPill extends StatelessWidget {
             LineGlyph(
               selected ? Icons.check : Icons.account_balance_wallet_outlined,
               size: 18,
-              color: selected ? AppPalette.deepGreen : cs.onSurfaceVariant,
+              color: selected ? AppPalette.deepGreen : context.forest.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -49,7 +49,7 @@ class AccountSelectPill extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 14,
-                  color: selected ? AppPalette.deepGreen : cs.onSurfaceVariant,
+                  color: selected ? AppPalette.deepGreen : context.forest.onSurfaceVariant,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),

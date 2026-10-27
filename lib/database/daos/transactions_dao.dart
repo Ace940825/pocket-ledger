@@ -53,6 +53,34 @@ class ModuleTotal {
   final int totalMinor;
 }
 
+/// 某一年的逐月聚合结果（用于年视图，fix③）。
+///
+/// 口径与 report_page 的 [_aggregateMonths] 严格一致：转账不参与任何一列；
+/// net = `amount_minor - discount_minor`；计收支口径（`exclude_from_stats = 0`）
+/// 进 income/expense 主列，否则进 unstats 列；`exclude_from_budget = 1` 另进
+/// unbudget 列（含「同时不计收支且不计预算」被两列同计的情况）。
+class YearMonthStat {
+  const YearMonthStat({
+    required this.monthKey,
+    required this.count,
+    required this.income,
+    required this.expense,
+    required this.unstatsExpense,
+    required this.unstatsIncome,
+    required this.unbudgetExpense,
+    required this.unbudgetIncome,
+  });
+
+  final String monthKey; // 'YYYY-MM'
+  final int count;
+  final int income;
+  final int expense;
+  final int unstatsExpense;
+  final int unstatsIncome;
+  final int unbudgetExpense;
+  final int unbudgetIncome;
+}
+
 /// 流水数据访问。
 ///
 /// 所有查询都作用在本地库，**不涉及任何网络请求**。
@@ -433,9 +461,11 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     const Expression<String> monthKey = CustomExpression<String>(
       'strftime(\'%Y-%m\', occurred_at / 1000, \'unixepoch\', \'localtime\')',
     );
+    // 实付口径：收入虽由写入层强制 discount=0（见 TransactionRepository），
+    // 这里仍与支出一致地减 discount，保证两路径口径严格统一（fix④）。
     final Expression<int> incomeSum = CustomExpression<int>(
       'SUM(CASE WHEN type = ${TxnType.income.index} '
-      'THEN amount_minor ELSE 0 END)',
+      'THEN amount_minor - discount_minor ELSE 0 END)',
     );
     // 实付口径：支出扣优惠（amount 存原价，优惠部分不计入支出）
     final Expression<int> expenseSum = CustomExpression<int>(
@@ -460,6 +490,84 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
             monthKey: row.read(monthKey) ?? '',
             incomeMinor: row.read(incomeSum) ?? 0,
             expenseMinor: row.read(expenseSum) ?? 0,
+          ),
+        )
+        .watch();
+  }
+
+  /// 某一年的逐月聚合（用于年视图），在数据库内 `group by` 月份完成，
+  /// 最多返回 12 行，避免把全年流水取到 Dart 里再遍历（fix③）。
+  ///
+  /// 口径与 [_aggregateMonths]（report_page）严格一致：转账不参与任何一列；
+  /// net = `amount_minor - discount_minor`；计收支口径（`exclude_from_stats = 0`）
+  /// 进 income/expense 主列，否则进 unstats 列；`exclude_from_budget = 1` 另进
+  /// unbudget 列（与 Dart 路径完全对应，含「同时不计收支且不计预算」被两列同计的情况）。
+  /// 返回类型见顶层的 [YearMonthStat]。
+  Stream<List<YearMonthStat>> watchYearMonthlyStats({
+    required String bookId,
+    required int startAt,
+    required int endAt,
+  }) {
+    const Expression<String> monthKey = CustomExpression<String>(
+      'strftime(\'%Y-%m\', occurred_at / 1000, \'unixepoch\', \'localtime\')',
+    );
+    final Expression<int> incomeSum = CustomExpression<int>(
+      'SUM(CASE WHEN type = ${TxnType.income.index} AND exclude_from_stats = 0 '
+      'THEN amount_minor - discount_minor ELSE 0 END)',
+    );
+    final Expression<int> expenseSum = CustomExpression<int>(
+      'SUM(CASE WHEN type = ${TxnType.expense.index} AND exclude_from_stats = 0 '
+      'THEN amount_minor - discount_minor ELSE 0 END)',
+    );
+    final Expression<int> unstatsExpenseSum = CustomExpression<int>(
+      'SUM(CASE WHEN type = ${TxnType.expense.index} AND exclude_from_stats = 1 '
+      'THEN amount_minor - discount_minor ELSE 0 END)',
+    );
+    final Expression<int> unstatsIncomeSum = CustomExpression<int>(
+      'SUM(CASE WHEN type = ${TxnType.income.index} AND exclude_from_stats = 1 '
+      'THEN amount_minor - discount_minor ELSE 0 END)',
+    );
+    final Expression<int> unbudgetExpenseSum = CustomExpression<int>(
+      'SUM(CASE WHEN type = ${TxnType.expense.index} AND exclude_from_budget = 1 '
+      'THEN amount_minor - discount_minor ELSE 0 END)',
+    );
+    final Expression<int> unbudgetIncomeSum = CustomExpression<int>(
+      'SUM(CASE WHEN type = ${TxnType.income.index} AND exclude_from_budget = 1 '
+      'THEN amount_minor - discount_minor ELSE 0 END)',
+    );
+    final Expression<int> countExpr = CustomExpression<int>(
+      'COUNT(CASE WHEN type != ${TxnType.transfer.index} THEN 1 ELSE NULL END)',
+    );
+
+    return (selectOnly(transactions)
+          ..addColumns(<Expression<Object>>[
+            monthKey,
+            countExpr,
+            incomeSum,
+            expenseSum,
+            unstatsExpenseSum,
+            unstatsIncomeSum,
+            unbudgetExpenseSum,
+            unbudgetIncomeSum,
+          ])
+          ..where(
+            transactions.bookId.equals(bookId) &
+                transactions.deleted.equals(false) &
+                transactions.occurredAt.isBiggerOrEqualValue(startAt) &
+                transactions.occurredAt.isSmallerThanValue(endAt),
+          )
+          ..groupBy(<Expression<Object>>[monthKey])
+          ..orderBy(<OrderingTerm>[OrderingTerm.asc(monthKey)]))
+        .map(
+          (TypedResult row) => YearMonthStat(
+            monthKey: row.read(monthKey) ?? '',
+            count: row.read(countExpr) ?? 0,
+            income: row.read(incomeSum) ?? 0,
+            expense: row.read(expenseSum) ?? 0,
+            unstatsExpense: row.read(unstatsExpenseSum) ?? 0,
+            unstatsIncome: row.read(unstatsIncomeSum) ?? 0,
+            unbudgetExpense: row.read(unbudgetExpenseSum) ?? 0,
+            unbudgetIncome: row.read(unbudgetIncomeSum) ?? 0,
           ),
         )
         .watch();

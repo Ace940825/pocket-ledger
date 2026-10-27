@@ -39,8 +39,8 @@ class ColorChip extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(
               color: selected
-                  ? Theme.of(context).colorScheme.onSurface
-                  : Theme.of(context).colorScheme.outline,
+                  ? context.forest.onSurface
+                  : context.forest.outline,
               width: selected ? 2.5 : 1,
             ),
           ),
@@ -48,14 +48,14 @@ class ColorChip extends StatelessWidget {
               ? LineGlyph(
                   Icons.auto_awesome,
                   color: selected
-                      ? Theme.of(context).colorScheme.onSurface
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ? context.forest.onSurface
+                      : context.forest.onSurfaceVariant,
                   size: 16,
                 )
               : (selected
                   ? LineGlyph(
                       Icons.check,
-                      color: Theme.of(context).colorScheme.onPrimary,
+                      color: context.forest.onPrimary,
                       size: 16,
                     )
                   : null),

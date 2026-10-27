@@ -183,7 +183,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                   onPressed: () => Navigator.of(context).pop(_result),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppPalette.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    foregroundColor: context.forest.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -248,7 +248,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   color: selected
-                      ? Theme.of(context).colorScheme.onSurface
+                      ? context.forest.onSurface
                       : AppPalette.surfaceLight,
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 ),
@@ -257,8 +257,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
                   _unitLabels[unit.index],
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: selected
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
+                        ? context.forest.onPrimary
+                        : context.forest.onSurface,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
@@ -292,7 +292,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           decoration: BoxDecoration(
             border: Border.symmetric(
               horizontal:
-                  BorderSide(color: Theme.of(context).colorScheme.outline),
+                  BorderSide(color: context.forest.outline),
             ),
           ),
           child: KeypadField(
@@ -343,7 +343,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outline),
+          border: Border.all(color: context.forest.outline),
           borderRadius: const BorderRadius.horizontal(
             left: Radius.zero,
             right: Radius.zero,
@@ -353,8 +353,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           icon,
           size: 18,
           color: onTap == null
-              ? Theme.of(context).colorScheme.outline
-              : Theme.of(context).colorScheme.onSurfaceVariant,
+              ? context.forest.outline
+              : context.forest.onSurfaceVariant,
         ),
       ),
     );
@@ -549,7 +549,7 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? Theme.of(context).colorScheme.onSurface
+              ? context.forest.onSurface
               : AppPalette.surfaceLight,
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
@@ -557,8 +557,8 @@ class _RepeatPickerSheetState extends State<RepeatPickerSheet> {
           label,
           style: TextStyle(
             color: selected
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.onSurface,
+                ? context.forest.onPrimary
+                : context.forest.onSurface,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
             fontSize: fontSize,
             height: 1.0,

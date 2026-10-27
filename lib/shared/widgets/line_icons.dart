@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 /// 钢笔线稿图标集 —— 对齐「森林手账·鼠尾草绿」A3 线稿设计稿。
 ///
@@ -440,7 +441,7 @@ class LineIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color resolved = color ??
         IconTheme.of(context).color ??
-        Theme.of(context).colorScheme.onSurface;
+        context.forest.onSurface;
     return CustomPaint(
       size: Size.square(size),
       painter: _LineIconPainter(kind, resolved, strokeWidth),

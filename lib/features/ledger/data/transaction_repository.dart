@@ -58,6 +58,9 @@ class TransactionRepository {
     if (amountMinor <= 0) {
       throw const ValidationFailure('金额必须大于 0');
     }
+    if (amountMinor > Money.kMaxAmountMinor) {
+      throw const ValidationFailure('金额超出系统上限（单笔不超过 1e13 元）');
+    }
     if (type == TxnType.transfer && toAccountId == null) {
       throw const ValidationFailure('转账必须指定转入账户');
     }
@@ -70,6 +73,8 @@ class TransactionRepository {
         type == TxnType.transfer || rawDiscount <= amountMinor
             ? rawDiscount
             : amountMinor;
+    // fix④：收入流水不携带优惠，强制 discount = 0，统一两路径聚合口径。
+    final int effectiveDiscount = type == TxnType.income ? 0 : safeDiscount;
 
     final String id = const Uuid().v7();
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -96,7 +101,7 @@ class TransactionRepository {
           relatedId: Value<String?>(relatedId),
           transferGroupId: Value<String?>(transferGroupId),
           feeMinor: Value<int>(feeMinor ?? 0),
-          discountMinor: Value<int>(safeDiscount),
+          discountMinor: Value<int>(effectiveDiscount),
           tags: Value<String?>(tagsJson),
           attachmentUrls: Value<String?>(attachmentUrlsJson),
           excludeFromStats: Value<bool>(excludeFromStats),
@@ -216,10 +221,12 @@ class TransactionRepository {
     final int rawDiscount = discountMinor ?? original.discountMinor;
     // 防御性钳制：非转账流水优惠不允许超过金额（实付 ≥ 0）；
     // 转账的实付 = amount + fee - discount，由下方「扣款金额必须大于 0」校验兜底。
-    final int newDiscount =
-        newType == TxnType.transfer || rawDiscount <= newAmount
+    // fix④：收入流水不携带优惠，强制 discount = 0，统一两路径聚合口径。
+    final int newDiscount = newType == TxnType.income
+        ? 0
+        : (newType == TxnType.transfer || rawDiscount <= newAmount
             ? rawDiscount
-            : newAmount;
+            : newAmount);
     final List<String>? newAttachmentList =
         attachmentUrls ?? _decodeAttachmentUrls(original.attachmentUrls);
     final String? newAttachmentUrls = _encodeAttachmentUrls(newAttachmentList);
@@ -228,6 +235,9 @@ class TransactionRepository {
 
     if (newAmount <= 0) {
       throw const ValidationFailure('金额必须大于 0');
+    }
+    if (newAmount > Money.kMaxAmountMinor) {
+      throw const ValidationFailure('金额超出系统上限（单笔不超过 1e13 元）');
     }
 
     // 与 add() 保持一致的校验：转账必须有转入账户。

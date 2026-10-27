@@ -36,7 +36,7 @@ class MoneyText extends StatelessWidget {
   }
 
   Color? _resolveColor(BuildContext context) {
-    if (money.isZero) return Theme.of(context).colorScheme.onSurfaceVariant;
+    if (money.isZero) return context.forest.onSurfaceVariant;
     return money.isPositive ? AppPalette.income : AppPalette.expense;
   }
 }

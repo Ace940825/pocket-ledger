@@ -68,7 +68,7 @@ class AccountTransactionTile extends ConsumerWidget {
                 size: 20,
                 color: Color.lerp(
                   tint,
-                  Theme.of(context).colorScheme.onSurface,
+                  context.forest.onSurface,
                   0.22,
                 )!,
               ),
@@ -95,7 +95,7 @@ class AccountTransactionTile extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -115,7 +115,7 @@ class AccountTransactionTile extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],

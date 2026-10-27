@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -132,7 +131,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
         ],
@@ -207,7 +206,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ),
@@ -242,7 +241,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
             '${st.skipReasons.isEmpty ? '' : '，跳过 ${st.skipReasons.length} 笔'}',
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
@@ -290,7 +289,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ),
@@ -305,7 +304,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.45,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ],
@@ -353,7 +352,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
         height: 38,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          color: context.forest.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(ForestRadius.pill),
         ),
         child: Text(
@@ -361,7 +360,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
           style: TextStyle(
             fontSize: 13.5,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
       ),
@@ -381,7 +380,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           gradient: enabled ? ForestGradients.button : null,
-          color: enabled ? null : Theme.of(context).colorScheme.outline,
+          color: enabled ? null : context.forest.outline,
           borderRadius: BorderRadius.circular(ForestRadius.pill),
           boxShadow: enabled ? ForestElevation.float : null,
         ),
@@ -391,8 +390,8 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
             fontSize: 13.5,
             fontWeight: FontWeight.w700,
             color: enabled
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                ? context.forest.onPrimary
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),

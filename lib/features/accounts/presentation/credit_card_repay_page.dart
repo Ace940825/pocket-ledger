@@ -236,7 +236,7 @@ class _CreditCardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
+
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -267,7 +267,7 @@ class _CreditCardCard extends StatelessWidget {
                             size: 20,
                             color: Color.lerp(
                               AppPalette.expense,
-                              scheme.onSurface,
+                              context.forest.onSurface,
                               0.22,
                             )!,
                           ),
@@ -282,7 +282,7 @@ class _CreditCardCard extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.titleSmall?.copyWith(
-                                    color: scheme.onSurface,
+                                    color: context.forest.onSurface,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -292,7 +292,7 @@ class _CreditCardCard extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
+                                  color: context.forest.onSurfaceVariant,
                                 ),
                               ),
                             ],

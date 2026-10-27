@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
-import '../../../../core/theme/forest_design_tokens.dart';
 import '../../../../database/app_database.dart';
 import '../../../../domain/enums.dart';
 import '../../../../shared/models/money.dart';
@@ -139,7 +138,7 @@ class TransactionTile extends ConsumerWidget {
     final int paidMinor = transaction.amountMinor - transaction.discountMinor;
 
     final Color tint = isReimbIncome
-        ? Theme.of(context).colorScheme.onSurfaceVariant
+        ? context.forest.onSurfaceVariant
         : category?.colorValue != null
             ? Color(category!.colorValue!)
             : _tintFor(transaction.type);
@@ -172,7 +171,7 @@ class TransactionTile extends ConsumerWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: Theme.of(context).colorScheme.outline,
+                color: context.forest.outline,
                 width: 0.5,
               ),
             ),
@@ -190,7 +189,7 @@ class TransactionTile extends ConsumerWidget {
                   size: 22,
                   color: Color.lerp(
                     tint,
-                    Theme.of(context).colorScheme.onSurface,
+                    context.forest.onSurface,
                     0.22,
                   )!,
                 ),
@@ -232,7 +231,7 @@ class TransactionTile extends ConsumerWidget {
                       Text(
                         transaction.note!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -242,7 +241,7 @@ class TransactionTile extends ConsumerWidget {
                     Text(
                       DateFormat('HH:mm').format(occurred) + refundFromSuffix,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -256,7 +255,7 @@ class TransactionTile extends ConsumerWidget {
                   child: LineGlyph(
                     Icons.attach_file,
                     size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               // 右侧：金额 + 已报 + 账户名 + 排除标注（自上而下）。
@@ -328,7 +327,7 @@ class TransactionTile extends ConsumerWidget {
                         accountLabel,
                         style: TextStyle(
                           fontSize: 11,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -416,7 +415,7 @@ class _RebDoneBadge extends StatelessWidget {
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.onPrimary,
+            color: context.forest.onPrimary,
           ),
         ),
       );
@@ -451,9 +450,9 @@ class _DiscountedAmount extends StatelessWidget {
               '-${Money.fromMinor(originalMinor).format()}',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
                 decoration: TextDecoration.lineThrough,
-                decorationColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                decorationColor: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 4),
@@ -462,11 +461,11 @@ class _DiscountedAmount extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 color: strikeActual
-                    ? Theme.of(context).colorScheme.onSurfaceVariant
+                    ? context.forest.onSurfaceVariant
                     : AppPalette.expense,
                 fontWeight: FontWeight.w600,
                 decoration: strikeActual ? TextDecoration.lineThrough : null,
-                decorationColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                decorationColor: context.forest.onSurfaceVariant,
               ),
             ),
           ],
@@ -507,7 +506,7 @@ class DateSectionHeader extends StatelessWidget {
       child: Text(
         DateFormat('yyyy年M月d日').format(date),
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
       ),

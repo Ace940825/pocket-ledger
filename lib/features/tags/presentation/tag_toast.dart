@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../theme/app_colors.dart';
 
@@ -52,7 +51,7 @@ void showTagToast(
                 softWrap: false,
                 overflow: TextOverflow.fade,
                 style: TextStyle(
-                  color: context.colors.surfaceContainerLow,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   height: 1.2,

@@ -6,7 +6,6 @@ import 'package:pocket_ledger/shared/widgets/confirm_dialog.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/errors/failures.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
@@ -208,7 +207,7 @@ class _AccountLedgerPageState extends ConsumerState<AccountLedgerPage> {
                 child: Text(
                   '$_selectedYear年暂无流水',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                 ),
               ),
@@ -787,7 +786,7 @@ class _AccountCardHeader extends ConsumerWidget {
                       size: 18,
                       color: Color.lerp(
                         AppPalette.primary,
-                        Theme.of(context).colorScheme.onSurface,
+                        context.forest.onSurface,
                         0.22,
                       )!,
                     ),
@@ -803,7 +802,7 @@ class _AccountCardHeader extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -811,7 +810,7 @@ class _AccountCardHeader extends ConsumerWidget {
                           account.type.label,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -834,7 +833,7 @@ class _AccountCardHeader extends ConsumerWidget {
                         '编辑',
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -859,7 +858,7 @@ class _AccountCardHeader extends ConsumerWidget {
                     _ => isDebt ? '当前欠款' : '当前余额',
                   },
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: AppDimens.xs),
@@ -876,7 +875,7 @@ class _AccountCardHeader extends ConsumerWidget {
                     '现金 ${Money.fromMinor(account.balanceMinor).format()} · '
                     '市值 ${Money.fromMinor(market).format()}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -897,7 +896,7 @@ class _CrossYearNoticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
+
     return Container(
       margin: const EdgeInsets.only(
         left: AppDimens.lg,
@@ -909,7 +908,7 @@ class _CrossYearNoticeCard extends StatelessWidget {
         vertical: AppDimens.xs,
       ),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        color: context.forest.surfaceContainerHighest.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
       child: Row(
@@ -918,7 +917,7 @@ class _CrossYearNoticeCard extends StatelessWidget {
           LineGlyph(
             Icons.info_outline,
             size: 14,
-            color: scheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
           const SizedBox(width: AppDimens.xs),
           Expanded(
@@ -926,7 +925,7 @@ class _CrossYearNoticeCard extends StatelessWidget {
               '信用卡、花呗等会出现跨年的账单，当月账单下月才会出账单，'
               '如2022年出现2021年12月份账单。',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
                 height: 1.3,
               ),
             ),
@@ -975,14 +974,14 @@ class _YearSelectorRow extends StatelessWidget {
                     '$year年',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                   ),
                   const SizedBox(width: 4),
                   LineGlyph(
                     Icons.keyboard_arrow_down,
                     size: 20,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -1152,7 +1151,7 @@ class _DayHeader extends StatelessWidget {
       child: Text(
         accountLedgerDateLabel(dateAt),
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
       ),
     );
@@ -1189,7 +1188,7 @@ class _MonthSummary extends StatelessWidget {
       child: Text(
         text,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       ),
     );

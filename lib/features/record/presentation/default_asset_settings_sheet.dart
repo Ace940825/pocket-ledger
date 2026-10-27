@@ -16,9 +16,7 @@ import 'package:pocket_ledger/shared/widgets/line_icons.dart';
 import 'package:pocket_ledger/shared/widgets/round_close_button.dart';
 import 'package:pocket_ledger/shared/widgets/settings_tile.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../routing/app_router.dart';
 import '../../../shared/widgets/line_icon_map.dart';
@@ -63,7 +61,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                   size: 30 * s,
                   iconSize: 16,
                   onTap: () => Navigator.pop(context),
-                  backgroundColor: context.colors.surfaceContainerHighest,
+                  backgroundColor: context.forest.surfaceContainerHighest,
                 ),
                 Expanded(
                   child: Center(
@@ -73,7 +71,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                         fontSize: 16 * s,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.02,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                   ),
@@ -109,7 +107,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
           ),
           // 行卡片容器
           HairlineCard(
-            backgroundColor: context.colors.surface,
+            backgroundColor: context.forest.surface,
             borderColor: AppPalette.sage900.withValues(alpha: 0.071),
             radius: 16 * s,
             padding: EdgeInsets.zero,
@@ -127,13 +125,13 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                   labelStyle: TextStyle(
                     fontSize: 14 * s,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                   sub: '没有选择资产会弹出提示',
                   subStyle: TextStyle(
                     fontSize: 11 * s,
                     height: 1.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   trailing: Switch(
                     value: settings.promptWhenNoAsset,
@@ -155,7 +153,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                   labelStyle: TextStyle(
                     fontSize: 14 * s,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                   badge: '仅新增',
                   badgeColor: ForestGreen.soft,
@@ -166,7 +164,7 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                   subStyle: TextStyle(
                     fontSize: 11 * s,
                     height: 1.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   trailing: Switch(
                     value: settings.balanceInsufficientCheck,
@@ -188,13 +186,13 @@ class DefaultAssetSettingsSheet extends ConsumerWidget {
                   labelStyle: TextStyle(
                     fontSize: 14 * s,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                   sub: '记账页面默认选择的资产账户',
                   subStyle: TextStyle(
                     fontSize: 11 * s,
                     height: 1.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   trailing: _ValuePill(
                     s: s,

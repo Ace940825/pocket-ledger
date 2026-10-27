@@ -107,6 +107,59 @@ class BillRow {
   final String? placeName;
   final double? latitude;
   final double? longitude;
+
+  /// 复制并修改部分字段。
+  BillRow copyWith({
+    DateTime? occurredAt,
+    TxnType? type,
+    int? amountMinor,
+    String? accountName,
+    String? toAccountName,
+    SourceModule? module,
+    String? categoryName,
+    String? subcategoryName,
+    int? discountMinor,
+    int? feeMinor,
+    List<String>? tags,
+    String? book,
+    bool? isReimbursable,
+    String? reimbursementAccount,
+    bool? excludeFromBudget,
+    bool? excludeFromStats,
+    String? counterparty,
+    String? note,
+    String? currency,
+    double? confidence,
+    String? placeName,
+    double? latitude,
+    double? longitude,
+  }) {
+    return BillRow(
+      occurredAt: occurredAt ?? this.occurredAt,
+      type: type ?? this.type,
+      amountMinor: amountMinor ?? this.amountMinor,
+      accountName: accountName ?? this.accountName,
+      toAccountName: toAccountName ?? this.toAccountName,
+      module: module ?? this.module,
+      categoryName: categoryName ?? this.categoryName,
+      subcategoryName: subcategoryName ?? this.subcategoryName,
+      discountMinor: discountMinor ?? this.discountMinor,
+      feeMinor: feeMinor ?? this.feeMinor,
+      tags: tags ?? this.tags,
+      book: book ?? this.book,
+      isReimbursable: isReimbursable ?? this.isReimbursable,
+      reimbursementAccount: reimbursementAccount ?? this.reimbursementAccount,
+      excludeFromBudget: excludeFromBudget ?? this.excludeFromBudget,
+      excludeFromStats: excludeFromStats ?? this.excludeFromStats,
+      counterparty: counterparty ?? this.counterparty,
+      note: note ?? this.note,
+      currency: currency ?? this.currency,
+      confidence: confidence ?? this.confidence,
+      placeName: placeName ?? this.placeName,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+    );
+  }
 }
 
 /// 低于该置信度的字段在确认页高亮提示用户复核。

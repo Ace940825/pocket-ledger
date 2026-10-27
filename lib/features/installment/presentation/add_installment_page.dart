@@ -298,7 +298,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               Text(
                 '购买商品时进行分期',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                   fontSize: 12,
                 ),
               ),
@@ -343,7 +343,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
             ),
           ],
@@ -385,7 +385,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
   }) {
     final OutlineInputBorder border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
+      borderSide: BorderSide(color: context.forest.outline),
     );
     // 当没有真实 prefixIcon 时，塞入一个透明占位，
     // 让普通输入框的内容区高度与带 ¥ 的输入框（prefixIcon 24×24）完全一致。
@@ -401,14 +401,14 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
       hintStyle: Theme.of(context)
           .textTheme
           .bodyMedium
-          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ?.copyWith(color: context.forest.onSurfaceVariant),
       prefixIcon: effectivePrefixIcon,
       prefixIconConstraints: BoxConstraints(
         minWidth: hasRealPrefix || useWidePlaceholder ? 44 : 0,
         minHeight: 24,
       ),
       filled: true,
-      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      fillColor: context.forest.surfaceContainerHighest,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppDimens.md,
         vertical: AppDimens.xs / 2,
@@ -541,7 +541,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           LineGlyph(
             Icons.access_time_outlined,
             size: 18,
-            color: Theme.of(context).colorScheme.primary,
+            color: context.forest.primary,
           ),
           const SizedBox(width: AppDimens.sm),
           Text(label, style: Theme.of(context).textTheme.bodyMedium),
@@ -549,7 +549,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           Text(
             DateFormat('yyyy年M月d日').format(value),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
           ),
         ],
@@ -572,7 +572,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           LineGlyph(
             icon,
             size: 18,
-            color: Theme.of(context).colorScheme.primary,
+            color: context.forest.primary,
           ),
           const SizedBox(width: AppDimens.sm),
           Expanded(
@@ -585,7 +585,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -597,7 +597,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
           Text(
             value,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
           ),
         ],
@@ -748,7 +748,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               LineGlyph(
                 Icons.credit_card_outlined,
                 size: 18,
-                color: Theme.of(context).colorScheme.primary,
+                color: context.forest.primary,
               ),
               const SizedBox(width: AppDimens.sm),
               Expanded(
@@ -756,8 +756,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   selected?.name ?? '请选择负债账户',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: selected != null
-                            ? Theme.of(context).colorScheme.onSurface
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ? context.forest.onSurface
+                            : context.forest.onSurfaceVariant,
                       ),
                 ),
               ),
@@ -824,7 +824,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                 style: TextStyle(
                   color: Color.lerp(
                     AppPalette.sage500,
-                    Theme.of(context).colorScheme.onSurface,
+                    context.forest.onSurface,
                     0.22,
                   )!,
                   fontSize: 12,
@@ -843,7 +843,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   Text(
                     '默认账本',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                   ),
                 ],
@@ -871,7 +871,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
               LineGlyph(
                 Icons.category_outlined,
                 size: 18,
-                color: Theme.of(context).colorScheme.primary,
+                color: context.forest.primary,
               ),
               const SizedBox(width: AppDimens.sm),
               Expanded(
@@ -879,8 +879,8 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                   selected?.name ?? '分类',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: selected != null
-                            ? Theme.of(context).colorScheme.onSurface
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ? context.forest.onSurface
+                            : context.forest.onSurfaceVariant,
                       ),
                 ),
               ),
@@ -970,7 +970,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                             category.iconKey,
                             color: Color.lerp(
                               catColor,
-                              Theme.of(context).colorScheme.onSurface,
+                              context.forest.onSurface,
                               0.22,
                             )!,
                             size: 22,
@@ -1012,7 +1012,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                           category.iconKey,
                           color: Color.lerp(
                             catColor,
-                            Theme.of(context).colorScheme.onSurface,
+                            context.forest.onSurface,
                             0.22,
                           )!,
                           size: 22,
@@ -1071,7 +1071,7 @@ class _AddInstallmentPageState extends ConsumerState<AddInstallmentPage> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: context.forest.onPrimary,
                       ),
                     )
                   : const Text('保存'),
@@ -1301,7 +1301,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
         IconButton(
           icon: const LineGlyph(Icons.remove_circle_outline),
           onPressed: widget.value <= widget.min ? null : _decrease,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
         ),
@@ -1317,7 +1317,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     height: 1.0,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
               decoration: const InputDecoration(
                 isCollapsed: true,
@@ -1337,7 +1337,7 @@ class _InlineNumberStepperState extends State<_InlineNumberStepper> {
         IconButton(
           icon: const LineGlyph(Icons.add_circle_outline),
           onPressed: widget.value >= widget.max ? null : _increase,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
         ),

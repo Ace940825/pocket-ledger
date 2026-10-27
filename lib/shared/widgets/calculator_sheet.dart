@@ -214,14 +214,14 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
             child: FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: result == null
-                    ? Theme.of(context).colorScheme.outline
+                    ? context.forest.outline
                     : AppPalette.primary,
                 foregroundColor: result == null
-                    ? Theme.of(context).colorScheme.onSurfaceVariant
-                    : Theme.of(context).colorScheme.onPrimary,
-                disabledBackgroundColor: Theme.of(context).colorScheme.outline,
+                    ? context.forest.onSurfaceVariant
+                    : context.forest.onPrimary,
+                disabledBackgroundColor: context.forest.outline,
                 disabledForegroundColor:
-                    Theme.of(context).colorScheme.onSurfaceVariant,
+                    context.forest.onSurfaceVariant,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 ),
@@ -260,14 +260,14 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           Text(
             displayExpr,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppDimens.xs),
           Text(
             result == null ? '' : '= ${_formatCurrency(result)}',
             style: theme.textTheme.headlineSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -290,7 +290,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           decoration: InputDecoration(
             hintText: '总金额',
             hintStyle: theme.textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
             filled: true,
             fillColor: theme.colorScheme.surfaceContainerHighest,
@@ -314,7 +314,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
           decoration: InputDecoration(
             hintText: '人数',
             hintStyle: theme.textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
             filled: true,
             fillColor: theme.colorScheme.surfaceContainerHighest,
@@ -407,7 +407,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
             fontSize: 24,
             color: highlight
                 ? AppPalette.primary
-                : Theme.of(context).colorScheme.onSurface,
+                : context.forest.onSurface,
             fontWeight: FontWeight.w500,
             height: 1.0,
           ),
@@ -512,7 +512,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
     return InputDecoration(
       hintText: hint,
       hintStyle: theme.textTheme.bodyMedium?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        color: context.forest.onSurfaceVariant,
       ),
       filled: true,
       fillColor: theme.colorScheme.surfaceContainerHighest,
@@ -550,7 +550,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                   onPressed: () => Navigator.of(context).pop(),
                   icon: LineGlyph(
                     Icons.close,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   padding: EdgeInsets.zero,
                   constraints:
@@ -563,7 +563,7 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -584,14 +584,14 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                   LineGlyph(
                     Icons.info_outline,
                     size: 18,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                   const SizedBox(width: AppDimens.sm),
                   Expanded(
                     child: Text(
                       '如手续费和优惠都存在的情况，手续费-优惠=真正的手续费',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -631,14 +631,14 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                   Text(
                     '剩余手续费',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                   const Spacer(),
                   Text(
                     _remainingText.isEmpty ? '0.00' : _remainingText,
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -654,14 +654,14 @@ class _FeeCalculatorSheetState extends State<FeeCalculatorSheet> {
                 style: FilledButton.styleFrom(
                   backgroundColor: _isValid
                       ? AppPalette.primary
-                      : Theme.of(context).colorScheme.outline,
+                      : context.forest.outline,
                   foregroundColor: _isValid
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ? context.forest.onPrimary
+                      : context.forest.onSurfaceVariant,
                   disabledBackgroundColor:
-                      Theme.of(context).colorScheme.outline,
+                      context.forest.outline,
                   disabledForegroundColor:
-                      Theme.of(context).colorScheme.onSurfaceVariant,
+                      context.forest.onSurfaceVariant,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                   ),

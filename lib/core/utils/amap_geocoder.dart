@@ -1,9 +1,25 @@
 import 'package:dio/dio.dart';
 
 import '../../core/config/env.dart';
-import 'geo_utils.dart' show wgs84ToGcj02;
+import 'geo_utils.dart' show wgs84ToGcj02, gcj02ToWgs84;
 
 const String _kAmapRegeoBase = 'https://restapi.amap.com/v3/geocode/regeo';
+const String _kAmapPoiAroundBase = 'https://restapi.amap.com/v3/place/around';
+
+/// 附近 POI 结果。
+class AmapPoiItem {
+  const AmapPoiItem({
+    required this.name,
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final String name;
+  final String address;
+  final double latitude; // WGS-84
+  final double longitude; // WGS-84
+}
 
 /// 从 AMap 逆地理返回里安全读取「名称」字段。
 ///
@@ -48,10 +64,11 @@ Future<String?> amapReverseGeocode(
         .get<dynamic>(_kAmapRegeoBase, queryParameters: <String, dynamic>{
       'location': '$glng,$glat', // 高德要求 lng,lat 顺序
       'key': key,
-      'radius': 1000,
+      'radius': 200, // 从 1000m 缩小到 200m，提高定位精度
       'extensions': 'all',
       'roadlevel': 0,
-    });
+      'poitype': '050000|060000|070000', // 优先返回餐饮 / 购物 / 生活服务类 POI
+    },);
     final Map<String, dynamic> data = resp.data as Map<String, dynamic>;
     if (data['status'] != '1') return null; // 高德非成功态（如 key 无效 / 超限）
     final Map<String, dynamic> re = data['regeocode'] as Map<String, dynamic>;
@@ -64,11 +81,14 @@ Future<String?> amapReverseGeocode(
     final String township = (ac['township'] as String? ?? '').trim();
 
     final List<dynamic> pois = re['pois'] as List<dynamic>? ?? <dynamic>[];
+    // 优先返回最近的 POI（店名），而不是小区名
     final String poi =
         pois.isNotEmpty ? (pois.first['name'] as String? ?? '') : '';
 
-    final String poiName =
-        <String>[nb, bld, poi].where((String s) => s.isNotEmpty).join('·');
+    // 优先返回 POI（店名），如果没有 POI，再取小区名和楼栋名
+    final String poiName = poi.isNotEmpty
+        ? poi
+        : <String>[nb, bld].where((String s) => s.isNotEmpty).join('·');
     if (poiName.isEmpty) {
       // 连 POI 都没有：退回高德格式化地址兜底。
       final String? formatted = re['formatted_address'] as String?;
@@ -79,5 +99,68 @@ Future<String?> amapReverseGeocode(
   } catch (_) {
     // 网络异常 / 解析异常：交回平台原生逆地理，不影响坐标落库。
     return null;
+  }
+}
+
+/// 获取附近 POI 列表（餐饮 / 购物 / 生活服务类）。
+///
+/// 参数：
+/// - [latWgs] / [lngWgs]：库内 WGS-84 坐标。
+/// - [radius]：搜索半径（米），默认 500m。
+/// - [apiKey]：可选，覆盖 [Env.amapWebKey]。
+/// - [dio]：可选，便于测试注入 mock 客户端。
+///
+/// 返回附近 POI 列表；失败返回空列表。
+Future<List<AmapPoiItem>> amapSearchNearbyPois(
+  double latWgs,
+  double lngWgs, {
+  int radius = 500,
+  String? apiKey,
+  Dio? dio,
+}) async {
+  final String key = apiKey ?? Env.amapWebKey;
+  if (key.isEmpty) return const <AmapPoiItem>[];
+
+  // 高德收 GCJ-02：库内 WGS-84 先纠偏再请求。
+  final (double glat, double glng) = wgs84ToGcj02(latWgs, lngWgs);
+  final Dio client = dio ?? Dio();
+  try {
+    final Response<dynamic> resp = await client
+        .get<dynamic>(_kAmapPoiAroundBase, queryParameters: <String, dynamic>{
+      'location': '$glng,$glat', // 高德要求 lng,lat 顺序
+      'key': key,
+      'radius': radius,
+      'types': '050000|060000|070000', // 餐饮 / 购物 / 生活服务类
+      'offset': 20, // 最多返回 20 条
+      'page': 1,
+      'extensions': 'base',
+    },);
+    final Map<String, dynamic> data = resp.data as Map<String, dynamic>;
+    if (data['status'] != '1') return const <AmapPoiItem>[]; // 高德非成功态
+    final List<dynamic> pois = data['pois'] as List<dynamic>? ?? <dynamic>[];
+
+    return pois.map((dynamic poi) {
+      final Map<String, dynamic> poiMap = poi as Map<String, dynamic>;
+      final String name = poiMap['name'] as String? ?? '';
+      final String address = poiMap['address'] as String? ?? '';
+      final String location = poiMap['location'] as String? ?? '';
+      // 解析 GCJ-02 坐标，再转成 WGS-84
+      final List<String> parts = location.split(',');
+      double glat = 0;
+      double glng = 0;
+      if (parts.length == 2) {
+        glng = double.tryParse(parts[0]) ?? 0;
+        glat = double.tryParse(parts[1]) ?? 0;
+      }
+      final (double wlat, double wlng) = gcj02ToWgs84(glat, glng);
+      return AmapPoiItem(
+        name: name,
+        address: address,
+        latitude: wlat,
+        longitude: wlng,
+      );
+    }).toList();
+  } catch (_) {
+    return const <AmapPoiItem>[];
   }
 }

@@ -8,7 +8,6 @@ import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 
 import '../../../core/errors/failures.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../providers/app_providers.dart';
@@ -194,10 +193,10 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
   /// 报销底栏口径一致——单个深绿渐变胶囊「+ 记一笔投资」（图标 + 文案），
   /// 点开新建持仓表单（投资无「记一笔」Tab，仍走本页编辑器）。
   Widget _bottomBar(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return SafeArea(
       child: Container(
-        color: scheme.surface,
+        color: context.forest.surface,
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
         child: SizedBox(
           width: double.infinity,
@@ -217,7 +216,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
                   LineGlyph(
                     Icons.add,
                     size: 18,
-                    color: scheme.onPrimary,
+                    color: context.forest.onPrimary,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -225,7 +224,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: scheme.onPrimary,
+                      color: context.forest.onPrimary,
                     ),
                   ),
                 ],
@@ -288,7 +287,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? Theme.of(context).colorScheme.surface
+              ? context.forest.surface
               : Colors.transparent,
           borderRadius: BorderRadius.circular(9),
           boxShadow: selected
@@ -310,7 +309,7 @@ class _InvestmentPageState extends ConsumerState<InvestmentPage> {
             fontWeight: FontWeight.w600,
             color: selected
                 ? AppPalette.sage700
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),
@@ -349,7 +348,7 @@ class _PortfolioSummaryCard extends ConsumerWidget {
             Text(
               '总资产',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 4),
@@ -358,7 +357,7 @@ class _PortfolioSummaryCard extends ConsumerWidget {
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontSize: 30,
                 fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             const SizedBox(height: 12),
@@ -433,13 +432,13 @@ class _Metric extends StatelessWidget {
         Text(
           label,
           style: theme.textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ?.copyWith(color: context.forest.onSurfaceVariant),
         ),
         const SizedBox(height: 2),
         Text(
           value,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: color ?? Theme.of(context).colorScheme.onSurface,
+            color: color ?? context.forest.onSurface,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -517,7 +516,7 @@ class _HoldingCard extends ConsumerWidget {
       profitMinor = histRealized; // 总盈亏 = 历史清仓金额
       costLabel = '成本';
       badgeLabel = holding.quantityMicros == 0 ? '已清仓' : '历史清仓';
-      badgeColor = Theme.of(context).colorScheme.onSurfaceVariant;
+      badgeColor = context.forest.onSurfaceVariant;
     } else if (info != null &&
         info.open != null &&
         holding.quantityMicros > 0) {
@@ -552,7 +551,7 @@ class _HoldingCard extends ConsumerWidget {
         ? AppPalette.stock(true, dark: isDark)
         : profitMinor < 0
             ? AppPalette.stock(false, dark: isDark)
-            : Theme.of(context).colorScheme.onSurfaceVariant;
+            : context.forest.onSurfaceVariant;
 
     return HairlineCard(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -589,7 +588,7 @@ class _HoldingCard extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                             style: t.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                           ),
                         ),
@@ -598,7 +597,7 @@ class _HoldingCard extends ConsumerWidget {
                           holding.symbol,
                           style: t.bodySmall?.copyWith(
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -620,7 +619,7 @@ class _HoldingCard extends ConsumerWidget {
                           '累计投入',
                           style: t.bodySmall?.copyWith(
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -628,7 +627,7 @@ class _HoldingCard extends ConsumerWidget {
                           Money.fromMinor(histInvested).format(),
                           style: t.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                       ],
@@ -641,7 +640,7 @@ class _HoldingCard extends ConsumerWidget {
                           '总盈亏',
                           style: t.bodySmall?.copyWith(
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -731,7 +730,7 @@ class _HoldingCard extends ConsumerWidget {
                     '现价 ${Money.fromMinor(holding.currentPriceMinor).format()}',
                   ].join(' · '),
                   style: t.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -745,7 +744,7 @@ class _HoldingCard extends ConsumerWidget {
                           '持仓市值',
                           style: t.bodySmall?.copyWith(
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -753,7 +752,7 @@ class _HoldingCard extends ConsumerWidget {
                           Money.fromMinor(marketMinor).format(),
                           style: t.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                       ],
@@ -766,7 +765,7 @@ class _HoldingCard extends ConsumerWidget {
                           '总盈亏',
                           style: t.bodySmall?.copyWith(
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -821,7 +820,7 @@ class _HoldingCard extends ConsumerWidget {
         Text(
           label,
           style: t.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 2),
@@ -829,7 +828,7 @@ class _HoldingCard extends ConsumerWidget {
           value,
           style: t.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
-            color: color ?? Theme.of(context).colorScheme.onSurface,
+            color: color ?? context.forest.onSurface,
           ),
         ),
       ],
@@ -954,7 +953,7 @@ Future<void> showHoldingEditor(
                   const Spacer(),
                   IconButton(
                     icon: const LineGlyph(Icons.close, size: 22),
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                     onPressed: () => Navigator.of(context).pop(false),
                   ),
                 ],
@@ -964,7 +963,7 @@ Future<void> showHoldingEditor(
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
               const SizedBox(height: 12),

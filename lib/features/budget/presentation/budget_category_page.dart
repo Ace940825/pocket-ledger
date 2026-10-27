@@ -565,7 +565,6 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     final String dirLabel = _isExpense ? '支出' : '收入';
 
     final String bookId = widget.bookId ?? ref.watch(currentBookIdProvider);
@@ -680,7 +679,7 @@ class _BudgetCategoryPageState extends ConsumerState<BudgetCategoryPage> {
                                 : (_isExpense ? '$_month月预算' : '$_month月收入目标'),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: scheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                           ),
                         ),
@@ -958,14 +957,14 @@ class _OverviewCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       rangeLabel,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -981,7 +980,7 @@ class _OverviewCard extends StatelessWidget {
                   child: LineGlyph(
                     Icons.more_horiz,
                     size: 22,
-                    color: scheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -999,7 +998,7 @@ class _OverviewCard extends StatelessWidget {
                     Text(
                       remainLabel,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -1019,7 +1018,7 @@ class _OverviewCard extends StatelessWidget {
                                       : Money.fromMinor(remaining).format()),
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
-                                color: scheme.onSurface,
+                                color: context.forest.onSurface,
                               ),
                             ),
                           ),
@@ -1033,7 +1032,7 @@ class _OverviewCard extends StatelessWidget {
                             child: LineGlyph(
                               Icons.edit_outlined,
                               size: 18,
-                              color: scheme.onSurfaceVariant,
+                              color: context.forest.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -1055,7 +1054,7 @@ class _OverviewCard extends StatelessWidget {
                       strokeWidth: 7,
                       strokeCap: StrokeCap.round,
                       color: AppPalette.sageMeadow,
-                      backgroundColor: scheme.surfaceContainerHighest,
+                      backgroundColor: context.forest.surfaceContainerHighest,
                     ),
                     Text(
                       ringLabel,
@@ -1063,7 +1062,7 @@ class _OverviewCard extends StatelessWidget {
                       style: theme.textTheme.labelSmall?.copyWith(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                   ],
@@ -1106,7 +1105,6 @@ class _OverviewCard extends StatelessWidget {
 
   Widget _statCol(BuildContext context, String label, String value) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1116,7 +1114,7 @@ class _OverviewCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 4),
@@ -1126,7 +1124,7 @@ class _OverviewCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,
-              color: scheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
         ],
@@ -1141,7 +1139,6 @@ class _OverviewCard extends StatelessWidget {
     String value,
   ) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -1156,7 +1153,7 @@ class _OverviewCard extends StatelessWidget {
             child: Text(
               label,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ),
@@ -1164,7 +1161,7 @@ class _OverviewCard extends StatelessWidget {
             value,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,
-              color: scheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
         ],
@@ -1185,7 +1182,7 @@ class _OverviewCard extends StatelessWidget {
                   width: w,
                   height: 1,
                   margin: EdgeInsets.only(right: i == n - 1 ? 0 : gap),
-                  color: scheme.outline,
+                  color: ctx.forest.outline,
                 ),
             ],
           );
@@ -1307,7 +1304,6 @@ class _CategoryBudgetsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
 
     return HairlineCard(
       margin: EdgeInsets.zero,
@@ -1331,7 +1327,7 @@ class _CategoryBudgetsCard extends StatelessWidget {
                   isIncome ? '分类目标' : '分类预算',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: scheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ),
@@ -1351,7 +1347,7 @@ class _CategoryBudgetsCard extends StatelessWidget {
                     '添加',
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: scheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -1426,13 +1422,13 @@ class _CategoryBudgetsCard extends StatelessWidget {
                               LineGlyph(
                                 Icons.add_circle_outline,
                                 size: 16,
-                                color: scheme.onSurfaceVariant,
+                                color: context.forest.onSurfaceVariant,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 isIncome ? '添加二级目标' : '添加二级预算',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
+                                  color: context.forest.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -1492,7 +1488,6 @@ class _CategoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     final Color tint = category.colorValue != null
         ? Color(category.colorValue!)
         : AppPalette.primary;
@@ -1549,7 +1544,7 @@ class _CategoryRow extends StatelessWidget {
                 child: LineIcon(
                   categoryLineKind(category.iconKey) ?? LineIconKind.star,
                   size: indent ? 18 : 20,
-                  color: Color.lerp(tint, scheme.onSurface, 0.22),
+                  color: Color.lerp(tint, context.forest.onSurface, 0.22),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1565,7 +1560,7 @@ class _CategoryRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: scheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1575,7 +1570,7 @@ class _CategoryRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -1593,7 +1588,7 @@ class _CategoryRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1607,7 +1602,7 @@ class _CategoryRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1617,7 +1612,7 @@ class _CategoryRow extends StatelessWidget {
                         value: progress,
                         minHeight: 4,
                         color: AppPalette.sageMeadow,
-                        backgroundColor: scheme.surfaceContainerHighest,
+                        backgroundColor: context.forest.surfaceContainerHighest,
                       ),
                     ),
                   ],
@@ -1635,7 +1630,7 @@ class _CategoryRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1645,14 +1640,14 @@ class _CategoryRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '$count笔',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -1685,8 +1680,7 @@ class _MenuRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
-    final Color tint = danger ? scheme.error : AppPalette.primary;
+    final Color tint = danger ? context.forest.error : AppPalette.primary;
     return InkWell(
       borderRadius: BorderRadius.circular(AppDimens.sm),
       onTap: onTap,
@@ -1705,14 +1699,14 @@ class _MenuRow extends StatelessWidget {
                 label,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ),
             LineGlyph(
               Icons.chevron_right,
               size: 18,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),

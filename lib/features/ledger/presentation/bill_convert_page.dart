@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/database/app_database.dart';
 import 'package:pocket_ledger/domain/enums.dart';
 import 'package:pocket_ledger/features/accounts/providers/accounts_providers.dart';
@@ -21,7 +20,6 @@ import 'package:pocket_ledger/shared/widgets/line_icons.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
 import 'package:pocket_ledger/shared/widgets/tag_pill.dart';
 import 'package:pocket_ledger/theme/app_colors.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 /// 「批量转换」页（我的 → 账单管理 → 批量转换）。
 ///
@@ -176,7 +174,7 @@ class _BillConvertPageState extends ConsumerState<BillConvertPage> {
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           Positioned(
@@ -187,7 +185,7 @@ class _BillConvertPageState extends ConsumerState<BillConvertPage> {
               icon: LineGlyph(
                 Icons.arrow_back_ios_new,
                 size: 19,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
               onPressed: () => Navigator.of(context).maybePop(),
             ),
@@ -216,13 +214,13 @@ class _BillConvertPageState extends ConsumerState<BillConvertPage> {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   LineGlyph(
                     Icons.keyboard_arrow_down_rounded,
                     size: 20,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -241,7 +239,7 @@ class _BillConvertPageState extends ConsumerState<BillConvertPage> {
                   fontWeight: FontWeight.w600,
                   color: n > 0
                       ? ForestGreen.deep
-                      : Theme.of(context).colorScheme.onSurface,
+                      : context.forest.onSurface,
                 ),
               ),
             ),
@@ -340,7 +338,7 @@ class _BillConvertPageState extends ConsumerState<BillConvertPage> {
             '共 $count 笔账单',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const Spacer(),
@@ -365,7 +363,7 @@ class _BillConvertPageState extends ConsumerState<BillConvertPage> {
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: count == 0
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      ? context.forest.onSurfaceVariant
                       : ForestGreen.deep,
                 ),
               ),
@@ -666,7 +664,7 @@ class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
             '已选中 ${widget.count} 笔，选择要改写的项（可多选）',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 12),
@@ -712,7 +710,7 @@ class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
                       decoration: InputDecoration(
                         hintText: '用逗号或空格分隔，如：餐饮, 出差',
                         filled: true,
-                        fillColor: context.colors.surfaceContainerHighest,
+                        fillColor: context.forest.surfaceContainerHighest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -738,7 +736,7 @@ class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
                       decoration: InputDecoration(
                         hintText: '填写备注内容（将覆盖原备注）',
                         filled: true,
-                        fillColor: context.colors.surfaceContainerHighest,
+                        fillColor: context.forest.surfaceContainerHighest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -823,7 +821,7 @@ class _SwitchRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ),
@@ -859,7 +857,7 @@ class _PickerRow extends StatelessWidget {
         height: 44,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: context.colors.surfaceContainerHighest,
+          color: context.forest.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -871,8 +869,8 @@ class _PickerRow extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: selected
-                      ? Theme.of(context).colorScheme.onSurface
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ? context.forest.onSurface
+                      : context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -884,7 +882,7 @@ class _PickerRow extends StatelessWidget {
                   child: LineGlyph(
                     Icons.close,
                     size: 18,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               )
@@ -892,7 +890,7 @@ class _PickerRow extends StatelessWidget {
               LineGlyph(
                 Icons.chevron_right,
                 size: 20,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
           ],
         ),
@@ -1023,7 +1021,7 @@ class _CategoryPickSheet extends StatelessWidget {
         child: Center(child: Text(emptyText)),
       );
     }
-    final ColorScheme cs = Theme.of(context).colorScheme;
+
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.45,
@@ -1059,7 +1057,7 @@ class _CategoryPickSheet extends StatelessWidget {
                       size: 22,
                       // 与记一笔主网格未选中态同口径：向暖墨色收敛 22%，
                       // 避免线稿在渐变高光上被冲淡。
-                      color: Color.lerp(tint, cs.onSurface, 0.22)!,
+                      color: Color.lerp(tint, context.forest.onSurface, 0.22)!,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1075,7 +1073,7 @@ class _CategoryPickSheet extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: cs.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                         if (row.subtitle != null)
@@ -1085,7 +1083,7 @@ class _CategoryPickSheet extends StatelessWidget {
                               row.subtitle!,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: cs.onSurfaceVariant,
+                                color: context.forest.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -1096,7 +1094,7 @@ class _CategoryPickSheet extends StatelessWidget {
                     LineGlyph(
                       Icons.chevron_right,
                       size: 20,
-                      color: cs.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     )
                   else if (selected)
                     const LineGlyph(
@@ -1120,7 +1118,7 @@ class _CategoryPickSheet extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: cs.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -1186,7 +1184,7 @@ class _TipCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ],
@@ -1205,7 +1203,7 @@ class _TipCard extends StatelessWidget {
                 LineGlyph(
                   Icons.info_outline,
                   size: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
@@ -1217,7 +1215,7 @@ class _TipCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       height: 1.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -1301,7 +1299,7 @@ class _ConvertTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                           ),
                         ),
@@ -1316,7 +1314,7 @@ class _ConvertTile extends StatelessWidget {
                       dateLabel,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1324,7 +1322,7 @@ class _ConvertTile extends StatelessWidget {
                       DateFormat('HH:mm').format(occurred),
                       style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -1374,7 +1372,7 @@ class _ConvertTile extends StatelessWidget {
           size: 22,
           color: Color.lerp(
             tint,
-            Theme.of(context).colorScheme.onSurface,
+            context.forest.onSurface,
             0.22,
           )!,
         ),
@@ -1400,10 +1398,10 @@ class _ConvertTile extends StatelessWidget {
                 '−${Money.fromMinor(txn.amountMinor).format()}',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                   decoration: TextDecoration.lineThrough,
                   decorationColor:
-                      Theme.of(context).colorScheme.onSurfaceVariant,
+                      context.forest.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 4),
@@ -1433,7 +1431,7 @@ class _ConvertTile extends StatelessWidget {
                   ? AppPalette.income
                   : txn.type == TxnType.expense
                       ? AppPalette.expense
-                      : Theme.of(context).colorScheme.onSurface,
+                      : context.forest.onSurface,
             ),
           ),
         if (hasDiscount)

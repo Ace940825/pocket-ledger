@@ -12,14 +12,14 @@ import '../../../shared/widgets/amount_keypad.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/day_pick_sheet.dart';
 import '../../../shared/widgets/line_icon_map.dart';
-import '../data/repay_date.dart';
-import 'widgets/repay_date_picker_sheet.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../data/account_icon.dart';
 import '../data/bank_data.dart';
+import '../data/repay_date.dart';
 import '../providers/accounts_providers.dart';
 import 'bank_select_page.dart';
+import 'widgets/repay_date_picker_sheet.dart';
 
 /// 账户表单页。
 ///
@@ -324,7 +324,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               LineGlyph(
                 Icons.info_outline,
                 size: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
               const SizedBox(width: AppDimens.sm),
               Expanded(
@@ -332,7 +332,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                   '当前欠款 和 信用额度 输入一个即可自动识别计算',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -504,7 +504,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                 '将创建一笔调整资产的账单方便查看变动记录。',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ),
@@ -531,7 +531,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                     '资产状态',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ),
@@ -580,7 +580,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
               onPressed: _saving ? null : _save,
               style: FilledButton.styleFrom(
                 backgroundColor: primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                foregroundColor: context.forest.onPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                 ),
@@ -591,7 +591,7 @@ class _AccountFormPageState extends ConsumerState<AccountFormPage> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: context.forest.onPrimary,
                       ),
                     )
                   : const Text('保存'),
@@ -706,14 +706,14 @@ class _BankHeader extends StatelessWidget {
                   name,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: bankName == null
-                            ? Theme.of(context).colorScheme.onSurfaceVariant
-                            : Theme.of(context).colorScheme.onSurface,
+                            ? context.forest.onSurfaceVariant
+                            : context.forest.onSurface,
                       ),
                 ),
               ),
               LineGlyph(
                 Icons.chevron_right,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ],
           ),
@@ -799,7 +799,7 @@ class _ReadOnlyField extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
           ),
           const SizedBox(height: AppDimens.sm),
@@ -807,7 +807,7 @@ class _ReadOnlyField extends StatelessWidget {
             value.isEmpty ? placeholder : value,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: value.isEmpty
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      ? context.forest.onSurfaceVariant
                       : null,
                 ),
           ),
@@ -843,7 +843,7 @@ class _DayPickerField extends StatelessWidget {
                   Text(
                     label,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                   ),
                   const SizedBox(height: AppDimens.sm),
@@ -856,7 +856,7 @@ class _DayPickerField extends StatelessWidget {
             ),
             LineGlyph(
               Icons.chevron_right,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ],
         ),
@@ -880,7 +880,7 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color color = selected
         ? AppPalette.primary
-        : Theme.of(context).colorScheme.onSurfaceVariant;
+        : context.forest.onSurfaceVariant;
     return Material(
       color: selected
           ? AppPalette.primary.withValues(alpha: 0.12)

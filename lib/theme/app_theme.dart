@@ -4,7 +4,7 @@
 // 用法：
 //   MaterialApp(theme: AppThemeData.light, darkTheme: AppThemeData.dark)
 //   取非 Material 令牌：context.app.sageGradient / context.app.shadowSm
-//   取 Material 语义色：context.colors.primary
+//   取 Material 语义色：context.forest.primary
 
 import 'package:flutter/material.dart';
 
@@ -191,7 +191,6 @@ class AppTheme extends ThemeExtension<AppTheme> {
 /// BuildContext 取用捷径
 extension AppThemeX on BuildContext {
   AppTheme get app => Theme.of(this).extension<AppTheme>()!;
-  ColorScheme get colors => Theme.of(this).colorScheme;
   TextTheme get text => Theme.of(this).textTheme;
 }
 

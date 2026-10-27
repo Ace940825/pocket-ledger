@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 import 'package:pocket_ledger/shared/widgets/text_input_dialog.dart';
-
 import 'package:pocket_ledger/theme/app_dimens.dart';
+
 import '../../../shared/widgets/line_icon_map.dart';
 import '../data/bank_data.dart';
 import 'widgets/bank_alphabet_index.dart';
@@ -129,7 +130,7 @@ class _BankSelectPageState extends State<BankSelectPage> {
                       prefixIcon: const LineGlyph(Icons.search),
                       filled: true,
                       fillColor:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                          context.forest.surfaceContainerHighest,
                       border: OutlineInputBorder(
                         borderRadius:
                             BorderRadius.circular(AppDimens.radiusCard),
@@ -162,7 +163,7 @@ class _BankSelectPageState extends State<BankSelectPage> {
                         entry.key,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                       ),
                     ),

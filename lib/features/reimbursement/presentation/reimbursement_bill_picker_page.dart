@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/bottom_action_bar.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -87,14 +85,14 @@ class _ReimbursementBillPickerPageState
     }
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.forest.surface,
       appBar: AppBar(
-        backgroundColor: context.colors.surface,
+        backgroundColor: context.forest.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme:
-            IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+            IconThemeData(color: context.forest.onSurface),
         title: const Text('选择账单'),
         leading: IconButton(
           icon: const LineGlyph(Icons.arrow_back_ios_new, size: 20),
@@ -245,7 +243,7 @@ class _ReimbursementBillPickerPageState
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 6),
@@ -253,7 +251,7 @@ class _ReimbursementBillPickerPageState
               '$count 笔',
               style: TextStyle(
                 fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ],
@@ -289,9 +287,9 @@ class _ReimbursementBillPickerPageState
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
-          color: context.colors.surface,
+          color: context.forest.surface,
           border: Border(
-            bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
+            bottom: BorderSide(color: context.forest.outline),
           ),
         ),
         child: Row(
@@ -321,7 +319,7 @@ class _ReimbursementBillPickerPageState
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                       ),
@@ -352,7 +350,7 @@ class _ReimbursementBillPickerPageState
                     DateFormat('y年M月d日').format(occurred),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 1),
@@ -360,7 +358,7 @@ class _ReimbursementBillPickerPageState
                     DateFormat('HH:mm').format(occurred),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -375,7 +373,7 @@ class _ReimbursementBillPickerPageState
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
                 if (received > 0) ...<Widget>[
@@ -427,7 +425,7 @@ class _ReimbursementBillPickerPageState
             ? LineGlyph(
                 Icons.check,
                 size: 13,
-                color: Theme.of(context).colorScheme.onPrimary,
+                color: context.forest.onPrimary,
               )
             : null,
       );
@@ -457,7 +455,7 @@ class _ReimbursementBillPickerPageState
                 Navigator.of(context).pop(Set<String>.from(_selected)),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.transparent,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              foregroundColor: context.forest.onPrimary,
               shadowColor: Colors.transparent,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(999),

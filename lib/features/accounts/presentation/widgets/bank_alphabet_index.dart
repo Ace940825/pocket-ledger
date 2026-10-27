@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 /// 银行列表右侧字母索引条（↑ / ★ / A~Z）。
 ///
@@ -40,7 +41,7 @@ class BankAlphabetIndex extends StatelessWidget {
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   color: enabled
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      ? context.forest.onSurfaceVariant
                       : Theme.of(context)
                           .colorScheme
                           .onSurfaceVariant

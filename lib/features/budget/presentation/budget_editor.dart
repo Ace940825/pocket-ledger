@@ -153,7 +153,7 @@ Future<void> showBudgetEditor(
                               selected ? FontWeight.w700 : FontWeight.w400,
                           color: selected
                               ? AppPalette.primary
-                              : Theme.of(context).colorScheme.onSurface,
+                              : context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -230,14 +230,14 @@ Future<void> showBudgetEditor(
                               '选择分类',
                           style: TextStyle(
                             fontSize: 15,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: context.forest.onSurface,
                           ),
                         ),
                       ),
                       LineGlyph(
                         Icons.expand_more,
                         size: 20,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ],
                   ),

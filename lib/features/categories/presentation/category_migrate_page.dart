@@ -197,7 +197,7 @@ class _MigrateParentTile extends StatelessWidget {
                           parent.iconKey,
                           color: Color.lerp(
                             color,
-                            Theme.of(context).colorScheme.onSurface,
+                            context.forest.onSurface,
                             0.22,
                           )!,
                           size: 22,
@@ -280,7 +280,7 @@ class _MigrateChildTile extends StatelessWidget {
                 category.iconKey,
                 color: Color.lerp(
                   color,
-                  Theme.of(context).colorScheme.onSurface,
+                  context.forest.onSurface,
                   0.22,
                 )!,
                 size: 22,

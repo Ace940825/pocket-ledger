@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 /// 小徽标 / 标签胶囊（全应用统一）。
 ///
@@ -39,7 +40,7 @@ class BadgePill extends StatelessWidget {
         style: TextStyle(
           fontSize: 10 * scale,
           fontWeight: FontWeight.w700,
-          color: textColor ?? Theme.of(context).colorScheme.onPrimary,
+          color: textColor ?? context.forest.onPrimary,
         ),
       ),
     );

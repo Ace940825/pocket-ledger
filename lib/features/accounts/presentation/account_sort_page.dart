@@ -298,7 +298,7 @@ class _AccountRow extends StatelessWidget {
                 size: 20,
                 color: Color.lerp(
                   accent,
-                  Theme.of(context).colorScheme.onSurface,
+                  context.forest.onSurface,
                   0.22,
                 )!,
               ),
@@ -317,7 +317,7 @@ class _AccountRow extends StatelessWidget {
               // 零展示余额弱化为弱文字；负债（信用卡/借入）强制支出红，
               // 避免被 MoneyText 自动正负着色渲染成收入绿；其余按正负自动。
               color: display == 0
-                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  ? context.forest.onSurfaceVariant
                   : isDebt
                       ? AppPalette.expense
                       : null,

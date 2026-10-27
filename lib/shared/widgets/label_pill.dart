@@ -25,7 +25,7 @@ class LabelPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     final double height = dense ? 36 : 46;
     final double radius = dense ? 20 : 24;
     final double fontSize = dense ? 13 : 14;
@@ -42,13 +42,13 @@ class LabelPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (icon != null) ...<Widget>[
-            LineGlyph(icon, size: 14, color: scheme.onSurfaceVariant),
+            LineGlyph(icon, size: 14, color: context.forest.onSurfaceVariant),
             const SizedBox(width: 4),
           ],
           Text(
             label,
             style:
-                TextStyle(fontSize: fontSize, color: scheme.onSurfaceVariant),
+                TextStyle(fontSize: fontSize, color: context.forest.onSurfaceVariant),
           ),
         ],
       ),

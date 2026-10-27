@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
@@ -80,7 +79,7 @@ class _BillListPageState extends ConsumerState<BillListPage> {
                   child: LineGlyph(
                     Icons.close,
                     size: 20,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -195,7 +194,7 @@ class _BillListPageState extends ConsumerState<BillListPage> {
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           ),
           const Spacer(),
@@ -257,7 +256,7 @@ class _TipBanner extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ],
@@ -269,7 +268,7 @@ class _TipBanner extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               height: 1.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],
@@ -322,7 +321,7 @@ class _SortSheet extends StatelessWidget {
                         child: LineGlyph(
                           Icons.close,
                           size: 18,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -334,7 +333,7 @@ class _SortSheet extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                   ),
@@ -363,14 +362,14 @@ class _SortSheet extends StatelessWidget {
                               : FontWeight.w400,
                           color: _options[i] == current
                               ? ForestGreen.deep
-                              : Theme.of(context).colorScheme.onSurface,
+                              : context.forest.onSurface,
                         ),
                       ),
                       const Spacer(),
                       LineGlyph(
                         Icons.chevron_right,
                         size: 22,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ],
                   ),
@@ -453,7 +452,7 @@ class _BillTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                           ),
                         ),
@@ -468,7 +467,7 @@ class _BillTile extends StatelessWidget {
                       dateLabel,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -476,7 +475,7 @@ class _BillTile extends StatelessWidget {
                       DateFormat('HH:mm').format(occurred),
                       style: TextStyle(
                         fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -512,7 +511,7 @@ class _BillTile extends StatelessWidget {
           size: 22,
           color: Color.lerp(
             tint,
-            Theme.of(context).colorScheme.onSurface,
+            context.forest.onSurface,
             0.22,
           )!,
         ),
@@ -542,10 +541,10 @@ class _BillTile extends StatelessWidget {
                 '−${Money.fromMinor(txn.amountMinor).format()}',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                   decoration: TextDecoration.lineThrough,
                   decorationColor:
-                      Theme.of(context).colorScheme.onSurfaceVariant,
+                      context.forest.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 4),
@@ -565,7 +564,7 @@ class _BillTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: context.forest.onSurface,
             ),
           )
         else
@@ -604,7 +603,7 @@ class _BillTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:pocket_ledger/database/app_database.dart';
 import 'package:pocket_ledger/features/accounts/data/repay_date.dart';
 import 'package:pocket_ledger/shared/widgets/line_icon_map.dart';
 import 'package:pocket_ledger/shared/widgets/sheet_scaffold.dart';
@@ -116,7 +115,7 @@ class _RepayDatePickerSheetState extends State<_RepayDatePickerSheet> {
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: TextButton.styleFrom(
-                  foregroundColor: scheme.onSurfaceVariant,
+                  foregroundColor: context.forest.onSurfaceVariant,
                   textStyle: const TextStyle(fontSize: 15),
                 ),
                 child: const Text('取消'),
@@ -174,7 +173,7 @@ class _RepayDatePickerSheetState extends State<_RepayDatePickerSheet> {
             '每月固定还款日',
             style: TextStyle(
               fontSize: 13,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -210,7 +209,7 @@ class _RepayDatePickerSheetState extends State<_RepayDatePickerSheet> {
             '账单日后 N 天还款（即免息期）',
             style: TextStyle(
               fontSize: 13,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ),
@@ -253,7 +252,7 @@ class _RepayDatePickerSheetState extends State<_RepayDatePickerSheet> {
           width: double.infinity,
           padding: const EdgeInsets.all(AppDimens.md),
           decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest,
+            color: context.forest.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           ),
           child: preview == null
@@ -261,14 +260,14 @@ class _RepayDatePickerSheetState extends State<_RepayDatePickerSheet> {
                   '请先在上方填写账单日后再设定免息期',
                   style: TextStyle(
                     fontSize: 13,
-                    color: scheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 )
               : RichText(
                   text: TextSpan(
                     style: TextStyle(
                       fontSize: 14,
-                      color: scheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                     children: <TextSpan>[
                       TextSpan(
@@ -277,7 +276,7 @@ class _RepayDatePickerSheetState extends State<_RepayDatePickerSheet> {
                       ),
                       TextSpan(
                         text: '${preview.month}月${preview.day}日',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           color: AppPalette.primary,
                         ),
@@ -309,7 +308,7 @@ class _RepayDatePickerSheetState extends State<_RepayDatePickerSheet> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-              color: selected ? AppPalette.white : scheme.onSurface,
+              color: selected ? AppPalette.white : context.forest.onSurface,
             ),
           ),
         ),
@@ -335,7 +334,7 @@ class _SegmentedControl extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: context.forest.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
       ),
       child: Row(
@@ -350,7 +349,7 @@ class _SegmentedControl extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: mode == item.mode
-                        ? scheme.surface
+                        ? context.forest.surface
                         : Colors.transparent,
                     borderRadius:
                         BorderRadius.circular(AppDimens.radiusSm + 2),
@@ -373,7 +372,7 @@ class _SegmentedControl extends StatelessWidget {
                           : FontWeight.w400,
                       color: mode == item.mode
                           ? AppPalette.primary
-                          : scheme.onSurfaceVariant,
+                          : context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -400,7 +399,6 @@ class _StepButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool enabled = onTap != null;
     return Material(
       color: Colors.transparent,
@@ -415,14 +413,14 @@ class _StepButton extends StatelessWidget {
             shape: BoxShape.circle,
             color: enabled
                 ? AppPalette.primary.withValues(alpha: 0.12)
-                : scheme.surfaceContainerHighest,
+                : context.forest.surfaceContainerHighest,
           ),
           child: LineGlyph(
             icon,
             size: 20,
             color: enabled
                 ? AppPalette.primary
-                : scheme.onSurfaceVariant,
+                : context.forest.onSurfaceVariant,
           ),
         ),
       ),

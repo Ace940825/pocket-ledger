@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
@@ -78,9 +77,9 @@ class SavingsModeCard extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     return Material(
       // 全站统一奶油卡 + 发丝线描边（替代灰底透明卡，且不再用 withValues）。
-      color: context.colors.surface,
+      color: context.forest.surface,
       shape: RoundedRectangleBorder(
-        side: BorderSide(color: Theme.of(context).colorScheme.outline),
+        side: BorderSide(color: context.forest.outline),
         borderRadius: BorderRadius.circular(16),
       ),
       child: InkWell(

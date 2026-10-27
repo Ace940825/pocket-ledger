@@ -134,7 +134,7 @@ class _ReportCategoryDetailPageState
                       '共 ${mine.length} 笔 · 合计 ${Money.fromMinor(totalMinor).format(showSymbol: false)}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -191,7 +191,7 @@ class _ReportCategoryDetailPageState
                 _byAmount ? '按金额' : '按时间',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ),
@@ -261,7 +261,7 @@ class _ReportCategoryDetailPageState
             '${d.month}月${d.day}日$suffix',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const Spacer(),
@@ -269,7 +269,7 @@ class _ReportCategoryDetailPageState
             '$prefix:${Money.fromMinor(daySum).format(showSymbol: false)}',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],
@@ -304,7 +304,7 @@ class _ReportCategoryDetailPageState
     final Color amountColor = switch (widget.branch) {
       ReportBranch.expense => AppPalette.expense,
       ReportBranch.income => AppPalette.income,
-      ReportBranch.other => Theme.of(context).colorScheme.onSurface,
+      ReportBranch.other => context.forest.onSurface,
     };
     final String sign = switch (widget.branch) {
       ReportBranch.expense => '-',
@@ -353,7 +353,7 @@ class _ReportCategoryDetailPageState
                     hhmm,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -371,10 +371,10 @@ class _ReportCategoryDetailPageState
                         '$sign${Money.fromMinor(t.amountMinor).format(showSymbol: false)}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                           decoration: TextDecoration.lineThrough,
                           decorationColor:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                              context.forest.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -414,7 +414,7 @@ class _ReportCategoryDetailPageState
                     accountName,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),

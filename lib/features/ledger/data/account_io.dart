@@ -119,6 +119,20 @@ const List<String> kAccountJsonKeys = <String>[
   'sortOrder',
 ];
 
+/// 生成账户导入模板的 CSV 内容（带字段说明和示例）。
+String buildAccountTemplate() {
+  const List<List<String>> rows = <List<String>>[
+    kAccountCsvHeader,
+    // 示例 1：现金账户
+    <String>['默认账本', '现金', 'cash', 'CNY', '100000', '', '', '', '', '', '', '日常备用金', '', 'active', 'true', '1'],
+    // 示例 2：储蓄卡
+    <String>['默认账本', '招商银行储蓄卡', 'debit', 'CNY', '500000', '', '', '', '', '', '', '工资卡', '****1234', 'active', 'true', '2'],
+    // 示例 3：信用卡
+    <String>['默认账本', '招商银行信用卡', 'credit', 'CNY', '-50000', '', '', '500000', '5', '25', '', '日常消费', '****5678', 'active', 'true', '3'],
+  ];
+  return const ListToCsvConverter().convert(rows);
+}
+
 /// 类型导出值：枚举名（如 `wechat`）。
 ///
 /// 不用中文名导出——「其他账户」一名对三（other / otherDebt / investmentOther），

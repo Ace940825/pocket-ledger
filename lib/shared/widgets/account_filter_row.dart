@@ -26,7 +26,6 @@ class AccountFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme cs = Theme.of(context).colorScheme;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
@@ -51,7 +50,7 @@ class AccountFilterRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: cs.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   if (subtitle != null) ...<Widget>[
@@ -62,7 +61,7 @@ class AccountFilterRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12.5,
-                        color: cs.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -85,7 +84,6 @@ class _CheckCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme cs = Theme.of(context).colorScheme;
     return Container(
       width: 22,
       height: 22,
@@ -93,7 +91,7 @@ class _CheckCircle extends StatelessWidget {
         shape: BoxShape.circle,
         color: checked ? AppPalette.ctaGreen : Colors.transparent,
         border: Border.all(
-          color: checked ? AppPalette.ctaGreen : cs.onSurfaceVariant,
+          color: checked ? AppPalette.ctaGreen : context.forest.onSurfaceVariant,
           width: 1.4,
         ),
       ),

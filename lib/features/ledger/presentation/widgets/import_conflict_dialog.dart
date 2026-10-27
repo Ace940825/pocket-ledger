@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pocket_ledger/core/theme/forest_design_tokens.dart';
 
 import '../../../../theme/app_dimens.dart';
 import '../../../../theme/app_theme.dart';
@@ -32,7 +33,7 @@ class ImportConflictDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = context.colors;
+
     return AlertDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppDimens.radiusCard),
@@ -50,26 +51,26 @@ class ImportConflictDialog extends StatelessWidget {
           Text(
             '当前账本已有 $existingCount 笔流水，本次准备导入 $incomingCount 笔。',
             style: context.text.bodyMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppDimens.md),
           _ConflictButton(
             label: '合并原有数据',
-            foreground: scheme.primary,
+            foreground: context.forest.primary,
             onTap: () => Navigator.of(context).pop(ImportConflictMode.merge),
           ),
           const SizedBox(height: AppDimens.sm),
           _ConflictButton(
             label: '覆盖原有数据',
-            foreground: scheme.error,
+            foreground: context.forest.error,
             onTap: () =>
                 Navigator.of(context).pop(ImportConflictMode.overwrite),
           ),
           const SizedBox(height: AppDimens.sm),
           _ConflictButton(
             label: '取消',
-            foreground: scheme.onSurfaceVariant,
+            foreground: context.forest.onSurfaceVariant,
             onTap: () => Navigator.of(context).pop(),
           ),
         ],

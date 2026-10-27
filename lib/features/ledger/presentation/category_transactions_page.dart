@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/shared/widgets/summary_bar.dart';
-import 'package:pocket_ledger/theme/app_theme.dart';
 
 import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
@@ -101,7 +100,7 @@ class _CategoryTransactionsPageState
     final String name = category?.name ?? '分类';
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.forest.surface,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -118,7 +117,7 @@ class _CategoryTransactionsPageState
                     '加载失败 $e',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -129,7 +128,7 @@ class _CategoryTransactionsPageState
                         data.isEmpty ? '该分类下暂无账单' : '该分类 ${period.label} 暂无账单',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     );
@@ -159,7 +158,7 @@ class _CategoryTransactionsPageState
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: context.forest.surface,
                   shape: BoxShape.circle,
                   boxShadow: <BoxShadow>[
                     BoxShadow(
@@ -175,7 +174,7 @@ class _CategoryTransactionsPageState
                 child: LineGlyph(
                   Icons.close,
                   size: 20,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ),
@@ -217,14 +216,14 @@ class _CategoryTransactionsPageState
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
                     LineGlyph(
                       Icons.keyboard_arrow_down_rounded,
                       size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -240,7 +239,7 @@ class _CategoryTransactionsPageState
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                color: context.forest.surface,
                 border: Border.all(color: ForestGreen.softBorder),
                 borderRadius: BorderRadius.circular(999),
               ),
@@ -411,7 +410,7 @@ class _DayGroup extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
                 const SizedBox(width: 5),
@@ -423,7 +422,7 @@ class _DayGroup extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -431,7 +430,7 @@ class _DayGroup extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
+              color: context.forest.surface,
               borderRadius: BorderRadius.circular(16),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -443,7 +442,7 @@ class _DayGroup extends StatelessWidget {
                       Container(
                         height: 0.6,
                         margin: const EdgeInsets.only(left: 52),
-                        color: Theme.of(context).colorScheme.outline,
+                        color: context.forest.outline,
                       ),
                     TxnSlidable(
                       txn: items[i],

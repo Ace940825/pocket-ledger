@@ -292,7 +292,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                               : FontWeight.w400,
                           color: b.id == _bookId
                               ? AppPalette.primary
-                              : Theme.of(context).colorScheme.onSurface,
+                              : context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -444,7 +444,6 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     final String dirLabel = _direction == CategoryType.expense ? '支出' : '收入';
 
     ref.listen<AsyncValue<List<Budget>>>(bookBudgetsProvider(_bookId),
@@ -540,7 +539,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                             : '设置月收入目标',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: scheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -600,14 +599,14 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                                   Text(
                                     '账本',
                                     style: theme.textTheme.bodySmall?.copyWith(
-                                      color: scheme.onSurfaceVariant,
+                                      color: context.forest.onSurfaceVariant,
                                     ),
                                   ),
                                   Text(
                                     bookName,
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                       fontWeight: FontWeight.w600,
-                                      color: scheme.onSurface,
+                                      color: context.forest.onSurface,
                                     ),
                                   ),
                                 ],
@@ -616,7 +615,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                             LineGlyph(
                               Icons.chevron_right,
                               size: 20,
-                              color: scheme.onSurfaceVariant,
+                              color: context.forest.onSurfaceVariant,
                             ),
                           ],
                         ),
@@ -634,7 +633,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                             child: LineGlyph(
                               Icons.arrow_right_alt,
-                              color: scheme.onSurfaceVariant,
+                              color: context.forest.onSurfaceVariant,
                             ),
                           ),
                           _monthBox(
@@ -666,7 +665,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                             : '${_target.year}-${_target.month}收入目标',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: scheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                     ),
@@ -805,7 +804,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                           hintText: '0.00',
                           filled: true,
                           // 全 app 输入框底色统一：surfaceContainerHighest。
-                          fillColor: scheme.surfaceContainerHighest,
+                          fillColor: context.forest.surfaceContainerHighest,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 14,
@@ -823,12 +822,12 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.circular(AppDimens.radiusChip),
-                            borderSide: BorderSide(color: scheme.primary),
+                            borderSide: BorderSide(color: context.forest.primary),
                           ),
                         ),
                         style: theme.textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: scheme.onSurface,
+                          color: context.forest.onSurface,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -943,7 +942,6 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
     VoidCallback onTap,
   ) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -951,7 +949,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest,
+            color: context.forest.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppDimens.radiusCard),
           ),
           child: Column(
@@ -959,7 +957,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
               Text(
                 label,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 4),
@@ -967,7 +965,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
                 '${month.year}-${month.month}',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: scheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ],
@@ -980,12 +978,11 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
   /// 概览三格（预算/消费/结余）：灰底圆角 + 标签 + 金额。
   Widget _statBox(BuildContext context, String label, String value) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
+          color: context.forest.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(AppDimens.radiusCard),
         ),
         child: Column(
@@ -993,7 +990,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
             Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 4),
@@ -1001,7 +998,7 @@ class _BudgetSetupPageState extends ConsumerState<BudgetSetupPage> {
               value,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: scheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ],
@@ -1087,7 +1084,7 @@ class _AmberPill extends StatelessWidget {
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
         ),
       ),
@@ -1148,7 +1145,6 @@ class _CategoryBudgetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     final Color tint = category.colorValue != null
         ? Color(category.colorValue!)
         : AppPalette.primary;
@@ -1166,7 +1162,7 @@ class _CategoryBudgetRow extends StatelessWidget {
               child: LineIcon(
                 categoryLineKind(category.iconKey) ?? LineIconKind.star,
                 size: 18,
-                color: Color.lerp(tint, scheme.onSurface, 0.22),
+                color: Color.lerp(tint, context.forest.onSurface, 0.22),
               ),
             ),
             const SizedBox(width: 10),
@@ -1177,7 +1173,7 @@ class _CategoryBudgetRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
             ),
@@ -1185,7 +1181,7 @@ class _CategoryBudgetRow extends StatelessWidget {
               Money.fromMinor(budget.amountMinor).format(),
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: scheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ],

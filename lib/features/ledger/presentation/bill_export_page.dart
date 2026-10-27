@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:pocket_ledger/theme/app_dimens.dart';
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../features/ledger/data/transaction_repository.dart';
@@ -568,8 +567,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
       final bool isMobile = Platform.isAndroid || Platform.isIOS;
       final String? picked = await FilePicker.platform.saveFile(
-        dialogTitle: '保存账单导出',
-        fileName: '账单导出_$stamp.$ext',
+        dialogTitle: '保存数据导出',
+        fileName: '数据导出_$stamp.$ext',
         allowedExtensions: isMobile ? null : <String>[ext],
         bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
       );
@@ -605,7 +604,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('账单导出'),
+        title: const Text('数据导出'),
         centerTitle: true,
         leading: const BackButton(),
       ),
@@ -713,7 +712,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.4,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -741,7 +740,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ),
@@ -767,7 +766,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
     required VoidCallback onTap,
   }) {
     final DateFormat fmt = DateFormat('yyyy年M月d日');
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -782,7 +781,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                     label,
                     style: TextStyle(
                       fontSize: 12,
-                      color: scheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -791,7 +790,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: scheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                 ],
@@ -825,7 +824,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: context.forest.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -833,7 +832,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],

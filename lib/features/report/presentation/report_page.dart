@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../database/app_database.dart';
+import '../../../database/daos/transactions_dao.dart';
 import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/calendar_sheet.dart';
@@ -347,6 +348,10 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
     final List<Transaction> txns = applyLedgerAdvancedFilter(all, filter, cats);
     final List<Transaction> weekFiltered =
         applyLedgerAdvancedFilter(weekTxns, filter, cats);
+    // 年视图无高级筛选时走 SQL 逐月聚合（fix③）；有筛选时回退内存聚合（下方分支处理）。
+    final List<YearMonthStat> yearStats =
+        ref.watch(reportYearMonthlyStatsProvider).valueOrNull ??
+            const <YearMonthStat>[];
 
     // 头部时间标签：周=起止日期区间；月=yyyy年M月；年视图=yyyy年。
     final String timeLabel;
@@ -375,7 +380,10 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
         if (period.mode == LedgerPeriodMode.week)
           ..._weekChildren(period.start, weekFiltered)
         else if (calMonth == null)
-          ..._yearChildren(year, txns)
+          if (filter != null)
+            ..._yearChildren(year, txns)
+          else
+            ..._yearChildrenFromStats(year, yearStats)
         else
           ..._monthChildren(year, calMonth, txns),
       ],
@@ -384,8 +392,39 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
   // ── 年视图子树 ──
 
+  /// 高级筛选激活时的年视图（仍走内存聚合，因筛选条件无法下推到简单 SQL）。
   List<Widget> _yearChildren(int year, List<Transaction> txns) {
-    final List<_MonthAgg> months = _aggregateMonths(txns);
+    return _yearViewBody(year, _aggregateMonths(txns));
+  }
+
+  /// 无筛选时的年视图：直接消费 SQL 逐月聚合结果（fix③）。
+  List<Widget> _yearChildrenFromStats(int year, List<YearMonthStat> stats) {
+    return _yearViewBody(year, _monthAggsFromStats(stats));
+  }
+
+  /// 将 SQL 逐月聚合结果映射到 12 个 [_MonthAgg]，索引 = 月份-1。
+  List<_MonthAgg> _monthAggsFromStats(List<YearMonthStat> stats) {
+    final List<_MonthAgg> months =
+        List<_MonthAgg>.generate(12, (_) => _MonthAgg());
+    for (final YearMonthStat s in stats) {
+      final List<String> parts = s.monthKey.split('-');
+      if (parts.length != 2) continue;
+      final int m = int.tryParse(parts[1]) ?? 0;
+      if (m < 1 || m > 12) continue;
+      final _MonthAgg agg = months[m - 1];
+      agg.count = s.count;
+      agg.income = s.income;
+      agg.expense = s.expense;
+      agg.unstatsExpense = s.unstatsExpense;
+      agg.unstatsIncome = s.unstatsIncome;
+      agg.unbudgetExpense = s.unbudgetExpense;
+      agg.unbudgetIncome = s.unbudgetIncome;
+    }
+    return months;
+  }
+
+  /// 年视图主体（两种数据源共用）。
+  List<Widget> _yearViewBody(int year, List<_MonthAgg> months) {
     int yearExpense = 0;
     int yearIncome = 0;
     int totalCount = 0;
@@ -451,7 +490,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 LineGlyph(
                   Icons.expand_more,
                   size: 20,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ],
             ),
@@ -580,7 +619,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
               label,
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             const SizedBox(width: 6),
@@ -635,7 +674,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   fontSize: 14,
                   height: 1.1,
                   fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: context.forest.onSurface,
                 ),
               ),
               if (has) ...<Widget>[
@@ -693,7 +732,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
               '年结余: ',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             Flexible(
@@ -716,7 +755,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
               '月均收入: ',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
             Flexible(
@@ -777,7 +816,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
             if (c.$2 != null)
@@ -786,7 +825,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
           ],
@@ -833,7 +872,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: context.forest.onSurface,
                       ),
                     ),
                   ),
@@ -1104,7 +1143,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                     iconSize: 20,
                     icon: LineGlyph(
                       Icons.settings_outlined,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                     onPressed: () => _showThresholdSheet(),
                   ),
@@ -1129,7 +1168,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                         w,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -1249,8 +1288,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                     fontWeight:
                         isToday || has ? FontWeight.w700 : FontWeight.w400,
                     color: has
-                        ? Theme.of(context).colorScheme.onSurface
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ? context.forest.onSurface
+                        : context.forest.onSurfaceVariant,
                   ),
                 ),
                 ...amounts,
@@ -1299,7 +1338,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                     iconSize: 20,
                     icon: LineGlyph(
                       Icons.settings_outlined,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                     onPressed: () => _showThresholdSheet(),
                   ),
@@ -1324,7 +1363,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                         w,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -1355,7 +1394,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
                 color: selected
                     ? AppPalette.sageInk
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                    : context.forest.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 3),
@@ -1477,8 +1516,8 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
               .onSurfaceVariant
               .withValues(alpha: 0.55)
           : has
-              ? Theme.of(context).colorScheme.onSurface
-              : Theme.of(context).colorScheme.onSurfaceVariant,
+              ? context.forest.onSurface
+              : context.forest.onSurfaceVariant,
     );
 
     final List<Widget> lines;
@@ -1529,7 +1568,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                 fontSize: 10.5,
                 height: 1.1,
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: context.forest.onSurface,
               ),
             ),
           ];
@@ -1626,7 +1665,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
           label,
           style: TextStyle(
             fontSize: 13,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: context.forest.onSurface,
           ),
         ),
         Flexible(
@@ -2021,7 +2060,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                 LineGlyph(
                   Icons.expand_more,
                   size: 20,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ],
             ),
@@ -2100,7 +2139,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
   Color _branchColor(ReportBranch b) => switch (b) {
         ReportBranch.expense => AppPalette.expense,
         ReportBranch.income => AppPalette.income,
-        ReportBranch.other => Theme.of(context).colorScheme.onSurface,
+        ReportBranch.other => context.forest.onSurface,
       };
 
   String _branchPrefix(ReportBranch b) => switch (b) {
@@ -2150,7 +2189,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                   label,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: context.forest.onSurface,
                   ),
                 ),
               ],
@@ -2190,7 +2229,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
         iconSize: 20,
         icon: LineGlyph(
           Icons.settings_outlined,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
         onPressed: _showSettingsSheet,
       ),
@@ -2229,7 +2268,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
               '咦~没有发现账单哦',
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ],
@@ -2254,9 +2293,9 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
               painter: _DonutCalloutPainter(
                 slices: calloutSlices,
                 total: total,
-                lineColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                labelColor: Theme.of(context).colorScheme.onSurface,
-                subLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                lineColor: context.forest.onSurfaceVariant,
+                labelColor: context.forest.onSurface,
+                subLabelColor: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -2296,7 +2335,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                   toggleHint,
                   style: TextStyle(
                     fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -2366,7 +2405,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                         pct,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: context.forest.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -2407,7 +2446,7 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                   '${slice.count}笔',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -2675,7 +2714,7 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                     child: LineGlyph(
                       Icons.close,
                       size: 18,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -2722,7 +2761,7 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                             fontWeight: FontWeight.w600,
                             color: _view == i
                                 ? AppPalette.white
-                                : Theme.of(context).colorScheme.onSurface,
+                                : context.forest.onSurface,
                           ),
                         ),
                       ),
@@ -2754,7 +2793,7 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                               fontSize: 13,
                               height: 1.05,
                               fontWeight: FontWeight.w700,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                           ),
                           Text(
@@ -2764,7 +2803,7 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                               fontSize: 9.5,
                               height: 1.1,
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: context.forest.onSurface,
                             ),
                           ),
                         ],
@@ -2804,7 +2843,7 @@ class _ThresholdSheetState extends State<_ThresholdSheet> {
                           style: TextStyle(
                             fontSize: 12,
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -2993,7 +3032,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -3036,7 +3075,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                   fontWeight: FontWeight.w600,
                   color: value == options[i].$1
                       ? AppPalette.white
-                      : Theme.of(context).colorScheme.onSurface,
+                      : context.forest.onSurface,
                 ),
               ),
             ),
@@ -3074,7 +3113,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                     child: LineGlyph(
                       Icons.close,
                       size: 18,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: context.forest.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -3193,7 +3232,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                             Icons.chevron_right,
                             size: 22,
                             color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                                context.forest.onSurfaceVariant,
                           ),
                         ],
                       ),
@@ -3241,7 +3280,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                       trailing: LineGlyph(
                         Icons.chevron_right,
                         size: 22,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: context.forest.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -3292,7 +3331,7 @@ class _ReportSettingsSheetState extends State<_ReportSettingsSheet> {
                           border: _chartColor == i
                               ? Border.all(
                                   color:
-                                      Theme.of(context).colorScheme.onSurface,
+                                      context.forest.onSurface,
                                   width: 2.5,
                                 )
                               : null,

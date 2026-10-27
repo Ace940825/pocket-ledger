@@ -193,7 +193,7 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
                       style: TextButton.styleFrom(
                         minimumSize: const Size.fromHeight(48),
                         foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
+                            context.forest.onPrimary,
                       ),
                       child: const Text(
                         '保存',
@@ -220,7 +220,7 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
+        color: context.forest.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -338,11 +338,11 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
         counterText: '',
         hintText: hint,
         hintStyle: TextStyle(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
           fontSize: 14,
         ),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        fillColor: context.forest.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
           borderSide: BorderSide.none,
@@ -390,7 +390,7 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
                 bookName,
                 style: TextStyle(
                   fontSize: 12.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: context.forest.onSurfaceVariant,
                 ),
               ),
             ],
@@ -399,7 +399,7 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
         LineGlyph(
           Icons.chevron_right,
           size: 22,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: context.forest.onSurfaceVariant,
         ),
       ],
     );

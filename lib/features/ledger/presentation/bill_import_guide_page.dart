@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../shared/widgets/hairline_card.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/section_header.dart';
@@ -231,7 +230,7 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
               children: <Widget>[
                 for (int i = 0; i < _columns.length; i++) ...<Widget>[
                   if (i > 0)
-                    Divider(height: 1, color: scheme.outline.withValues(alpha: 0.6)),
+                    Divider(height: 1, color: context.forest.outline.withValues(alpha: 0.6)),
                   _ColRow(col: _columns[i]),
                 ],
               ],
@@ -260,7 +259,7 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
               children: <Widget>[
                 for (int i = 0; i < _accountColumns.length; i++) ...<Widget>[
                   if (i > 0)
-                    Divider(height: 1, color: scheme.outline.withValues(alpha: 0.6)),
+                    Divider(height: 1, color: context.forest.outline.withValues(alpha: 0.6)),
                   _ColRow(col: _accountColumns[i]),
                 ],
               ],
@@ -283,7 +282,7 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
             '垫付侧（支出 + 可报销=Y + 报销账户）走通用路径自动挂报销账户应收。',
             style: TextStyle(
               fontSize: 13,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
               height: 1.5,
             ),
           ),
@@ -300,7 +299,7 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
             decoration: BoxDecoration(
               color: AppPalette.softGreen.withValues(alpha: isDark ? 0.18 : 1),
               borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-              border: Border.all(color: scheme.outline),
+              border: Border.all(color: context.forest.outline),
             ),
             padding: const EdgeInsets.all(AppDimens.md),
             child: Column(
@@ -342,7 +341,7 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
             '含逗号的数字（如 1,000.00）在 CSV 中会被自动加引号。',
             style: TextStyle(
               fontSize: 13,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
               height: 1.5,
             ),
           ),
@@ -360,7 +359,7 @@ class _BillImportGuidePageState extends State<BillImportGuidePage> {
             '把下面整段（含表头）粘贴为 .csv 文件即可。第一行是表头，其后每行一条交易。',
             style: TextStyle(
               fontSize: 13,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
               height: 1.5,
             ),
           ),
@@ -527,7 +526,6 @@ class _ColRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(AppDimens.md),
       child: Row(
@@ -538,7 +536,7 @@ class _ColRow extends StatelessWidget {
             height: 22,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
+              color: context.forest.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -546,7 +544,7 @@ class _ColRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: scheme.onSurfaceVariant,
+                color: context.forest.onSurfaceVariant,
               ),
             ),
           ),
@@ -591,14 +589,14 @@ class _ColRow extends StatelessWidget {
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
+                          color: context.forest.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           '选填',
                           style: TextStyle(
                             fontSize: 10.5,
-                            color: scheme.onSurfaceVariant,
+                            color: context.forest.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -628,7 +626,7 @@ class _ColRow extends StatelessWidget {
                   col.desc,
                   style: TextStyle(
                     fontSize: 12.5,
-                    color: scheme.onSurfaceVariant,
+                    color: context.forest.onSurfaceVariant,
                     height: 1.45,
                   ),
                 ),
@@ -648,15 +646,14 @@ class _ModChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color color = _modColor(m.key);
     final bool on = m.state != '仅标记';
     return Container(
       width: (MediaQuery.of(context).size.width - AppDimens.lg * 2 - AppDimens.sm) / 2,
       padding: const EdgeInsets.all(AppDimens.md),
       decoration: BoxDecoration(
-        color: scheme.surface,
-        border: Border.all(color: scheme.outline),
+        color: context.forest.surface,
+        border: Border.all(color: context.forest.outline),
         borderRadius: BorderRadius.circular(AppDimens.radiusCard),
       ),
       child: Column(
@@ -689,7 +686,7 @@ class _ModChip extends StatelessWidget {
             m.desc,
             style: TextStyle(
               fontSize: 12,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 6),
@@ -716,11 +713,10 @@ class _OpTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: context.forest.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppDimens.radiusSm),
       ),
       child: Column(
@@ -740,7 +736,7 @@ class _OpTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 10.5,
               fontFamily: 'monospace',
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
             ),
           ),
         ],
@@ -756,7 +752,6 @@ class _ExampleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color color = _modColor(ex.key);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -785,7 +780,7 @@ class _ExampleRow extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest,
+            color: context.forest.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppDimens.radiusSm),
           ),
           child: SelectableText(
@@ -802,7 +797,7 @@ class _ExampleRow extends StatelessWidget {
           ex.caption,
           style: TextStyle(
             fontSize: 12,
-            color: scheme.onSurfaceVariant,
+            color: context.forest.onSurfaceVariant,
             height: 1.4,
           ),
         ),
@@ -818,7 +813,6 @@ class _Rule extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
@@ -838,7 +832,7 @@ class _Rule extends StatelessWidget {
               text,
               style: TextStyle(
                 fontSize: 12.5,
-                color: scheme.onSurface,
+                color: context.forest.onSurface,
                 height: 1.45,
               ),
             ),
@@ -862,7 +856,6 @@ class _Feature extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     return HairlineCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -895,7 +888,7 @@ class _Feature extends StatelessWidget {
             body,
             style: TextStyle(
               fontSize: 13,
-              color: scheme.onSurfaceVariant,
+              color: context.forest.onSurfaceVariant,
               height: 1.5,
             ),
           ),
