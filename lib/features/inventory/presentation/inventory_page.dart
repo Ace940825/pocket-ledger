@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../core/theme/forest_asset_design_tokens.dart';
+import '../../../core/theme/forest_design_tokens.dart';
 import '../../../database/app_database.dart';
 import '../../../domain/enums.dart';
 import '../../../routing/app_router.dart';
@@ -92,13 +93,15 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           _FilterChip(
             label: '贵重物品',
             selected: _filterType == InventoryItemType.valuables,
-            onTap: () => setState(() => _filterType = InventoryItemType.valuables),
+            onTap: () =>
+                setState(() => _filterType = InventoryItemType.valuables),
           ),
           const SizedBox(width: 8),
           _FilterChip(
             label: '不动产',
             selected: _filterType == InventoryItemType.realEstate,
-            onTap: () => setState(() => _filterType = InventoryItemType.realEstate),
+            onTap: () =>
+                setState(() => _filterType = InventoryItemType.realEstate),
           ),
         ],
       ),
@@ -267,9 +270,9 @@ class _ItemTile extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
               color: item.usageStatus == UsageStatus.inUse
-                  ? ForestSemantic.success.withOpacity(0.2)
+                  ? ForestAssetSemantic.success.withOpacity(0.2)
                   : item.usageStatus == UsageStatus.idle
-                      ? ForestSemantic.warning.withOpacity(0.2)
+                      ? ForestAssetSemantic.warning.withOpacity(0.2)
                       : context.forest.onSurfaceVariant.withOpacity(0.2),
               borderRadius: BorderRadius.circular(4),
             ),
@@ -278,9 +281,9 @@ class _ItemTile extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 10,
                 color: item.usageStatus == UsageStatus.inUse
-                    ? ForestSemantic.success
+                    ? ForestAssetSemantic.success
                     : item.usageStatus == UsageStatus.idle
-                        ? ForestSemantic.warning
+                        ? ForestAssetSemantic.warning
                         : context.forest.onSurfaceVariant,
               ),
             ),
@@ -340,4 +343,3 @@ class _ItemTile extends ConsumerWidget {
     );
   }
 }
-

@@ -26,7 +26,6 @@ class ItemDetailPage extends ConsumerWidget {
     }
 
     final ThemeData theme = Theme.of(context);
-    final DateTime now = DateTime.now();
 
     return Scaffold(
       appBar: AppBar(
@@ -66,7 +65,9 @@ class ItemDetailPage extends ConsumerWidget {
                 theme,
                 '购买日期',
                 DateFormat('yyyy-MM-dd').format(
-                  DateTime.fromMillisecondsSinceEpoch(item.purchasedAt, isUtc: true).toLocal(),
+                  DateTime.fromMillisecondsSinceEpoch(item.purchasedAt,
+                          isUtc: true)
+                      .toLocal(),
                 ),
               ),
               _buildInfoRow(theme, '使用状态', item.usageStatus.label),
@@ -137,7 +138,10 @@ class ItemDetailPage extends ConsumerWidget {
                     theme,
                     '持有成本结束时间',
                     DateFormat('yyyy-MM-dd').format(
-                      DateTime.fromMillisecondsSinceEpoch(item.holdingCostEndDate!, isUtc: true).toLocal(),
+                      DateTime.fromMillisecondsSinceEpoch(
+                              item.holdingCostEndDate!,
+                              isUtc: true)
+                          .toLocal(),
                     ),
                   ),
               ],
