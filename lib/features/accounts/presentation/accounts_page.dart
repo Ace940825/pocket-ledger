@@ -439,8 +439,8 @@ class _GroupConfig {
             title: '资金类',
             totalMinor:
                 capitals.fold(0, (int s, Account a) => s + a.balanceMinor),
-            // 真实账户分组始终展示，空时显示新增提示
-            isVisible: true,
+            // 只有有账户时才显示分组
+            isVisible: capitals.isNotEmpty,
             isDebt: false,
           ),
         '投资类' => _GroupConfig(
@@ -450,7 +450,7 @@ class _GroupConfig {
               0,
               (int s, Account a) => s + displayBalanceWithMarket(a, mv),
             ),
-            isVisible: true,
+            isVisible: investments.isNotEmpty,
             isDebt: false,
           ),
         '应收类' => _GroupConfig(
@@ -468,7 +468,7 @@ class _GroupConfig {
         '负债类' => _GroupConfig(
             title: '负债类',
             totalMinor: debts.fold(0, (int s, Account a) => s + a.balanceMinor),
-            isVisible: true,
+            isVisible: debts.isNotEmpty,
             isDebt: true,
           ),
         '应付类' => _GroupConfig(

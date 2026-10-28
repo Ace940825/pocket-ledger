@@ -2087,7 +2087,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
                   label: '数据',
                   children: <Widget>[
                     _configRow(
-                      title: '导入账单',
+                      title: '导入数据',
                       subtitle: _fileName ?? '选择文件开始导入',
                       onTap: _pickFile,
                     ),
@@ -2429,7 +2429,7 @@ class _ImportHeaderCard extends StatelessWidget {
           const SizedBox(width: AppDimens.md),
           Expanded(
             child: Text(
-              '账单导入',
+              '数据导入',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,

@@ -475,16 +475,48 @@ class InvestmentHoldings extends Table with SyncColumns {
 class InventoryItems extends Table with SyncColumns {
   TextColumn get id => text()();
   TextColumn get bookId => text()();
+  // 物品类型：贵重物品 / 不动产
+  IntColumn get itemType =>
+      intEnum<InventoryItemType>().withDefault(const Constant(0))();
   TextColumn get name => text()();
   TextColumn get category => text().nullable()();
+  // 地址（不动产用）
+  TextColumn get address => text().nullable()();
+  // 购买成本（贵重物品）
   IntColumn get purchasePriceMinor =>
       integer().withDefault(const Constant(0))();
+  // 购买成本明细（不动产）
+  IntColumn get productPriceMinor =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get interestMinor => integer().withDefault(const Constant(0))();
+  IntColumn get taxMinor => integer().withDefault(const Constant(0))();
+  IntColumn get renovationMinor => integer().withDefault(const Constant(0))();
   IntColumn get currentValueMinor => integer().withDefault(const Constant(0))();
   TextColumn get currency => text().withDefault(const Constant('CNY'))();
   IntColumn get purchasedAt => integer()();
+  // 持有成本
+  IntColumn get holdingCostType =>
+      intEnum<HoldingCostType>().nullable()();
+  IntColumn get holdingCostAmountMinor =>
+      integer().nullable()();
+  IntColumn get holdingCostEndDate => integer().nullable()();
+  // 维护成本累计
+  IntColumn get maintenanceCostTotalMinor =>
+      integer().withDefault(const Constant(0))();
+  // 维护记录（JSON 存储）
+  TextColumn get maintenanceRecords =>
+      text().nullable()();
+  // 使用状态：使用中 / 闲置 / 已售出
+  IntColumn get usageStatus =>
+      intEnum<UsageStatus>().withDefault(const Constant(0))();
+  // 资产状态：使用中 / 隐藏 / 封存
+  IntColumn get assetStatus =>
+      intEnum<AssetStatus>().withDefault(const Constant(0))();
+  // 是否计入总资产
+  BoolColumn get includeInTotalAssets =>
+      boolean().withDefault(const Constant(true))();
   IntColumn get warrantyUntil => integer().nullable()();
   TextColumn get photoUrl => text().nullable()();
-  TextColumn get location => text().nullable()();
   TextColumn get note => text().nullable()();
   TextColumn get transactionId => text().nullable()();
 

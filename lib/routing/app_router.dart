@@ -27,6 +27,7 @@ import '../features/installment/presentation/add_installment_page.dart';
 import '../features/installment/presentation/installment_detail_page.dart';
 import '../features/installment/presentation/installment_page.dart';
 import '../features/inventory/presentation/inventory_page.dart';
+import '../features/inventory/presentation/item_edit_page.dart';
 import '../features/investment/presentation/investment_page.dart';
 import '../features/ledger/data/bill_io.dart';
 import '../features/ledger/presentation/bill_clean_page.dart';
@@ -96,6 +97,7 @@ abstract final class Routes {
   static const String installmentDetail = '/installment/:planId';
   static const String investment = '/investment';
   static const String inventory = '/inventory';
+  static const String itemEdit = '/inventory/edit';
   static const String templates = '/templates';
   static const String billManage = '/bill-manage';
   static const String billList = '/bill-list';
@@ -334,6 +336,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: Routes.inventory,
         builder: (_, __) => const InventoryPage(),
+      ),
+      GoRoute(
+        path: Routes.itemEdit,
+        builder: (_, GoRouterState state) => ItemEditPage(
+          itemId: state.uri.queryParameters['itemId'],
+        ),
       ),
       // 记一笔模板管理页（原从记一笔模板面板进入，现也有「我的」入口）。
       GoRoute(

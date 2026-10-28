@@ -1,38 +1,145 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:pocket_ledger/shared/widgets/form_dialog.dart';
 
 import '../../../core/errors/failures.dart';
+import '../../../core/theme/forest_asset_design_tokens.dart';
 import '../../../database/app_database.dart';
-import '../../../providers/app_providers.dart';
+import '../../../domain/enums.dart';
+import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
-import '../../../shared/widgets/date_field.dart';
-import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/module_list_scaffold.dart';
 import '../data/inventory_repository.dart';
 import '../providers/inventory_providers.dart';
 
 /// 物品页：大件资产清单、折旧与保修跟踪。
-class InventoryPage extends ConsumerWidget {
+class InventoryPage extends ConsumerStatefulWidget {
   const InventoryPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InventoryPage> createState() => _InventoryPageState();
+}
+
+class _InventoryPageState extends ConsumerState<InventoryPage> {
+  InventoryItemType? _filterType;
+
+  @override
+  Widget build(BuildContext context) {
     final AsyncValue<List<InventoryItem>> items =
         ref.watch(inventoryListProvider);
 
-    return ModuleListScaffold<InventoryItem>(
-      title: '物品',
-      items: items,
-      emptyHint: '还没有登记物品',
-      header: items.maybeWhen(
-        data: (List<InventoryItem> list) => _AssetSummary(items: list),
-        orElse: () => null,
+    final List<InventoryItem> filtered = items.maybeWhen(
+      data: (List<InventoryItem> list) {
+        if (_filterType == null) return list;
+        return list
+            .where((InventoryItem i) => i.itemType == _filterType)
+            .toList();
+      },
+      orElse: () => <InventoryItem>[],
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('物品'),
+        actions: <Widget>[
+          // 「新建」从底部 FAB 移到顶部 Action，便于单手操作与一致性。
+          IconButton(
+            icon: const LineGlyph(Icons.add, size: 22),
+            tooltip: '新建物品',
+            onPressed: () => context.push(Routes.itemEdit),
+          ),
+        ],
       ),
-      itemBuilder: (BuildContext context, InventoryItem i) =>
-          _ItemTile(item: i),
+      body: Column(
+        children: <Widget>[
+          // 分类标签
+          _buildFilterBar(),
+          // 汇总卡片
+          items.maybeWhen(
+            data: (List<InventoryItem> list) => _AssetSummary(items: list),
+            orElse: () => const SizedBox.shrink(),
+          ),
+          // 物品列表
+          Expanded(
+            child: filtered.isEmpty
+                ? const Center(child: Text('还没有登记物品'))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: filtered.length,
+                    itemBuilder: (BuildContext context, int index) =>
+                        _ItemTile(item: filtered[index]),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: <Widget>[
+          _FilterChip(
+            label: '全部',
+            selected: _filterType == null,
+            onTap: () => setState(() => _filterType = null),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: '贵重物品',
+            selected: _filterType == InventoryItemType.valuables,
+            onTap: () => setState(() => _filterType = InventoryItemType.valuables),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: '不动产',
+            selected: _filterType == InventoryItemType.realEstate,
+            onTap: () => setState(() => _filterType = InventoryItemType.realEstate),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -131,15 +238,62 @@ class _ItemTile extends ConsumerWidget {
     }
 
     return ListTile(
-      leading:
-          CircleAvatar(child: Text(item.name.isEmpty ? '?' : item.name[0])),
-      title: Text(item.name),
+      leading: CircleAvatar(
+        child: Text(
+          item.name.isEmpty ? '?' : item.name[0],
+        ),
+      ),
+      title: Row(
+        children: <Widget>[
+          Expanded(child: Text(item.name)),
+          // 物品类型标签
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              item.itemType.label,
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          // 使用状态标签（语义色令牌：在用=绿 / 闲置=琥珀 / 其它=中性灰）
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: item.usageStatus == UsageStatus.inUse
+                  ? ForestSemantic.success.withOpacity(0.2)
+                  : item.usageStatus == UsageStatus.idle
+                      ? ForestSemantic.warning.withOpacity(0.2)
+                      : context.forest.onSurfaceVariant.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              item.usageStatus.label,
+              style: TextStyle(
+                fontSize: 10,
+                color: item.usageStatus == UsageStatus.inUse
+                    ? ForestSemantic.success
+                    : item.usageStatus == UsageStatus.idle
+                        ? ForestSemantic.warning
+                        : context.forest.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
       subtitle: Row(
         children: <Widget>[
           Expanded(
             child: Text(
-              '${item.category ?? '未分类'}'
-              '${item.location == null || item.location!.isEmpty ? '' : ' · ${item.location}'}',
+              item.itemType == InventoryItemType.realEstate
+                  ? (item.address ?? '未填写地址')
+                  : (item.category ?? '未分类'),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -170,7 +324,7 @@ class _ItemTile extends ConsumerWidget {
           ),
         ],
       ),
-      onTap: () => showInventoryEditor(context, ref, item),
+      onTap: () => context.push('${Routes.itemEdit}?itemId=${item.id}'),
       onLongPress: () async {
         final bool ok = await confirmDelete(
           context,
@@ -187,152 +341,3 @@ class _ItemTile extends ConsumerWidget {
   }
 }
 
-/// 物品新增 / 编辑对话框。
-Future<void> showInventoryEditor(
-  BuildContext context,
-  WidgetRef ref, [
-  InventoryItem? item,
-]) async {
-  final TextEditingController nameController =
-      TextEditingController(text: item?.name ?? '');
-  final TextEditingController categoryController =
-      TextEditingController(text: item?.category ?? '');
-  final TextEditingController locationController =
-      TextEditingController(text: item?.location ?? '');
-  final TextEditingController purchaseController = TextEditingController(
-    text: item != null
-        ? Money.fromMinor(item.purchasePriceMinor).decimal.toStringAsFixed(2)
-        : '',
-  );
-  final TextEditingController valueController = TextEditingController(
-    text: item != null
-        ? Money.fromMinor(item.currentValueMinor).decimal.toStringAsFixed(2)
-        : '',
-  );
-  final TextEditingController noteController =
-      TextEditingController(text: item?.note ?? '');
-
-  DateTime purchasedAt = item != null
-      ? DateTime.fromMillisecondsSinceEpoch(item.purchasedAt, isUtc: true)
-          .toLocal()
-      : DateTime.now();
-  int? warrantyUntil = item?.warrantyUntil;
-
-  final bool? saved = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext _) => StatefulBuilder(
-      builder: (BuildContext ctx, StateSetter setState) => FormDialog(
-        title: item == null ? '登记物品' : '编辑物品',
-        body: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: '名称'),
-                autofocus: true,
-              ),
-              const FormGap(),
-              TextField(
-                controller: categoryController,
-                decoration: const InputDecoration(
-                  labelText: '分类（如 家电 / 数码，可选）',
-                ),
-              ),
-              const FormGap(),
-              AmountField(controller: purchaseController, label: '购入价'),
-              const FormGap(),
-              AmountField(
-                controller: valueController,
-                label: '当前估值',
-                helperText: '留空则默认等于购入价',
-              ),
-              const FormGap(),
-              DateField(
-                label: '购入日期',
-                value: purchasedAt,
-                onChanged: (DateTime? v) {
-                  if (v != null) setState(() => purchasedAt = v);
-                },
-              ),
-              DateField(
-                label: '保修截止（可选）',
-                value: warrantyUntil == null
-                    ? null
-                    : DateTime.fromMillisecondsSinceEpoch(
-                        warrantyUntil!,
-                        isUtc: true,
-                      ).toLocal(),
-                allowClear: true,
-                onChanged: (DateTime? v) => setState(
-                  () => warrantyUntil = v?.toUtc().millisecondsSinceEpoch,
-                ),
-              ),
-              const FormGap(),
-              TextField(
-                controller: locationController,
-                decoration: const InputDecoration(
-                  labelText: '存放位置（可选）',
-                ),
-              ),
-              const FormGap(),
-              TextField(
-                controller: noteController,
-                decoration: const InputDecoration(labelText: '备注'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-
-  if (saved != true || !context.mounted) return;
-
-  final double? purchase = double.tryParse(purchaseController.text.trim());
-  final double? value = double.tryParse(valueController.text.trim());
-  if (purchase == null || purchase < 0) {
-    showToast(context, '购入价不合法');
-    return;
-  }
-  final int purchaseMinor = Money.fromDecimal(purchase).minor;
-  final int valueMinor =
-      value == null ? purchaseMinor : Money.fromDecimal(value).minor;
-
-  final InventoryRepository repo = ref.read(inventoryRepositoryProvider);
-  final String category = categoryController.text.trim();
-  final String location = locationController.text.trim();
-  final String note = noteController.text.trim();
-
-  try {
-    if (item == null) {
-      await repo.add(
-        bookId: ref.read(currentBookIdProvider),
-        name: nameController.text,
-        purchasePriceMinor: purchaseMinor,
-        purchasedAt: purchasedAt.toUtc().millisecondsSinceEpoch,
-        currentValueMinor: valueMinor,
-        category: category.isEmpty ? null : category,
-        warrantyUntil: warrantyUntil,
-        location: location.isEmpty ? null : location,
-        note: note.isEmpty ? null : note,
-      );
-    } else {
-      await repo.update(
-        id: item.id,
-        name: nameController.text,
-        purchasePriceMinor: purchaseMinor,
-        currentValueMinor: valueMinor,
-        purchasedAt: purchasedAt.toUtc().millisecondsSinceEpoch,
-        category: category.isEmpty ? null : category,
-        warrantyUntil: warrantyUntil,
-        photoUrl: item.photoUrl,
-        location: location.isEmpty ? null : location,
-        note: note.isEmpty ? null : note,
-      );
-    }
-  } on AppFailure catch (e) {
-    if (context.mounted) showToast(context, e.message);
-  }
-}

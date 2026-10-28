@@ -53,17 +53,17 @@ extension ImportSourceX on ImportSource {
   String get subtitle {
     switch (this) {
       case ImportSource.pocketLedger:
-        return '「账单导出」页生成的 CSV / JSON 文件';
+        return '本 App 导出的账单数据文件';
       case ImportSource.blankTemplate:
-        return '按「模板」字段说明手动整理的 CSV / JSON 文件';
+        return '按模板字段说明手动整理的账单数据';
       case ImportSource.alipay:
-        return '支付宝 App / 网页导出的账单 CSV（GBK 自动识别，银行卡账户按卡号末四位自动匹配现有账户）';
+        return '支付宝导出的账单 CSV，自动识别编码并匹配银行卡账户';
       case ImportSource.wechat:
-        return '微信「下载账单」导出的 CSV（自动跳过说明行，银行卡账户按卡号末四位自动匹配现有账户）';
+        return '微信导出的账单 CSV，自动跳过说明行并匹配银行卡账户';
       case ImportSource.unionpay:
-        return '云闪付 App「账单导出」的 CSV（按卡号末四位优先匹配现有账户）';
+        return '云闪付导出的账单 CSV，按卡号末四位匹配现有账户';
       case ImportSource.bank:
-        return '各银行 App / 网银导出的 CSV（按卡号末四位自动匹配现有账户；各银行表头差异大，选此来源手动适配）';
+        return '各银行 App / 网银导出的账单 CSV，需手动适配表头';
     }
   }
 }

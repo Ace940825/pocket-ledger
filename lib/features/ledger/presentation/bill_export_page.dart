@@ -108,6 +108,9 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
   bool _asJson = false;
   bool _busy = false;
 
+  /// 导出类型：账单 / 账户 / 全部
+  String _exportType = 'all'; // 'bill' | 'account' | 'all'
+
   /// 导出时间范围（本地日）。默认本月 1 日 ~ 今天，对标小青账「时间选择」。
   late DateTime _start = DateTime(DateTime.now().year, DateTime.now().month, 1);
   late DateTime _end = DateTime.now();
@@ -556,9 +559,13 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
           ),
       ];
 
+      // 根据导出类型决定导出内容
+      final List<BillRow> exportRows = _exportType == 'account' ? <BillRow>[] : rows;
+      final List<AccountRow> exportAccounts = _exportType == 'bill' ? <AccountRow>[] : accountRows;
+
       final String content = _asJson
-          ? buildJson(rows, accounts: accountRows)
-          : buildCsv(rows, accounts: accountRows);
+          ? buildJson(exportRows, accounts: exportAccounts)
+          : buildCsv(exportRows, accounts: exportAccounts);
 
       final String stamp = _timeStamp();
       final String ext = _asJson ? 'json' : 'csv';
@@ -621,6 +628,8 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               children: <Widget>[
                 _headerCard(),
                 const SizedBox(height: AppDimens.sm),
+                _exportTypeCard(),
+                const SizedBox(height: AppDimens.sm),
                 _infoStrip(),
                 const SizedBox(height: AppDimens.sm),
                 _timeRangeCard(),
@@ -664,7 +673,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Text(
-                  '账单导出',
+                  '数据导出',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -673,7 +682,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '导出当前账本账单，便于备份与迁移',
+                  '导出账单或账户数据，便于备份与迁移',
                   style: TextStyle(
                     fontSize: 12.5,
                     color: AppPalette.white.withValues(alpha: 0.92),
@@ -683,6 +692,66 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 导出类型选择卡：全部 / 账单 / 账户
+  Widget _exportTypeCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+      ),
+      padding: const EdgeInsets.all(AppDimens.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '导出内容',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: context.forest.onSurface,
+            ),
+          ),
+          const SizedBox(height: AppDimens.sm),
+          Row(
+            children: <Widget>[
+              _buildExportTypeChip('all', '全部'),
+              const SizedBox(width: AppDimens.sm),
+              _buildExportTypeChip('bill', '账单'),
+              const SizedBox(width: AppDimens.sm),
+              _buildExportTypeChip('account', '账户'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExportTypeChip(String value, String label) {
+    final bool selected = _exportType == value;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _exportType = value),
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppPalette.sageRibbon : AppPalette.graySurface,
+            borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? AppPalette.white : context.forest.onSurfaceVariant,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -708,7 +777,7 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '导出所选时间范围内的全部账单（含转账），支持 CSV / JSON。',
+              _getExportHint(),
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.4,
@@ -719,6 +788,17 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
         ],
       ),
     );
+  }
+
+  String _getExportHint() {
+    switch (_exportType) {
+      case 'bill':
+        return '导出所选时间范围内的全部账单（含转账），支持 CSV / JSON。';
+      case 'account':
+        return '导出全部账户信息（含余额、信用卡额度等），支持 CSV / JSON。';
+      default:
+        return '导出所选时间范围内的账单和全部账户信息，支持 CSV / JSON。';
+    }
   }
 
   /// 时间选择卡（对标小青账「时间选择」）：开始 / 结束时间两行，点击拉起

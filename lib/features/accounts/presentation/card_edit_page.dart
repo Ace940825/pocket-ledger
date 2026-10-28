@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pocket_ledger/shared/widgets/date_picker_sheet.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/theme/forest_design_tokens.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
+import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimens.dart';
 import '../data/card_store.dart';
+import 'bank_picker_sheet.dart';
 
 /// 卡片编辑页：点击详情页「编辑」后进入，或管理页「+」新建进入。
 ///
@@ -33,24 +35,26 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
   final TextEditingController _billDay = TextEditingController();
   final TextEditingController _repayDays = TextEditingController();
   final TextEditingController _creditLimit = TextEditingController();
+  final TextEditingController _cardHolder = TextEditingController();
   final TextEditingController _remark = TextEditingController();
 
-  String _cardOrg = 'UnionPay';
+  String _cardOrg = '银联 UnionPay';
   String _currency = '人民币';
   bool _repayReminder = true;
   CardRepayMode _repayMode = CardRepayMode.graceDays;
   // 需求③：固定还款日初始值设为 1（页面显示「点击选择」，弹窗默认选中 1 号）。
   int _repayValue = 1;
   int _billDayValue = 1;
-  // 当前表单仅信用卡一种类型；账单日/还款日按信用卡规则必填。
-  CardType _cardType = CardType.credit;
   bool _billDayPicked = false; // 账单日是否真正点击选择过
   bool _repayPicked = false; // 还款日是否真正点击选择过
   bool _bankManuallySet = false; // 银行是否被用户手动选择（优先于卡号自动识别）
+  bool _cardOrgManuallySet = false; // 发卡组织是否被用户手动选择（优先于卡号自动识别）
 
   @override
   void initState() {
     super.initState();
+    // 监听卡号输入变化，同步更新大卡片预览
+    _cardNumber.addListener(() => setState(() {}));
     final String? id = widget.cardId;
     if (id != null) {
       final CardInfo? card = ref.read(cardStoreProvider.notifier).getById(id);
@@ -68,15 +72,15 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
         _repayReminder = card.repayReminder;
         _currency = card.currency;
         _creditLimit.text = card.creditLimit;
+        _cardHolder.text = card.cardHolder;
         _remark.text = card.remark;
         _cardOrg = card.cardOrg;
-        _cardType = card.cardType;
         // 编辑既有卡片：账单日/还款日已存在，视为已选。
         _billDayPicked = true;
         _repayPicked = true;
       }
     }
-    // 新建：账单日/还款日不预填，由用户点击选择（信用卡为必填）；
+    // 新建：账单日/还款日不预填，由用户点击选择；
     // 若已载入卡号（如编辑），尝试按卡号自动识别银行。
     if (_bankName.isEmpty) {
       final String? bank = identifyBank(_cardNumber.text);
@@ -91,12 +95,32 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
     super.dispose();
   }
 
-  /// 卡号变化时：若用户未手动指定银行，则实时按卡号自动识别银行。
+  /// 点击表单空白处时收起键盘。
+  ///
+  /// 若当前焦点落在文本输入控件（[EditableText]）上则保持不变，避免「点输入框
+  /// 键盘立刻收起」的误操作；其余情况（点选卡片 / 切到空白 / 滚动）一律收起，
+  /// 防止键盘遮挡下方表单字段。
+  void _unfocusOnTap() {
+    final FocusNode? primary = FocusManager.instance.primaryFocus;
+    if (primary == null || primary.hasPrimaryFocus) return;
+    final Widget? focused = primary.context?.widget;
+    if (focused is EditableText) return;
+    primary.unfocus();
+  }
+
+  /// 卡号变化时：若用户未手动指定，则实时按卡号自动识别银行与发卡组织。
   void _onCardNumberChanged() {
-    if (_bankManuallySet) return;
-    final String? bank = identifyBank(_cardNumber.text);
-    if (bank != null && bank != _bankName && mounted) {
-      setState(() => _bankName = bank);
+    if (!_bankManuallySet) {
+      final String? bank = identifyBank(_cardNumber.text);
+      if (bank != null && bank != _bankName && mounted) {
+        setState(() => _bankName = bank);
+      }
+    }
+    if (!_cardOrgManuallySet) {
+      final String? org = identifyCardOrg(_cardNumber.text);
+      if (org != null && org != _cardOrg && mounted) {
+        setState(() => _cardOrg = org);
+      }
     }
   }
 
@@ -104,25 +128,23 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
   String? _validate() {
     final List<String> missing = <String>[];
     if (_cardNumber.text.trim().isEmpty) missing.add('卡号');
-    // 信用卡：账单日、还款日均为必填（其余类型无还款约束）。
-    if (_cardType == CardType.credit) {
-      if (!_billDayPicked) missing.add('账单日');
-      if (!_repayPicked) missing.add('还款日');
-    }
+    // 账单日和还款日改为非必填项
+    // if (!_billDayPicked) missing.add('账单日');
+    // if (!_repayPicked) missing.add('还款日');
     if (missing.isEmpty) return null;
     return '请完善必填项：${missing.join('、')}';
   }
 
-  /// 弹出账单日选择器（选择每月几号）。
+  /// 弹出账单日选择器（选择每月几号）。共用共享层 [showDayPickerSheet]。
   Future<void> _pickBillDay(BuildContext context) async {
     final RegExp reg = RegExp(r'(\d+)');
     final Match? match = reg.firstMatch(_billDay.text);
     final int initialDay =
         match != null ? int.tryParse(match.group(1)!) ?? 1 : 1;
 
-    final int? result = await showAppModalSheet<int>(
+    final int? result = await showDayPickerSheet(
       context,
-      body: _DayPickerSheet(initialDay: initialDay),
+      initialDay: initialDay,
     );
 
     if (result != null && mounted) {
@@ -135,25 +157,24 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
   }
 
   /// 弹出还款日/免息期设定弹窗（计算方式并行：固定还款日 / 固定免息期）。
+  /// 复用共享层 [showRepayDatePickerSheet]，再将其 [RepayDateResult]
+  /// 映射回卡片页自己的 [CardRepayMode] / [_repayValue]（持久化模型不变）。
   Future<void> _pickRepayDays(BuildContext context) async {
-    final (CardRepayMode, int)? result =
-        await showAppModalSheet<(CardRepayMode, int)>(
+    final RepayDateResult? result = await showRepayDatePickerSheet(
       context,
-      isScrollControlled: true,
-      bodyPadding: EdgeInsets.zero,
-      body: _RepayMethodSheet(
-        initialMode: _repayMode,
-        initialValue: _repayValue,
-      ),
+      initialBillingDay: _billDayPicked ? _billDayValue : null,
+      initialDueDay: _repayMode == CardRepayMode.fixedDay ? _repayValue : null,
+      initialDueGraceDays:
+          _repayMode == CardRepayMode.graceDays ? _repayValue : null,
     );
 
     if (result != null && mounted) {
+      final bool isFixed = result.dueDay != null;
+      final int value = isFixed ? result.dueDay! : result.dueGraceDays!;
       setState(() {
-        _repayMode = result.$1;
-        _repayValue = result.$2;
-        _repayDays.text = _repayMode == CardRepayMode.fixedDay
-            ? '每月$_repayValue日'
-            : '$_repayValue天';
+        _repayMode = isFixed ? CardRepayMode.fixedDay : CardRepayMode.graceDays;
+        _repayValue = value;
+        _repayDays.text = isFixed ? '每月$value日' : '$value天';
         _repayPicked = true;
       });
     }
@@ -181,6 +202,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
     if (result != null && mounted) {
       setState(() {
         _cardOrg = result;
+        _cardOrgManuallySet = true; // 手动指定优先于自动识别
       });
     }
   }
@@ -203,52 +225,24 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
     }
   }
 
-  /// 弹出银行选择器（常用银行列表）。
+  /// 弹出银行选择器。复用模块内共享的 [showBankPickerSheet]
+  /// （搜索 + 首字母索引 + 自定义银行），而非本地硬编码银行列表。
   ///
-  /// 自动识别失败时可手动选择；选「不选择」则清空银行（允许不填）。
+  /// 自动识别失败时可手动选择；选「不选择」则清空银行（允许不填，如非银行类卡片）。
   Future<void> _pickBank(BuildContext context) async {
-    final result = await showAppModalSheet<String>(
+    final String? result = await showBankPickerSheet(
       context,
-      body: _OptionsPickerSheet(
-        title: '银行',
-        options: const <String>[
-          '工商银行',
-          '建设银行',
-          '农业银行',
-          '中国银行',
-          '交通银行',
-          '招商银行',
-          '邮政储蓄银行',
-          '兴业银行',
-          '中信银行',
-          '光大银行',
-          '浦发银行',
-          '民生银行',
-          '广发银行',
-          '平安银行',
-          '北京银行',
-          '上海银行',
-        ],
-        initial: _bankName,
-        clearReturn: '', // 「不选择」返回空串表示清空银行
-      ),
+      selected: _bankName.isEmpty ? null : _bankName,
+      allowClear: true,
     );
 
     if (result == null) return; // 其它方式关闭（如点遮罩）= 不变
-    if (result == '') {
-      // 用户明确选择「不填银行」。
-      if (mounted) {
-        setState(() {
-          _bankName = '';
-          _bankManuallySet = false; // 允许后续按卡号重新自动识别
-        });
-      }
-      return;
-    }
     if (mounted) {
       setState(() {
         _bankName = result;
-        _bankManuallySet = true; // 手动指定优先于自动识别
+        // 选「不选择」返回空串 → 清空并允许后续按卡号重新自动识别；
+        // 选具体银行 → 手动指定优先于自动识别。
+        _bankManuallySet = result.isNotEmpty;
       });
     }
   }
@@ -257,7 +251,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('编辑'),
+        title: Text(widget.cardId == null ? '新建' : '编辑'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -286,8 +280,9 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
                 repayReminder: _repayReminder,
                 currency: _currency,
                 creditLimit: _creditLimit.text.trim(),
+                cardHolder: _cardHolder.text.trim(),
                 remark: _remark.text.trim(),
-                cardType: _cardType,
+                cardType: CardType.credit,
               );
               ref.read(cardStoreProvider.notifier).upsert(card);
               context.pop();
@@ -295,8 +290,14 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppDimens.lg),
+      body: GestureDetector(
+        // 焦点移走（点空白处 / 切换字段）即收起键盘，避免遮挡下方表单。
+        behavior: HitTestBehavior.translucent,
+        onTap: _unfocusOnTap,
+        child: ListView(
+          // 滚动列表时顺手收起键盘，方便查看被遮挡字段。
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.all(AppDimens.lg),
         children: <Widget>[
           // 大卡片预览
           _CardPreview(
@@ -309,16 +310,21 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
           _TextFieldTile(
             label: '卡号',
             controller: _cardNumber,
-            suffix: IconButton(
-              icon: const Icon(Icons.qr_code_scanner),
-              onPressed: () => showAppToast(context, '扫描银行卡功能开发中'),
+            suffix: GestureDetector(
+              onTap: () => showAppToast(context, '扫描银行卡功能开发中'),
+              child: Icon(
+                Icons.qr_code_scanner,
+                size: 20,
+                color: context.forest.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(height: AppDimens.sm),
-          // 银行 + 别名（2列）
+          // 银行 + 别名（银行与发卡组织等宽，别名占剩余位置）
           Row(
             children: <Widget>[
               Expanded(
+                flex: 1,
                 child: _ClickableTile(
                   label: '银行',
                   value: _bankName.isEmpty ? '请选择' : _bankName,
@@ -327,6 +333,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
               ),
               const SizedBox(width: AppDimens.sm),
               Expanded(
+                flex: 2,
                 child: _TextFieldTile(
                   label: '别名',
                   controller: _alias,
@@ -381,7 +388,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
               const SizedBox(width: AppDimens.sm),
               Expanded(
                 child: _ClickableTile(
-                  label: '还款日',
+                  label: _repayMode == CardRepayMode.fixedDay ? '还款日' : '免息期',
                   value: _repayPicked ? _repayDays.text : '点击选择',
                   onTap: () => _pickRepayDays(context),
                 ),
@@ -397,7 +404,7 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
             ],
           ),
           const SizedBox(height: AppDimens.sm),
-          // 币种 + 固定额度（2列）
+          // 币种 + 固定额度 + 持卡人（3列）
           Row(
             children: <Widget>[
               Expanded(
@@ -414,16 +421,24 @@ class _CardEditPageState extends ConsumerState<CardEditPage> {
                   controller: _creditLimit,
                 ),
               ),
+              const SizedBox(width: AppDimens.sm),
+              Expanded(
+                child: _TextFieldTile(
+                  label: '持卡人',
+                  controller: _cardHolder,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppDimens.sm),
-          // 备注（占满一行）
+          // 备注（所有类型）
           _TextFieldTile(
             label: '备注',
             controller: _remark,
-            maxLines: 2,
+            maxLines: 1,
           ),
         ],
+        ),
       ),
     );
   }
@@ -456,14 +471,20 @@ class _CardPreview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                bankName,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: context.forest.onSurfaceVariant,
+              Expanded(
+                child: Text(
+                  bankName,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: context.forest.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: AppDimens.sm),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppDimens.sm,
@@ -479,11 +500,13 @@ class _CardPreview extends StatelessWidget {
                     color: context.forest.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const Spacer(),
+          const Spacer(flex: 1),
           Center(
             child: Text(
               cardNumber,
@@ -493,6 +516,7 @@ class _CardPreview extends StatelessWidget {
               ),
             ),
           ),
+          const Spacer(flex: 1),
         ],
       ),
     );
@@ -519,8 +543,6 @@ class _TextFieldTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
     return Container(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.md,
@@ -538,25 +560,40 @@ class _TextFieldTile extends StatelessWidget {
         children: <Widget>[
           Text(
             label,
-            style: theme.textTheme.bodySmall?.copyWith(
+            style: TextStyle(
               color: context.forest.onSurfaceVariant,
               fontSize: 12,
+              height: 1.2,
             ),
           ),
-          const SizedBox(height: AppDimens.xs),
-          TextField(
-            controller: controller,
-            maxLines: maxLines,
-            inputFormatters: inputFormatters,
-            keyboardType: keyboardType,
-            decoration: InputDecoration(
-              isDense: true,
-              border: InputBorder.none,
-              suffixIcon: suffix,
-              contentPadding: EdgeInsets.zero,
-            ),
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+          const SizedBox(height: 4),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    maxLines: maxLines,
+                    inputFormatters: inputFormatters,
+                    keyboardType: keyboardType,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+                if (suffix != null) ...[
+                  const SizedBox(width: 8),
+                  Center(child: suffix),
+                ],
+              ],
             ),
           ),
         ],
@@ -579,8 +616,6 @@ class _ClickableTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
     return InkWell(
       borderRadius: BorderRadius.circular(AppDimens.radiusCard),
       onTap: onTap,
@@ -601,18 +636,25 @@ class _ClickableTile extends StatelessWidget {
           children: <Widget>[
             Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: TextStyle(
                 color: context.forest.onSurfaceVariant,
                 fontSize: 12,
+                height: 1.2,
               ),
             ),
-            const SizedBox(height: AppDimens.xs),
+            const SizedBox(height: 4),
             Row(
               children: <Widget>[
-                Text(
-                  value,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
                   ),
                 ),
               ],
@@ -659,265 +701,17 @@ class _CenteredUnderlineTitle extends StatelessWidget {
   }
 }
 
-/// 日期选择底部弹窗（选择每月几号）。点选即返回，无「确定」按钮。
-class _DayPickerSheet extends StatelessWidget {
-  const _DayPickerSheet({required this.initialDay});
-
-  final int initialDay;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const _CenteredUnderlineTitle('账单日'),
-          const SizedBox(height: AppDimens.lg),
-          // 日期网格（7列，1-31号）
-          GridView.count(
-            crossAxisCount: 7,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: AppDimens.sm,
-            crossAxisSpacing: AppDimens.sm,
-            childAspectRatio: 1,
-            children: <Widget>[
-              for (int day = 1; day <= 31; day++)
-                _DayCell(
-                  day: day,
-                  selected: day == initialDay,
-                  onTap: () => Navigator.pop(context, day),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppDimens.sm),
-          // 右下角「不选择」
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                '不选择',
-                style: TextStyle(color: context.forest.onSurfaceVariant),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 日期格子。
-class _DayCell extends StatelessWidget {
-  const _DayCell({
-    required this.day,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final int day;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Container(
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: selected ? context.forest.onSurface : Colors.transparent,
-        ),
-        child: Text(
-          '$day',
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: selected
-                ? context.forest.surface
-                : context.forest.onSurface,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 还款日 / 免息期合并设定弹窗（对标参考图：居中下划线标题 + 计算方式胶囊切换
-/// + 7 列数字网格（两种模式通用）+ 底部「确定」居中、「不选择」右下）。点选不立即返回，
-/// 由「确定」回写 (计算方式, 选中值)。
-class _RepayMethodSheet extends StatefulWidget {
-  const _RepayMethodSheet({
-    required this.initialMode,
-    required this.initialValue,
-  });
-
-  /// 初始计算方式。
-  final CardRepayMode initialMode;
-
-  /// 初始选中值（免息期 = 天数；固定还款日 = 每月第几号）。
-  final int initialValue;
-
-  @override
-  State<_RepayMethodSheet> createState() => _RepayMethodSheetState();
-}
-
-class _RepayMethodSheetState extends State<_RepayMethodSheet> {
-  late CardRepayMode _mode;
-  late int _selectedValue;
-
-  @override
-  void initState() {
-    super.initState();
-    // 两种计算方式共用同一个选中数字（1-31），切换模式时选中态不跳动
-    _mode = widget.initialMode;
-    _selectedValue = widget.initialValue.clamp(1, 31);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // 居中标题 + 文字下方短下划线
-            const _CenteredUnderlineTitle('还款日'),
-            const SizedBox(height: AppDimens.md),
-            // 计算方式切换：固定还款日 / 固定免息期（切换键整体右对齐）
-            Row(
-              children: <Widget>[
-                Text(
-                  '计算方式：',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: context.forest.onSurfaceVariant,
-                  ),
-                ),
-                const Spacer(),
-                _ModeCapsule(
-                  label: '固定还款日',
-                  selected: _mode == CardRepayMode.fixedDay,
-                  onTap: () => setState(() => _mode = CardRepayMode.fixedDay),
-                ),
-                const SizedBox(width: AppDimens.sm),
-                _ModeCapsule(
-                  label: '固定免息期',
-                  selected: _mode == CardRepayMode.graceDays,
-                  onTap: () => setState(() => _mode = CardRepayMode.graceDays),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppDimens.md),
-            // 内容区：两种计算方式共用同一 7 列数字网格（选中态不随模式切换跳动）
-            GridView.count(
-              crossAxisCount: 7,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: AppDimens.sm,
-              crossAxisSpacing: AppDimens.sm,
-              childAspectRatio: 1,
-              children: <Widget>[
-                for (int day = 1; day <= 31; day++)
-                  _DayCell(
-                    day: day,
-                    selected: day == _selectedValue,
-                    onTap: () => setState(() => _selectedValue = day),
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppDimens.md),
-            // 底部：确定（居中主操作）+ 不选择（右下）
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.pop(context, (_mode, _selectedValue));
-                      },
-                      child: Text(
-                        '确定',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: context.forest.onSurface,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    '不选择',
-                    style: TextStyle(color: context.forest.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 计算方式切换胶囊：选中 = 浅底深字（白底黑字观感），未选中 = 纯文字。
-class _ModeCapsule extends StatelessWidget {
-  const _ModeCapsule({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? context.forest.onSurface : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: selected ? context.forest.surface : context.forest.onSurface,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// 通用选项选择底部弹窗（字符串选项）。点选即返回，无「确定」按钮。
 class _OptionsPickerSheet extends StatelessWidget {
   const _OptionsPickerSheet({
     required this.title,
     required this.options,
     required this.initial,
-    this.clearReturn,
   });
 
   final String title;
   final List<String> options;
   final String initial;
-  /// 「不选择」按钮的返回值；为 null 时（默认）等同于关闭（无变更）。
-  final String? clearReturn;
 
   @override
   Widget build(BuildContext context) {
@@ -927,29 +721,34 @@ class _OptionsPickerSheet extends StatelessWidget {
         children: <Widget>[
           _CenteredUnderlineTitle(title),
           const SizedBox(height: AppDimens.lg),
-          // 选项列表
+          // 选项列表：居中排布，避免 7 个选项流式时末行孤项左右失衡；
+          // 选中态用 Forest 令牌（绿调底 + 绿字 + 绿勾），对比更清晰。
           Wrap(
-            spacing: AppDimens.sm,
+            alignment: WrapAlignment.center,
+            spacing: AppDimens.md,
             runSpacing: AppDimens.sm,
             children: <Widget>[
               for (final String option in options)
                 ChoiceChip(
-                  label: Text(option),
+                  label: Text(
+                    option,
+                    style: TextStyle(
+                      color: option == initial
+                          ? context.forest.primary
+                          : context.forest.onSurface,
+                      fontWeight: option == initial
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
                   selected: option == initial,
+                  selectedColor: context.forest.primaryContainer,
+                  backgroundColor: context.forest.surfaceContainerHighest,
+                  checkmarkColor: context.forest.primary,
+                  showCheckmark: true,
                   onSelected: (_) => Navigator.pop(context, option),
                 ),
             ],
-          ),
-          const SizedBox(height: AppDimens.sm),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => Navigator.pop(context, clearReturn),
-              child: Text(
-                '不选择',
-                style: TextStyle(color: context.forest.onSurfaceVariant),
-              ),
-            ),
           ),
         ],
       ),

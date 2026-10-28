@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 抽出为顶层常量，便于测试在不实例化 [AppDatabase] 的情况下引用当前版本，
   /// 避免迁移回归测试把版本号写死导致每次升级都要手动同步。
-  static const int kSchemaVersion = 41;
+  static const int kSchemaVersion = 42;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -559,6 +559,16 @@ class AppDatabase extends _$AppDatabase {
             );
           }
 
+          if (from < 42) {
+            // v42：物品表补齐「扩展列」（物品类型 / 不动产成本明细 / 持有成本 /
+            // 维护成本 / 使用状态 / 资产状态 / 计入总资产 / 币种 / 关联交易）。
+            // 这些列是后续版本陆续加进 [InventoryItems] 的，但早期版本漏写了迁移
+            // 步骤，导致旧库 INSERT 报 `no column named item_type`。用幂等
+            // [_ensureInventoryItemColumns]（PRAGMA 探测后仅在缺失时 ALTER），
+            // 兼容全新安装与任何存量升级；另在 [beforeOpen] 也自愈一次兜底。
+            await _ensureInventoryItemColumns();
+          }
+
           // 索引在 onCreate 里创建；升级路径同样要补齐，且必须幂等
           // （旧库若已建过索引，重复 CREATE INDEX 也会报 already exists）。
           await _createIndexes();
@@ -570,6 +580,9 @@ class AppDatabase extends _$AppDatabase {
           // 漏迁移/半迁移的存量库。每次打开自愈，避免 SELECT * 读不到列 →
           // 映射非空 int 崩溃。幂等（PRAGMA 探测后仅在缺失时 ALTER）。
           await _ensureInvestmentHoldingColumns();
+          // 兜底对账：确保 inventory_items 的扩展列存在（见 [_ensureInventoryItemColumns]
+          // 注释——早期版本漏写迁移，旧库缺列会直接导致 INSERT 失败）。每次打开自愈。
+          await _ensureInventoryItemColumns();
           // 兜底建表：四张原生 SQL 台账表每次打开自愈（幂等，表已存在时
           // 为零成本 no-op），覆盖任何漏写迁移步骤 / 建表顺序被改乱的库。
           await _ensureRawTables();
@@ -655,6 +668,63 @@ class AppDatabase extends _$AppDatabase {
           'ALTER TABLE investment_holdings ADD COLUMN ${e.key} ${e.value}',
         );
       }
+    }
+  }
+
+  /// 兜底：确保 inventory_items 表的所有「扩展列」存在。
+  ///
+  /// 这些列（物品类型 / 不动产成本明细 / 持有成本 / 维护成本 / 使用状态 /
+  /// 资产状态 / 计入总资产 / 币种 / 关联交易 等）是后续版本陆续加进
+  /// [InventoryItems] 的，但早期版本漏写了迁移步骤，导致旧库 INSERT 时缺少
+  /// 列 → 报 `no column named item_type`。每次打开自愈，覆盖任何漏迁移 /
+  /// 半迁移的存量库。幂等（PRAGMA 探测后仅在缺失时 ALTER）。范式同
+  /// [_ensureInvestmentHoldingColumns]。
+  Future<void> _ensureInventoryItemColumns() async {
+    // 表本身若不存在（极旧库尚未建表），交由 createAll / onUpgrade 负责，
+    // 这里不应 ALTER 一个不存在的表。
+    final List<QueryRow> tbl = await customSelect(
+      'SELECT name FROM sqlite_master '
+      'WHERE type = \'table\' AND name = \'inventory_items\'',
+    ).get();
+    if (tbl.isEmpty) return;
+
+    final List<QueryRow> info = await customSelect(
+      'PRAGMA table_info(inventory_items)',
+    ).get();
+    final Set<String> existing =
+        info.map((QueryRow r) => r.read<String>('name')).toSet();
+    const Map<String, String> defs = <String, String>{
+      'item_type': 'INTEGER NOT NULL DEFAULT 0',
+      'address': 'TEXT',
+      'product_price_minor': 'INTEGER NOT NULL DEFAULT 0',
+      'interest_minor': 'INTEGER NOT NULL DEFAULT 0',
+      'tax_minor': 'INTEGER NOT NULL DEFAULT 0',
+      'renovation_minor': 'INTEGER NOT NULL DEFAULT 0',
+      'current_value_minor': 'INTEGER NOT NULL DEFAULT 0',
+      'currency': "TEXT NOT NULL DEFAULT 'CNY'",
+      'holding_cost_type': 'INTEGER',
+      'holding_cost_amount_minor': 'INTEGER',
+      'holding_cost_end_date': 'INTEGER',
+      'maintenance_cost_total_minor': 'INTEGER NOT NULL DEFAULT 0',
+      'maintenance_records': 'TEXT',
+      'usage_status': 'INTEGER NOT NULL DEFAULT 0',
+      'asset_status': 'INTEGER NOT NULL DEFAULT 0',
+      'include_in_total_assets': 'INTEGER NOT NULL DEFAULT 1',
+      'transaction_id': 'TEXT',
+    };
+    for (final MapEntry<String, String> e in defs.entries) {
+      if (!existing.contains(e.key)) {
+        await customStatement(
+          'ALTER TABLE inventory_items ADD COLUMN ${e.key} ${e.value}',
+        );
+      }
+    }
+    // 如果有旧的 location 列，把数据迁移到 address 列
+    if (existing.contains('location') && !existing.contains('address')) {
+      // 上面已经添加了 address 列，现在把 location 的数据复制过去
+      await customStatement(
+        'UPDATE inventory_items SET address = location WHERE address IS NULL',
+      );
     }
   }
 

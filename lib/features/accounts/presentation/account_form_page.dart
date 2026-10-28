@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ledger/shared/widgets/date_picker_sheet.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/settings_switch_row.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
@@ -19,7 +20,6 @@ import '../data/bank_data.dart';
 import '../data/repay_date.dart';
 import '../providers/accounts_providers.dart';
 import 'bank_select_page.dart';
-import 'widgets/repay_date_picker_sheet.dart';
 
 /// 账户表单页。
 ///
@@ -634,8 +634,11 @@ class _TypeHeader extends StatelessWidget {
         padding: const EdgeInsets.all(AppDimens.md),
         child: Row(
           children: <Widget>[
-            LineIcon(accountLineKind(type) ?? LineIconKind.star,
-                color: AppPalette.primary, size: 24,),
+            LineIcon(
+              accountLineKind(type) ?? LineIconKind.star,
+              color: AppPalette.primary,
+              size: 24,
+            ),
             const SizedBox(width: AppDimens.md),
             Expanded(
               child: Text(
@@ -806,9 +809,7 @@ class _ReadOnlyField extends StatelessWidget {
           Text(
             value.isEmpty ? placeholder : value,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: value.isEmpty
-                      ? context.forest.onSurfaceVariant
-                      : null,
+                  color: value.isEmpty ? context.forest.onSurfaceVariant : null,
                 ),
           ),
         ],
@@ -878,9 +879,8 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color color = selected
-        ? AppPalette.primary
-        : context.forest.onSurfaceVariant;
+    final Color color =
+        selected ? AppPalette.primary : context.forest.onSurfaceVariant;
     return Material(
       color: selected
           ? AppPalette.primary.withValues(alpha: 0.12)

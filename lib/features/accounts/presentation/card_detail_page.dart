@@ -42,10 +42,6 @@ class CardDetailPage extends ConsumerWidget {
     final String cardName = card.alias.isNotEmpty ? card.alias : card.bankName;
     final String cardNumber = card.maskedNumber;
     final String cardOrg = card.cardOrg;
-    final String expiryDate = card.validity.isNotEmpty ? card.validity : '—';
-    final String creditLimit =
-        card.creditLimit.isNotEmpty ? card.creditLimit : '—';
-    final String cvvReal = card.cvv;
     final String remark = card.remark.isNotEmpty ? card.remark : '—';
 
     // 还款日程仅信用卡参与计算，其余类型（证券/储蓄等）显示占位。
@@ -78,45 +74,56 @@ class CardDetailPage extends ConsumerWidget {
             cardOrg: cardOrg,
           ),
           const SizedBox(height: AppDimens.lg),
-          // 信息网格（3列）
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: AppDimens.xs,
-            crossAxisSpacing: AppDimens.xs,
-            childAspectRatio: 2.0,
-            children: <Widget>[
-              _InfoTile(
-                label: '还款日',
-                value: schedule != null
-                    ? '${schedule.repayDate.month}月${schedule.repayDate.day}日'
-                    : '—',
-                hint: schedule != null ? '（${schedule.daysToRepay}天）' : null,
-              ),
-              _InfoTile(
-                label: '下期账单日',
-                value: schedule != null
-                    ? '${schedule.nextBillingDate.month}月${schedule.nextBillingDate.day}日'
-                    : '—',
-              ),
-              _InfoTile(
-                label: '今日免息期',
-                value: schedule != null ? '${schedule.interestFreeDays}天' : '—',
-              ),
-              _InfoTile(label: '有效期至', value: expiryDate),
-              _InfoTile(label: '银行', value: bankName),
-              _InfoTile(
-                label: '发卡组织',
-                value: cardOrg.isNotEmpty ? cardOrg : '—',
-              ),
-              _CvvTile(realCvv: cvvReal.isNotEmpty ? cvvReal : '—'),
-              _InfoTile(label: '固定额度(¥)', value: creditLimit),
-              _InfoTile(
-                label: '还款日提醒',
-                value: card.repayReminder ? '已开启' : '已关闭',
-              ),
-            ],
+          // 信息网格（3列）——过滤掉空值卡片
+          Builder(
+            builder: (BuildContext context) {
+              final List<Widget> tiles = <Widget>[
+                if (schedule != null)
+                  _InfoTile(
+                    label: '还款日',
+                    value: '${schedule.repayDate.month}月${schedule.repayDate.day}日',
+                    hint: '（${schedule.daysToRepay}天）',
+                  ),
+                if (schedule != null)
+                  _InfoTile(
+                    label: '下期账单日',
+                    value: '${schedule.nextBillingDate.month}月${schedule.nextBillingDate.day}日',
+                  ),
+                if (schedule != null)
+                  _InfoTile(
+                    label: '今日免息期',
+                    value: '${schedule.interestFreeDays}天',
+                  ),
+                if (card.validity.isNotEmpty)
+                  _InfoTile(label: '有效期至', value: card.validity),
+                if (card.bankName.isNotEmpty)
+                  _InfoTile(label: '银行', value: card.bankName),
+                if (card.cardOrg.isNotEmpty)
+                  _InfoTile(label: '发卡组织', value: card.cardOrg),
+                if (card.cvv.isNotEmpty)
+                  _CvvTile(realCvv: card.cvv),
+                if (card.creditLimit.isNotEmpty)
+                  _InfoTile(label: '固定额度(¥)', value: card.creditLimit),
+                _InfoTile(
+                  label: '还款日提醒',
+                  value: card.repayReminder ? '已开启' : '已关闭',
+                ),
+              ];
+
+              if (tiles.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              return GridView.count(
+                crossAxisCount: 3,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: AppDimens.xs,
+                crossAxisSpacing: AppDimens.xs,
+                childAspectRatio: 2.0,
+                children: tiles,
+              );
+            },
           ),
           const SizedBox(height: AppDimens.md),
           // 备注
@@ -247,15 +254,21 @@ class _CardPreview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           // 顶部：银行名 + 卡组织
+          // 银行名用 Expanded 收缩并省略，避免长别名把右侧发卡组织 chip 挤窄导致截断。
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                bankName,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              Expanded(
+                child: Text(
+                  bankName,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: AppDimens.sm),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppDimens.sm,
@@ -271,6 +284,8 @@ class _CardPreview extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

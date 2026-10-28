@@ -357,3 +357,83 @@ enum TagScope {
         TagScope.ledger => '账本独立',
       };
 }
+
+/// 物品类型：贵重物品 / 不动产。
+///
+/// ⚠️ Drift 以 `intEnum()` 存储下标，**只能在末尾追加新值**，不可在中间插入
+/// 或重排。
+enum InventoryItemType {
+  /// 贵重物品（电子产品、珠宝、收藏品等）
+  valuables,
+
+  /// 不动产（房产、土地等）
+  realEstate;
+
+  String get label => switch (this) {
+        InventoryItemType.valuables => '贵重物品',
+        InventoryItemType.realEstate => '不动产',
+      };
+}
+
+/// 持有成本类型：按天 / 按次 / 自定义。
+///
+/// ⚠️ Drift 以 `intEnum()` 存储下标，**只能在末尾追加新值**，不可在中间插入
+/// 或重排。
+enum HoldingCostType {
+  /// 按天计算（如物业费、租金）
+  perDay,
+
+  /// 按次计算（如停车费、过路费）
+  perEvent,
+
+  /// 自定义金额
+  custom;
+
+  String get label => switch (this) {
+        HoldingCostType.perDay => '按天',
+        HoldingCostType.perEvent => '按次',
+        HoldingCostType.custom => '自定义',
+      };
+}
+
+/// 使用状态：使用中 / 闲置 / 已售出。
+///
+/// ⚠️ Drift 以 `intEnum()` 存储下标，**只能在末尾追加新值**，不可在中间插入
+/// 或重排。
+enum UsageStatus {
+  /// 使用中
+  inUse,
+
+  /// 闲置
+  idle,
+
+  /// 已售出（归档）
+  sold;
+
+  String get label => switch (this) {
+        UsageStatus.inUse => '使用中',
+        UsageStatus.idle => '闲置',
+        UsageStatus.sold => '已售出',
+      };
+}
+
+/// 资产状态：使用中 / 隐藏 / 封存。
+///
+/// ⚠️ Drift 以 `intEnum()` 存储下标，**只能在末尾追加新值**，不可在中间插入
+/// 或重排。
+enum AssetStatus {
+  /// 使用中
+  active,
+
+  /// 隐藏
+  hidden,
+
+  /// 封存
+  archived;
+
+  String get label => switch (this) {
+        AssetStatus.active => '使用中',
+        AssetStatus.hidden => '隐藏',
+        AssetStatus.archived => '封存',
+      };
+}

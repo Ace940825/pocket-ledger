@@ -9,6 +9,7 @@ import '../../../routing/app_router.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/menu_item.dart';
+import '../../accounts/data/card_store.dart';
 import 'sync_config_card.dart';
 
 /// 设置页。
@@ -93,7 +94,7 @@ class SettingsPage extends ConsumerWidget {
       context,
       title: '清空全部数据？',
       content: '将删除本机所有账户、账单、借还、报销、储蓄、分期、预算、'
-          '投资、分类、标签及导入记录，仅保留账本。此操作不可恢复。\n\n'
+          '投资、分类、标签、卡片管理及导入记录，仅保留账本。此操作不可恢复。\n\n'
           '已配置云端同步的话，云端数据不会被本机删除，但也不会自动拉回覆盖。',
       confirmText: '全部清空',
       danger: true,
@@ -101,6 +102,8 @@ class SettingsPage extends ConsumerWidget {
     if (ok != true) return;
     try {
       await ref.read(appDatabaseProvider).wipeAllUserData();
+      // 同时清空卡片管理数据
+      ref.read(cardStoreProvider.notifier).clearAll();
       if (context.mounted) showAppToast(context, '已清空全部账目数据');
     } catch (e) {
       if (context.mounted) showAppToast(context, '清空失败：$e');

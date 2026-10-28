@@ -16,6 +16,7 @@ import 'widgets/bank_alphabet_index.dart';
 Future<String?> showBankPickerSheet(
   BuildContext context, {
   String? selected,
+  bool allowClear = false,
 }) {
   return showAppModalSheet<String>(
     context,
@@ -27,7 +28,7 @@ Future<String?> showBankPickerSheet(
       child: const Text('自定义'),
     ),
     bodyPadding: EdgeInsets.zero,
-    body: _BankPickerBody(selected: selected),
+    body: _BankPickerBody(selected: selected, allowClear: allowClear),
   );
 }
 
@@ -45,10 +46,13 @@ Future<void> _customBank(BuildContext context) async {
 }
 
 class _BankPickerBody extends StatefulWidget {
-  const _BankPickerBody({this.selected});
+  const _BankPickerBody({this.selected, this.allowClear = false});
 
   /// 当前银行名（列表中高亮）。
   final String? selected;
+
+  /// 是否显示「不选择」按钮（返回空串，用于允许银行留空的场景，如非银行类卡片）。
+  final bool allowClear;
 
   @override
   State<_BankPickerBody> createState() => _BankPickerBodyState();
@@ -203,6 +207,19 @@ class _BankPickerBodyState extends State<_BankPickerBody> {
             ],
           ),
         ),
+        if (widget.allowClear)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.lg,
+              AppDimens.sm,
+              AppDimens.lg,
+              AppDimens.lg,
+            ),
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop<String>(''),
+              child: const Text('不选择'),
+            ),
+          ),
       ],
     );
   }

@@ -10246,6 +10246,14 @@ class $InventoryItemsTable extends InventoryItems
   late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
       'book_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  late final GeneratedColumnWithTypeConverter<InventoryItemType, int> itemType =
+      GeneratedColumn<int>('item_type', aliasedName, false,
+              type: DriftSqlType.int,
+              requiredDuringInsert: false,
+              defaultValue: const Constant(0))
+          .withConverter<InventoryItemType>(
+              $InventoryItemsTable.$converteritemType);
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -10257,11 +10265,49 @@ class $InventoryItemsTable extends InventoryItems
   late final GeneratedColumn<String> category = GeneratedColumn<String>(
       'category', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _addressMeta =
+      const VerificationMeta('address');
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+      'address', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _purchasePriceMinorMeta =
       const VerificationMeta('purchasePriceMinor');
   @override
   late final GeneratedColumn<int> purchasePriceMinor = GeneratedColumn<int>(
       'purchase_price_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _productPriceMinorMeta =
+      const VerificationMeta('productPriceMinor');
+  @override
+  late final GeneratedColumn<int> productPriceMinor = GeneratedColumn<int>(
+      'product_price_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _interestMinorMeta =
+      const VerificationMeta('interestMinor');
+  @override
+  late final GeneratedColumn<int> interestMinor = GeneratedColumn<int>(
+      'interest_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _taxMinorMeta =
+      const VerificationMeta('taxMinor');
+  @override
+  late final GeneratedColumn<int> taxMinor = GeneratedColumn<int>(
+      'tax_minor', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _renovationMinorMeta =
+      const VerificationMeta('renovationMinor');
+  @override
+  late final GeneratedColumn<int> renovationMinor = GeneratedColumn<int>(
+      'renovation_minor', aliasedName, false,
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
@@ -10287,6 +10333,65 @@ class $InventoryItemsTable extends InventoryItems
   late final GeneratedColumn<int> purchasedAt = GeneratedColumn<int>(
       'purchased_at', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  late final GeneratedColumnWithTypeConverter<HoldingCostType?, int>
+      holdingCostType = GeneratedColumn<int>(
+              'holding_cost_type', aliasedName, true,
+              type: DriftSqlType.int, requiredDuringInsert: false)
+          .withConverter<HoldingCostType?>(
+              $InventoryItemsTable.$converterholdingCostTypen);
+  static const VerificationMeta _holdingCostAmountMinorMeta =
+      const VerificationMeta('holdingCostAmountMinor');
+  @override
+  late final GeneratedColumn<int> holdingCostAmountMinor = GeneratedColumn<int>(
+      'holding_cost_amount_minor', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _holdingCostEndDateMeta =
+      const VerificationMeta('holdingCostEndDate');
+  @override
+  late final GeneratedColumn<int> holdingCostEndDate = GeneratedColumn<int>(
+      'holding_cost_end_date', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _maintenanceCostTotalMinorMeta =
+      const VerificationMeta('maintenanceCostTotalMinor');
+  @override
+  late final GeneratedColumn<int> maintenanceCostTotalMinor =
+      GeneratedColumn<int>('maintenance_cost_total_minor', aliasedName, false,
+          type: DriftSqlType.int,
+          requiredDuringInsert: false,
+          defaultValue: const Constant(0));
+  static const VerificationMeta _maintenanceRecordsMeta =
+      const VerificationMeta('maintenanceRecords');
+  @override
+  late final GeneratedColumn<String> maintenanceRecords =
+      GeneratedColumn<String>('maintenance_records', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  late final GeneratedColumnWithTypeConverter<UsageStatus, int> usageStatus =
+      GeneratedColumn<int>('usage_status', aliasedName, false,
+              type: DriftSqlType.int,
+              requiredDuringInsert: false,
+              defaultValue: const Constant(0))
+          .withConverter<UsageStatus>(
+              $InventoryItemsTable.$converterusageStatus);
+  @override
+  late final GeneratedColumnWithTypeConverter<AssetStatus, int> assetStatus =
+      GeneratedColumn<int>('asset_status', aliasedName, false,
+              type: DriftSqlType.int,
+              requiredDuringInsert: false,
+              defaultValue: const Constant(0))
+          .withConverter<AssetStatus>(
+              $InventoryItemsTable.$converterassetStatus);
+  static const VerificationMeta _includeInTotalAssetsMeta =
+      const VerificationMeta('includeInTotalAssets');
+  @override
+  late final GeneratedColumn<bool> includeInTotalAssets = GeneratedColumn<bool>(
+      'include_in_total_assets', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("include_in_total_assets" IN (0, 1))'),
+      defaultValue: const Constant(true));
   static const VerificationMeta _warrantyUntilMeta =
       const VerificationMeta('warrantyUntil');
   @override
@@ -10298,12 +10403,6 @@ class $InventoryItemsTable extends InventoryItems
   @override
   late final GeneratedColumn<String> photoUrl = GeneratedColumn<String>(
       'photo_url', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _locationMeta =
-      const VerificationMeta('location');
-  @override
-  late final GeneratedColumn<String> location = GeneratedColumn<String>(
-      'location', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
@@ -10324,15 +10423,28 @@ class $InventoryItemsTable extends InventoryItems
         syncedAt,
         id,
         bookId,
+        itemType,
         name,
         category,
+        address,
         purchasePriceMinor,
+        productPriceMinor,
+        interestMinor,
+        taxMinor,
+        renovationMinor,
         currentValueMinor,
         currency,
         purchasedAt,
+        holdingCostType,
+        holdingCostAmountMinor,
+        holdingCostEndDate,
+        maintenanceCostTotalMinor,
+        maintenanceRecords,
+        usageStatus,
+        assetStatus,
+        includeInTotalAssets,
         warrantyUntil,
         photoUrl,
-        location,
         note,
         transactionId
       ];
@@ -10385,11 +10497,37 @@ class $InventoryItemsTable extends InventoryItems
       context.handle(_categoryMeta,
           category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
     }
+    if (data.containsKey('address')) {
+      context.handle(_addressMeta,
+          address.isAcceptableOrUnknown(data['address']!, _addressMeta));
+    }
     if (data.containsKey('purchase_price_minor')) {
       context.handle(
           _purchasePriceMinorMeta,
           purchasePriceMinor.isAcceptableOrUnknown(
               data['purchase_price_minor']!, _purchasePriceMinorMeta));
+    }
+    if (data.containsKey('product_price_minor')) {
+      context.handle(
+          _productPriceMinorMeta,
+          productPriceMinor.isAcceptableOrUnknown(
+              data['product_price_minor']!, _productPriceMinorMeta));
+    }
+    if (data.containsKey('interest_minor')) {
+      context.handle(
+          _interestMinorMeta,
+          interestMinor.isAcceptableOrUnknown(
+              data['interest_minor']!, _interestMinorMeta));
+    }
+    if (data.containsKey('tax_minor')) {
+      context.handle(_taxMinorMeta,
+          taxMinor.isAcceptableOrUnknown(data['tax_minor']!, _taxMinorMeta));
+    }
+    if (data.containsKey('renovation_minor')) {
+      context.handle(
+          _renovationMinorMeta,
+          renovationMinor.isAcceptableOrUnknown(
+              data['renovation_minor']!, _renovationMinorMeta));
     }
     if (data.containsKey('current_value_minor')) {
       context.handle(
@@ -10409,6 +10547,37 @@ class $InventoryItemsTable extends InventoryItems
     } else if (isInserting) {
       context.missing(_purchasedAtMeta);
     }
+    if (data.containsKey('holding_cost_amount_minor')) {
+      context.handle(
+          _holdingCostAmountMinorMeta,
+          holdingCostAmountMinor.isAcceptableOrUnknown(
+              data['holding_cost_amount_minor']!, _holdingCostAmountMinorMeta));
+    }
+    if (data.containsKey('holding_cost_end_date')) {
+      context.handle(
+          _holdingCostEndDateMeta,
+          holdingCostEndDate.isAcceptableOrUnknown(
+              data['holding_cost_end_date']!, _holdingCostEndDateMeta));
+    }
+    if (data.containsKey('maintenance_cost_total_minor')) {
+      context.handle(
+          _maintenanceCostTotalMinorMeta,
+          maintenanceCostTotalMinor.isAcceptableOrUnknown(
+              data['maintenance_cost_total_minor']!,
+              _maintenanceCostTotalMinorMeta));
+    }
+    if (data.containsKey('maintenance_records')) {
+      context.handle(
+          _maintenanceRecordsMeta,
+          maintenanceRecords.isAcceptableOrUnknown(
+              data['maintenance_records']!, _maintenanceRecordsMeta));
+    }
+    if (data.containsKey('include_in_total_assets')) {
+      context.handle(
+          _includeInTotalAssetsMeta,
+          includeInTotalAssets.isAcceptableOrUnknown(
+              data['include_in_total_assets']!, _includeInTotalAssetsMeta));
+    }
     if (data.containsKey('warranty_until')) {
       context.handle(
           _warrantyUntilMeta,
@@ -10418,10 +10587,6 @@ class $InventoryItemsTable extends InventoryItems
     if (data.containsKey('photo_url')) {
       context.handle(_photoUrlMeta,
           photoUrl.isAcceptableOrUnknown(data['photo_url']!, _photoUrlMeta));
-    }
-    if (data.containsKey('location')) {
-      context.handle(_locationMeta,
-          location.isAcceptableOrUnknown(data['location']!, _locationMeta));
     }
     if (data.containsKey('note')) {
       context.handle(
@@ -10454,24 +10619,56 @@ class $InventoryItemsTable extends InventoryItems
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       bookId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}book_id'])!,
+      itemType: $InventoryItemsTable.$converteritemType.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}item_type'])!),
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       category: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category']),
+      address: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}address']),
       purchasePriceMinor: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}purchase_price_minor'])!,
+      productPriceMinor: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}product_price_minor'])!,
+      interestMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}interest_minor'])!,
+      taxMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}tax_minor'])!,
+      renovationMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}renovation_minor'])!,
       currentValueMinor: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}current_value_minor'])!,
       currency: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}currency'])!,
       purchasedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}purchased_at'])!,
+      holdingCostType: $InventoryItemsTable.$converterholdingCostTypen.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.int, data['${effectivePrefix}holding_cost_type'])),
+      holdingCostAmountMinor: attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}holding_cost_amount_minor']),
+      holdingCostEndDate: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}holding_cost_end_date']),
+      maintenanceCostTotalMinor: attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}maintenance_cost_total_minor'])!,
+      maintenanceRecords: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}maintenance_records']),
+      usageStatus: $InventoryItemsTable.$converterusageStatus.fromSql(
+          attachedDatabase.typeMapping
+              .read(DriftSqlType.int, data['${effectivePrefix}usage_status'])!),
+      assetStatus: $InventoryItemsTable.$converterassetStatus.fromSql(
+          attachedDatabase.typeMapping
+              .read(DriftSqlType.int, data['${effectivePrefix}asset_status'])!),
+      includeInTotalAssets: attachedDatabase.typeMapping.read(DriftSqlType.bool,
+          data['${effectivePrefix}include_in_total_assets'])!,
       warrantyUntil: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}warranty_until']),
       photoUrl: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}photo_url']),
-      location: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}location']),
       note: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}note']),
       transactionId: attachedDatabase.typeMapping
@@ -10483,6 +10680,19 @@ class $InventoryItemsTable extends InventoryItems
   $InventoryItemsTable createAlias(String alias) {
     return $InventoryItemsTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<InventoryItemType, int, int> $converteritemType =
+      const EnumIndexConverter<InventoryItemType>(InventoryItemType.values);
+  static JsonTypeConverter2<HoldingCostType, int, int>
+      $converterholdingCostType =
+      const EnumIndexConverter<HoldingCostType>(HoldingCostType.values);
+  static JsonTypeConverter2<HoldingCostType?, int?, int?>
+      $converterholdingCostTypen =
+      JsonTypeConverter2.asNullable($converterholdingCostType);
+  static JsonTypeConverter2<UsageStatus, int, int> $converterusageStatus =
+      const EnumIndexConverter<UsageStatus>(UsageStatus.values);
+  static JsonTypeConverter2<AssetStatus, int, int> $converterassetStatus =
+      const EnumIndexConverter<AssetStatus>(AssetStatus.values);
 }
 
 class InventoryItem extends DataClass implements Insertable<InventoryItem> {
@@ -10492,15 +10702,28 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
   final int? syncedAt;
   final String id;
   final String bookId;
+  final InventoryItemType itemType;
   final String name;
   final String? category;
+  final String? address;
   final int purchasePriceMinor;
+  final int productPriceMinor;
+  final int interestMinor;
+  final int taxMinor;
+  final int renovationMinor;
   final int currentValueMinor;
   final String currency;
   final int purchasedAt;
+  final HoldingCostType? holdingCostType;
+  final int? holdingCostAmountMinor;
+  final int? holdingCostEndDate;
+  final int maintenanceCostTotalMinor;
+  final String? maintenanceRecords;
+  final UsageStatus usageStatus;
+  final AssetStatus assetStatus;
+  final bool includeInTotalAssets;
   final int? warrantyUntil;
   final String? photoUrl;
-  final String? location;
   final String? note;
   final String? transactionId;
   const InventoryItem(
@@ -10510,15 +10733,28 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
       this.syncedAt,
       required this.id,
       required this.bookId,
+      required this.itemType,
       required this.name,
       this.category,
+      this.address,
       required this.purchasePriceMinor,
+      required this.productPriceMinor,
+      required this.interestMinor,
+      required this.taxMinor,
+      required this.renovationMinor,
       required this.currentValueMinor,
       required this.currency,
       required this.purchasedAt,
+      this.holdingCostType,
+      this.holdingCostAmountMinor,
+      this.holdingCostEndDate,
+      required this.maintenanceCostTotalMinor,
+      this.maintenanceRecords,
+      required this.usageStatus,
+      required this.assetStatus,
+      required this.includeInTotalAssets,
       this.warrantyUntil,
       this.photoUrl,
-      this.location,
       this.note,
       this.transactionId});
   @override
@@ -10532,22 +10768,55 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
     }
     map['id'] = Variable<String>(id);
     map['book_id'] = Variable<String>(bookId);
+    {
+      map['item_type'] = Variable<int>(
+          $InventoryItemsTable.$converteritemType.toSql(itemType));
+    }
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || category != null) {
       map['category'] = Variable<String>(category);
     }
+    if (!nullToAbsent || address != null) {
+      map['address'] = Variable<String>(address);
+    }
     map['purchase_price_minor'] = Variable<int>(purchasePriceMinor);
+    map['product_price_minor'] = Variable<int>(productPriceMinor);
+    map['interest_minor'] = Variable<int>(interestMinor);
+    map['tax_minor'] = Variable<int>(taxMinor);
+    map['renovation_minor'] = Variable<int>(renovationMinor);
     map['current_value_minor'] = Variable<int>(currentValueMinor);
     map['currency'] = Variable<String>(currency);
     map['purchased_at'] = Variable<int>(purchasedAt);
+    if (!nullToAbsent || holdingCostType != null) {
+      map['holding_cost_type'] = Variable<int>($InventoryItemsTable
+          .$converterholdingCostTypen
+          .toSql(holdingCostType));
+    }
+    if (!nullToAbsent || holdingCostAmountMinor != null) {
+      map['holding_cost_amount_minor'] = Variable<int>(holdingCostAmountMinor);
+    }
+    if (!nullToAbsent || holdingCostEndDate != null) {
+      map['holding_cost_end_date'] = Variable<int>(holdingCostEndDate);
+    }
+    map['maintenance_cost_total_minor'] =
+        Variable<int>(maintenanceCostTotalMinor);
+    if (!nullToAbsent || maintenanceRecords != null) {
+      map['maintenance_records'] = Variable<String>(maintenanceRecords);
+    }
+    {
+      map['usage_status'] = Variable<int>(
+          $InventoryItemsTable.$converterusageStatus.toSql(usageStatus));
+    }
+    {
+      map['asset_status'] = Variable<int>(
+          $InventoryItemsTable.$converterassetStatus.toSql(assetStatus));
+    }
+    map['include_in_total_assets'] = Variable<bool>(includeInTotalAssets);
     if (!nullToAbsent || warrantyUntil != null) {
       map['warranty_until'] = Variable<int>(warrantyUntil);
     }
     if (!nullToAbsent || photoUrl != null) {
       map['photo_url'] = Variable<String>(photoUrl);
-    }
-    if (!nullToAbsent || location != null) {
-      map['location'] = Variable<String>(location);
     }
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
@@ -10568,23 +10837,44 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
           : Value(syncedAt),
       id: Value(id),
       bookId: Value(bookId),
+      itemType: Value(itemType),
       name: Value(name),
       category: category == null && nullToAbsent
           ? const Value.absent()
           : Value(category),
+      address: address == null && nullToAbsent
+          ? const Value.absent()
+          : Value(address),
       purchasePriceMinor: Value(purchasePriceMinor),
+      productPriceMinor: Value(productPriceMinor),
+      interestMinor: Value(interestMinor),
+      taxMinor: Value(taxMinor),
+      renovationMinor: Value(renovationMinor),
       currentValueMinor: Value(currentValueMinor),
       currency: Value(currency),
       purchasedAt: Value(purchasedAt),
+      holdingCostType: holdingCostType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(holdingCostType),
+      holdingCostAmountMinor: holdingCostAmountMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(holdingCostAmountMinor),
+      holdingCostEndDate: holdingCostEndDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(holdingCostEndDate),
+      maintenanceCostTotalMinor: Value(maintenanceCostTotalMinor),
+      maintenanceRecords: maintenanceRecords == null && nullToAbsent
+          ? const Value.absent()
+          : Value(maintenanceRecords),
+      usageStatus: Value(usageStatus),
+      assetStatus: Value(assetStatus),
+      includeInTotalAssets: Value(includeInTotalAssets),
       warrantyUntil: warrantyUntil == null && nullToAbsent
           ? const Value.absent()
           : Value(warrantyUntil),
       photoUrl: photoUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(photoUrl),
-      location: location == null && nullToAbsent
-          ? const Value.absent()
-          : Value(location),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       transactionId: transactionId == null && nullToAbsent
           ? const Value.absent()
@@ -10602,15 +10892,36 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
       syncedAt: serializer.fromJson<int?>(json['syncedAt']),
       id: serializer.fromJson<String>(json['id']),
       bookId: serializer.fromJson<String>(json['bookId']),
+      itemType: $InventoryItemsTable.$converteritemType
+          .fromJson(serializer.fromJson<int>(json['itemType'])),
       name: serializer.fromJson<String>(json['name']),
       category: serializer.fromJson<String?>(json['category']),
+      address: serializer.fromJson<String?>(json['address']),
       purchasePriceMinor: serializer.fromJson<int>(json['purchasePriceMinor']),
+      productPriceMinor: serializer.fromJson<int>(json['productPriceMinor']),
+      interestMinor: serializer.fromJson<int>(json['interestMinor']),
+      taxMinor: serializer.fromJson<int>(json['taxMinor']),
+      renovationMinor: serializer.fromJson<int>(json['renovationMinor']),
       currentValueMinor: serializer.fromJson<int>(json['currentValueMinor']),
       currency: serializer.fromJson<String>(json['currency']),
       purchasedAt: serializer.fromJson<int>(json['purchasedAt']),
+      holdingCostType: $InventoryItemsTable.$converterholdingCostTypen
+          .fromJson(serializer.fromJson<int?>(json['holdingCostType'])),
+      holdingCostAmountMinor:
+          serializer.fromJson<int?>(json['holdingCostAmountMinor']),
+      holdingCostEndDate: serializer.fromJson<int?>(json['holdingCostEndDate']),
+      maintenanceCostTotalMinor:
+          serializer.fromJson<int>(json['maintenanceCostTotalMinor']),
+      maintenanceRecords:
+          serializer.fromJson<String?>(json['maintenanceRecords']),
+      usageStatus: $InventoryItemsTable.$converterusageStatus
+          .fromJson(serializer.fromJson<int>(json['usageStatus'])),
+      assetStatus: $InventoryItemsTable.$converterassetStatus
+          .fromJson(serializer.fromJson<int>(json['assetStatus'])),
+      includeInTotalAssets:
+          serializer.fromJson<bool>(json['includeInTotalAssets']),
       warrantyUntil: serializer.fromJson<int?>(json['warrantyUntil']),
       photoUrl: serializer.fromJson<String?>(json['photoUrl']),
-      location: serializer.fromJson<String?>(json['location']),
       note: serializer.fromJson<String?>(json['note']),
       transactionId: serializer.fromJson<String?>(json['transactionId']),
     );
@@ -10625,15 +10936,34 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
       'syncedAt': serializer.toJson<int?>(syncedAt),
       'id': serializer.toJson<String>(id),
       'bookId': serializer.toJson<String>(bookId),
+      'itemType': serializer.toJson<int>(
+          $InventoryItemsTable.$converteritemType.toJson(itemType)),
       'name': serializer.toJson<String>(name),
       'category': serializer.toJson<String?>(category),
+      'address': serializer.toJson<String?>(address),
       'purchasePriceMinor': serializer.toJson<int>(purchasePriceMinor),
+      'productPriceMinor': serializer.toJson<int>(productPriceMinor),
+      'interestMinor': serializer.toJson<int>(interestMinor),
+      'taxMinor': serializer.toJson<int>(taxMinor),
+      'renovationMinor': serializer.toJson<int>(renovationMinor),
       'currentValueMinor': serializer.toJson<int>(currentValueMinor),
       'currency': serializer.toJson<String>(currency),
       'purchasedAt': serializer.toJson<int>(purchasedAt),
+      'holdingCostType': serializer.toJson<int?>($InventoryItemsTable
+          .$converterholdingCostTypen
+          .toJson(holdingCostType)),
+      'holdingCostAmountMinor': serializer.toJson<int?>(holdingCostAmountMinor),
+      'holdingCostEndDate': serializer.toJson<int?>(holdingCostEndDate),
+      'maintenanceCostTotalMinor':
+          serializer.toJson<int>(maintenanceCostTotalMinor),
+      'maintenanceRecords': serializer.toJson<String?>(maintenanceRecords),
+      'usageStatus': serializer.toJson<int>(
+          $InventoryItemsTable.$converterusageStatus.toJson(usageStatus)),
+      'assetStatus': serializer.toJson<int>(
+          $InventoryItemsTable.$converterassetStatus.toJson(assetStatus)),
+      'includeInTotalAssets': serializer.toJson<bool>(includeInTotalAssets),
       'warrantyUntil': serializer.toJson<int?>(warrantyUntil),
       'photoUrl': serializer.toJson<String?>(photoUrl),
-      'location': serializer.toJson<String?>(location),
       'note': serializer.toJson<String?>(note),
       'transactionId': serializer.toJson<String?>(transactionId),
     };
@@ -10646,15 +10976,28 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
           Value<int?> syncedAt = const Value.absent(),
           String? id,
           String? bookId,
+          InventoryItemType? itemType,
           String? name,
           Value<String?> category = const Value.absent(),
+          Value<String?> address = const Value.absent(),
           int? purchasePriceMinor,
+          int? productPriceMinor,
+          int? interestMinor,
+          int? taxMinor,
+          int? renovationMinor,
           int? currentValueMinor,
           String? currency,
           int? purchasedAt,
+          Value<HoldingCostType?> holdingCostType = const Value.absent(),
+          Value<int?> holdingCostAmountMinor = const Value.absent(),
+          Value<int?> holdingCostEndDate = const Value.absent(),
+          int? maintenanceCostTotalMinor,
+          Value<String?> maintenanceRecords = const Value.absent(),
+          UsageStatus? usageStatus,
+          AssetStatus? assetStatus,
+          bool? includeInTotalAssets,
           Value<int?> warrantyUntil = const Value.absent(),
           Value<String?> photoUrl = const Value.absent(),
-          Value<String?> location = const Value.absent(),
           Value<String?> note = const Value.absent(),
           Value<String?> transactionId = const Value.absent()}) =>
       InventoryItem(
@@ -10664,16 +11007,38 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
         syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
         id: id ?? this.id,
         bookId: bookId ?? this.bookId,
+        itemType: itemType ?? this.itemType,
         name: name ?? this.name,
         category: category.present ? category.value : this.category,
+        address: address.present ? address.value : this.address,
         purchasePriceMinor: purchasePriceMinor ?? this.purchasePriceMinor,
+        productPriceMinor: productPriceMinor ?? this.productPriceMinor,
+        interestMinor: interestMinor ?? this.interestMinor,
+        taxMinor: taxMinor ?? this.taxMinor,
+        renovationMinor: renovationMinor ?? this.renovationMinor,
         currentValueMinor: currentValueMinor ?? this.currentValueMinor,
         currency: currency ?? this.currency,
         purchasedAt: purchasedAt ?? this.purchasedAt,
+        holdingCostType: holdingCostType.present
+            ? holdingCostType.value
+            : this.holdingCostType,
+        holdingCostAmountMinor: holdingCostAmountMinor.present
+            ? holdingCostAmountMinor.value
+            : this.holdingCostAmountMinor,
+        holdingCostEndDate: holdingCostEndDate.present
+            ? holdingCostEndDate.value
+            : this.holdingCostEndDate,
+        maintenanceCostTotalMinor:
+            maintenanceCostTotalMinor ?? this.maintenanceCostTotalMinor,
+        maintenanceRecords: maintenanceRecords.present
+            ? maintenanceRecords.value
+            : this.maintenanceRecords,
+        usageStatus: usageStatus ?? this.usageStatus,
+        assetStatus: assetStatus ?? this.assetStatus,
+        includeInTotalAssets: includeInTotalAssets ?? this.includeInTotalAssets,
         warrantyUntil:
             warrantyUntil.present ? warrantyUntil.value : this.warrantyUntil,
         photoUrl: photoUrl.present ? photoUrl.value : this.photoUrl,
-        location: location.present ? location.value : this.location,
         note: note.present ? note.value : this.note,
         transactionId:
             transactionId.present ? transactionId.value : this.transactionId,
@@ -10686,22 +11051,55 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
       id: data.id.present ? data.id.value : this.id,
       bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      itemType: data.itemType.present ? data.itemType.value : this.itemType,
       name: data.name.present ? data.name.value : this.name,
       category: data.category.present ? data.category.value : this.category,
+      address: data.address.present ? data.address.value : this.address,
       purchasePriceMinor: data.purchasePriceMinor.present
           ? data.purchasePriceMinor.value
           : this.purchasePriceMinor,
+      productPriceMinor: data.productPriceMinor.present
+          ? data.productPriceMinor.value
+          : this.productPriceMinor,
+      interestMinor: data.interestMinor.present
+          ? data.interestMinor.value
+          : this.interestMinor,
+      taxMinor: data.taxMinor.present ? data.taxMinor.value : this.taxMinor,
+      renovationMinor: data.renovationMinor.present
+          ? data.renovationMinor.value
+          : this.renovationMinor,
       currentValueMinor: data.currentValueMinor.present
           ? data.currentValueMinor.value
           : this.currentValueMinor,
       currency: data.currency.present ? data.currency.value : this.currency,
       purchasedAt:
           data.purchasedAt.present ? data.purchasedAt.value : this.purchasedAt,
+      holdingCostType: data.holdingCostType.present
+          ? data.holdingCostType.value
+          : this.holdingCostType,
+      holdingCostAmountMinor: data.holdingCostAmountMinor.present
+          ? data.holdingCostAmountMinor.value
+          : this.holdingCostAmountMinor,
+      holdingCostEndDate: data.holdingCostEndDate.present
+          ? data.holdingCostEndDate.value
+          : this.holdingCostEndDate,
+      maintenanceCostTotalMinor: data.maintenanceCostTotalMinor.present
+          ? data.maintenanceCostTotalMinor.value
+          : this.maintenanceCostTotalMinor,
+      maintenanceRecords: data.maintenanceRecords.present
+          ? data.maintenanceRecords.value
+          : this.maintenanceRecords,
+      usageStatus:
+          data.usageStatus.present ? data.usageStatus.value : this.usageStatus,
+      assetStatus:
+          data.assetStatus.present ? data.assetStatus.value : this.assetStatus,
+      includeInTotalAssets: data.includeInTotalAssets.present
+          ? data.includeInTotalAssets.value
+          : this.includeInTotalAssets,
       warrantyUntil: data.warrantyUntil.present
           ? data.warrantyUntil.value
           : this.warrantyUntil,
       photoUrl: data.photoUrl.present ? data.photoUrl.value : this.photoUrl,
-      location: data.location.present ? data.location.value : this.location,
       note: data.note.present ? data.note.value : this.note,
       transactionId: data.transactionId.present
           ? data.transactionId.value
@@ -10718,15 +11116,28 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
           ..write('syncedAt: $syncedAt, ')
           ..write('id: $id, ')
           ..write('bookId: $bookId, ')
+          ..write('itemType: $itemType, ')
           ..write('name: $name, ')
           ..write('category: $category, ')
+          ..write('address: $address, ')
           ..write('purchasePriceMinor: $purchasePriceMinor, ')
+          ..write('productPriceMinor: $productPriceMinor, ')
+          ..write('interestMinor: $interestMinor, ')
+          ..write('taxMinor: $taxMinor, ')
+          ..write('renovationMinor: $renovationMinor, ')
           ..write('currentValueMinor: $currentValueMinor, ')
           ..write('currency: $currency, ')
           ..write('purchasedAt: $purchasedAt, ')
+          ..write('holdingCostType: $holdingCostType, ')
+          ..write('holdingCostAmountMinor: $holdingCostAmountMinor, ')
+          ..write('holdingCostEndDate: $holdingCostEndDate, ')
+          ..write('maintenanceCostTotalMinor: $maintenanceCostTotalMinor, ')
+          ..write('maintenanceRecords: $maintenanceRecords, ')
+          ..write('usageStatus: $usageStatus, ')
+          ..write('assetStatus: $assetStatus, ')
+          ..write('includeInTotalAssets: $includeInTotalAssets, ')
           ..write('warrantyUntil: $warrantyUntil, ')
           ..write('photoUrl: $photoUrl, ')
-          ..write('location: $location, ')
           ..write('note: $note, ')
           ..write('transactionId: $transactionId')
           ..write(')'))
@@ -10734,24 +11145,38 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      updatedAt,
-      deleted,
-      dirty,
-      syncedAt,
-      id,
-      bookId,
-      name,
-      category,
-      purchasePriceMinor,
-      currentValueMinor,
-      currency,
-      purchasedAt,
-      warrantyUntil,
-      photoUrl,
-      location,
-      note,
-      transactionId);
+  int get hashCode => Object.hashAll([
+        updatedAt,
+        deleted,
+        dirty,
+        syncedAt,
+        id,
+        bookId,
+        itemType,
+        name,
+        category,
+        address,
+        purchasePriceMinor,
+        productPriceMinor,
+        interestMinor,
+        taxMinor,
+        renovationMinor,
+        currentValueMinor,
+        currency,
+        purchasedAt,
+        holdingCostType,
+        holdingCostAmountMinor,
+        holdingCostEndDate,
+        maintenanceCostTotalMinor,
+        maintenanceRecords,
+        usageStatus,
+        assetStatus,
+        includeInTotalAssets,
+        warrantyUntil,
+        photoUrl,
+        note,
+        transactionId
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -10762,15 +11187,28 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
           other.syncedAt == this.syncedAt &&
           other.id == this.id &&
           other.bookId == this.bookId &&
+          other.itemType == this.itemType &&
           other.name == this.name &&
           other.category == this.category &&
+          other.address == this.address &&
           other.purchasePriceMinor == this.purchasePriceMinor &&
+          other.productPriceMinor == this.productPriceMinor &&
+          other.interestMinor == this.interestMinor &&
+          other.taxMinor == this.taxMinor &&
+          other.renovationMinor == this.renovationMinor &&
           other.currentValueMinor == this.currentValueMinor &&
           other.currency == this.currency &&
           other.purchasedAt == this.purchasedAt &&
+          other.holdingCostType == this.holdingCostType &&
+          other.holdingCostAmountMinor == this.holdingCostAmountMinor &&
+          other.holdingCostEndDate == this.holdingCostEndDate &&
+          other.maintenanceCostTotalMinor == this.maintenanceCostTotalMinor &&
+          other.maintenanceRecords == this.maintenanceRecords &&
+          other.usageStatus == this.usageStatus &&
+          other.assetStatus == this.assetStatus &&
+          other.includeInTotalAssets == this.includeInTotalAssets &&
           other.warrantyUntil == this.warrantyUntil &&
           other.photoUrl == this.photoUrl &&
-          other.location == this.location &&
           other.note == this.note &&
           other.transactionId == this.transactionId);
 }
@@ -10782,15 +11220,28 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
   final Value<int?> syncedAt;
   final Value<String> id;
   final Value<String> bookId;
+  final Value<InventoryItemType> itemType;
   final Value<String> name;
   final Value<String?> category;
+  final Value<String?> address;
   final Value<int> purchasePriceMinor;
+  final Value<int> productPriceMinor;
+  final Value<int> interestMinor;
+  final Value<int> taxMinor;
+  final Value<int> renovationMinor;
   final Value<int> currentValueMinor;
   final Value<String> currency;
   final Value<int> purchasedAt;
+  final Value<HoldingCostType?> holdingCostType;
+  final Value<int?> holdingCostAmountMinor;
+  final Value<int?> holdingCostEndDate;
+  final Value<int> maintenanceCostTotalMinor;
+  final Value<String?> maintenanceRecords;
+  final Value<UsageStatus> usageStatus;
+  final Value<AssetStatus> assetStatus;
+  final Value<bool> includeInTotalAssets;
   final Value<int?> warrantyUntil;
   final Value<String?> photoUrl;
-  final Value<String?> location;
   final Value<String?> note;
   final Value<String?> transactionId;
   final Value<int> rowid;
@@ -10801,15 +11252,28 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     this.syncedAt = const Value.absent(),
     this.id = const Value.absent(),
     this.bookId = const Value.absent(),
+    this.itemType = const Value.absent(),
     this.name = const Value.absent(),
     this.category = const Value.absent(),
+    this.address = const Value.absent(),
     this.purchasePriceMinor = const Value.absent(),
+    this.productPriceMinor = const Value.absent(),
+    this.interestMinor = const Value.absent(),
+    this.taxMinor = const Value.absent(),
+    this.renovationMinor = const Value.absent(),
     this.currentValueMinor = const Value.absent(),
     this.currency = const Value.absent(),
     this.purchasedAt = const Value.absent(),
+    this.holdingCostType = const Value.absent(),
+    this.holdingCostAmountMinor = const Value.absent(),
+    this.holdingCostEndDate = const Value.absent(),
+    this.maintenanceCostTotalMinor = const Value.absent(),
+    this.maintenanceRecords = const Value.absent(),
+    this.usageStatus = const Value.absent(),
+    this.assetStatus = const Value.absent(),
+    this.includeInTotalAssets = const Value.absent(),
     this.warrantyUntil = const Value.absent(),
     this.photoUrl = const Value.absent(),
-    this.location = const Value.absent(),
     this.note = const Value.absent(),
     this.transactionId = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -10821,15 +11285,28 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     this.syncedAt = const Value.absent(),
     required String id,
     required String bookId,
+    this.itemType = const Value.absent(),
     required String name,
     this.category = const Value.absent(),
+    this.address = const Value.absent(),
     this.purchasePriceMinor = const Value.absent(),
+    this.productPriceMinor = const Value.absent(),
+    this.interestMinor = const Value.absent(),
+    this.taxMinor = const Value.absent(),
+    this.renovationMinor = const Value.absent(),
     this.currentValueMinor = const Value.absent(),
     this.currency = const Value.absent(),
     required int purchasedAt,
+    this.holdingCostType = const Value.absent(),
+    this.holdingCostAmountMinor = const Value.absent(),
+    this.holdingCostEndDate = const Value.absent(),
+    this.maintenanceCostTotalMinor = const Value.absent(),
+    this.maintenanceRecords = const Value.absent(),
+    this.usageStatus = const Value.absent(),
+    this.assetStatus = const Value.absent(),
+    this.includeInTotalAssets = const Value.absent(),
     this.warrantyUntil = const Value.absent(),
     this.photoUrl = const Value.absent(),
-    this.location = const Value.absent(),
     this.note = const Value.absent(),
     this.transactionId = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -10845,15 +11322,28 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     Expression<int>? syncedAt,
     Expression<String>? id,
     Expression<String>? bookId,
+    Expression<int>? itemType,
     Expression<String>? name,
     Expression<String>? category,
+    Expression<String>? address,
     Expression<int>? purchasePriceMinor,
+    Expression<int>? productPriceMinor,
+    Expression<int>? interestMinor,
+    Expression<int>? taxMinor,
+    Expression<int>? renovationMinor,
     Expression<int>? currentValueMinor,
     Expression<String>? currency,
     Expression<int>? purchasedAt,
+    Expression<int>? holdingCostType,
+    Expression<int>? holdingCostAmountMinor,
+    Expression<int>? holdingCostEndDate,
+    Expression<int>? maintenanceCostTotalMinor,
+    Expression<String>? maintenanceRecords,
+    Expression<int>? usageStatus,
+    Expression<int>? assetStatus,
+    Expression<bool>? includeInTotalAssets,
     Expression<int>? warrantyUntil,
     Expression<String>? photoUrl,
-    Expression<String>? location,
     Expression<String>? note,
     Expression<String>? transactionId,
     Expression<int>? rowid,
@@ -10865,16 +11355,33 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
       if (syncedAt != null) 'synced_at': syncedAt,
       if (id != null) 'id': id,
       if (bookId != null) 'book_id': bookId,
+      if (itemType != null) 'item_type': itemType,
       if (name != null) 'name': name,
       if (category != null) 'category': category,
+      if (address != null) 'address': address,
       if (purchasePriceMinor != null)
         'purchase_price_minor': purchasePriceMinor,
+      if (productPriceMinor != null) 'product_price_minor': productPriceMinor,
+      if (interestMinor != null) 'interest_minor': interestMinor,
+      if (taxMinor != null) 'tax_minor': taxMinor,
+      if (renovationMinor != null) 'renovation_minor': renovationMinor,
       if (currentValueMinor != null) 'current_value_minor': currentValueMinor,
       if (currency != null) 'currency': currency,
       if (purchasedAt != null) 'purchased_at': purchasedAt,
+      if (holdingCostType != null) 'holding_cost_type': holdingCostType,
+      if (holdingCostAmountMinor != null)
+        'holding_cost_amount_minor': holdingCostAmountMinor,
+      if (holdingCostEndDate != null)
+        'holding_cost_end_date': holdingCostEndDate,
+      if (maintenanceCostTotalMinor != null)
+        'maintenance_cost_total_minor': maintenanceCostTotalMinor,
+      if (maintenanceRecords != null) 'maintenance_records': maintenanceRecords,
+      if (usageStatus != null) 'usage_status': usageStatus,
+      if (assetStatus != null) 'asset_status': assetStatus,
+      if (includeInTotalAssets != null)
+        'include_in_total_assets': includeInTotalAssets,
       if (warrantyUntil != null) 'warranty_until': warrantyUntil,
       if (photoUrl != null) 'photo_url': photoUrl,
-      if (location != null) 'location': location,
       if (note != null) 'note': note,
       if (transactionId != null) 'transaction_id': transactionId,
       if (rowid != null) 'rowid': rowid,
@@ -10888,15 +11395,28 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
       Value<int?>? syncedAt,
       Value<String>? id,
       Value<String>? bookId,
+      Value<InventoryItemType>? itemType,
       Value<String>? name,
       Value<String?>? category,
+      Value<String?>? address,
       Value<int>? purchasePriceMinor,
+      Value<int>? productPriceMinor,
+      Value<int>? interestMinor,
+      Value<int>? taxMinor,
+      Value<int>? renovationMinor,
       Value<int>? currentValueMinor,
       Value<String>? currency,
       Value<int>? purchasedAt,
+      Value<HoldingCostType?>? holdingCostType,
+      Value<int?>? holdingCostAmountMinor,
+      Value<int?>? holdingCostEndDate,
+      Value<int>? maintenanceCostTotalMinor,
+      Value<String?>? maintenanceRecords,
+      Value<UsageStatus>? usageStatus,
+      Value<AssetStatus>? assetStatus,
+      Value<bool>? includeInTotalAssets,
       Value<int?>? warrantyUntil,
       Value<String?>? photoUrl,
-      Value<String?>? location,
       Value<String?>? note,
       Value<String?>? transactionId,
       Value<int>? rowid}) {
@@ -10907,15 +11427,30 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
       syncedAt: syncedAt ?? this.syncedAt,
       id: id ?? this.id,
       bookId: bookId ?? this.bookId,
+      itemType: itemType ?? this.itemType,
       name: name ?? this.name,
       category: category ?? this.category,
+      address: address ?? this.address,
       purchasePriceMinor: purchasePriceMinor ?? this.purchasePriceMinor,
+      productPriceMinor: productPriceMinor ?? this.productPriceMinor,
+      interestMinor: interestMinor ?? this.interestMinor,
+      taxMinor: taxMinor ?? this.taxMinor,
+      renovationMinor: renovationMinor ?? this.renovationMinor,
       currentValueMinor: currentValueMinor ?? this.currentValueMinor,
       currency: currency ?? this.currency,
       purchasedAt: purchasedAt ?? this.purchasedAt,
+      holdingCostType: holdingCostType ?? this.holdingCostType,
+      holdingCostAmountMinor:
+          holdingCostAmountMinor ?? this.holdingCostAmountMinor,
+      holdingCostEndDate: holdingCostEndDate ?? this.holdingCostEndDate,
+      maintenanceCostTotalMinor:
+          maintenanceCostTotalMinor ?? this.maintenanceCostTotalMinor,
+      maintenanceRecords: maintenanceRecords ?? this.maintenanceRecords,
+      usageStatus: usageStatus ?? this.usageStatus,
+      assetStatus: assetStatus ?? this.assetStatus,
+      includeInTotalAssets: includeInTotalAssets ?? this.includeInTotalAssets,
       warrantyUntil: warrantyUntil ?? this.warrantyUntil,
       photoUrl: photoUrl ?? this.photoUrl,
-      location: location ?? this.location,
       note: note ?? this.note,
       transactionId: transactionId ?? this.transactionId,
       rowid: rowid ?? this.rowid,
@@ -10943,14 +11478,33 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     if (bookId.present) {
       map['book_id'] = Variable<String>(bookId.value);
     }
+    if (itemType.present) {
+      map['item_type'] = Variable<int>(
+          $InventoryItemsTable.$converteritemType.toSql(itemType.value));
+    }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
     if (purchasePriceMinor.present) {
       map['purchase_price_minor'] = Variable<int>(purchasePriceMinor.value);
+    }
+    if (productPriceMinor.present) {
+      map['product_price_minor'] = Variable<int>(productPriceMinor.value);
+    }
+    if (interestMinor.present) {
+      map['interest_minor'] = Variable<int>(interestMinor.value);
+    }
+    if (taxMinor.present) {
+      map['tax_minor'] = Variable<int>(taxMinor.value);
+    }
+    if (renovationMinor.present) {
+      map['renovation_minor'] = Variable<int>(renovationMinor.value);
     }
     if (currentValueMinor.present) {
       map['current_value_minor'] = Variable<int>(currentValueMinor.value);
@@ -10961,14 +11515,42 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     if (purchasedAt.present) {
       map['purchased_at'] = Variable<int>(purchasedAt.value);
     }
+    if (holdingCostType.present) {
+      map['holding_cost_type'] = Variable<int>($InventoryItemsTable
+          .$converterholdingCostTypen
+          .toSql(holdingCostType.value));
+    }
+    if (holdingCostAmountMinor.present) {
+      map['holding_cost_amount_minor'] =
+          Variable<int>(holdingCostAmountMinor.value);
+    }
+    if (holdingCostEndDate.present) {
+      map['holding_cost_end_date'] = Variable<int>(holdingCostEndDate.value);
+    }
+    if (maintenanceCostTotalMinor.present) {
+      map['maintenance_cost_total_minor'] =
+          Variable<int>(maintenanceCostTotalMinor.value);
+    }
+    if (maintenanceRecords.present) {
+      map['maintenance_records'] = Variable<String>(maintenanceRecords.value);
+    }
+    if (usageStatus.present) {
+      map['usage_status'] = Variable<int>(
+          $InventoryItemsTable.$converterusageStatus.toSql(usageStatus.value));
+    }
+    if (assetStatus.present) {
+      map['asset_status'] = Variable<int>(
+          $InventoryItemsTable.$converterassetStatus.toSql(assetStatus.value));
+    }
+    if (includeInTotalAssets.present) {
+      map['include_in_total_assets'] =
+          Variable<bool>(includeInTotalAssets.value);
+    }
     if (warrantyUntil.present) {
       map['warranty_until'] = Variable<int>(warrantyUntil.value);
     }
     if (photoUrl.present) {
       map['photo_url'] = Variable<String>(photoUrl.value);
-    }
-    if (location.present) {
-      map['location'] = Variable<String>(location.value);
     }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
@@ -10991,15 +11573,28 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
           ..write('syncedAt: $syncedAt, ')
           ..write('id: $id, ')
           ..write('bookId: $bookId, ')
+          ..write('itemType: $itemType, ')
           ..write('name: $name, ')
           ..write('category: $category, ')
+          ..write('address: $address, ')
           ..write('purchasePriceMinor: $purchasePriceMinor, ')
+          ..write('productPriceMinor: $productPriceMinor, ')
+          ..write('interestMinor: $interestMinor, ')
+          ..write('taxMinor: $taxMinor, ')
+          ..write('renovationMinor: $renovationMinor, ')
           ..write('currentValueMinor: $currentValueMinor, ')
           ..write('currency: $currency, ')
           ..write('purchasedAt: $purchasedAt, ')
+          ..write('holdingCostType: $holdingCostType, ')
+          ..write('holdingCostAmountMinor: $holdingCostAmountMinor, ')
+          ..write('holdingCostEndDate: $holdingCostEndDate, ')
+          ..write('maintenanceCostTotalMinor: $maintenanceCostTotalMinor, ')
+          ..write('maintenanceRecords: $maintenanceRecords, ')
+          ..write('usageStatus: $usageStatus, ')
+          ..write('assetStatus: $assetStatus, ')
+          ..write('includeInTotalAssets: $includeInTotalAssets, ')
           ..write('warrantyUntil: $warrantyUntil, ')
           ..write('photoUrl: $photoUrl, ')
-          ..write('location: $location, ')
           ..write('note: $note, ')
           ..write('transactionId: $transactionId, ')
           ..write('rowid: $rowid')
@@ -17664,15 +18259,28 @@ typedef $$InventoryItemsTableCreateCompanionBuilder = InventoryItemsCompanion
   Value<int?> syncedAt,
   required String id,
   required String bookId,
+  Value<InventoryItemType> itemType,
   required String name,
   Value<String?> category,
+  Value<String?> address,
   Value<int> purchasePriceMinor,
+  Value<int> productPriceMinor,
+  Value<int> interestMinor,
+  Value<int> taxMinor,
+  Value<int> renovationMinor,
   Value<int> currentValueMinor,
   Value<String> currency,
   required int purchasedAt,
+  Value<HoldingCostType?> holdingCostType,
+  Value<int?> holdingCostAmountMinor,
+  Value<int?> holdingCostEndDate,
+  Value<int> maintenanceCostTotalMinor,
+  Value<String?> maintenanceRecords,
+  Value<UsageStatus> usageStatus,
+  Value<AssetStatus> assetStatus,
+  Value<bool> includeInTotalAssets,
   Value<int?> warrantyUntil,
   Value<String?> photoUrl,
-  Value<String?> location,
   Value<String?> note,
   Value<String?> transactionId,
   Value<int> rowid,
@@ -17685,15 +18293,28 @@ typedef $$InventoryItemsTableUpdateCompanionBuilder = InventoryItemsCompanion
   Value<int?> syncedAt,
   Value<String> id,
   Value<String> bookId,
+  Value<InventoryItemType> itemType,
   Value<String> name,
   Value<String?> category,
+  Value<String?> address,
   Value<int> purchasePriceMinor,
+  Value<int> productPriceMinor,
+  Value<int> interestMinor,
+  Value<int> taxMinor,
+  Value<int> renovationMinor,
   Value<int> currentValueMinor,
   Value<String> currency,
   Value<int> purchasedAt,
+  Value<HoldingCostType?> holdingCostType,
+  Value<int?> holdingCostAmountMinor,
+  Value<int?> holdingCostEndDate,
+  Value<int> maintenanceCostTotalMinor,
+  Value<String?> maintenanceRecords,
+  Value<UsageStatus> usageStatus,
+  Value<AssetStatus> assetStatus,
+  Value<bool> includeInTotalAssets,
   Value<int?> warrantyUntil,
   Value<String?> photoUrl,
-  Value<String?> location,
   Value<String?> note,
   Value<String?> transactionId,
   Value<int> rowid,
@@ -17726,14 +18347,36 @@ class $$InventoryItemsTableFilterComposer
   ColumnFilters<String> get bookId => $composableBuilder(
       column: $table.bookId, builder: (column) => ColumnFilters(column));
 
+  ColumnWithTypeConverterFilters<InventoryItemType, InventoryItemType, int>
+      get itemType => $composableBuilder(
+          column: $table.itemType,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get address => $composableBuilder(
+      column: $table.address, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get purchasePriceMinor => $composableBuilder(
       column: $table.purchasePriceMinor,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get productPriceMinor => $composableBuilder(
+      column: $table.productPriceMinor,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get interestMinor => $composableBuilder(
+      column: $table.interestMinor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get taxMinor => $composableBuilder(
+      column: $table.taxMinor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get renovationMinor => $composableBuilder(
+      column: $table.renovationMinor,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get currentValueMinor => $composableBuilder(
@@ -17746,14 +18389,46 @@ class $$InventoryItemsTableFilterComposer
   ColumnFilters<int> get purchasedAt => $composableBuilder(
       column: $table.purchasedAt, builder: (column) => ColumnFilters(column));
 
+  ColumnWithTypeConverterFilters<HoldingCostType?, HoldingCostType, int>
+      get holdingCostType => $composableBuilder(
+          column: $table.holdingCostType,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<int> get holdingCostAmountMinor => $composableBuilder(
+      column: $table.holdingCostAmountMinor,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get holdingCostEndDate => $composableBuilder(
+      column: $table.holdingCostEndDate,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get maintenanceCostTotalMinor => $composableBuilder(
+      column: $table.maintenanceCostTotalMinor,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get maintenanceRecords => $composableBuilder(
+      column: $table.maintenanceRecords,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<UsageStatus, UsageStatus, int>
+      get usageStatus => $composableBuilder(
+          column: $table.usageStatus,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnWithTypeConverterFilters<AssetStatus, AssetStatus, int>
+      get assetStatus => $composableBuilder(
+          column: $table.assetStatus,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<bool> get includeInTotalAssets => $composableBuilder(
+      column: $table.includeInTotalAssets,
+      builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get warrantyUntil => $composableBuilder(
       column: $table.warrantyUntil, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get photoUrl => $composableBuilder(
       column: $table.photoUrl, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get location => $composableBuilder(
-      column: $table.location, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnFilters(column));
@@ -17789,14 +18464,35 @@ class $$InventoryItemsTableOrderingComposer
   ColumnOrderings<String> get bookId => $composableBuilder(
       column: $table.bookId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get itemType => $composableBuilder(
+      column: $table.itemType, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get address => $composableBuilder(
+      column: $table.address, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get purchasePriceMinor => $composableBuilder(
       column: $table.purchasePriceMinor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get productPriceMinor => $composableBuilder(
+      column: $table.productPriceMinor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get interestMinor => $composableBuilder(
+      column: $table.interestMinor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get taxMinor => $composableBuilder(
+      column: $table.taxMinor, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get renovationMinor => $composableBuilder(
+      column: $table.renovationMinor,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get currentValueMinor => $composableBuilder(
@@ -17809,15 +18505,42 @@ class $$InventoryItemsTableOrderingComposer
   ColumnOrderings<int> get purchasedAt => $composableBuilder(
       column: $table.purchasedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get holdingCostType => $composableBuilder(
+      column: $table.holdingCostType,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get holdingCostAmountMinor => $composableBuilder(
+      column: $table.holdingCostAmountMinor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get holdingCostEndDate => $composableBuilder(
+      column: $table.holdingCostEndDate,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get maintenanceCostTotalMinor => $composableBuilder(
+      column: $table.maintenanceCostTotalMinor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get maintenanceRecords => $composableBuilder(
+      column: $table.maintenanceRecords,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get usageStatus => $composableBuilder(
+      column: $table.usageStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get assetStatus => $composableBuilder(
+      column: $table.assetStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get includeInTotalAssets => $composableBuilder(
+      column: $table.includeInTotalAssets,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get warrantyUntil => $composableBuilder(
       column: $table.warrantyUntil,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get photoUrl => $composableBuilder(
       column: $table.photoUrl, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get location => $composableBuilder(
-      column: $table.location, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnOrderings(column));
@@ -17854,14 +18577,32 @@ class $$InventoryItemsTableAnnotationComposer
   GeneratedColumn<String> get bookId =>
       $composableBuilder(column: $table.bookId, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<InventoryItemType, int> get itemType =>
+      $composableBuilder(column: $table.itemType, builder: (column) => column);
+
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
 
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
   GeneratedColumn<int> get purchasePriceMinor => $composableBuilder(
       column: $table.purchasePriceMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get productPriceMinor => $composableBuilder(
+      column: $table.productPriceMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get interestMinor => $composableBuilder(
+      column: $table.interestMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get taxMinor =>
+      $composableBuilder(column: $table.taxMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get renovationMinor => $composableBuilder(
+      column: $table.renovationMinor, builder: (column) => column);
 
   GeneratedColumn<int> get currentValueMinor => $composableBuilder(
       column: $table.currentValueMinor, builder: (column) => column);
@@ -17872,14 +18613,38 @@ class $$InventoryItemsTableAnnotationComposer
   GeneratedColumn<int> get purchasedAt => $composableBuilder(
       column: $table.purchasedAt, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<HoldingCostType?, int> get holdingCostType =>
+      $composableBuilder(
+          column: $table.holdingCostType, builder: (column) => column);
+
+  GeneratedColumn<int> get holdingCostAmountMinor => $composableBuilder(
+      column: $table.holdingCostAmountMinor, builder: (column) => column);
+
+  GeneratedColumn<int> get holdingCostEndDate => $composableBuilder(
+      column: $table.holdingCostEndDate, builder: (column) => column);
+
+  GeneratedColumn<int> get maintenanceCostTotalMinor => $composableBuilder(
+      column: $table.maintenanceCostTotalMinor, builder: (column) => column);
+
+  GeneratedColumn<String> get maintenanceRecords => $composableBuilder(
+      column: $table.maintenanceRecords, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<UsageStatus, int> get usageStatus =>
+      $composableBuilder(
+          column: $table.usageStatus, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<AssetStatus, int> get assetStatus =>
+      $composableBuilder(
+          column: $table.assetStatus, builder: (column) => column);
+
+  GeneratedColumn<bool> get includeInTotalAssets => $composableBuilder(
+      column: $table.includeInTotalAssets, builder: (column) => column);
+
   GeneratedColumn<int> get warrantyUntil => $composableBuilder(
       column: $table.warrantyUntil, builder: (column) => column);
 
   GeneratedColumn<String> get photoUrl =>
       $composableBuilder(column: $table.photoUrl, builder: (column) => column);
-
-  GeneratedColumn<String> get location =>
-      $composableBuilder(column: $table.location, builder: (column) => column);
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
@@ -17921,15 +18686,28 @@ class $$InventoryItemsTableTableManager extends RootTableManager<
             Value<int?> syncedAt = const Value.absent(),
             Value<String> id = const Value.absent(),
             Value<String> bookId = const Value.absent(),
+            Value<InventoryItemType> itemType = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String?> category = const Value.absent(),
+            Value<String?> address = const Value.absent(),
             Value<int> purchasePriceMinor = const Value.absent(),
+            Value<int> productPriceMinor = const Value.absent(),
+            Value<int> interestMinor = const Value.absent(),
+            Value<int> taxMinor = const Value.absent(),
+            Value<int> renovationMinor = const Value.absent(),
             Value<int> currentValueMinor = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<int> purchasedAt = const Value.absent(),
+            Value<HoldingCostType?> holdingCostType = const Value.absent(),
+            Value<int?> holdingCostAmountMinor = const Value.absent(),
+            Value<int?> holdingCostEndDate = const Value.absent(),
+            Value<int> maintenanceCostTotalMinor = const Value.absent(),
+            Value<String?> maintenanceRecords = const Value.absent(),
+            Value<UsageStatus> usageStatus = const Value.absent(),
+            Value<AssetStatus> assetStatus = const Value.absent(),
+            Value<bool> includeInTotalAssets = const Value.absent(),
             Value<int?> warrantyUntil = const Value.absent(),
             Value<String?> photoUrl = const Value.absent(),
-            Value<String?> location = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<String?> transactionId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -17941,15 +18719,28 @@ class $$InventoryItemsTableTableManager extends RootTableManager<
             syncedAt: syncedAt,
             id: id,
             bookId: bookId,
+            itemType: itemType,
             name: name,
             category: category,
+            address: address,
             purchasePriceMinor: purchasePriceMinor,
+            productPriceMinor: productPriceMinor,
+            interestMinor: interestMinor,
+            taxMinor: taxMinor,
+            renovationMinor: renovationMinor,
             currentValueMinor: currentValueMinor,
             currency: currency,
             purchasedAt: purchasedAt,
+            holdingCostType: holdingCostType,
+            holdingCostAmountMinor: holdingCostAmountMinor,
+            holdingCostEndDate: holdingCostEndDate,
+            maintenanceCostTotalMinor: maintenanceCostTotalMinor,
+            maintenanceRecords: maintenanceRecords,
+            usageStatus: usageStatus,
+            assetStatus: assetStatus,
+            includeInTotalAssets: includeInTotalAssets,
             warrantyUntil: warrantyUntil,
             photoUrl: photoUrl,
-            location: location,
             note: note,
             transactionId: transactionId,
             rowid: rowid,
@@ -17961,15 +18752,28 @@ class $$InventoryItemsTableTableManager extends RootTableManager<
             Value<int?> syncedAt = const Value.absent(),
             required String id,
             required String bookId,
+            Value<InventoryItemType> itemType = const Value.absent(),
             required String name,
             Value<String?> category = const Value.absent(),
+            Value<String?> address = const Value.absent(),
             Value<int> purchasePriceMinor = const Value.absent(),
+            Value<int> productPriceMinor = const Value.absent(),
+            Value<int> interestMinor = const Value.absent(),
+            Value<int> taxMinor = const Value.absent(),
+            Value<int> renovationMinor = const Value.absent(),
             Value<int> currentValueMinor = const Value.absent(),
             Value<String> currency = const Value.absent(),
             required int purchasedAt,
+            Value<HoldingCostType?> holdingCostType = const Value.absent(),
+            Value<int?> holdingCostAmountMinor = const Value.absent(),
+            Value<int?> holdingCostEndDate = const Value.absent(),
+            Value<int> maintenanceCostTotalMinor = const Value.absent(),
+            Value<String?> maintenanceRecords = const Value.absent(),
+            Value<UsageStatus> usageStatus = const Value.absent(),
+            Value<AssetStatus> assetStatus = const Value.absent(),
+            Value<bool> includeInTotalAssets = const Value.absent(),
             Value<int?> warrantyUntil = const Value.absent(),
             Value<String?> photoUrl = const Value.absent(),
-            Value<String?> location = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<String?> transactionId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -17981,15 +18785,28 @@ class $$InventoryItemsTableTableManager extends RootTableManager<
             syncedAt: syncedAt,
             id: id,
             bookId: bookId,
+            itemType: itemType,
             name: name,
             category: category,
+            address: address,
             purchasePriceMinor: purchasePriceMinor,
+            productPriceMinor: productPriceMinor,
+            interestMinor: interestMinor,
+            taxMinor: taxMinor,
+            renovationMinor: renovationMinor,
             currentValueMinor: currentValueMinor,
             currency: currency,
             purchasedAt: purchasedAt,
+            holdingCostType: holdingCostType,
+            holdingCostAmountMinor: holdingCostAmountMinor,
+            holdingCostEndDate: holdingCostEndDate,
+            maintenanceCostTotalMinor: maintenanceCostTotalMinor,
+            maintenanceRecords: maintenanceRecords,
+            usageStatus: usageStatus,
+            assetStatus: assetStatus,
+            includeInTotalAssets: includeInTotalAssets,
             warrantyUntil: warrantyUntil,
             photoUrl: photoUrl,
-            location: location,
             note: note,
             transactionId: transactionId,
             rowid: rowid,

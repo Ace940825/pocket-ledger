@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocket_ledger/shared/widgets/clay_icon_tile.dart';
+import 'package:pocket_ledger/shared/widgets/date_picker_sheet.dart';
 import 'package:pocket_ledger/shared/widgets/hairline_card.dart';
 import 'package:pocket_ledger/shared/widgets/loading_state.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
@@ -23,7 +24,6 @@ import '../data/repay_date.dart';
 import '../providers/accounts_providers.dart';
 import 'account_type_sheet.dart';
 import 'bank_picker_sheet.dart';
-import 'widgets/repay_date_picker_sheet.dart';
 
 /// 编辑账户页（参照小青账编辑逻辑），按账户类型分流多种布局：
 ///
@@ -70,7 +70,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   // 负债模式专用：信用额度 + 账单日 / 还款日（当前欠款复用 _balanceController，
   // 负债方向账户约定正余额=欠款）。
   late final TextEditingController _creditLimitController;
-  late final TextEditingController _billingDayController;
+  // 账单日（每月几号，1-31）；null = 未填（负债切走时清空）。
+  int? _billingDayValue;
 
   /// 还款日设定：两种模式互斥（固定日期 / 免息期）。
   RepayMode _repayMode = RepayMode.fixedDay;
@@ -395,10 +396,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 _fieldLabel('账单日期'),
-                KeypadField(
-                  controller: _billingDayController,
-                  allowDecimal: false,
-                  decoration: _dayDecoration(),
+                _BillDayField(
+                  day: _billingDayValue,
+                  onTap: _pickBillDay,
                 ),
                 const SizedBox(height: AppDimens.md),
                 _fieldLabel('还款日'),
@@ -570,8 +570,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               .decimal
               .toStringAsFixed(2),
     );
-    _billingDayController =
-        TextEditingController(text: account.billingDay?.toString() ?? '');
+    _billingDayValue = account.billingDay;
     // 还款日：免息期优先（dueGraceDays 非空），否则固定日期（dueDay）。
     if (account.dueGraceDays != null) {
       _repayMode = RepayMode.graceDays;
@@ -636,12 +635,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
           borderSide: BorderSide.none,
         ),
-      );
-
-  /// 账单日 / 还款日输入框装饰：「每月 X 日」。
-  InputDecoration _dayDecoration() => _filledDecoration().copyWith(
-        prefixText: '每月',
-        suffixText: '日',
       );
 
   /// 借出 / 借入金额 / 剩余额度：派生值，只读展示（灰底、不可编辑）。
@@ -769,8 +762,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       showAppToast(context, '账户名称不能为空');
       return;
     }
-    // 账单日：空 = 清除，非法或超出 1-31 视为未填。
-    final int? billingDay = _parseDay(_billingDayController.text);
+    // 账单日：null = 未填（由宫格选择器设定，1-31）。
+    final int? billingDay = _billingDayValue;
     // 还款日：按当前模式取其一（固定日期 / 免息期互斥）。
     final int? dueDay = _repayMode == RepayMode.fixedDay ? _dueDayValue : null;
     final int? dueGraceDays =
@@ -889,19 +882,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     }
   }
 
-  /// 解析「每月 X 日」的天数输入：空 = null（清除），1-31 有效，
-  /// 其余视为未填（null）。
-  int? _parseDay(String text) {
-    final int? day = int.tryParse(text.trim());
-    if (day == null || day < 1 || day > 31) return null;
-    return day;
-  }
-
   /// 打开「还款日」弹窗（固定日期 / 免息期 并行）；返回后回写当前模式与值。
   Future<void> _pickRepayDate() async {
     final RepayDateResult? result = await showRepayDatePickerSheet(
       context,
-      initialBillingDay: int.tryParse(_billingDayController.text),
+      initialBillingDay: _billingDayValue,
       initialDueDay: _dueDayValue,
       initialDueGraceDays: _dueGraceDaysValue,
     );
@@ -911,6 +896,17 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         _dueDayValue = result.dueDay;
         _dueGraceDaysValue = result.dueGraceDays;
       });
+    }
+  }
+
+  /// 打开「账单日」宫格选择器（每月 1-31 号），返回后回写 [_billingDayValue]。
+  Future<void> _pickBillDay() async {
+    final int? result = await showDayPickerSheet(
+      context,
+      initialDay: _billingDayValue,
+    );
+    if (result != null && mounted) {
+      setState(() => _billingDayValue = result);
     }
   }
 }
@@ -1050,8 +1046,9 @@ class _RepayDateField extends StatelessWidget {
   final int? dueGraceDays;
   final VoidCallback onTap;
 
-  String get _summary =>
-      mode == RepayMode.graceDays ? '账单后${dueGraceDays ?? 0}天' : '每月${dueDay ?? 10}日';
+  String get _summary => mode == RepayMode.graceDays
+      ? '账单后${dueGraceDays ?? 0}天'
+      : '每月${dueDay ?? 10}日';
 
   @override
   Widget build(BuildContext context) {
@@ -1067,6 +1064,46 @@ class _RepayDateField extends StatelessWidget {
                 _summary,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+            LineGlyph(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 账单日选择行（编辑/新建负债账户共用）：展示「每月 X 日」或「点击选择」，
+/// 点击打开 1-31 宫格选择器（与还款日选择器同款绿底选中）。
+class _BillDayField extends StatelessWidget {
+  const _BillDayField({this.day, required this.onTap});
+
+  final int? day;
+  final VoidCallback onTap;
+
+  String get _summary => day == null ? '点击选择' : '每月$day日';
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppDimens.sm + 4),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                _summary,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: day == null
+                      ? theme.colorScheme.onSurfaceVariant
+                      : theme.colorScheme.onSurface,
                 ),
               ),
             ),
