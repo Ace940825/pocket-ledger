@@ -2231,8 +2231,13 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
               ],
             ),
           ),
-          _importBar(),
         ],
+      ),
+      // 底部常显「开始导入」提到 bottomNavigationBar：floating SnackBar
+      // 会自动显示在其上方，不再与按钮重叠遮挡。
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: _importBar(),
       ),
     );
   }

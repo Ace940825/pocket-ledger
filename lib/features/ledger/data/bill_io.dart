@@ -485,8 +485,12 @@ ParseResult _parseAccountCsvSection(List<String> lines) {
 
   final int headerLen = header.length;
   for (int r = 1; r < table.length; r++) {
-    final List<dynamic> raw = table[r];
+    List<dynamic> raw = List<dynamic>.from(table[r]);
     final String lineNo = '账户段第$r行';
+    // 兼容：手写 / 旧导出常在「还款日 / 信用卡额度」等空字段处多打一个空逗号
+    // （如「19,,,20」），导致整行右移一列被当成 14 列而整行丢弃。这里先还原
+    // 对齐（只丢空列、绝不丢有内容的列），还原后再判列数。
+    raw = _recoverAccountRow(raw, headerLen);
     if (raw.length > headerLen) {
       errors.add('$lineNo：列数（${raw.length}）超出表头（$headerLen），'
           '请检查是否有多余的逗号或漏写引号');
@@ -519,6 +523,43 @@ ParseResult _parseAccountCsvSection(List<String> lines) {
     if (row != null) accounts.add(row);
   }
   return ParseResult(const <BillRow>[], errors, accounts: accounts);
+}
+
+/// 还原账户段数据行对齐：当列数多于表头时，丢弃多余的空列。
+///
+/// 典型成因：手写 CSV 在「还款日 / 信用卡额度」为空时多打了一个逗号
+/// （如「19,,,20」），整行右移一列。策略：
+/// ① 先去掉行尾空列；
+/// ② 右对齐真实数据恒定非空的尾部列（卡号 / 状态 / 计入总资产 / 排序），
+///    把「中部」多出的空列丢弃，使前列（账本..免息期）重新对齐。
+/// 只丢空列、绝不丢有内容的列；若仍无法对齐（多出的列含内容），
+/// 原样返回交由调用方报结构性错误。
+List<dynamic> _recoverAccountRow(List<dynamic> cells, int headerLen) {
+  List<dynamic> out = List<dynamic>.from(cells);
+  // ① 去尾部空列
+  while (out.isNotEmpty && out.last.toString().trim().isEmpty) {
+    out.removeLast();
+  }
+  if (out.length <= headerLen) return out;
+  // ② 右对齐尾部 4 列（卡号 / 状态 / 计入总资产 / 排序），还原前列
+  const int anchorTail = 4;
+  if (out.length - anchorTail < 0) return out;
+  final List<dynamic> tail = out.sublist(out.length - anchorTail);
+  final List<dynamic> lead = out.sublist(0, out.length - anchorTail);
+  final int leadTarget = headerLen - anchorTail;
+  while (lead.length > leadTarget) {
+    int? lastEmpty;
+    for (int i = lead.length - 1; i >= 0; i--) {
+      if (lead[i].toString().trim().isEmpty) {
+        lastEmpty = i;
+        break;
+      }
+    }
+    if (lastEmpty == null) break; // 多出的列含内容，无法安全还原
+    lead.removeAt(lastEmpty);
+  }
+  if (lead.length == leadTarget) return <dynamic>[...lead, ...tail];
+  return out; // 还原失败，交调用方报错
 }
 
 /// 账单段（一组 CSV 行，首行表头）→ [BillRow]；逻辑与旧单段解析完全一致。
