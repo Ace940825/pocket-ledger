@@ -266,3 +266,33 @@ jobs:
             echo "  3. 用 AltStore 或 Sideloadly 打开该 IPA 安装到手机"
             echo "  4. 7 天后过期，重签一次即可，数据不受影响"
           fi
+
+      - name: 关闭调试 Issue（构建成功时）
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, json, urllib.request, urllib.error
+          token=os.environ["GH_TOKEN"]; repo=os.environ["REPO"]
+          h={"Authorization":"Bearer %s"%token,"Accept":"application/vnd.github+json","User-Agent":"ci","Content-Type":"application/json"}
+          try:
+              req=urllib.request.Request("https://api.github.com/repos/%s/issues?state=open&per_page=100"%repo, headers=h)
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  issues=json.load(r)
+          except Exception:
+              issues=[]
+          title="[CI] iOS 未签名构建错误日志"
+          for it in issues:
+              if it.get("title")==title:
+                  data=json.dumps({"state":"closed"}).encode()
+                  req=urllib.request.Request("https://api.github.com/repos/%s/issues/%d"%(repo,it["number"]), data=data, headers=h, method="PATCH")
+                  try:
+                      with urllib.request.urlopen(req, timeout=20) as r:
+                          print("closed debug issue #%d"%it["number"])
+                  except urllib.error.HTTPError as e:
+                      print("close err", e.code)
+                  break
+          PY
