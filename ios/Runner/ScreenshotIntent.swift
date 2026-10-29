@@ -91,7 +91,11 @@ struct RecognizeBillIntent: AppIntent {
         }
 
         // iOS 16 可用：IntentFile.data 同步属性（data(contentType:) 仅 iOS 18+）。
-        let data = file.data
+        // 用 guard let 同时兼容「data 为可选 / 不可选」两种 SDK 形态（Xcode 版本差异），
+        // 任一形态都能编译通过（不可选时仅产生无害 warning，xcodebuild 不视为错误）。
+        guard let data = file.data else {
+            return .result(dialog: "截图数据为空，请重新截屏后重试。")
+        }
         try data.write(to: URL(fileURLWithPath: imgPath), options: Data.WritingOptions.atomic)
         let meta: [String: Any] = [
             "receivedAt": Int(Date().timeIntervalSince1970 * 1000),
