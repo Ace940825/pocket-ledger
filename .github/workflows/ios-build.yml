@@ -46,6 +46,9 @@ jobs:
     # "requires a newer version of Xcode" 构建失败，故升级到 macos-15。
     runs-on: macos-15
     timeout-minutes: 45
+    # 允许在构建失败时由后续步骤把错误写到公开 Issue（便于无 admin 权限排查）
+    permissions:
+      issues: write
 
     steps:
       - name: 检出代码
@@ -178,10 +181,11 @@ jobs:
           SYNC_BASE_URL: ${{ secrets.SYNC_BASE_URL }}
           SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
+          set -euo pipefail
           flutter build ios --release --no-codesign \
             --dart-define=SCREENSHOT_OCR_API_KEY="$SCREENSHOT_OCR_API_KEY" \
             --dart-define=SYNC_BASE_URL="$SYNC_BASE_URL" \
-            --dart-define=SYNC_TOKEN="$SYNC_TOKEN"
+            --dart-define=SYNC_TOKEN="$SYNC_TOKEN" 2>&1 | tee ios_build.log
 
       - name: 打包未签名 IPA
         if: ${{ github.event.inputs.signed != 'true' }}
@@ -204,6 +208,52 @@ jobs:
             build/ios/ipa/**/*.ipa
           if-no-files-found: error
           retention-days: 90
+
+      - name: 暴露构建错误到公开 Issue（供无 admin 权限排查）
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          ERR=""
+          if [ -f ios_build.log ]; then
+            ERR=$(grep -E "error:|BUILD FAILED|error generated|Swift Compiler|fatal error|Undefined symbol" ios_build.log | head -120 || true)
+          fi
+          if [ -z "$ERR" ]; then
+            ERR="（未在 ios_build.log 找到 error 关键字，附最后 80 行）"$'\n'"$(tail -80 ios_build.log 2>/dev/null || echo 'no log')"
+          fi
+          export ERR
+          python3 - <<'PY'
+          import os, json, urllib.request, urllib.error
+          token=os.environ["GH_TOKEN"]; repo=os.environ["REPO"]; run_id=os.environ["RUN_ID"]
+          err=os.environ.get("ERR","")
+          body="CI 构建失败（run %s）。关键错误：\n\n```\n%s\n```\n\n详情见 Actions run：https://github.com/%s/actions/runs/%s" % (run_id, err, repo, run_id)
+          h={"Authorization":"Bearer %s"%token,"Accept":"application/vnd.github+json","User-Agent":"ci","Content-Type":"application/json"}
+          # 复用同一标题的 open issue，避免重复建
+          try:
+              req=urllib.request.Request("https://api.github.com/repos/%s/issues?state=open&per_page=100"%repo, headers=h)
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  issues=json.load(r)
+          except Exception:
+              issues=[]
+          title="[CI] iOS 未签名构建错误日志"
+          existing=[i for i in issues if i.get("title")==title]
+          data=json.dumps({"title":title,"body":body}).encode()
+          if existing:
+              iid=existing[0]["number"]
+              req=urllib.request.Request("https://api.github.com/repos/%s/issues/%d"%(repo,iid), data=data, headers=h, method="PATCH")
+              print("updating issue #%d"%iid)
+          else:
+              req=urllib.request.Request("https://api.github.com/repos/%s/issues"%repo, data=data, headers=h, method="POST")
+              print("creating issue")
+          try:
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  print("status", r.status)
+          except urllib.error.HTTPError as e:
+              print("HTTP", e.code, e.read().decode()[:400])
+          PY
 
       - name: 输出后续操作提示
         run: |
