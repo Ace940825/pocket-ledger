@@ -7,6 +7,76 @@ import '../../../domain/enums.dart';
 import '../../../shared/models/money.dart';
 import 'account_io.dart';
 
+// ── 截图 OCR 跨语言结果解析（Swift 与 Dart 共用 schema）──
+//
+// 字段名与 ScreenshotOcrService 的模型 prompt 输出完全一致：
+//   amount / direction / date / account / toAccount / merchant /
+//   note / category / currency / confidence
+// Swift 侧（ScreenshotIntent.swift）把 LLM 原始 items 透传写入
+// pl_pending_ocr_result.json，Dart 侧用本组函数重建 [BillRow]，
+// 保证「识别在 Swift、落库在 Dart」两端语义一致、单一真源。
+
+/// 交接文件名（Swift 写出、Dart 读取的 OCR 结果）。
+const String kPendingOcrResult = 'pl_pending_ocr_result.json';
+
+/// 把模型返回的单条 item 映射成 [BillRow]；字段缺失 / 非法返回 null。
+///
+/// 与 [ScreenshotOcrService] 原先的私有 [_parseItem] 同构，提到顶层后
+/// 供「Swift 已识别、Dart 仅重建」路径复用，避免两端各写一份解析。
+BillRow? parseOcrItem(Map<String, dynamic> m) {
+  final DateTime? dt = parseOcrDate((m['date'] ?? '').toString());
+  if (dt == null) return null;
+  final TxnType? type = _parseType((m['direction'] ?? '').toString());
+  if (type == null) return null;
+  final int amount = Money.tryParse((m['amount'] ?? '').toString()).minor;
+  final String account = (m['account'] ?? '').toString().trim();
+  if (account.isEmpty) return null;
+  final String toRaw = (m['toAccount'] ?? '').toString().trim();
+  final String? toAccount = toRaw.isEmpty ? null : toRaw;
+  if (type == TxnType.transfer && toAccount == null) return null;
+  final String merchant = (m['merchant'] ?? '').toString().trim();
+  final String noteRaw = (m['note'] ?? '').toString().trim();
+  final String mergedNote = <String>[
+    if (merchant.isNotEmpty) merchant,
+    if (noteRaw.isNotEmpty) noteRaw,
+  ].join(' · ');
+  final double? conf = double.tryParse((m['confidence'] ?? '').toString());
+  final String? category = ((m['category'] ?? '').toString().trim()).isEmpty
+      ? null
+      : (m['category'] as String).trim();
+  return BillRow(
+    occurredAt: dt,
+    type: type,
+    amountMinor: amount,
+    accountName: account,
+    toAccountName: toAccount,
+    categoryName: category,
+    note: mergedNote.isEmpty ? null : mergedNote,
+    currency: (m['currency'] ?? 'CNY').toString(),
+    confidence: conf,
+  );
+}
+
+/// 把模型返回 items 数组批量映射成 [BillRow]，跳过无法映射的项。
+List<BillRow> parseOcrItems(List<dynamic> items) {
+  final List<BillRow> rows = <BillRow>[];
+  for (final dynamic it in items) {
+    if (it is! Map) continue;
+    final BillRow? row = parseOcrItem(it.cast<String, dynamic>());
+    if (row != null) rows.add(row);
+  }
+  return rows;
+}
+
+/// 解析 OCR 日期（"YYYY-MM-DD HH:mm" / "YYYY-MM-DD"），非法返回 null。
+DateTime? parseOcrDate(String raw) {
+  final String s = raw.trim();
+  if (s.isEmpty) return null;
+  final DateTime? withT = DateTime.tryParse(s.replaceAll(' ', 'T'));
+  if (withT != null) return withT;
+  return DateTime.tryParse(s);
+}
+
 /// 一笔可导入 / 导出的账单（与数据库无关的中间表示）。
 ///
 /// 导入侧把 CSV / JSON 解析成 [BillRow]，导出侧把库内流水投影成 [BillRow]，

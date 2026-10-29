@@ -6,8 +6,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/config/secrets.dart';
 import '../../../core/utils/geo_utils.dart';
-import '../../../domain/enums.dart';
-import '../../../shared/models/money.dart';
 import 'bill_io.dart';
 
 /// 截图识别后端：阿里云百炼 Qwen-VL（OpenAI 兼容视觉接口，大陆网络可达）。
@@ -45,6 +43,15 @@ class ScreenshotOcrService {
 
   static const ScreenshotOcrService instance = ScreenshotOcrService._();
 
+  /// 复用 Dio 实例，避免每次识别新建 TCP 连接。
+  static final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      sendTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 60),
+    ),
+  );
+
   /// 是否已正确配置（内置或 --dart-define 覆盖了 API Key 才视为已配置）。
   bool get isConfigured => kScreenshotOcrApiKey.isNotEmpty;
 
@@ -75,16 +82,13 @@ class ScreenshotOcrService {
         <String, dynamic>{'type': 'text', 'text': _userPrompt},
       ];
 
-      final Dio dio = Dio();
-      final Response<dynamic> resp = await dio.post<dynamic>(
+      final Response<dynamic> resp = await _dio.post<dynamic>(
         kScreenshotOcrEndpoint,
         options: Options(
           headers: <String, dynamic>{
             'Authorization': 'Bearer $kScreenshotOcrApiKey',
             'Content-Type': 'application/json',
           },
-          sendTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 90),
         ),
         data: jsonEncode(<String, dynamic>{
           'model': kScreenshotOcrModel,
@@ -114,7 +118,14 @@ class ScreenshotOcrService {
       final List<String> errors = <String>[];
       for (int i = 0; i < items.length; i++) {
         try {
-          final BillRow? row = _parseItem(items[i]);
+          final dynamic it = items[i];
+          if (it is! Map) {
+            errors.add('第${i + 1}项：格式不是对象');
+            continue;
+          }
+          // 复用跨语言共用解析器（bill_io.dart:parseOcrItem），保证
+          // 与「Swift 已识别、Dart 仅重建」路径语义一致。
+          final BillRow? row = parseOcrItem(it.cast<String, dynamic>());
           if (row == null) {
             errors.add('第${i + 1}项：缺少金额 / 类型 / 账户等必要字段');
           } else {
@@ -128,22 +139,20 @@ class ScreenshotOcrService {
         errors.add('模型未返回可识别的账单，请换一张更清晰的截图');
       }
 
-      // 截图识别成功后，自动获取当前 GPS 位置，附加到每一行账单中
-      // （仅当该行没有位置信息时）
+      // 截图识别成功后，快速尝试获取 GPS 位置（低精度 + 短超时，不阻塞主流程）。
+      // 位置信息附加到每一行账单中（仅当该行没有位置信息时）。
       if (rows.isNotEmpty) {
         try {
           final Position pos = await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              timeLimit: Duration(seconds: 5),
+              accuracy: LocationAccuracy.medium,
+              timeLimit: Duration(seconds: 2),
             ),
-          );
-          // 调用逆地理编码获取地名
+          ).timeout(const Duration(seconds: 2));
           final String? placeName = await reverseGeocodeSemantic(
             pos.latitude,
             pos.longitude,
-          );
-          // 把位置信息附加到每一行账单中（仅当该行没有位置信息时）
+          ).timeout(const Duration(seconds: 2));
           for (int i = 0; i < rows.length; i++) {
             final BillRow row = rows[i];
             if (row.placeName == null || row.placeName!.isEmpty) {
@@ -216,64 +225,8 @@ class ScreenshotOcrService {
     return const <dynamic>[];
   }
 
-  /// 把模型返回的单条 item 映射成 [BillRow]，字段缺失 / 非法返回 null。
-  BillRow? _parseItem(dynamic item) {
-    if (item is! Map) return null;
-    final Map<String, dynamic> m = item.cast<String, dynamic>();
-
-    final DateTime? dt = _parseDate((m['date'] ?? '').toString());
-    if (dt == null) return null;
-
-    final TxnType? type = _parseDirection((m['direction'] ?? '').toString());
-    if (type == null) return null;
-
-    final int amount = Money.tryParse((m['amount'] ?? '').toString()).minor;
-
-    final String account = (m['account'] ?? '').toString().trim();
-    if (account.isEmpty) return null;
-
-    final String toRaw = (m['toAccount'] ?? '').toString().trim();
-    final String? toAccount = toRaw.isEmpty ? null : toRaw;
-    if (type == TxnType.transfer && toAccount == null) return null;
-
-    final String merchant = (m['merchant'] ?? '').toString().trim();
-    final String noteRaw = (m['note'] ?? '').toString().trim();
-    final String mergedNote = <String>[
-      if (merchant.isNotEmpty) merchant,
-      if (noteRaw.isNotEmpty) noteRaw,
-    ].join(' · ');
-    final double? conf = double.tryParse((m['confidence'] ?? '').toString());
-
-    return BillRow(
-      occurredAt: dt,
-      type: type,
-      amountMinor: amount,
-      accountName: account,
-      toAccountName: toAccount,
-      categoryName: ((m['category'] ?? '').toString().trim()).isEmpty
-          ? null
-          : (m['category'] as String).trim(),
-      note: mergedNote.isEmpty ? null : mergedNote,
-      currency: (m['currency'] ?? 'CNY').toString(),
-      confidence: conf,
-    );
-  }
-
-  DateTime? _parseDate(String raw) {
-    final String s = raw.trim();
-    if (s.isEmpty) return null;
-    final DateTime? withT = DateTime.tryParse(s.replaceAll(' ', 'T'));
-    if (withT != null) return withT;
-    return DateTime.tryParse(s);
-  }
-
-  TxnType? _parseDirection(String raw) {
-    final String s = raw.trim().toLowerCase();
-    if (s == 'income' || s == '收入' || s == '收') return TxnType.income;
-    if (s == 'expense' || s == '支出' || s == '支') return TxnType.expense;
-    if (s == 'transfer' || s == '转账' || s == '转') return TxnType.transfer;
-    return null;
-  }
+  // OCR 单条 item 解析已迁移至 bill_io.dart 的 parseOcrItem（跨语言共用）：
+  // 「Swift 后台识别、Dart 落库」与「Dart 前台识别」两端共用同一解析真源。
 
   String _mimeOf(List<int> bytes) {
     if (bytes.length >= 8 &&

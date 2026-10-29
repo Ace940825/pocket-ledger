@@ -100,6 +100,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
                 width: _kCardWidth,
                 child: switch (st.status) {
                   ScreenshotInboxStatus.parsing => _parsingCard(),
+                  ScreenshotInboxStatus.pending => _pendingCard(st),
                   ScreenshotInboxStatus.saved => _savedCard(st),
                   _ => _failedCard(st),
                 },
@@ -135,6 +136,129 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── 等待确认（后台识别完成，等用户确认入库）─────────────
+
+  Widget _pendingCard(ScreenshotInboxState st) {
+    final BillRow? row = st.firstRow;
+    final String amountText = row == null
+        ? ''
+        : '${row.type == TxnType.income ? '+' : row.type == TxnType.expense ? '-' : ''}'
+            '${Money.fromMinor(row.amountMinor).format()}';
+    final String? cat = row?.categoryName?.trim();
+    final String? note = row?.note?.trim();
+    final String title = (cat != null && cat.isNotEmpty)
+        ? cat
+        : (note != null && note.isNotEmpty ? note : '截图记账');
+    return HairlineCard(
+      radius: 20,
+      shadows: ForestElevation.float,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const ClayIconTile(
+                size: 40,
+                radius: 12,
+                color: ForestGreen.deep,
+                child: LineIcon(
+                  LineIconKind.otherDots,
+                  size: 20,
+                  color: ForestGreen.deep,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: context.forest.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                amountText,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: context.forest.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '识别到 ${st.pendingRows.length} 笔账单，确认后自动入账',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: context.forest.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: <Widget>[
+              Expanded(child: _dismissBtn()),
+              const SizedBox(width: 10),
+              Expanded(child: _confirmBtn()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _confirmBtn() {
+    return GestureDetector(
+      onTap: () => ref.read(screenshotInboxProvider.notifier).confirmFromNotification(),
+      child: Container(
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: ForestGradients.button,
+          borderRadius: BorderRadius.circular(ForestRadius.pill),
+          boxShadow: ForestElevation.float,
+        ),
+        child: Text(
+          '确认入库',
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: context.forest.onPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dismissBtn() {
+    return GestureDetector(
+      onTap: () => widget.onDismiss(),
+      child: Container(
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: context.forest.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(ForestRadius.pill),
+        ),
+        child: Text(
+          '取消',
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: context.forest.onSurface,
+          ),
+        ),
       ),
     );
   }
