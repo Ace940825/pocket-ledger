@@ -32,6 +32,7 @@ import UserNotifications
         let category = UNNotificationCategory(
             identifier: "SCREENSHOT_OCR",
             actions: [confirm, cancel, view],
+            intentIdentifiers: [],
             options: []
         )
         UNUserNotificationCenter.current().setNotificationCategories([category])
