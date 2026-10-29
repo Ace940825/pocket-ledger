@@ -29,8 +29,10 @@ BillRow? parseOcrItem(Map<String, dynamic> m) {
   final TxnType? type = _parseType((m['direction'] ?? '').toString());
   if (type == null) return null;
   final int amount = Money.tryParse((m['amount'] ?? '').toString()).minor;
+  // 注意：账户缺失不再丢弃整笔——OCR 经常认不出付款方式，丢弃会让
+  // 「识别成功却没入账」反复发生。账户缺失时由落库层用默认账户兜底
+  // （见 screenshot_bill_writer._defaultAccountName），保证账单能创建。
   final String account = (m['account'] ?? '').toString().trim();
-  if (account.isEmpty) return null;
   final String toRaw = (m['toAccount'] ?? '').toString().trim();
   final String? toAccount = toRaw.isEmpty ? null : toRaw;
   if (type == TxnType.transfer && toAccount == null) return null;

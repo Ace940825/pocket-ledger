@@ -44,7 +44,7 @@ let kOcrSystemPrompt = """
 - category：中文分类名，如 餐饮 / 交通 / 工资 / 购物；无法确定可留空字符串
 - date：交易日期，格式 "YYYY-MM-DD HH:mm" 或 "YYYY-MM-DD"
 - merchant：商户名
-- account：付款 / 扣款账户名，如 支付宝 / 微信 / 招商银行；转账时填转出账户
+- account：付款 / 扣款账户名（必填），必须从截屏找出支付方式，如 微信支付 / 支付宝 / 招商银行信用卡(5526) / 现金；确实无法判断时填 "其他"
 - toAccount：仅转账时填转入账户，其他情况留空字符串
 - note：备注
 - currency：币种代码，人民币为 "CNY"

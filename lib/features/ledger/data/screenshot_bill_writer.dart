@@ -58,8 +58,13 @@ Future<ScreenshotBillSaveOutcome> saveScreenshotBillRows({
 
   for (final BillRow row in rows) {
     try {
+      // OCR 未识别到付款账户时（accountName 为空）用默认账户兜底，
+      // 保证「识别成功即自动入账」成立，避免整笔被静默丢弃。
+      final String effectiveAccount = row.accountName.trim().isEmpty
+          ? _defaultAccountName(accounts)
+          : row.accountName.trim();
       final String accountId = await _resolveAccount(
-        row.accountName,
+        effectiveAccount,
         bookId,
         accounts,
         accRepo,
@@ -216,4 +221,16 @@ Future<String?> _resolveCategory(
   );
   cache[key] = id;
   return id;
+}
+
+/// OCR 未识别到付款账户时的兜底账户名。
+///
+/// 优先现金类账户（最常见默认），否则取账本首个账户；
+/// 极端情况（无任何账户）回退到字面 "现金"，由 [_resolveAccount] 自动建户。
+String _defaultAccountName(List<Account> accounts) {
+  if (accounts.isEmpty) return '现金';
+  for (final Account a in accounts) {
+    if (a.type == AccountType.cash) return a.name;
+  }
+  return accounts.first.name;
 }
