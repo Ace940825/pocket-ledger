@@ -256,7 +256,7 @@ class ScreenshotNotificationService {
 
 /// 通知 action 分发器（上层注册处理函数）。
 class ScreenshotNotificationActionHandler {
-  static void Function(String action, String? payload)? onAction;
+  static Future<void> Function(String action, String? payload)? onAction;
 
   static void handle(String action, String? payload) {
     onAction?.call(action, payload);

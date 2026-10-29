@@ -38,7 +38,7 @@ class _ScreenshotInboxBootstrapperState
     extends ConsumerState<ScreenshotInboxBootstrapper> with WidgetsBindingObserver {
   OverlayEntry? _entry;
   Timer? _pollTimer;
-  AppLifecycleState _lifecycle = AppLifecycleState.resumed;
+  AppLifecycleState _lifecycle = AppLifecycleState.detached;
 
   /// 用户点了通知"查看并修改"，等 App 回前台后跳到记一笔页预填。
   bool _pendingViewFromNotification = false;
@@ -78,27 +78,36 @@ class _ScreenshotInboxBootstrapperState
         await ScreenshotNotificationService.instance.getLaunchDetails();
     if (details?.didNotificationLaunchApp == true) {
       final NotificationResponse? resp = details!.notificationResponse;
-      // 冷启动通知：直接走同一套 action 路由（confirm/view/dismiss）。
-      // actionId 为空（点了通知正文）按 view 处理。
-      _onNotificationAction(resp?.actionId ?? kActionView, resp?.payload);
+      // 冷启动通知：路由到同一套 action 处理（confirm/view/dismiss）。
+      // actionId 为空（点了通知正文）按 view 处理。view 会先读 Swift 交接文件
+      // 重建 OCR 结果，再决定立即跳转或等 App 回前台后跳转。
+      await _onNotificationAction(resp?.actionId ?? kActionView, resp?.payload);
     }
   }
 
   /// 通知 action 回调：确认入库 / 取消 / 查看。
-  void _onNotificationAction(String action, String? payload) {
+  ///
+  /// 异步：view 需先重建 OCR 结果（Swift 路径读交接文件）再决定跳转时机；
+  /// confirm / dismiss 也需等待落库 / 清理完成。
+  Future<void> _onNotificationAction(String action, String? payload) async {
     final controller = ref.read(screenshotInboxProvider.notifier);
     switch (action) {
       case kActionConfirm:
-        unawaited(controller.confirmFromNotification());
+        await controller.confirmFromNotification();
       case kActionDismiss:
-        unawaited(controller.cancelFromNotification());
+        await controller.cancelFromNotification();
       case kActionView:
-        // 查看：重建 OCR 结果到内存（Swift 路径从文件重建，Dart 路径已就绪），
-        // 标记待跳转，App 回前台后导航到记一笔页。
-        unawaited(controller.viewFromNotification());
-        _pendingViewFromNotification = true;
+        // 查看：重建 OCR 结果到内存（Swift 路径从文件重建，Dart 路径已就绪）。
+        // 若 App 已在前台直接跳转；否则标记待跳转，回前台后导航到记一笔页。
+        await controller.viewFromNotification();
+        if (_lifecycle == AppLifecycleState.resumed) {
+          _pendingViewFromNotification = false;
+          _navigateToRecordWithOcr();
+        } else {
+          _pendingViewFromNotification = true;
+        }
       default:
-        unawaited(controller.cancelFromNotification());
+        await controller.cancelFromNotification();
     }
   }
 
