@@ -27,6 +27,7 @@ class ImportRecord {
     this.failReasons,
     this.txnIds,
     this.accountIds,
+    this.accountNames,
     this.lendRecordIds,
     this.investmentHoldingIds,
     this.reimbursementIds,
@@ -60,6 +61,10 @@ class ImportRecord {
   /// 本次导入**新建**的账户 ID 清单（随导入建设的账户，删导入时一并软删）。
   final List<String>? accountIds;
 
+  /// 本次导入的所有账户名称清单（包括新建、更新和已存在被跳过的），
+  /// 仅用于导入记录详情展示，不参与级联删除。
+  final List<String>? accountNames;
+
   /// 本次导入新建的借还记录 ID 清单。
   final List<String>? lendRecordIds;
 
@@ -81,6 +86,9 @@ class ImportRecord {
 
   String? get accountIdsJson =>
       accountIds == null ? null : jsonEncode(accountIds);
+
+  String? get accountNamesJson =>
+      accountNames == null ? null : jsonEncode(accountNames);
 
   String? get lendRecordIdsJson =>
       lendRecordIds == null ? null : jsonEncode(lendRecordIds);
@@ -126,10 +134,10 @@ class ImportRecordRepository {
     await _db.customStatement(
       'INSERT INTO import_records '
       '(id, source, source_label, imported_count, skipped_count, '
-      'fail_json, txn_ids, account_ids, lend_record_ids, '
+      'fail_json, txn_ids, account_ids, account_names, lend_record_ids, '
       'investment_holding_ids, reimbursement_ids, savings_goal_ids, '
       'installment_plan_ids, created_at) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       <Object?>[
         r.id,
         r.source,
@@ -139,6 +147,7 @@ class ImportRecordRepository {
         r.failJson,
         r.txnIdsJson,
         r.accountIdsJson,
+        r.accountNamesJson,
         r.lendRecordIdsJson,
         r.investmentHoldingIdsJson,
         r.reimbursementIdsJson,
@@ -154,7 +163,7 @@ class ImportRecordRepository {
   Future<List<ImportRecord>> getAll() async {
     final List<QueryRow> rows = await _db.customSelect(
       'SELECT id, source, source_label, imported_count, skipped_count, '
-      'fail_json, txn_ids, account_ids, lend_record_ids, '
+      'fail_json, txn_ids, account_ids, account_names, lend_record_ids, '
       'investment_holding_ids, reimbursement_ids, savings_goal_ids, '
       'installment_plan_ids, created_at FROM import_records '
       'ORDER BY created_at DESC',
@@ -174,7 +183,7 @@ class ImportRecordRepository {
   Future<ImportRecord?> getById(String id) async {
     final List<QueryRow> rows = await _db.customSelect(
       'SELECT id, source, source_label, imported_count, skipped_count, '
-      'fail_json, txn_ids, account_ids, lend_record_ids, '
+      'fail_json, txn_ids, account_ids, account_names, lend_record_ids, '
       'investment_holding_ids, reimbursement_ids, savings_goal_ids, '
       'installment_plan_ids, created_at FROM import_records WHERE id = ?',
       variables: <Variable<Object>>[Variable<Object>(id)],
@@ -307,6 +316,8 @@ class ImportRecordRepository {
       failReasons: ImportRecord._parseJsonList(row.read<String?>('fail_json')),
       txnIds: ImportRecord._parseJsonList(row.read<String?>('txn_ids')),
       accountIds: ImportRecord._parseJsonList(row.read<String?>('account_ids')),
+      accountNames:
+          ImportRecord._parseJsonList(row.read<String?>('account_names')),
       lendRecordIds:
           ImportRecord._parseJsonList(row.read<String?>('lend_record_ids')),
       investmentHoldingIds: ImportRecord._parseJsonList(

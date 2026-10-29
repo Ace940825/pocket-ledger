@@ -712,15 +712,7 @@ class _AccountBody extends StatelessWidget {
                     leading: ClayIconTile(
                       size: 40,
                       color: isDebt ? AppPalette.expense : AppPalette.primary,
-                      child: LineIcon(
-                        accountLineKind(accounts[i].type) ?? LineIconKind.star,
-                        size: 20,
-                        color: Color.lerp(
-                          isDebt ? AppPalette.expense : AppPalette.primary,
-                          context.forest.onSurface,
-                          0.22,
-                        )!,
-                      ),
+                      child: _buildAccountIcon(accounts[i], isDebt, context),
                     ),
                     title: Text(
                       accounts[i].name,
@@ -753,6 +745,45 @@ class _AccountBody extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  /// 构建账户图标：优先使用银行 logo（如果有 iconKey 且是图片路径），
+  /// 否则使用线稿图标。
+  Widget _buildAccountIcon(Account a, bool isDebt, BuildContext context) {
+    // 如果有 iconKey 且是图片路径（以 assets/ 开头），显示银行 logo
+    if (a.iconKey != null && a.iconKey!.startsWith('assets/')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(
+          a.iconKey!,
+          width: 24,
+          height: 24,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            // 图片加载失败时，回退到线稿图标
+            return LineIcon(
+              accountLineKind(a.type) ?? LineIconKind.star,
+              size: 20,
+              color: Color.lerp(
+                isDebt ? AppPalette.expense : AppPalette.primary,
+                context.forest.onSurface,
+                0.22,
+              )!,
+            );
+          },
+        ),
+      );
+    }
+    // 否则使用线稿图标
+    return LineIcon(
+      accountLineKind(a.type) ?? LineIconKind.star,
+      size: 20,
+      color: Color.lerp(
+        isDebt ? AppPalette.expense : AppPalette.primary,
+        context.forest.onSurface,
+        0.22,
+      )!,
     );
   }
 

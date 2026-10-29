@@ -856,7 +856,7 @@ CardSchedule computeCardSchedule(
 /// `appPrefs = await SharedPreferences.getInstance();`
 late final SharedPreferences appPrefs;
 
-const String _cardStoreKey = 'card_store_v1';
+const String _cardStoreKey = 'card_store_v2';
 
 /// 卡片存储：以 JSON 列表持久化全部卡片，提供 upsert / getById / delete。
 ///
@@ -889,43 +889,10 @@ class CardStore extends StateNotifier<List<CardInfo>> {
     }
   }
 
-  /// 首次安装的两张种子卡（演示数据）。
-  static List<CardInfo> _seed() => <CardInfo>[
-        CardInfo(
-          id: const Uuid().v4(),
-          cardNumber: '6228 1202 1576 6022',
-          bankName: '安阳银行',
-          alias: '安阳银行信用卡',
-          cardOrg: 'UnionPay',
-          validity: '12/28',
-          cvv: '123',
-          billDay: 1,
-          repayMode: CardRepayMode.graceDays,
-          repayValue: 50,
-          repayReminder: true,
-          currency: '人民币',
-          creditLimit: '5,000',
-          remark: '日常消费卡',
-          cardType: CardType.credit,
-        ),
-        CardInfo(
-          id: const Uuid().v4(),
-          cardNumber: '6217 0000 1234 5678',
-          bankName: '华泰证券',
-          alias: '华泰股票账户',
-          cardOrg: '证券',
-          validity: '',
-          cvv: '',
-          billDay: 1,
-          repayMode: CardRepayMode.graceDays,
-          repayValue: 0,
-          repayReminder: false,
-          currency: '人民币',
-          creditLimit: '',
-          remark: '',
-          cardType: CardType.stock,
-        ),
-      ];
+  /// 不再预置演示卡：首次进入卡片管理为空，由用户自行添加。
+  /// （此前 v1 预置了安阳银行信用卡 / 华泰股票账户两张演示卡，
+  /// 现已移除，并把存储 key 升到 v2 以丢弃旧演示数据。）
+  static List<CardInfo> _seed() => const <CardInfo>[];
 
   /// 统一写入入口：更新内存态后立即持久化。
   void _persist() {

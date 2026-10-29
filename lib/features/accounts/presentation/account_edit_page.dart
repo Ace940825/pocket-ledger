@@ -20,6 +20,7 @@ import '../../../theme/app_colors.dart';
 import '../../investment/data/investment_repository.dart';
 import '../../investment/providers/investment_providers.dart';
 import '../data/account_icon.dart';
+import '../data/bank_data.dart';
 import '../data/repay_date.dart';
 import '../providers/accounts_providers.dart';
 import 'account_type_sheet.dart';
@@ -582,8 +583,12 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       _dueGraceDaysValue = null;
     }
     _selectedType = account.type;
-    // 银行类账户：现有名称即银行名（如「安阳银行」），直接作为第二栏初值。
-    if (_isBankType(_selectedType)) _bankName = account.name;
+    // 银行类账户：根据账户名称自动识别银行名称
+    // 如果账户名称是"招商储蓄"，自动识别为"招商银行"
+    if (_isBankType(_selectedType)) {
+      final String? matchedBankName = matchBankName(account.name);
+      _bankName = matchedBankName ?? account.name;
+    }
     _status = account.status;
     _includeInTotal = account.includeInTotal;
     _initialized = true;

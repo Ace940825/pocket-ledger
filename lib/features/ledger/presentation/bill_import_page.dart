@@ -13,6 +13,7 @@ import 'package:drift/drift.dart'
         TypedResult;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:pocket_ledger/theme/app_dimens.dart';
@@ -28,6 +29,8 @@ import '../../../shared/widgets/line_icon_map.dart';
 import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
+import '../../accounts/data/bank_data.dart';
+import '../../accounts/data/bank_icon_map.dart';
 import '../../accounts/data/account_repository.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../categories/data/category_repository.dart';
@@ -322,8 +325,9 @@ class BillImportPage extends StatelessWidget {
     }
   }
 
-  /// 导入记录详情弹层：来源 / 完成时间 / 成功笔数 / 跳过笔数，含问题明细。
+  /// 导入记录详情弹层：来源 / 完成时间 / 成功笔数 / 跳过笔数，含账户明细和问题明细。
   void _showImportDetailSheet(BuildContext context, ImportRecord r) {
+    final bool hasAccounts = r.accountNames != null && r.accountNames!.isNotEmpty;
     showAppModalSheet<void>(
       context,
       title: '导入记录详情',
@@ -333,7 +337,33 @@ class BillImportPage extends StatelessWidget {
           _detailRow(context, '来源', r.sourceLabel),
           _detailRow(context, '完成时间', _fmtImportTime(r.createdAt)),
           _detailRow(context, '成功导入', '${r.importedCount} 笔'),
+          if (hasAccounts)
+            _detailRow(context, '导入账户', '${r.accountNames!.length} 个'),
           _detailRow(context, '跳过 / 失败', '${r.skippedCount} 笔'),
+          if (hasAccounts) ...<Widget>[
+            const Divider(height: 16, color: AppPalette.divider),
+            const Text(
+              '账户明细',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppPalette.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            for (final String name in r.accountNames!)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  '· $name',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.5,
+                    color: context.forest.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
           if (r.failReasons != null && r.failReasons!.isNotEmpty) ...<Widget>[
             const Divider(height: 16, color: AppPalette.divider),
             const Text(
@@ -431,6 +461,12 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
   bool _importing = false;
   String? _resultMsg;
 
+  /// 文件选择器原生通道互斥锁：file_picker 的 saveFile / pickFiles 共用同一条
+  /// 原生通道，上一次未释放时再次调用会抛
+  /// `PlatformException(already_active, File picker is already active)`，
+  /// 异常残留还可能拖垮 System UI 触发 ANR。用此锁防止重入（连点 / 误触）。
+  bool _filePickerBusy = false;
+
   /// 最近一次导入的「跳过 / 失败」笔数与原因清单（供结果栏「查看问题」复用）。
   int _lastSkipped = 0;
   List<String> _lastReasons = <String>[];
@@ -459,14 +495,21 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
 
   /// 弹系统文档选择器，让用户从本地任选 .csv / .json 文件，而不是只认固定文件名。
   Future<void> _pickFile() async {
-    final FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const <String>['csv', 'json'],
-      dialogTitle: '选择账单文件',
-    );
-    if (result == null) {
-      if (mounted) showAppToast(context, '已取消选择');
+    // 防重入：与 _downloadTemplate 共用 file_picker 原生通道（见 _filePickerBusy）。
+    if (_filePickerBusy) {
+      if (mounted) showAppToast(context, '请先关闭已打开的文件窗口再重试');
       return;
+    }
+    _filePickerBusy = true;
+    try {
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const <String>['csv', 'json'],
+        dialogTitle: '选择账单文件',
+      );
+      if (result == null) {
+        if (mounted) showAppToast(context, '已取消选择');
+        return;
     }
     final String? filePath = result.files.single.path;
     if (filePath == null) {
@@ -506,6 +549,20 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       }
       showAppToast(context, msg);
     }
+  } on PlatformException catch (e, st) {
+    debugPrint('[BillImportPage] 选择文件异常: $e\n$st');
+    if (mounted) {
+      final String msg = e.code == 'already_active'
+          ? '文件窗口仍在使用中，请先关闭后再试'
+          : '选择文件失败：${e.message ?? e.code}';
+      showAppToast(context, msg);
+    }
+  } catch (e, st) {
+    debugPrint('[BillImportPage] 选择文件失败: $e\n$st');
+    if (mounted) showAppToast(context, '选择文件失败: $e');
+  } finally {
+    _filePickerBusy = false;
+  }
   }
 
   Future<void> _parse() async {
@@ -689,6 +746,12 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
 
   /// 下载空白填写模板（提供账单模板和账户模板两个选择）。
   Future<void> _downloadTemplate(String type) async {
+    // 防重入：file_picker 原生通道不支持并发调用（见 _filePickerBusy 注释）。
+    if (_filePickerBusy) {
+      if (mounted) showAppToast(context, '请先关闭已打开的文件窗口再重试');
+      return;
+    }
+    _filePickerBusy = true;
     String content;
     String fileName;
     if (type == 'account') {
@@ -701,28 +764,47 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       fileName = '账单导入模板.csv';
     }
 
-    const String ext = 'csv';
-    // file_picker 8.x：Android/iOS 的 saveFile 必须直接传 bytes（由系统
-    // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
-    final bool isMobile = Platform.isAndroid || Platform.isIOS;
-    final String? picked = await FilePicker.platform.saveFile(
-      dialogTitle: '保存导入模板',
-      fileName: fileName,
-      allowedExtensions: isMobile ? null : const <String>[ext],
-      bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
-    );
-    if (picked == null) {
-      if (mounted) showAppToast(context, '已取消保存');
-      return;
+    try {
+      const String ext = 'csv';
+      // file_picker 8.x：Android/iOS 的 saveFile 必须直接传 bytes（由系统
+      // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
+      final bool isMobile = Platform.isAndroid || Platform.isIOS;
+      final String? picked = await FilePicker.platform.saveFile(
+        dialogTitle: '保存导入模板',
+        fileName: fileName,
+        allowedExtensions: isMobile ? null : const <String>[ext],
+        bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
+      );
+      if (picked == null) {
+        if (mounted) showAppToast(context, '已取消保存');
+        return;
+      }
+      String outPath = picked;
+      if (!isMobile) {
+        // 桌面保存面板不强制扩展名，缺失时补足，避免存成无后缀文件。
+        outPath =
+            picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
+        await File(outPath).writeAsString(content);
+      }
+      if (mounted) showAppToast(context, '模板已保存，按说明填写后可导入');
+    } on PlatformException catch (e, st) {
+      // 特定捕获：原生文件选择器仍在占用（already_active）时，给明确提示而非
+      // 崩成"软模板失败"。通常因上一次选择器未关/连点触发，稍后再试即可。
+      debugPrint('[BillImportPage] 下载模板文件选择器异常: $e\n$st');
+      if (mounted) {
+        final String msg = e.code == 'already_active'
+            ? '文件窗口仍在使用中，请先关闭后再试'
+            : '下载模板失败：${e.message ?? e.code}';
+        showAppToast(context, msg);
+      }
+    } catch (e, st) {
+      debugPrint('[BillImportPage] 下载模板失败: $e\n$st');
+      if (mounted) {
+        showAppToast(context, '下载模板失败: $e');
+      }
+    } finally {
+      _filePickerBusy = false;
     }
-    String outPath = picked;
-    if (!isMobile) {
-      // 桌面保存面板不强制扩展名，缺失时补足，避免存成无后缀文件。
-      outPath =
-          picked.toLowerCase().endsWith('.$ext') ? picked : '$picked.$ext';
-      await File(outPath).writeAsString(content);
-    }
-    if (mounted) showAppToast(context, '模板已保存，按说明填写后可导入');
   }
 
   /// 底部「开始导入」：跳转预览页（对标小青账），确认后回本页执行真实导入。
@@ -924,6 +1006,9 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
       final List<String> reasons = <String>[];
       // 本次导入写入的流水 ID 清单（级联删除溯源：删除导入记录时一并软删）。
       final List<String> txnIds = <String>[];
+      // 本次导入的所有账户名称清单（包括新建、更新和已存在被跳过的），
+      // 仅用于导入记录详情展示，不参与级联删除。
+      final List<String> accountNames = <String>[];
 
       // 整批原子导入（根因 #4）：所有写入（流水 / 借还 / 储蓄 / 分期 / 投资 /
       // 报销台账 + 同步入队 + 导入记录）包进同一个 DB 事务。逐行「数据校验
@@ -996,6 +1081,9 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
         final List<AccountRow> accRows = _parsed!.accounts;
         for (int i = 0; i < accRows.length; i++) {
           final AccountRow acc = accRows[i];
+          // 记录所有导入的账户名称（包括新建、更新和已存在被跳过的），
+          // 用于导入记录详情展示。
+          accountNames.add(acc.name);
           String bookId = currentBookId;
           final String? accBook = acc.book?.trim();
           if (accBook != null && accBook.isNotEmpty) {
@@ -1022,19 +1110,42 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           final bool overwriteThis =
               mode == ImportConflictMode.overwrite && hit != null;
           if (hit != null && !overwriteThis) continue; // 合并：已存在不动
+
+          // 自动匹配银行：根据 CSV 里的账户名称（如"招商储蓄"）
+          // 识别系统内置的标准银行名称（如"招商银行"）
+          String? matchedBankName;
+          if (acc.type == AccountType.bankCard || acc.type == AccountType.creditCard) {
+            matchedBankName = matchBankName(acc.name);
+          }
+
+          // 备注信息：如果 CSV 里有备注，就用 CSV 里的；
+          // 如果没有，就填原始的账户名称（作为默认备注）
+          String? effectiveNote = acc.note;
+          if (effectiveNote == null || effectiveNote!.trim().isEmpty) {
+            effectiveNote = acc.name;
+          }
+
+          // 自动匹配银行图标：如果 CSV 里没有指定图标，就根据银行名称自动匹配
+          String? effectiveIconKey = acc.iconKey;
+          if (effectiveIconKey == null || effectiveIconKey.isEmpty) {
+            if (matchedBankName != null) {
+              effectiveIconKey = matchBankIcon(matchedBankName);
+            }
+          }
+
           final String id = await accRepo.restoreAccount(
             bookId: bookId,
-            name: acc.name,
+            name: acc.name, // 账户名称保持原始的（如"招商储蓄"）
             type: acc.type,
             balanceMinor: acc.balanceMinor,
             currency: acc.currency,
-            iconKey: acc.iconKey,
+            iconKey: effectiveIconKey,
             colorValue: acc.colorValue,
             creditLimitMinor: acc.creditLimitMinor,
             billingDay: acc.billingDay,
             dueDay: acc.dueDay,
             dueGraceDays: acc.dueGraceDays,
-            note: acc.note,
+            note: effectiveNote,
             cardNumber: acc.cardNumber,
             status: acc.status,
             includeInTotal: acc.includeInTotal,
@@ -1366,6 +1477,7 @@ class _BillImportConfigPageState extends ConsumerState<BillImportConfigPage> {
           // 集更全；其余为本次新建的账户 / 台账 ID，删导入记录时一并级联清。
           txnIds: newTxns.isNotEmpty ? newTxns : null,
           accountIds: newAccounts.isNotEmpty ? newAccounts : null,
+          accountNames: accountNames.isNotEmpty ? List<String>.from(accountNames) : null,
           lendRecordIds: newLends.isNotEmpty ? newLends : null,
           investmentHoldingIds: newInvests.isNotEmpty ? newInvests : null,
           reimbursementIds: newReimbs.isNotEmpty ? newReimbs : null,

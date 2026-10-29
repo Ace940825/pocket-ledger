@@ -318,13 +318,6 @@ const List<BillTemplateField> kAccountTemplateFields = <BillTemplateField>[
     desc: '免息期（天）：账单日后 N 天为还款日，与还款日二选一；留空为不设',
   ),
   BillTemplateField(
-    header: '备注',
-    jsonKey: 'note',
-    typeLabel: '文本',
-    required: false,
-    desc: '账户备注，选填',
-  ),
-  BillTemplateField(
     header: '卡号',
     jsonKey: 'cardNumber',
     typeLabel: '文本',
@@ -416,29 +409,29 @@ const List<List<String>> _sampleRows = <List<String>>[
   ],
 ];
 
-/// 账户段示例（与 [kAccountTemplateFields] 严格 14 列对齐）。
+/// 账户段示例（与 [kAccountTemplateFields] 严格 13 列对齐）。
 ///
 /// 顺序：账本,账户名,类型,币种,余额,信用卡额度,账单日,还款日,
-/// 免息期,备注,卡号,状态,计入总资产,排序。
+/// 免息期,卡号,状态,计入总资产,排序。
 ///
 /// 还款日与免息期互斥二选一：第 3 行（信用卡）用固定还款日 23 号；
 /// 免息期列留空即表示不使用免息期口径。
 const List<List<String>> _accountSampleRows = <List<String>>[
   <String>[
-    '', '微信', 'wechat', 'CNY', '125.50', '', '', '', '', '',
-    '日常零钱', '', '使用中', 'Y', '1',
+    '', '微信', 'wechat', 'CNY', '125.50', '', '', '', '',
+    '', '使用中', 'Y', '1',
   ],
   <String>[
-    '', '招商银行', 'bankCard', 'CNY', '18620.33', '', '', '', '', '',
-    '工资卡', '1234', '使用中', 'Y', '2',
+    '', '招商银行', 'bankCard', 'CNY', '18620.33', '', '', '', '',
+    '1234', '使用中', 'Y', '2',
   ],
   <String>[
-    '', '招商信用卡', 'creditCard', 'CNY', '-2300.00', '20000.00', '5', '23', '', '',
-    '', '5678', '使用中', 'Y', '3',
+    '', '招商信用卡', 'creditCard', 'CNY', '-2300.00', '20000.00', '5', '23', '',
+    '5678', '使用中', 'Y', '3',
   ],
   <String>[
-    '', '余额宝', 'investmentOther', 'CNY', '3000.00', '', '', '', '', '',
-    '货币基金', '', '隐藏', 'N', '4',
+    '', '余额宝', 'investmentOther', 'CNY', '3000.00', '', '', '', '',
+    '', '隐藏', 'N', '4',
   ],
 ];
 

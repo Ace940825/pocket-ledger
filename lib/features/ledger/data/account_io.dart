@@ -86,13 +86,10 @@ const List<String> kAccountCsvHeader = <String>[
   '类型',
   '币种',
   '余额',
-  '图标',
-  '颜色',
   '信用卡额度',
   '账单日',
   '还款日',
   '免息期',
-  '备注',
   '卡号',
   '状态',
   '计入总资产',
@@ -106,13 +103,10 @@ const List<String> kAccountJsonKeys = <String>[
   'type',
   'currency',
   'balance',
-  'icon',
-  'color',
   'creditLimit',
   'billingDay',
   'dueDay',
   'dueGraceDays',
-  'note',
   'cardNumber',
   'status',
   'includeInTotal',
@@ -124,11 +118,11 @@ String buildAccountTemplate() {
   const List<List<String>> rows = <List<String>>[
     kAccountCsvHeader,
     // 示例 1：现金账户
-    <String>['默认账本', '现金', 'cash', 'CNY', '100000', '', '', '', '', '', '', '日常备用金', '', 'active', 'true', '1'],
+    <String>['默认账本', '现金', 'cash', 'CNY', '100000', '', '', '', '', '', 'active', 'true', '1'],
     // 示例 2：储蓄卡
-    <String>['默认账本', '招商银行储蓄卡', 'debit', 'CNY', '500000', '', '', '', '', '', '', '工资卡', '****1234', 'active', 'true', '2'],
+    <String>['默认账本', '招商银行储蓄卡', 'debit', 'CNY', '500000', '', '', '', '', '****1234', 'active', 'true', '2'],
     // 示例 3：信用卡
-    <String>['默认账本', '招商银行信用卡', 'credit', 'CNY', '-50000', '', '', '500000', '5', '25', '', '日常消费', '****5678', 'active', 'true', '3'],
+    <String>['默认账本', '招商银行信用卡', 'credit', 'CNY', '-50000', '500000', '5', '25', '', '****5678', 'active', 'true', '3'],
   ];
   return const ListToCsvConverter().convert(rows);
 }
@@ -158,15 +152,12 @@ List<dynamic> accountRowToCsvCells(AccountRow a) => <dynamic>[
       accountTypeExportValue(a.type),
       a.currency,
       _moneyLabel(a.balanceMinor, a.currency),
-      a.iconKey ?? '',
-      accountColorExportValue(a.colorValue),
       a.creditLimitMinor == null
           ? ''
           : _moneyLabel(a.creditLimitMinor!, a.currency),
       a.billingDay?.toString() ?? '',
       a.dueDay?.toString() ?? '',
       a.dueGraceDays?.toString() ?? '',
-      a.note ?? '',
       a.cardNumber ?? '',
       accountStatusExportValue(a.status),
       _boolLabel(a.includeInTotal),
@@ -180,15 +171,12 @@ Map<String, dynamic> accountRowToJson(AccountRow a) => <String, dynamic>{
       'type': accountTypeExportValue(a.type),
       'currency': a.currency,
       'balance': Money.fromMinor(a.balanceMinor, currency: a.currency).decimal,
-      'icon': a.iconKey ?? '',
-      'color': accountColorExportValue(a.colorValue),
       'creditLimit': a.creditLimitMinor == null
           ? ''
           : Money.fromMinor(a.creditLimitMinor!, currency: a.currency).decimal,
       'billingDay': a.billingDay,
       'dueDay': a.dueDay,
       'dueGraceDays': a.dueGraceDays,
-      'note': a.note ?? '',
       'cardNumber': a.cardNumber ?? '',
       'status': accountStatusExportValue(a.status),
       'includeInTotal': a.includeInTotal,
@@ -273,13 +261,10 @@ AccountRow? parseAccountCsvRow({
   required int iType,
   required int iCurrency,
   required int iBalance,
-  required int iIcon,
-  required int iColor,
   required int iCreditLimit,
   required int iBilling,
   required int iDue,
   required int iGrace,
-  required int iNote,
   required int iCard,
   required int iStatus,
   required int iInclude,
@@ -318,12 +303,6 @@ AccountRow? parseAccountCsvRow({
     errors.add('$lineNo：免息期应为 0-60 的整数');
     return null;
   }
-  final String colorRaw = cell(iColor);
-  final int? color = parseAccountColor(colorRaw);
-  if (colorRaw.isNotEmpty && color == null) {
-    errors.add('$lineNo：颜色应为 0xFF88CC66 / #FF88CC66 / #88CC66 形式');
-    return null;
-  }
   final String sortRaw = cell(iSort);
   final int sort = sortRaw.isEmpty ? 0 : (int.tryParse(sortRaw) ?? 0);
 
@@ -335,15 +314,12 @@ AccountRow? parseAccountCsvRow({
     book: orNull(cell(iBook)),
     currency: orNull(cell(iCurrency)) ?? 'CNY',
     balanceMinor: Money.tryParse(cell(iBalance)).minor,
-    iconKey: orNull(cell(iIcon)),
-    colorValue: color,
     creditLimitMinor: cell(iCreditLimit).isEmpty
         ? null
         : Money.tryParse(cell(iCreditLimit)).minor,
     billingDay: billing,
     dueDay: due,
     dueGraceDays: grace,
-    note: orNull(cell(iNote)),
     cardNumber: orNull(cell(iCard)),
     status: status,
     includeInTotal: _parseBool(cell(iInclude)),
@@ -387,16 +363,6 @@ AccountRow? parseAccountJsonRow(
     errors.add('$lineNo：免息期应为 0-60 的整数');
     return null;
   }
-  final dynamic colorRaw = m['color'];
-  final int? color = colorRaw == null
-      ? null
-      : parseAccountColor(colorRaw.toString());
-  if (colorRaw != null &&
-      colorRaw.toString().trim().isNotEmpty &&
-      color == null) {
-    errors.add('$lineNo：颜色应为 0xFF88CC66 / #FF88CC66 / #88CC66 形式');
-    return null;
-  }
   String orEmpty(Object? v) => (v ?? '').toString().trim();
   String? orNull(Object? v) {
     final String s = orEmpty(v);
@@ -409,15 +375,12 @@ AccountRow? parseAccountJsonRow(
     book: orNull(m['book']),
     currency: orNull(m['currency']) ?? 'CNY',
     balanceMinor: Money.tryParse(orEmpty(m['balance'])).minor,
-    iconKey: orNull(m['icon']),
-    colorValue: color,
     creditLimitMinor: orEmpty(m['creditLimit']).isEmpty
         ? null
         : Money.tryParse(orEmpty(m['creditLimit'])).minor,
     billingDay: billing,
     dueDay: due,
     dueGraceDays: grace,
-    note: orNull(m['note']),
     cardNumber: orNull(m['cardNumber']),
     status: status,
     includeInTotal: _parseBool(orEmpty(m['includeInTotal'])),

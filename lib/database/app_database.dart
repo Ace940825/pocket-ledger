@@ -863,6 +863,7 @@ class AppDatabase extends _$AppDatabase {
         cols.map((QueryRow r) => r.read<String>('name')).toSet();
     const Map<String, String> newCols = <String, String>{
       'account_ids': 'TEXT',
+      'account_names': 'TEXT',
       'lend_record_ids': 'TEXT',
       'investment_holding_ids': 'TEXT',
       'reimbursement_ids': 'TEXT',

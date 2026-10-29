@@ -108,6 +108,10 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
   bool _asJson = false;
   bool _busy = false;
 
+  /// file_picker 防重入：Android 上同一时刻只允许一个文件窗口，
+  /// 重复拉起会抛 already_active 进而触发 System UI ANR（与导入页同根因）。
+  bool _filePickerBusy = false;
+
   /// 导出类型：账单 / 账户 / 全部
   String _exportType = 'all'; // 'bill' | 'account' | 'all'
 
@@ -573,12 +577,30 @@ class _BillExportPageState extends ConsumerState<BillExportPage> {
       // file_picker 8.x：Android/iOS 的 saveFile 必须直接传 bytes（由系统
       // 面板落盘，返回保存路径）；桌面端才返回所选路径、需自行写文件。
       final bool isMobile = Platform.isAndroid || Platform.isIOS;
-      final String? picked = await FilePicker.platform.saveFile(
-        dialogTitle: '保存数据导出',
-        fileName: '数据导出_$stamp.$ext',
-        allowedExtensions: isMobile ? null : <String>[ext],
-        bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
-      );
+      // 防重入：file_picker 在 Android 上同一时刻只允许一个窗口，
+      // 重复拉起会抛 already_active 进而触发 System UI ANR（与导入页同根因）。
+      if (_filePickerBusy) return;
+      _filePickerBusy = true;
+      String? picked;
+      try {
+        picked = await FilePicker.platform.saveFile(
+          dialogTitle: '保存数据导出',
+          fileName: '数据导出_$stamp.$ext',
+          allowedExtensions: isMobile ? null : <String>[ext],
+          bytes: isMobile ? Uint8List.fromList(utf8.encode(content)) : null,
+        );
+      } on PlatformException catch (e) {
+        if (mounted) {
+          if (e.code == 'already_active') {
+            showAppToast(context, '文件窗口仍在使用中，请先关闭后再试');
+          } else {
+            showAppToast(context, '保存文件失败：$e');
+          }
+        }
+        return;
+      } finally {
+        _filePickerBusy = false;
+      }
       if (picked == null) {
         if (mounted) showAppToast(context, '已取消保存');
         return;
