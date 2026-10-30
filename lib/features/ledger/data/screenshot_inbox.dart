@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -91,8 +90,8 @@ class ScreenshotInboxController extends Notifier<ScreenshotInboxState> {
   /// 规避「先拉起 APP 后写文件」的时序竞争；为 false 时（前台持续轮询）
   /// 只检查一次文件是否存在——前台已有 1.5s 轮询兜底，不需要再跑长循环。
   ///
-  /// [intent] 仅在命中「Swift 后台识别结果文件」时生效：confirm 直接落库、
-  /// view 仅重建到内存交给定向导航、pending 弹 App 内横幅等用户确认。
+  /// [intent] 仅在命中「Swift 后台识别结果文件」时生效：confirm / pending / view
+  /// 三种意图现在都直接落库（识别即入账），差异仅在落库后是否跳详情（view）。
   Future<void> checkAndProcess({
     bool withRetry = true,
     ScreenshotProcessIntent intent = ScreenshotProcessIntent.pending,
@@ -199,64 +198,43 @@ class ScreenshotInboxController extends Notifier<ScreenshotInboxState> {
     await _deleteSwiftResultFile(data);
 
     if (rows.isEmpty) {
-      state = ScreenshotInboxState(
+      state = const ScreenshotInboxState(
         status: ScreenshotInboxStatus.failed,
         error: '未从截图中识别出账单',
       );
       unawaited(ScreenshotNotificationService.instance
-          .showError('未从截图中识别出账单'));
+          .showError('未从截图中识别出账单'),);
       return;
     }
 
-    switch (intent) {
-      case ScreenshotProcessIntent.confirm:
-        // 确认入库：直接落库（App 已因 .foreground action 打开）。
-        await _saveAndNotify(rows, imgPath, bookId);
-      case ScreenshotProcessIntent.view:
-        // 查看并修改：仅重建到内存，交给定向导航，不落库、不弹横幅。
-        pendingResult = ScreenshotPendingResult(
-          rows: rows,
-          screenshotPath: imgPath,
-          bookId: bookId,
-        );
-        state = const ScreenshotInboxState();
-        unawaited(
-            ScreenshotNotificationService.instance.cancelNotification());
-      case ScreenshotProcessIntent.pending:
-        // 手动打开 App 等兜底：弹 App 内横幅等用户确认。
-        pendingResult = ScreenshotPendingResult(
-          rows: rows,
-          screenshotPath: imgPath,
-          bookId: bookId,
-        );
-        state = ScreenshotInboxState(
-          status: ScreenshotInboxStatus.pending,
-          pendingRows: rows,
-          firstRow: rows.first,
-        );
-        unawaited(
-            ScreenshotNotificationService.instance.cancelNotification());
-    }
+    // 识别即入账：App 被唤起 / 打开的瞬间即落库（落库只能在 Dart 完成），
+    // confirm / pending / view 三种意图无差别直接写入。落库后是否额外跳转
+    // 详情由引导器（bootstrapper）依据通知 action 决定，这里只负责写入。
+    await _saveAndNotify(rows, imgPath, bookId);
   }
 
-  /// 用户在系统通知上点"查看并修改"：重建 OCR 结果到内存，供引导器定向导航。
+  /// 用户在系统通知上点"去查看"：重建 OCR 结果并直接落库（识别即入账），
+  /// 落库后由引导器跳到账单详情弹窗供查看 / 修改。
   ///
-  /// 若内存中已有待查看结果（Dart 识别路径）则无需重复消费。
+  /// 若内存中已有待查看结果（Dart 识别路径）则直接用其落库；
+  /// 否则读取 Swift 后台识别结果文件落库。
   Future<void> viewFromNotification() async {
-    if (pendingResult != null && pendingResult!.rows.isNotEmpty) return;
+    if (pendingResult != null && pendingResult!.rows.isNotEmpty) {
+      await _saveAndNotify(
+        pendingResult!.rows,
+        pendingResult!.screenshotPath,
+        pendingResult!.bookId ?? ref.read(currentBookIdProvider),
+      );
+      return;
+    }
     final Map<String, dynamic>? swift = await _readSwiftResult();
     if (swift == null) return;
     await _withSwiftGuard(() async {
       final List<BillRow> rows = _parseSwiftRows(swift);
       final String? imgPath = await _resolveSwiftImage(swift);
-      if (rows.isNotEmpty) {
-        pendingResult = ScreenshotPendingResult(
-          rows: rows,
-          screenshotPath: imgPath,
-          bookId: ref.read(currentBookIdProvider),
-        );
-      }
       await _deleteSwiftResultFile(swift);
+      if (rows.isEmpty) return;
+      await _saveAndNotify(rows, imgPath, ref.read(currentBookIdProvider));
     });
   }
 
@@ -280,34 +258,16 @@ class ScreenshotInboxController extends Notifier<ScreenshotInboxState> {
         // 失败也发系统通知（后台场景下用户需要知道识别失败）。
         unawaited(ScreenshotNotificationService.instance.showError(
           parsed.errors.isEmpty ? '未从截图中识别出账单' : parsed.errors.first,
-        ));
+        ),);
         return;
       }
 
       final String? attachment = results[1] as String?;
       final String bookId = ref.read(currentBookIdProvider);
 
-      // 判断 App 是否在前台：在前台直接落库（用户能看到横幅反馈）；
-      // 在后台则发系统通知等用户确认（全程不进入 App）。
-      final bool isForeground =
-          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-
-      if (isForeground) {
-        // 前台：直接落库 + App 内横幅（现有逻辑）。
-        await _saveAndNotify(parsed.rows, attachment, bookId);
-      } else {
-        // 后台：暂存结果，发系统通知等确认。
-        state = ScreenshotInboxState(
-          status: ScreenshotInboxStatus.pending,
-          pendingRows: parsed.rows,
-          firstRow: parsed.rows.first,
-        );
-        unawaited(ScreenshotNotificationService.instance.showResult(
-          rows: parsed.rows,
-          screenshotPath: attachment,
-          bookId: bookId,
-        ));
-      }
+      // 识别即入账：无论前后台都直接落库（落库在 Dart 完成，App 被唤起即写入）。
+      // 落库后由 _saveAndNotify 弹 App 内富卡片横幅 + 发"已记账"系统通知。
+      await _saveAndNotify(parsed.rows, attachment, bookId);
     } catch (e) {
       state = ScreenshotInboxState(
         status: ScreenshotInboxStatus.failed,
@@ -374,8 +334,8 @@ class ScreenshotInboxController extends Notifier<ScreenshotInboxState> {
       skipReasons: outcome.skippedReasons,
       firstRow: rows.first,
     );
-    // 后台确认场景：通知更新为"已保存"。
-    unawaited(ScreenshotNotificationService.instance.showSaved(outcome.txnIds.length));
+    // 落库完成：系统通知更新为"已记账"（富文本摘要），3 秒后自动移除。
+    unawaited(ScreenshotNotificationService.instance.showSaved(rows));
   }
 
   /// 用户在系统通知上点"确认入库"。

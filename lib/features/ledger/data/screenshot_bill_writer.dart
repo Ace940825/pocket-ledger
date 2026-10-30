@@ -58,11 +58,12 @@ Future<ScreenshotBillSaveOutcome> saveScreenshotBillRows({
 
   for (final BillRow row in rows) {
     try {
-      // OCR 未识别到付款账户时（accountName 为空）用默认账户兜底，
+      // OCR 未识别到付款账户、或模型笼统填了"其他"时，用默认账户兜底，
       // 保证「识别成功即自动入账」成立，避免整笔被静默丢弃。
-      final String effectiveAccount = row.accountName.trim().isEmpty
+      final String rawAccount = row.accountName.trim();
+      final String effectiveAccount = (rawAccount.isEmpty || rawAccount == '其他')
           ? _defaultAccountName(accounts)
-          : row.accountName.trim();
+          : rawAccount;
       final String accountId = await _resolveAccount(
         effectiveAccount,
         bookId,

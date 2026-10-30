@@ -361,7 +361,7 @@ class _ScreenshotInboxBannerState extends ConsumerState<ScreenshotInboxBanner> {
           ],
           const SizedBox(height: 8),
           Text(
-            '已识别 ${st.txnIds.length} 笔记录信息，已自动记入账本'
+            '已自动记账 ${st.txnIds.length} 笔'
             '${st.skipReasons.isEmpty ? '' : '，跳过 ${st.skipReasons.length} 笔'}',
             style: TextStyle(
               fontSize: 12,

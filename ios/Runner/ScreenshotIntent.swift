@@ -7,9 +7,9 @@
 //        供 Swift OCR 失败时的 Dart 兜底识别）；
 //     2. 直接用 URLSession 调阿里云百炼 Qwen-VL 做 OCR（不经过 Dart / Flutter）；
 //     3. 把模型原始 items 写成交接文件 pl_pending_ocr_result.json（含 image 绝对路径）；
-//     4. 发结果通知（账单摘要 + 确认 / 查看 / 取消 action，category=SCREENSHOT_OCR）。
-//   App 启动 / 回前台时由 Dart 侧（screenshot_inbox.dart）扫描该结果文件重建并落库；
-//   确认 / 查看 action 为 .foreground，会打开 App 完成落库 / 预填（落库只能在 Dart）。
+//     4. 发结果通知（富文本账单摘要 + 查看 / 取消 action，category=SCREENSHOT_OCR）。
+//   App 启动 / 回前台（或用户点通知"去查看"）时由 Dart 侧（screenshot_inbox.dart）
+//   扫描该结果文件并自动落库（识别即入账）；落库只能在 Dart 完成。
 //
 // 接入说明（同初版）：已通过 project.pbxproj 注册进 Runner target，无需 Xcode 手动拖拽；
 // 由 GitHub Actions 云端 macos-15 + Xcode 16 编译，下列步骤仅作说明。
@@ -44,7 +44,7 @@ let kOcrSystemPrompt = """
 - category：中文分类名，如 餐饮 / 交通 / 工资 / 购物；无法确定可留空字符串
 - date：交易日期，格式 "YYYY-MM-DD HH:mm" 或 "YYYY-MM-DD"
 - merchant：商户名
-- account：付款 / 扣款账户名（必填），必须从截屏找出支付方式，如 微信支付 / 支付宝 / 招商银行信用卡(5526) / 现金；确实无法判断时填 "其他"
+- account：付款 / 扣款账户名（必填）。必须从截屏找出支付方式，并尽量保留卡号后四位，如 "招商银行信用卡(5526)" / "支付宝" / "微信支付" / "现金"；确实无法判断时填 "其他"（落库会兜底为默认账户）
 - toAccount：仅转账时填转入账户，其他情况留空字符串
 - note：备注
 - currency：币种代码，人民币为 "CNY"
@@ -62,7 +62,7 @@ let kOcrUserPrompt = """
 struct RecognizeBillIntent: AppIntent {
     static let title: LocalizedStringResource = "识别账单"
     static let description = IntentDescription(
-        "截屏识别账单，在通知中心确认后自动记入口袋账本。"
+        "截屏识别账单，打开App即自动记入口袋账本（无需确认）。"
     )
 
     // 运行时不打开 App：全程在后台跑识别，用户只看系统通知横幅。
@@ -104,7 +104,7 @@ struct RecognizeBillIntent: AppIntent {
         // 失败则保留 image+meta，由 App 打开时 Dart 兜底 OCR。
         if let items = await callOcr(imageData: data) {
             writeResultFile(items: items, imagePath: imgPath)
-            showResultNotification(summary: summarize(items: items))
+            showResultNotification(items: items)
         } else {
             showFallbackNotification()
         }
@@ -211,9 +211,12 @@ struct RecognizeBillIntent: AppIntent {
         }
     }
 
-    /// 由首笔 item 生成通知摘要（best-effort，字段缺失时回退计数）。
-    private func summarize(items: [[String: Any]]) -> String {
-        guard let first = items.first else { return "识别到 \(items.count) 笔账单" }
+    /// 由 items 生成富通知的副标题 + 正文（对标咔皮记账「已自动记账」浮层卡片）。
+    /// 副标题：分类 + 金额（单笔）；正文：账户 + 状态（多笔时回退为计数）。
+    private func buildRichSummary(items: [[String: Any]]) -> (subtitle: String, body: String) {
+        guard let first = items.first else {
+            return (subtitle: "识别到 \(items.count) 笔账单", body: "打开App自动记账")
+        }
         let category = ((first["category"] as? String) ?? "").trimmingCharacters(in: .whitespaces)
         let amount: String
         if let a = first["amount"] as? String {
@@ -225,18 +228,27 @@ struct RecognizeBillIntent: AppIntent {
         }
         let direction = ((first["direction"] as? String) ?? "").lowercased()
         let sign = direction.contains("income") ? "+" : (direction.contains("expense") ? "-" : "")
+        let account = ((first["account"] as? String) ?? "").trimmingCharacters(in: .whitespaces)
+        let accountText = account.isEmpty ? "默认账户" : account
+
         if items.count == 1 {
             let title = category.isEmpty ? "截图账单" : category
-            return "\(title) \(sign)\(amount)"
+            return (subtitle: "\(title) \(sign)\(amount)",
+                    body: "\(accountText) · 已识别，打开App自动记账")
         }
-        return "识别到 \(items.count) 笔账单"
+        return (subtitle: "识别到 \(items.count) 笔账单",
+                body: "\(accountText) 等 · 打开App自动记账")
     }
 
-    /// 结果通知：账单摘要 + 确认 / 查看 / 取消 action（category=SCREENSHOT_OCR）。
-    private func showResultNotification(summary: String) {
+    /// 结果通知：富文本（副标题=分类+金额，正文=账户+状态）+ 查看 / 取消 action。
+    /// 注：落库只能在 Dart 完成，故通知文案为「打开App自动记账」——
+    /// App 下次打开（点通知或被唤起）即自动入账，等价于「识别即入账」。
+    private func showResultNotification(items: [[String: Any]]) {
         let content = UNMutableNotificationContent()
         content.title = "口袋账本"
-        content.body = "\(summary) · 点确认自动入账"
+        let rich = buildRichSummary(items: items)
+        content.subtitle = rich.subtitle
+        content.body = rich.body
         content.sound = .default
         content.categoryIdentifier = "SCREENSHOT_OCR"
         addNotification(content)

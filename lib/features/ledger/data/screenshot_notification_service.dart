@@ -202,8 +202,21 @@ class ScreenshotNotificationService {
     );
   }
 
-  /// 确认入库成功后：更新通知为"已保存"。
-  Future<void> showSaved(int count) async {
+  /// 落库成功后：更新通知为"已记账"（富文本：首笔摘要 + 总笔数）。
+  Future<void> showSaved(List<BillRow> rows) async {
+    if (rows.isEmpty) return;
+    final BillRow first = rows.first;
+    final String amount = Money.fromMinor(first.amountMinor).format();
+    final String sign = switch (first.type) {
+      TxnType.income => '+',
+      TxnType.expense => '-',
+      _ => '',
+    };
+    final String category = first.categoryName ??
+        (first.note?.trim().isNotEmpty == true ? first.note!.trim() : '未分类');
+    final String summary = rows.length == 1
+        ? '$category $sign$amount'
+        : '$category $sign$amount 等 ${rows.length} 笔';
     const NotificationDetails details = NotificationDetails(
       iOS: DarwinNotificationDetails(
         presentAlert: true,
@@ -220,8 +233,8 @@ class ScreenshotNotificationService {
     );
     await _plugin.show(
       kScreenshotNotifId,
-      '已保存 $count 笔账单',
-      '已自动记入口袋账本',
+      '已记账 ${rows.length} 笔账单',
+      '$summary · 已记入口袋账本',
       details,
     );
     // 3 秒后自动移除通知。

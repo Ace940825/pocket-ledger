@@ -10,28 +10,22 @@ import UserNotifications
     ) -> Bool {
         GeneratedPluginRegistrant.register(with: self)
 
-        // 注册截图识别通知的 category + action 按钮。
-        // action：确认入库 / 取消 / 查看并修改。
-        // 确认入库：必须打开 App 才能落库（数据库写入在 Dart），故加 .foreground；
-        // 保留 .authenticationRequired 让锁屏下需先解锁再确认，避免误触财务操作。
-        let confirm = UNNotificationAction(
-            identifier: "SCREENSHOT_CONFIRM",
-            title: "确认入库",
-            options: [.foreground, .authenticationRequired]
+        // 注册截图识别通知的 category + action 按钮（识别即入账，去掉"确认入库"）。
+        // 查看：打开 App 自动落库并跳到账单详情，故加 .foreground；
+        // 取消：打开 App 丢弃本次识别结果（含 .destructive 红色样式）。
+        let view = UNNotificationAction(
+            identifier: "SCREENSHOT_VIEW",
+            title: "去查看",
+            options: [.foreground]
         )
         let cancel = UNNotificationAction(
             identifier: "SCREENSHOT_DISMISS",
             title: "取消",
-            options: [.destructive]
-        )
-        let view = UNNotificationAction(
-            identifier: "SCREENSHOT_VIEW",
-            title: "查看并修改",
-            options: [.foreground]
+            options: [.foreground, .destructive]
         )
         let category = UNNotificationCategory(
             identifier: "SCREENSHOT_OCR",
-            actions: [confirm, cancel, view],
+            actions: [view, cancel],
             intentIdentifiers: [],
             options: []
         )

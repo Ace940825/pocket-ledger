@@ -3,15 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../database/app_database.dart';
-import '../../../domain/enums.dart';
 import '../../../routing/app_router.dart';
-import '../../record/presentation/record_sheet.dart';
-import '../../record/record_tab.dart';
 import '../data/screenshot_inbox.dart';
 import '../data/screenshot_notification_service.dart';
+import '../providers/ledger_providers.dart';
 import 'screenshot_inbox_banner.dart';
 import 'transaction_detail_sheet.dart';
 
@@ -85,24 +82,24 @@ class _ScreenshotInboxBootstrapperState
     }
   }
 
-  /// 通知 action 回调：确认入库 / 取消 / 查看。
+  /// 通知 action 回调：去查看 / 取消（"确认入库"已并入自动落库，无需单独确认）。
   ///
-  /// 异步：view 需先重建 OCR 结果（Swift 路径读交接文件）再决定跳转时机；
-  /// confirm / dismiss 也需等待落库 / 清理完成。
+  /// 异步：view 需先重建 OCR 结果并自动落库（Swift 路径读交接文件 / Dart 路径
+  /// 用内存暂存），落库完成后再跳到账单详情；dismiss 需等待清理完成。
   Future<void> _onNotificationAction(String action, String? payload) async {
     final controller = ref.read(screenshotInboxProvider.notifier);
     switch (action) {
       case kActionConfirm:
+        // 兼容旧版"确认入库"action：直接落库。
         await controller.confirmFromNotification();
       case kActionDismiss:
         await controller.cancelFromNotification();
       case kActionView:
-        // 查看：重建 OCR 结果到内存（Swift 路径从文件重建，Dart 路径已就绪）。
-        // 若 App 已在前台直接跳转；否则标记待跳转，回前台后导航到记一笔页。
+        // 去查看：App 唤起即自动落库（识别即入账），随后跳到账单详情。
         await controller.viewFromNotification();
         if (_lifecycle == AppLifecycleState.resumed) {
           _pendingViewFromNotification = false;
-          _navigateToRecordWithOcr();
+          await _openSavedDetail();
         } else {
           _pendingViewFromNotification = true;
         }
@@ -118,33 +115,26 @@ class _ScreenshotInboxBootstrapperState
       // 先处理 pending deep link（通知"查看"跳转），再扫描交接文件。
       if (_pendingViewFromNotification) {
         _pendingViewFromNotification = false;
-        _navigateToRecordWithOcr();
+        unawaited(_openSavedDetail());
       }
       ref.read(screenshotInboxProvider.notifier).checkAndProcess();
     }
   }
 
-  /// 从通知"查看并修改"拉起后，跳到记一笔页预填 OCR 首笔数据。
-  void _navigateToRecordWithOcr() {
-    final pending = pendingResult;
-    if (pending == null || pending.rows.isEmpty) return;
-    final row = pending.rows.first;
-    final tab = switch (row.type) {
-      TxnType.income => RecordTab.income,
-      TxnType.expense => RecordTab.expense,
-      TxnType.transfer => RecordTab.transfer,
-    };
-    final ctx = rootNavigatorKey.currentContext;
-    if (ctx == null) return;
-    ctx.push(
-      Routes.record,
-      extra: RecordSheetLaunchArgs(
-        tab,
-        null,
-        initialAmountMinor: row.amountMinor,
-        initialNote: row.note,
-      ),
-    );
+  /// 从通知"去查看"拉起后，自动落库已完成，跳到首笔流水详情弹窗。
+  Future<void> _openSavedDetail() async {
+    final ScreenshotInboxState st = ref.read(screenshotInboxProvider);
+    if (st.status != ScreenshotInboxStatus.saved || st.txnIds.isEmpty) return;
+    final String id = st.txnIds.first;
+    final List<Transaction> txns =
+        await ref.read(transactionRepositoryProvider).getByIds([id]);
+    final Transaction? txn = txns.isEmpty ? null : txns.first;
+    if (!mounted) return;
+    final BuildContext? ctx = rootNavigatorKey.currentContext;
+    if (ctx != null && txn != null) {
+      // ignore: use_build_context_synchronously
+      await TransactionDetailSheet.show(ctx, txn);
+    }
   }
 
   @override
