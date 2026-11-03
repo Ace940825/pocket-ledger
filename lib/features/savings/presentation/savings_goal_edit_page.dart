@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/errors/failures.dart';
 import '../../../database/app_database.dart';
@@ -10,24 +11,31 @@ import '../../../routing/app_router.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/account_select_pill.dart';
 import '../../../shared/widgets/app_toast.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/info_tip_row.dart';
 import '../../../shared/widgets/label_pill.dart';
 import '../../../shared/widgets/line_icon_map.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../shared/widgets/sheet_scaffold.dart';
 import '../../../theme/app_colors.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../record/presentation/account_picker_sheet.dart';
 import '../../record/providers/recording_settings_provider.dart';
 import '../providers/savings_providers.dart';
+import 'savings_modes.dart';
+import 'savings_schedule.dart';
 
 /// 存钱计划编辑页（参照小青账「存钱计划」编辑页截图）：
 ///
-/// 存钱信息（头像 + 名称/备注预览、名称输入 15 字、备注输入 150 字）→
+/// 存钱信息（头像 + 名称/备注预览、名称输入 15 字、备注输入 150 字、
+/// 目标金额、开始日期）→
 /// 存钱快捷属性（账本行 / 转出·扣款账户 / 转至 / 转入·入款账户）→
 /// 底部固定绿色渐变「保存」。
 ///
-/// 落库口径：名称 / 备注 / 入款账户（goal.accountId）/ 转出·扣款账户
-/// （goal.sourceAccountId）均可改；目标金额 / 已存 / 截止日 / 模式等保持原值。
+/// 落库口径：名称 / 备注 / 目标金额 / 开始日期 / 入款账户（goal.accountId）/
+/// 转出·扣款账户（goal.sourceAccountId）均可改；已存 / 截止日 / 模式等保持原值。
+/// 36 期滚存为开放式目标（targetMinor=0）：隐藏目标金额、原样保留，
+/// 校验跳过「>0」（否则滚存计划无法保存任何修改）。
 /// 转出账户留空时回落 App 默认资产账户，避免编辑页再出现空占位。
 class SavingsGoalEditPage extends ConsumerStatefulWidget {
   const SavingsGoalEditPage({super.key, required this.goal});
@@ -51,6 +59,9 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
   late String? _targetAccountId; // 转入/入款账户（落库 goal.accountId）
   bool _sourceDefaultScheduled = false; // 冷启动首帧未就绪时，账户流到达后补填默认
 
+  /// 开始日期（逐期排期起点）：回显 goal.startedAt（历史数据回退 updatedAt）。
+  late DateTime _startDate;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +74,8 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
     // 转出/扣款账户：优先回显已保存值，未保存则回落 App 默认资产账户。
     _sourceAccountId =
         widget.goal.sourceAccountId ?? _resolveDefaultAssetAccountId();
+    // 开始日期：与排期口径一致（startedAt 为空回退 updatedAt）。
+    _startDate = SavingsSchedule.startOf(widget.goal);
   }
 
   /// 解析 App 默认资产账户 ID（与创建页同口径）：
@@ -143,19 +156,25 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
                       maxLength: 150,
                       maxLines: 3,
                     ),
+                    // 36 期滚存为开放式目标（targetMinor=0）：目标金额不参与进度，
+                    // 隐藏该输入框（否则「>0」校验卡死保存），保存原样保留 0。
+                    if (widget.goal.mode != SavingsMode.rolling36.name) ...<Widget>[
+                      const SizedBox(height: 12),
+                      _roundedField(
+                        controller: _targetController,
+                        hint: '目标金额',
+                        maxLength: 12,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: <TextInputFormatter>[
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d+\.?\d{0,2}'),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 12),
-                    _roundedField(
-                      controller: _targetController,
-                      hint: '目标金额',
-                      maxLength: 12,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: <TextInputFormatter>[
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'^\d+\.?\d{0,2}'),
-                        ),
-                      ],
-                    ),
+                    _startDateRow(),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -353,6 +372,62 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
     );
   }
 
+  /// 开始日期行（日历圆标 + 标题/日期 + chevron，对齐其他模式创建页）：
+  /// 点按弹 [CalendarSheet] 选日；保存后逐期排期起点整体平移。
+  Widget _startDateRow() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: _pickStartDate,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: _greenSoft,
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: LineIcon(
+                  LineIconKind.calendar,
+                  size: 22,
+                  color: _greenDeep,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    '开始日期',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    DateFormat('yyyy年M月d日').format(_startDate),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: context.forest.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            LineGlyph(
+              Icons.chevron_right,
+              size: 22,
+              color: context.forest.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 账本行（绿色圆标 + 当前账本名 + chevron，只读展示）。
   Widget _bookRow() {
     final Book? book = ref.watch(currentBookProvider).valueOrNull;
@@ -514,28 +589,69 @@ class SavingsGoalEditPageState extends ConsumerState<SavingsGoalEditPage> {
     );
   }
 
+  /// 开始日期：弹日历选日（与其他模式创建页同口径：day 粒度、周日起始）。
+  Future<void> _pickStartDate() async {
+    final CalendarSelection? picked = await CalendarSheet.show(
+      context,
+      mode: CalendarSheetMode.day,
+      initialDate: _startDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2107, 12, 31),
+      showQuickChips: true,
+      showCustomRange: false,
+      weekStart: CalendarWeekStart.sunday,
+    );
+    if (picked == null) return;
+    // day 模式返回单日（含所选时分）；若经粒度 chip 选了周期，取其起点日并保留原时分。
+    final DateTime resolved;
+    if (picked is CalendarDay) {
+      resolved = picked.date;
+    } else if (picked is CalendarPeriod) {
+      final DateTime s = picked.start;
+      resolved =
+          DateTime(s.year, s.month, s.day, _startDate.hour, _startDate.minute);
+    } else {
+      return;
+    }
+    setState(() => _startDate = resolved);
+  }
+
   Future<void> _save() async {
     final String name = _nameController.text.trim();
     if (name.isEmpty) {
       showAppToast(context, '名称不能为空');
       return;
     }
-    final Money target = Money.tryParse(_targetController.text);
-    if (target.minor <= 0) {
-      showAppToast(context, '目标金额必须大于 0');
-      return;
+    // 36 期滚存：开放式目标（targetMinor=0），目标金额输入框已隐藏，
+    // 原样保留 0，跳过「>0」校验（否则滚存计划无法保存任何修改）。
+    final bool isRolling = widget.goal.mode == SavingsMode.rolling36.name;
+    final int targetMinor;
+    if (isRolling) {
+      targetMinor = widget.goal.targetMinor;
+    } else {
+      final Money target = Money.tryParse(_targetController.text);
+      if (target.minor <= 0) {
+        showAppToast(context, '目标金额必须大于 0');
+        return;
+      }
+      targetMinor = target.minor;
     }
     try {
       await ref.read(savingsRepositoryProvider).update(
             id: widget.goal.id,
             name: name,
             // 目标金额现可在编辑页修改（见上方目标金额输入框）。
-            targetMinor: target.minor,
+            targetMinor: targetMinor,
             currentMinor: widget.goal.currentMinor,
             accountId: _targetAccountId,
             sourceAccountId: _sourceAccountId,
             deadlineAt: widget.goal.deadlineAt,
             note: _noteController.text.trim(),
+            // 开始日期：取当天零点转 UTC（与创建页落库口径一致）。
+            startedAt:
+                DateTime(_startDate.year, _startDate.month, _startDate.day)
+                    .toUtc()
+                    .millisecondsSinceEpoch,
           );
     } on AppFailure catch (e) {
       if (mounted) showAppToast(context, e.message);

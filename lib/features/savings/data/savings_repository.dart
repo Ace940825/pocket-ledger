@@ -166,9 +166,11 @@ class SavingsRepository {
     String? sourceAccountId,
     int? deadlineAt,
     String? note,
+    int? startedAt,
   }) {
     if (name.trim().isEmpty) throw const ValidationFailure('目标名称不能为空');
-    if (targetMinor <= 0) throw const ValidationFailure('目标金额必须大于 0');
+    // 0 = 开放式目标（36 期滚存 targetMinor 恒为 0），放行；负数仍拒绝。
+    if (targetMinor < 0) throw const ValidationFailure('目标金额不能为负');
     if (currentMinor < 0) throw const ValidationFailure('已存金额不能为负');
 
     final int now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -184,7 +186,12 @@ class SavingsRepository {
           sourceAccountId: Value<String?>(sourceAccountId),
           deadlineAt: Value<int?>(deadlineAt),
           note: Value<String?>(note),
-          isAchieved: Value<bool>(currentMinor >= targetMinor),
+          // 开始日期：null = 不改动（排期起点保持原值）；传值 = 改写。
+          startedAt: startedAt == null
+              ? const Value<int?>.absent()
+              : Value<int>(startedAt),
+          // 开放式目标（targetMinor = 0，如滚存计划）永不自动达成。
+          isAchieved: Value<bool>(targetMinor > 0 && currentMinor >= targetMinor),
           updatedAt: Value<int>(now),
           dirty: const Value<bool>(true),
         ),
@@ -203,6 +210,7 @@ class SavingsRepository {
           'sourceAccountId': sourceAccountId,
           'deadlineAt': deadlineAt,
           'note': note,
+          if (startedAt != null) 'startedAt': startedAt,
         },
       );
     });
@@ -537,11 +545,14 @@ class SavingsRepository {
   ///
   /// [plan] 只需携带业务参数（首期本金 / 利率 / 期限 / 期数 / 取整 / 滚存 /
   /// 利率调整记录）；id / goalId / bookId / updatedAt 由本方法补全。
+  /// [startedAt] 为计划开始日期（UTC 毫秒），逐期排期以它为起点
+  /// （[SavingsSchedule.startOf] 口径），由创建页用户选定。
   Future<String> createRolling({
     required String bookId,
     required String name,
     String? note,
     required SavingsRollingPlan plan,
+    required int startedAt,
   }) async {
     final String goalId = const Uuid().v7();
     final String planId = const Uuid().v7();
@@ -565,7 +576,8 @@ class SavingsRepository {
               repeatCycle: const Value<String>('每月1日'),
               endNote: const Value<String?>(null),
               note: Value<String?>(note),
-              startedAt: Value<int>(now),
+              // 计划开始日期 = 创建页用户选定的开始日（逐期排期起点）。
+              startedAt: Value<int>(startedAt),
               dirty: const Value<bool>(true),
               elasticMode: const Value<int>(1),
             ),

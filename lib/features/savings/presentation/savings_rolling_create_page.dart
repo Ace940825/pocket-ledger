@@ -6,8 +6,10 @@ import 'package:pocket_ledger/shared/widgets/app_toast.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/models/money.dart';
 import '../../../shared/widgets/amount_keypad.dart';
+import '../../../shared/widgets/calendar_sheet.dart';
 import '../../../shared/widgets/hairline_card.dart';
 import '../../../shared/widgets/line_icon_map.dart';
+import '../../../shared/widgets/line_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../domain/rolling_calculator.dart';
 import '../domain/savings_rolling_plan.dart';
@@ -49,11 +51,15 @@ class _SavingsRollingCreatePageState
   bool _rollAddNew = true;
   _RollMode _rollMode = _RollMode.permanent;
 
+  /// 计划开始日期：逐期排期起点（存单日期 = 起始日同日，月末 clamp）。
+  late DateTime _startDate;
+
   RollingResult? _result;
 
   @override
   void initState() {
     super.initState();
+    _startDate = DateTime.now();
     for (final TextEditingController c in <TextEditingController>[
       _nameCtrl,
       _baseCtrl,
@@ -126,7 +132,16 @@ class _SavingsRollingCreatePageState
       final SavingsRollingPlan plan = _buildPlan();
       final String goalId = await ref
           .read(savingsRepositoryProvider)
-          .createRolling(bookId: bookId, name: name, plan: plan);
+          .createRolling(
+            bookId: bookId,
+            name: name,
+            plan: plan,
+            // 计划开始日期 = 创建页选的开始日（详情页逐期排期起点）。
+            startedAt:
+                DateTime(_startDate.year, _startDate.month, _startDate.day)
+                    .toUtc()
+                    .millisecondsSinceEpoch,
+          );
       if (mounted) Navigator.of(context).pop(goalId);
     } catch (e) {
       // 失败必须可见：仓储事务异常若被吞掉，用户看到的就是「点了没反应」。
@@ -134,6 +149,33 @@ class _SavingsRollingCreatePageState
         showAppToast(context, '保存失败：$e');
       }
     }
+  }
+
+  /// 弹日历选开始日期（与 365 天等模式创建页同口径：day 粒度、周日起始）。
+  Future<void> _pickStartDate() async {
+    final CalendarSelection? picked = await CalendarSheet.show(
+      context,
+      mode: CalendarSheetMode.day,
+      initialDate: _startDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2107, 12, 31),
+      showQuickChips: true,
+      showCustomRange: false,
+      weekStart: CalendarWeekStart.sunday,
+    );
+    if (picked == null) return;
+    // day 模式返回单日（含所选时分）；若经粒度 chip 选了周期，取其起点日并保留原时分。
+    final DateTime resolved;
+    if (picked is CalendarDay) {
+      resolved = picked.date;
+    } else if (picked is CalendarPeriod) {
+      final DateTime s = picked.start;
+      resolved =
+          DateTime(s.year, s.month, s.day, _startDate.hour, _startDate.minute);
+    } else {
+      return;
+    }
+    setState(() => _startDate = resolved);
   }
 
   @override
@@ -184,6 +226,7 @@ class _SavingsRollingCreatePageState
                   ),
                 ],
               ),
+              _startDateField(),
               const SizedBox(height: 16),
               _sectionLabel('取整策略（到期本息带小数，取整后存入）'),
               _segmentRow<RoundStrategy>(
@@ -279,6 +322,64 @@ class _SavingsRollingCreatePageState
             fontWeight: FontWeight.w600,
             color: context.forest.onSurfaceVariant,
           ),
+        ),
+      );
+
+  /// 开始日期行：全站口径小标签 + 薄雾底圆角框（同 [_textField] 视觉），
+  /// 点按弹 [CalendarSheet] 选日；显示格式与其他模式创建页一致（yyyy年M月d日）。
+  Widget _startDateField() => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(left: 8, bottom: 6),
+              child: Text(
+                '开始日期',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.forest.onSurfaceVariant,
+                ),
+              ),
+            ),
+            InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: _pickStartDate,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                decoration: BoxDecoration(
+                  color: context.forest.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    const LineIcon(
+                      LineIconKind.calendar,
+                      size: 18,
+                      color: AppPalette.deepGreen,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        DateFormat('yyyy年M月d日').format(_startDate),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: context.forest.onSurface,
+                        ),
+                      ),
+                    ),
+                    LineGlyph(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: context.forest.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       );
 
