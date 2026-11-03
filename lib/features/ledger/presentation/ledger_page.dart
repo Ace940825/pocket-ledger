@@ -599,7 +599,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     required void Function(int) onTapIndex,
   }) {
     final bool scrollable = count > 20;
-    const double cellW = 20.0;
+    // 月模式（横向滚动）下日期标签含两位数字 + 「日」（如「29日」宽约 30px），
+    // 需比柱位栅距更宽以免「日」字被截断；该宽度同时约束柱位与点击命中，统一放大即可。
+    final double cellW = scrollable ? 34.0 : 20.0;
 
     Widget buildChart(double width) => BarChart(
           BarChartData(

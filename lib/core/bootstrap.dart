@@ -305,8 +305,10 @@ Future<void> _retireLegacyDefaultCategories(AppDatabase db) async {
     '奶茶',
     '果汁',
     '点心',
-    '还债',
-    '债务消减',
+    // 注：不再在此下线「还债 / 债务消减」。二者现为借还落账系统分类
+    // （_seedSystemCategories 每启必建、isSystem=1），若仍留在此列表会被
+    // 每启软删、再重建（categoryId 漂移），导致已落账的借还流水悬空、
+    // 报表「其他」项显示「未分类」。收债 / 坏账计提从未入此列表，故本就安全。
   ];
   final List<Category> rows = await (db.select(db.categories)
         ..where(
@@ -491,12 +493,12 @@ Future<void> _relinkLendFlowCategories(AppDatabase db) async {
   // 同源；长名在前防前缀截胡（「债务消减-」不被「借入-」等短名干扰）。
   const List<(String, String, CategoryType, String)> verbCategories =
       <(String, String, CategoryType, String)>[
-    ('债务消减-', '债务消减', CategoryType.expense, 'debt_reduce'),
-    ('坏账计提-', '坏账计提', CategoryType.expense, 'bad_debt'),
-    ('还债-', '还债', CategoryType.expense, 'repay_debt'),
-    ('收债-', '收债', CategoryType.income, 'collect_debt'),
-    ('借入-', '借入', CategoryType.income, 'borrow_in'),
-    ('借出-', '借出', CategoryType.expense, 'lend_out'),
+    ('债务消减', '债务消减', CategoryType.expense, 'debt_reduce'),
+    ('坏账计提', '坏账计提', CategoryType.expense, 'bad_debt'),
+    ('还债', '还债', CategoryType.expense, 'repay_debt'),
+    ('收债', '收债', CategoryType.income, 'collect_debt'),
+    ('借入', '借入', CategoryType.income, 'borrow_in'),
+    ('借出', '借出', CategoryType.expense, 'lend_out'),
   ];
   final Set<String> liveCategoryIds = (await (db.select(db.categories)
             ..where((Categories t) => t.deleted.equals(false)))
@@ -516,7 +518,9 @@ Future<void> _relinkLendFlowCategories(AppDatabase db) async {
     final String note = txn.note!;
     (String, String, CategoryType, String)? hit;
     for (final (String, String, CategoryType, String) v in verbCategories) {
-      if (note.startsWith(v.$1)) {
+      // 精准匹配「动词」原样（如「不选择具体账户」路径落账的 bare 备注）或
+      // 旧种子「动词-对方/金额」前缀（如「还债-5」「债务消减-9」）。
+      if (note == v.$1 || note.startsWith('${v.$1}-')) {
         hit = v;
         break;
       }

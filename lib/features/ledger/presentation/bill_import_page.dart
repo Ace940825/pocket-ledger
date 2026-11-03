@@ -325,7 +325,7 @@ class BillImportPage extends StatelessWidget {
     }
   }
 
-  /// 导入记录详情弹层：来源 / 完成时间 / 成功笔数 / 跳过笔数，含账户明细和问题明细。
+  /// 导入记录详情弹层：来源 / 完成时间 / 成功笔数 / 跳过笔数，含问题明细。
   void _showImportDetailSheet(BuildContext context, ImportRecord r) {
     final bool hasAccounts = r.accountNames != null && r.accountNames!.isNotEmpty;
     showAppModalSheet<void>(
@@ -340,30 +340,6 @@ class BillImportPage extends StatelessWidget {
           if (hasAccounts)
             _detailRow(context, '导入账户', '${r.accountNames!.length} 个'),
           _detailRow(context, '跳过 / 失败', '${r.skippedCount} 笔'),
-          if (hasAccounts) ...<Widget>[
-            const Divider(height: 16, color: AppPalette.divider),
-            const Text(
-              '账户明细',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppPalette.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            for (final String name in r.accountNames!)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Text(
-                  '· $name',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.5,
-                    color: context.forest.onSurfaceVariant,
-                  ),
-                ),
-              ),
-          ],
           if (r.failReasons != null && r.failReasons!.isNotEmpty) ...<Widget>[
             const Divider(height: 16, color: AppPalette.divider),
             const Text(

@@ -187,20 +187,11 @@ class _ReimbursementBillPickerPageState
             r.transactionId != null)
           r.transactionId!,
     };
-    final String? branchAccountId = widget.args.accountId;
-    final List<Transaction> branch = <Transaction>[];
-    final List<Transaction> loose = <Transaction>[];
-    for (final Transaction t in list) {
-      if (t.type != TxnType.expense || !t.isReimbursable) continue;
-      if (reimbursedBillIds.contains(t.id)) continue;
-      if (t.reimbursementAccountId != null &&
-          t.reimbursementAccountId == branchAccountId) {
-        branch.add(t);
-      } else if (t.reimbursementAccountId == null) {
-        loose.add(t);
-      }
-    }
-    return (branch, loose);
+    return splitReimbursableBills(
+      list,
+      reimbursedBillIds: reimbursedBillIds,
+      branchAccountId: widget.args.accountId,
+    );
   }
 
   Map<String, int> _receivedMap() {
@@ -479,4 +470,34 @@ class _ReimbursementBillPickerPageState
 abstract final class _SageGreen {
   static const Color a = AppPalette.sageMist;
   static const Color b = AppPalette.sageRibbon;
+}
+
+/// 可提取的报销账单分组（纯函数，便于单测）。
+///
+/// 返回 (branch, loose)：
+/// - branch：指向 [branchAccountId] 的分支账单；
+/// - loose：未指定报销账户的账单。
+///
+/// 过滤口径（与保存路径「已报销跳过抵扣」同口径）：
+/// 1. 仅支出可报销——不强制 [Transaction.isReimbursable]，否则首次报销时
+///    「选择账单」永远为空（记支出时大多没开「可报销」开关）；
+/// 2. 已全额报销（status == reimbursed 且有关联流水）的账单屏蔽，避免重复报销。
+(List<Transaction>, List<Transaction>) splitReimbursableBills(
+  List<Transaction> list, {
+  required Set<String> reimbursedBillIds,
+  required String? branchAccountId,
+}) {
+  final List<Transaction> branch = <Transaction>[];
+  final List<Transaction> loose = <Transaction>[];
+  for (final Transaction t in list) {
+    if (t.type != TxnType.expense) continue;
+    if (reimbursedBillIds.contains(t.id)) continue;
+    if (t.reimbursementAccountId != null &&
+        t.reimbursementAccountId == branchAccountId) {
+      branch.add(t);
+    } else if (t.reimbursementAccountId == null) {
+      loose.add(t);
+    }
+  }
+  return (branch, loose);
 }

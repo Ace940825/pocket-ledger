@@ -454,6 +454,7 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
 
   void _openRenameTag(Tag tag) {
     final TextEditingController ctl = TextEditingController(text: tag.name);
+    final String oldName = tag.name;
     showAppModalSheet<void>(
       context,
       title: '编辑标签',
@@ -463,6 +464,12 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
         confirmLabel: '保存',
         onConfirm: (String name) async {
           await ref.read(tagsDaoProvider).renameTag(tag.id, name, _now());
+          // 流水只存标签名字符串，重命名标签后需同步改挂历史流水的旧名。
+          if (oldName != name) {
+            await ref
+                .read(transactionsDaoProvider)
+                .migrateTagName(oldName, name, _now());
+          }
           if (mounted) Navigator.of(context).pop();
         },
       ),
@@ -1128,6 +1135,7 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
 
   void _renameTag(Tag t) {
     final TextEditingController ctl = TextEditingController(text: t.name);
+    final String oldName = t.name;
     showAppModalSheet<void>(
       context,
       title: '编辑标签',
@@ -1137,6 +1145,12 @@ class _TagReorderPageState extends ConsumerState<TagReorderPage> {
         confirmLabel: '保存',
         onConfirm: (String name) async {
           await ref.read(tagsDaoProvider).renameTag(t.id, name, _now());
+          // 流水只存标签名字符串，重命名标签后需同步改挂历史流水的旧名。
+          if (oldName != name) {
+            await ref
+                .read(transactionsDaoProvider)
+                .migrateTagName(oldName, name, _now());
+          }
           if (mounted) Navigator.of(context).pop();
         },
       ),

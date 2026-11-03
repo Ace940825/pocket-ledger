@@ -495,7 +495,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
         : list
             .where(
               (Reimbursement r) =>
-                  r.accountId != null && reimbAccountIds.contains(r.accountId),
+                  r.accountId == null || reimbAccountIds.contains(r.accountId),
             )
             .toList(growable: false);
     final List<Reimbursement> scoped = scopeReimb(base);
@@ -712,7 +712,7 @@ class _ReimbursementPageState extends ConsumerState<ReimbursementPage> {
                       reimbursedCount: reimbursedCnt[a.id] ?? 0,
                       isDark: isDark,
                       onTap: () =>
-                          context.push('/accounts/${a.id}/transactions'),
+                          context.push('/reimbursement/account/${a.id}'),
                       onEdit: () => context.push('/accounts/${a.id}/edit'),
                     );
                   },

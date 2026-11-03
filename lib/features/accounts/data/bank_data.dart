@@ -48,6 +48,7 @@ final List<Bank> kBuiltinBanks = <Bank>[
   const Bank(name: '保定银行', initial: 'B', color: BankTint.green),
   const Bank(name: '北海银行', initial: 'B', color: BankTint.amber),
   const Bank(name: '北京农商银行', initial: 'B', color: BankTint.greenDeep),
+  const Bank(name: '百信银行', initial: 'B', color: BankTint.blue),
   // C
   const Bank(name: '建设银行', initial: 'C', color: BankTint.blueDeep),
   const Bank(name: '长沙银行', initial: 'C', color: BankTint.green),
@@ -61,11 +62,13 @@ final List<Bank> kBuiltinBanks = <Bank>[
   const Bank(name: '大连银行', initial: 'D', color: BankTint.blueDeep),
   const Bank(name: '德州银行', initial: 'D', color: BankTint.amber),
   const Bank(name: '东营银行', initial: 'D', color: BankTint.red),
+  const Bank(name: '达州银行', initial: 'D', color: BankTint.greenDeep),
   // F
   const Bank(name: '抚顺银行', initial: 'F', color: BankTint.green),
   const Bank(name: '阜新银行', initial: 'F', color: BankTint.blue),
+  const Bank(name: '富民银行', initial: 'F', color: BankTint.greenDeep),
   // G
-  const Bank(name: '中国工商银行', initial: 'G', color: BankTint.redBright),
+  const Bank(name: '工商银行', initial: 'G', color: BankTint.redBright),
   const Bank(name: '广发银行', initial: 'G', color: BankTint.red),
   const Bank(name: '光大银行', initial: 'G', color: BankTint.greenDeep),
   const Bank(name: '广州银行', initial: 'G', color: BankTint.blue),
@@ -81,23 +84,29 @@ final List<Bank> kBuiltinBanks = <Bank>[
   const Bank(name: '河北银行', initial: 'H', color: BankTint.blue),
   const Bank(name: '湖北银行', initial: 'H', color: BankTint.greenDeep),
   const Bank(name: '湖南银行', initial: 'H', color: BankTint.amber),
+  const Bank(name: '华瑞银行', initial: 'H', color: BankTint.red),
   // J
   const Bank(name: '交通银行', initial: 'J', color: BankTint.blueDeep),
   const Bank(name: '江苏银行', initial: 'J', color: BankTint.red),
   const Bank(name: '嘉兴银行', initial: 'J', color: BankTint.green),
   const Bank(name: '金华银行', initial: 'J', color: BankTint.pink),
+  const Bank(name: '金城银行', initial: 'J', color: BankTint.blue),
   // K
   const Bank(name: '昆仑银行', initial: 'K', color: BankTint.redDeep),
   const Bank(name: '昆山农商银行', initial: 'K', color: BankTint.green),
+  const Bank(name: '客商银行', initial: 'K', color: BankTint.pink),
   // L
   const Bank(name: '兰州银行', initial: 'L', color: BankTint.blue),
   const Bank(name: '廊坊银行', initial: 'L', color: BankTint.amber),
   const Bank(name: '乐山银行', initial: 'L', color: BankTint.greenDeep),
+  const Bank(name: '辽宁振兴银行', initial: 'L', color: BankTint.red),
+  const Bank(name: '蓝海银行', initial: 'L', color: BankTint.blueDeep),
   // M
   const Bank(name: '民生银行', initial: 'M', color: BankTint.green),
   const Bank(name: '蒙古银行', initial: 'M', color: BankTint.red),
+  const Bank(name: '民商银行', initial: 'M', color: BankTint.blue),
   // N
-  const Bank(name: '中国农业银行', initial: 'N', color: BankTint.greenDeep),
+  const Bank(name: '农业银行', initial: 'N', color: BankTint.greenDeep),
   const Bank(name: '宁波银行', initial: 'N', color: BankTint.amber),
   const Bank(name: '南京银行', initial: 'N', color: BankTint.red),
   const Bank(name: '南昌银行', initial: 'N', color: BankTint.blueDeep),
@@ -121,6 +130,8 @@ final List<Bank> kBuiltinBanks = <Bank>[
   const Bank(name: '上饶银行', initial: 'S', color: BankTint.green),
   const Bank(name: '上海农商银行', initial: 'S', color: BankTint.greenDeep),
   const Bank(name: '顺德农商银行', initial: 'S', color: BankTint.coral),
+  const Bank(name: '苏宁银行', initial: 'S', color: BankTint.redBright),
+  const Bank(name: '三湘银行', initial: 'S', color: BankTint.green),
   // T
   const Bank(name: '天津银行', initial: 'T', color: BankTint.redDeep),
   const Bank(name: '唐山银行', initial: 'T', color: BankTint.blue),
@@ -128,15 +139,20 @@ final List<Bank> kBuiltinBanks = <Bank>[
   // W
   const Bank(name: '无锡农商银行', initial: 'W', color: BankTint.greenDeep),
   const Bank(name: '威海银行', initial: 'W', color: BankTint.blue),
+  const Bank(name: '微众银行', initial: 'W', color: BankTint.green),
+  const Bank(name: '网商银行', initial: 'W', color: BankTint.blueDeep),
   // X
   const Bank(name: '兴业银行', initial: 'X', color: BankTint.green),
   const Bank(name: '厦门银行', initial: 'X', color: BankTint.red),
   const Bank(name: '邢台银行', initial: 'X', color: BankTint.amber),
   const Bank(name: '新乡银行', initial: 'X', color: BankTint.pink),
+  const Bank(name: '新网银行', initial: 'X', color: BankTint.blue),
+  const Bank(name: '新安银行', initial: 'X', color: BankTint.green),
   // Y
-  const Bank(name: '中国邮政储蓄银行', initial: 'Y', color: BankTint.greenDeep),
+  const Bank(name: '邮政储蓄银行', initial: 'Y', color: BankTint.greenDeep),
   const Bank(name: '烟台银行', initial: 'Y', color: BankTint.blueDeep),
   const Bank(name: '营口银行', initial: 'Y', color: BankTint.coral),
+  const Bank(name: '亿联银行', initial: 'Y', color: BankTint.blue),
   // Z
   const Bank(name: '招商银行', initial: 'Z', color: BankTint.red),
   const Bank(name: '中信银行', initial: 'Z', color: BankTint.red),
@@ -146,6 +162,8 @@ final List<Bank> kBuiltinBanks = <Bank>[
   const Bank(name: '珠海华润银行', initial: 'Z', color: BankTint.greenDeep),
   const Bank(name: '中原银行', initial: 'Z', color: BankTint.pink),
   const Bank(name: '自贡银行', initial: 'Z', color: BankTint.coral),
+  const Bank(name: '中关村银行', initial: 'Z', color: BankTint.blueDeep),
+  const Bank(name: '众邦银行', initial: 'Z', color: BankTint.green),
 ];
 
 /// 右侧字母索引条显示的全部字母。
@@ -226,23 +244,23 @@ String? matchBankName(String accountName) {
   // 关键词到标准银行名称的映射（按关键词长度从长到短排序，优先匹配更具体的）
   final Map<String, String> keywordMap = <String, String>{
     // 国有六大行
-    '中国工商银行': '中国工商银行',
-    '工商银行': '中国工商银行',
-    '工行': '中国工商银行',
-    '中国建设银行': '中国建设银行',
-    '建设银行': '中国建设银行',
-    '建行': '中国建设银行',
-    '中国农业银行': '中国农业银行',
-    '农业银行': '中国农业银行',
-    '农行': '中国农业银行',
+    '中国工商银行': '工商银行',
+    '工商银行': '工商银行',
+    '工行': '工商银行',
+    '中国建设银行': '建设银行',
+    '建设银行': '建设银行',
+    '建行': '建设银行',
+    '中国农业银行': '农业银行',
+    '农业银行': '农业银行',
+    '农行': '农业银行',
     '中国银行': '中国银行',
     '中行': '中国银行',
     '交通银行': '交通银行',
     '交行': '交通银行',
-    '中国邮政储蓄银行': '中国邮政储蓄银行',
-    '邮政储蓄银行': '中国邮政储蓄银行',
-    '邮储银行': '中国邮政储蓄银行',
-    '邮储': '中国邮政储蓄银行',
+    '中国邮政储蓄银行': '邮政储蓄银行',
+    '邮政储蓄银行': '邮政储蓄银行',
+    '邮储银行': '邮政储蓄银行',
+    '邮储': '邮政储蓄银行',
 
     // 股份制商业银行
     '招商银行': '招商银行',
@@ -276,7 +294,6 @@ String? matchBankName(String accountName) {
     '江苏银行': '江苏银行',
     '南京银行': '南京银行',
     '宁波银行': '宁波银行',
-    '杭州银行': '杭州银行',
     '杭州银行': '杭州银行',
     '苏州银行': '苏州银行',
     '长沙银行': '长沙银行',
@@ -315,6 +332,29 @@ String? matchBankName(String accountName) {
     '东亚银行': '东亚银行',
     '恒生银行': '恒生银行',
     '星展银行': '星展银行',
+
+    // 民营银行 / 直销银行
+    '微众银行': '微众银行',
+    '网商银行': '网商银行',
+    '华瑞银行': '华瑞银行',
+    '金城银行': '金城银行',
+    '民商银行': '民商银行',
+    '富民银行': '富民银行',
+    '新网银行': '新网银行',
+    '中关村银行': '中关村银行',
+    '亿联银行': '亿联银行',
+    '众邦银行': '众邦银行',
+    '华通银行': '华通银行',
+    '苏宁银行': '苏宁银行',
+    '蓝海银行': '蓝海银行',
+    '辽宁振兴银行': '辽宁振兴银行',
+    '客商银行': '客商银行',
+    '新安银行': '新安银行',
+    '三湘银行': '三湘银行',
+    '锡商银行': '锡商银行',
+    '裕民银行': '裕民银行',
+    '百信银行': '百信银行',
+    '达州银行': '达州银行',
   };
 
   // 按关键词长度从长到短排序，优先匹配更具体的

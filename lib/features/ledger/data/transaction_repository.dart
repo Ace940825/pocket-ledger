@@ -832,6 +832,7 @@ class TransactionRepository {
     double? latitude,
     double? longitude,
     String? placeName,
+    List<String>? tags,
   }) async {
     if (fromAccountId == toAccountId) {
       throw const ValidationFailure('转出与转入账户不能相同');
@@ -898,6 +899,7 @@ class TransactionRepository {
         latitude: latitude,
         longitude: longitude,
         placeName: placeName,
+        tags: tags,
       ),
     );
   }

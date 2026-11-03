@@ -70,16 +70,12 @@ class _AccountSortPageState extends ConsumerState<AccountSortPage> {
     }
     setState(() => _saving = true);
     try {
-      // 按分类拆解扁平顺序，分别回写各组的 sortOrder。
-      final Map<AccountCategory, List<String>> byCat =
-          <AccountCategory, List<String>>{};
-      for (final Account a in _items!) {
-        byCat.putIfAbsent(a.type.category, () => <String>[]).add(a.id);
-      }
+      // 按扁平全局顺序一次性回写 sortOrder：账户选择器（记一笔）与账户页列表
+      // 都依赖 accountsProvider 的「全局 sortOrder 升序」，若按分类各自从 0 重排
+      // 会导致选择器跨分类交错（资本0/负债0/投资0… 交织），自定义排序失真。
+      // 改为整列写全局递增序号：分组页在组内同样单调递增，视觉顺序亦正确。
       final dao = ref.read(accountsDaoProvider);
-      for (final List<String> ids in byCat.values) {
-        await dao.reorder(ids);
-      }
+      await dao.reorder(_items!.map((Account a) => a.id).toList());
       if (mounted) {
         showAppToast(context, '排序已保存');
         Navigator.of(context).pop();

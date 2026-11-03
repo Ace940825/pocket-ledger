@@ -590,6 +590,21 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
         _toAccountId = preToAccountId;
       }
     }
+    // 默认资产账户：新建（非编辑 / 非模板 / 非退款 · 报销预关联）模式预填到「账户」键，
+    // 用户可随时在账户选择器改。解决"设了默认账户、记一笔明细仍显示无"的问题。
+    if (widget.initialTemplate == null &&
+        widget.editTxnId == null &&
+        widget.editLendId == null &&
+        widget.refundSourceId == null &&
+        widget.refundSourceIds.isEmpty &&
+        widget.reimburseSourceId == null &&
+        _accountId == null) {
+      final String? defaultAccount =
+          ref.read(recordingSettingsProvider).defaultAssetAccount;
+      if (defaultAccount != null && defaultAccount.isNotEmpty) {
+        _accountId = defaultAccount;
+      }
+    }
     // 编辑模式：异步加载原记录并回填（流水 / 借还二选一）。
     if (widget.editTxnId != null) {
       _loadEditingTxn();
@@ -1311,6 +1326,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                   latitude: _locLat,
                   longitude: _locLng,
                   placeName: _locName,
+                  tags: _tags,
                 );
             savedId = _editingTxn!.id;
             break;
@@ -1326,6 +1342,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
                 note: _noteController.text.trim(),
                 attachmentUrls: _attachmentPaths,
                 // 位置仅支出默认开启：转账不携带（编辑路径缺省由仓储保留原值）。
+                tags: _tags.isEmpty ? null : _tags,
               );
         case RecordTab.refund:
           // 编辑模式：更新原退款流水（保留 sourceModule=refund / relatedId）。
@@ -1476,12 +1493,28 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
               final bool borrowIn = _lendDir == LendDirection.borrowIn;
               final String verb = borrowIn ? '还债' : '收债';
               final String userNote = _noteController.text.trim();
+              // 仍挂系统分类（还债 / 收债），否则该笔在报表「其他」环形图里
+              // 因 categoryId 为空被并入「未分类」切片（同行标题靠备注兜底
+              // 仍显示动词，但聚合维度错乱）。与 lendRepository.repay 同口径。
+              final String categoryId = await ref
+                  .read(categoryRepositoryProvider)
+                  .ensureNamed(
+                    bookId: bookId,
+                    name: verb,
+                    type: borrowIn
+                        ? CategoryType.expense
+                        : CategoryType.income,
+                    iconKey: borrowIn ? 'repay_debt' : 'collect_debt',
+                    isSystem: true,
+                    skipSync: true,
+                  );
               await ref.read(transactionRepositoryProvider).add(
                     bookId: bookId,
                     type: borrowIn ? TxnType.expense : TxnType.income,
                     amountMinor: minor,
                     accountId: _repayAccountId!,
                     occurredAt: occurredAt,
+                    categoryId: categoryId,
                     note: userNote.isEmpty ? verb : '$verb\n$userNote',
                     sourceModule: SourceModule.lend,
                     // 还债 / 收债不是收支：与借还本金流水同口径排除统计与预算。
@@ -2350,6 +2383,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       isScrollControlled: true,
       bodyPadding: EdgeInsets.zero,
       body: AccountPickerSheet(
+        maxScreenRatio: 0.8,
         filter: filter,
         selectedId: selectedId,
         title: '选择$label',
@@ -3414,6 +3448,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       isScrollControlled: true,
       bodyPadding: EdgeInsets.zero,
       body: AccountPickerSheet(
+        maxScreenRatio: 0.8,
         // 实时 watch 账户流：仅当前方向的应收 / 应付真实账户
         // （弹窗内过滤已删除账户，与 lendAccountsProvider 口径一致）
         filter: (List<Account> all) => all
@@ -7601,6 +7636,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       isScrollControlled: true,
       bodyPadding: EdgeInsets.zero,
       body: AccountPickerSheet(
+        maxScreenRatio: 0.8,
         // 实时 watch 账户流：资金类账户（排除应收 / 应付对方虚拟账户）
         filter: fundAccountsOnly,
         selectedId: _accountId,
@@ -7636,6 +7672,7 @@ class _RecordSheetState extends ConsumerState<RecordSheet>
       isScrollControlled: true,
       bodyPadding: EdgeInsets.zero,
       body: AccountPickerSheet(
+        maxScreenRatio: 0.8,
         // 实时 watch 账户流：仅「报销」类型账户（与报销页表单同口径）
         filter: (List<Account> all) => all
             .where((Account a) => a.type == AccountType.reimbursement)

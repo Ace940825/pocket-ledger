@@ -417,7 +417,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         _otherSection(),
       ];
 
-  /// 基本信息（备注 / 银行卡号），借记卡与负债模式共用。
+  /// 基本信息（账户名称 / 备注 / 银行卡号），借记卡与负债模式共用。
   Widget _basicInfoCard() => HairlineCard(
         radius: AppDimens.radiusMd,
         padding: EdgeInsets.zero,
@@ -426,6 +426,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              _fieldLabel('账户名称'),
+              TextField(
+                controller: _nameController,
+                textInputAction: TextInputAction.next,
+                decoration: _filledDecoration(),
+              ),
+              const SizedBox(height: AppDimens.md),
               _fieldLabel('备注信息'),
               TextField(
                 controller: _noteController,
@@ -757,12 +764,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       );
 
   Future<void> _save(Account account) async {
-    final String note = _noteController.text.trim();
-    // 负债账户的基本信息只有「备注信息 / 银行卡号」，没有账户名称输入框：
-    // 备注非空时以备注充当账户名（用户指定口径）；为空则保留原账户名。
-    // 其余类型仍以「账户名称」输入框（_nameController）为准。
-    final bool noteAsName = _selectedType.isDebt && note.isNotEmpty;
-    final String name = noteAsName ? note : _nameController.text.trim();
+    // 账户名称统一以名称输入框为准（银行类账户也有独立名称栏，可自定义别名）。
+    final String name = _nameController.text.trim();
     if (name.isEmpty) {
       showAppToast(context, '账户名称不能为空');
       return;

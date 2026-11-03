@@ -26,6 +26,9 @@ class LocationPickResult {
 /// 弹出小地图浮层：拖动地图 / 点选位置取点（中心定位针跟随地图中心），
 /// 确认返回 [LocationPickResult]；取消返回 null。
 ///
+/// [readOnly] 为 true 时进入「查看位置」模式：相机停在记录坐标、不自动定位到
+/// 当前 GPS、标记固定不可拖拽 / 点选 / 改点，仅用于回看记账时的位置。
+///
 /// 底图为高德瓦片（GCJ-02 坐标系，中国大陆可直连）：展示前把库内 WGS-84
 /// 纠偏成 GCJ-02；用户选点后把 GCJ-02 反解回 WGS-84 落库，坐标存取口径不变。
 Future<LocationPickResult?> showLocationMapSheet(
@@ -33,6 +36,7 @@ Future<LocationPickResult?> showLocationMapSheet(
   required double latitude,
   required double longitude,
   String? placeName,
+  bool readOnly = false,
 }) {
   return showDialog<LocationPickResult>(
     context: context,
@@ -40,6 +44,7 @@ Future<LocationPickResult?> showLocationMapSheet(
       initialLat: latitude,
       initialLng: longitude,
       initialPlace: placeName,
+      readOnly: readOnly,
     ),
   );
 }
@@ -49,11 +54,13 @@ class _LocationMapDialog extends StatefulWidget {
     required this.initialLat,
     required this.initialLng,
     this.initialPlace,
+    this.readOnly = false,
   });
 
   final double initialLat;
   final double initialLng;
   final String? initialPlace;
+  final bool readOnly;
 
   @override
   State<_LocationMapDialog> createState() => _LocationMapDialogState();
@@ -83,10 +90,13 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
     super.initState();
     _picked = (widget.initialLat, widget.initialLng);
     _placeName = widget.initialPlace;
-    // 打开小地图时自动定位到当前 GPS 位置
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _locateMe();
-    });
+    // 编辑模式：打开小地图时自动定位到当前 GPS 位置；
+    // 只读模式：停在记录坐标，不覆盖、不改点。
+    if (!widget.readOnly) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _locateMe();
+      });
+    }
   }
 
   /// 库内 WGS-84 → 高德瓦片 GCJ-02 展示坐标。
@@ -97,7 +107,9 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
 
   /// 地图事件统一收口：拖动结束 / 惯性滑动结束 / 点选居中都携带最新相机，
   /// 把当前地图中心（GCJ-02）反解回 WGS-84 作为选点，并触发逆地理编码。
+  /// 只读模式下地图事件不回写选点（位置不可改）。
   void _onMapEvent(MapEvent event) {
+    if (widget.readOnly) return;
     final LatLng center = event.camera.center;
     final (double lat, double lng) =
         gcj02ToWgs84(center.latitude, center.longitude);
@@ -197,7 +209,7 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             Text(
-              '调整位置',
+              widget.readOnly ? '查看位置' : '调整位置',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -219,9 +231,14 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                         minZoom: 3,
                         maxZoom: 18,
                         onMapEvent: _onMapEvent,
-                        // 点选地图：把点居中到定位针下（保留当前缩放级别）。
-                        onTap: (_, LatLng tapPos) => _mapController.move(
-                            tapPos, _mapController.camera.zoom,),
+                        // 编辑模式：点选地图把点居中到定位针下（保留当前缩放级别）；
+                        // 只读模式：禁用地图点选，位置不可改。
+                        onTap: widget.readOnly
+                            ? null
+                            : (_, LatLng tapPos) => _mapController.move(
+                                tapPos,
+                                _mapController.camera.zoom,
+                              ),
                       ),
                       children: <Widget>[
                         TileLayer(
@@ -251,92 +268,116 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
                               ),
                             ],
                           ),
+                        // 只读模式：在记录坐标处放置固定标记（不随地图中心移动）。
+                        if (widget.readOnly)
+                          MarkerLayer(
+                            markers: <Marker>[
+                              Marker(
+                                point: _displayCenter,
+                                width: 36,
+                                height: 36,
+                                alignment: Alignment.center,
+                                child: LineGlyph(
+                                  Icons.location_on_rounded,
+                                  size: 36,
+                                  color: context.forest.primary,
+                                  semanticLabel: '记录位置',
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                     // 右上角「定位到当前位置」按钮：高精度 GPS 获取并居中。
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: FloatingActionButton.small(
-                        heroTag: 'locate_me',
-                        tooltip: '定位到当前位置',
-                        backgroundColor: context.forest.surface,
-                        foregroundColor: context.forest.primary,
-                        onPressed: _locating ? null : _locateMe,
-                        child: _locating
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: context.forest.primary,
-                                ),
-                              )
-                            : const Icon(Icons.my_location),
-                      ),
-                    ),
-                    // 中心定位针：固定在地图几何中心，拖动地图即移动选点。
-                    // 上方 28px 让针尖（图标底部）对准几何中心。
-                    IgnorePointer(
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            const SizedBox(height: 28),
-                            LineGlyph(
-                              Icons.location_on_rounded,
-                              size: 36,
-                              color: context.forest.primary,
-                              semanticLabel: '当前选点',
-                            ),
-                          ],
+                    // 只读模式隐藏（位置不可改）。
+                    if (!widget.readOnly)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: FloatingActionButton.small(
+                          heroTag: 'locate_me',
+                          tooltip: '定位到当前位置',
+                          backgroundColor: context.forest.surface,
+                          foregroundColor: context.forest.primary,
+                          onPressed: _locating ? null : _locateMe,
+                          child: _locating
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: context.forest.primary,
+                                  ),
+                                )
+                              : const Icon(Icons.my_location),
                         ),
                       ),
-                    ),
+                    // 中心定位针：固定在地图几何中心，拖动地图即移动选点。
+                    // 上方 28px 让针尖（图标底部）对准几何中心。
+                    // 只读模式不显示（改由固定 Marker 表示记录位置）。
+                    if (!widget.readOnly)
+                      IgnorePointer(
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              const SizedBox(height: 28),
+                              LineGlyph(
+                                Icons.location_on_rounded,
+                                size: 36,
+                                color: context.forest.primary,
+                                semanticLabel: '当前选点',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: AppDimens.sm),
-            // 附近 POI 列表（横向滚动），点击可快速选择店名
-            if (_loadingPois)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: AppDimens.sm),
-                child: Center(
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+            // 附近 POI 列表（横向滚动），点击可快速选择店名。只读模式隐藏。
+            if (!widget.readOnly) ...<Widget>[
+              if (_loadingPois)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppDimens.sm),
+                  child: Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else if (_nearbyPois.isNotEmpty)
+                SizedBox(
+                  height: 48,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _nearbyPois.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: AppDimens.sm),
+                    itemBuilder: (BuildContext context, int index) {
+                      final AmapPoiItem poi = _nearbyPois[index];
+                      return ActionChip(
+                        label: Text(
+                          poi.name,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _picked = (poi.latitude, poi.longitude);
+                            _placeName = poi.name;
+                            _accuracy = null; // 选择了 POI，清空精度圈
+                          });
+                          _mapController.move(_displayCenter, _mapController.camera.zoom);
+                        },
+                      );
+                    },
                   ),
                 ),
-              )
-            else if (_nearbyPois.isNotEmpty)
-              SizedBox(
-                height: 48,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _nearbyPois.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: AppDimens.sm),
-                  itemBuilder: (BuildContext context, int index) {
-                    final AmapPoiItem poi = _nearbyPois[index];
-                    return ActionChip(
-                      label: Text(
-                        poi.name,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _picked = (poi.latitude, poi.longitude);
-                          _placeName = poi.name;
-                          _accuracy = null; // 选择了 POI，清空精度圈
-                        });
-                        _mapController.move(_displayCenter, _mapController.camera.zoom);
-                      },
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: AppDimens.sm),
+              const SizedBox(height: AppDimens.sm),
+            ],
             // 选点结果：语义化地址（逆地理编码中显示加载态）。
             Row(
               children: <Widget>[
@@ -370,22 +411,33 @@ class _LocationMapDialogState extends State<_LocationMapDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    '取消',
-                    style: TextStyle(color: context.forest.onSurfaceVariant),
+                if (widget.readOnly)
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: context.forest.primary,
+                      foregroundColor: context.forest.onPrimary,
+                    ),
+                    child: const Text('关闭'),
+                  )
+                else ...<Widget>[
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      '取消',
+                      style: TextStyle(color: context.forest.onSurfaceVariant),
+                    ),
                   ),
-                ),
-                const SizedBox(width: AppDimens.sm),
-                FilledButton(
-                  onPressed: _confirm,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: context.forest.primary,
-                    foregroundColor: context.forest.onPrimary,
+                  const SizedBox(width: AppDimens.sm),
+                  FilledButton(
+                    onPressed: _confirm,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: context.forest.primary,
+                      foregroundColor: context.forest.onPrimary,
+                    ),
+                    child: const Text('用此位置'),
                   ),
-                  child: const Text('用此位置'),
-                ),
+                ],
               ],
             ),
           ],

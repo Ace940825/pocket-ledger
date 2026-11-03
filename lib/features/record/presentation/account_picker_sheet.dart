@@ -128,6 +128,11 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
   /// 显示「现金 + 市值」、选中后主页卡显示现金，两边金额对不上。
   final bool balanceWithMarket;
 
+  /// 弹层最大占屏比例（0~1）。非空时弹层整体高度锁定为「比例 × 屏高」，
+  /// 主体区域在卡内滚动（而非默认按内容自适应、最多显示 2 行卡）。
+  /// 记一笔「选择账户」弹窗传 0.8，让长账户列表一次看到更多。
+  final double? maxScreenRatio;
+
   const AccountPickerSheet({
     super.key,
     this.filter,
@@ -141,6 +146,7 @@ class AccountPickerSheet extends ConsumerStatefulWidget {
     this.showSettings = true,
     this.showNoneRow = true,
     this.balanceWithMarket = true,
+    this.maxScreenRatio,
     this.conflictId,
     this.conflictMessage = '不能选择相同账户',
     required this.onConfirm,
@@ -229,60 +235,68 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
     // 外壳（圆角 + 拖柄 + 安全区）由 showAppModalSheet 统一提供；
     // 品牌化头部（_buildHeader：关闭 / 标题 / 齿轮 / 列表切换 / 添加）作为
     // body 首子保留，避免把 11 处调用点的标题与操作逻辑搬到外壳。
-    return ScrollConfiguration(
-      behavior: behavior,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _buildHeader(),
-          // 弹窗内提示条（冲突提示等），出现时把主体轻轻下推。
-          AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            alignment: Alignment.topCenter,
-            child: _hint == null
-                ? const SizedBox(width: double.infinity)
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppPalette.pickerCream,
-                        border: Border.all(color: AppPalette.pickerClay),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          const LineGlyph(
-                            Icons.info_outline,
-                            size: 15,
-                            color: AppPalette.clayBrown,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _hint!,
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppPalette.clayBrown,
-                              ),
+    final bool expand = widget.maxScreenRatio != null;
+    // 占屏比例模式：弹层整体高度锁定为「比例 × 屏高」，主体在卡内滚动。
+    final double? cap = expand
+        ? MediaQuery.sizeOf(context).height * widget.maxScreenRatio!
+        : null;
+    final Widget column = Column(
+      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+      children: <Widget>[
+        _buildHeader(),
+        // 弹窗内提示条（冲突提示等），出现时把主体轻轻下推。
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: Alignment.topCenter,
+          child: _hint == null
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppPalette.pickerCream,
+                      border: Border.all(color: AppPalette.pickerClay),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        const LineGlyph(
+                          Icons.info_outline,
+                          size: 15,
+                          color: AppPalette.clayBrown,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _hint!,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppPalette.clayBrown,
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-          ),
-          _buildBody(),
-          if (widget.showNoneRow) _buildNoneRow(),
-          _buildOps(),
-          const SizedBox(height: 14),
-        ],
-      ),
+                ),
+        ),
+        _buildBody(expand: expand),
+        if (widget.showNoneRow) _buildNoneRow(),
+        _buildOps(),
+        const SizedBox(height: 14),
+      ],
+    );
+    final Widget wrapped = ScrollConfiguration(behavior: behavior, child: column);
+    if (cap == null) return wrapped;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: cap),
+      child: wrapped,
     );
   }
 
@@ -333,7 +347,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
   }
 
   // ── 账户主体（网格或列表） ──
-  Widget _buildBody() {
+  Widget _buildBody({required bool expand}) {
     final List<Account> items = _items;
     // 证券账户的持仓市值聚合（按 accountId）；余额展示 = 现金 + 市值。
     // balanceWithMarket=false（转账 / 报销等现金口径调用方）时传空 map：
@@ -343,7 +357,7 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
         ? ref.watch(investmentMarketValueByAccountProvider)
         : const <String, int>{};
     if (items.isEmpty) {
-      return Padding(
+      final Widget empty = Padding(
         padding: const EdgeInsets.all(AppDimens.lg),
         child: Text(
           '暂无账户，点击右上角添加',
@@ -354,6 +368,10 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
               ?.copyWith(color: context.forest.onSurfaceVariant),
         ),
       );
+      // 占屏比例模式（maxScreenRatio）下空态必须同样撑满主体区并居中：
+      // 否则「不选择具体账户 / 资产管理」两栏紧贴空态文案悬在弹层上部，
+      // 底部留出大片空白（真机截图反馈）。撑开后两栏沉到弹层底部。
+      return expand ? Expanded(child: Center(child: empty)) : empty;
     }
 
     // 主体区域高度与网格模式统一：最多显示 2 行卡（94*2+6=194），不足 4 卡时按行数自适应
@@ -361,54 +379,48 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
     final int rows = (items.length + 1) ~/ 2;
     final double bodyHeight = rows >= 2 ? 94 * 2 + 6 : 94.0 * rows;
 
+    late final Widget content;
     if (_listView) {
-      return Padding(
+      content = Padding(
         padding: const EdgeInsets.fromLTRB(14, 3, 14, 6),
-        child: SizedBox(
-          height: bodyHeight,
-          child: ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(
-              height: 1,
-              indent: 56,
-            ),
-            itemBuilder: (BuildContext ctx, int index) {
-              final Account account = items[index];
-              final bool selected = _selected == account.name;
-              final Money money = Money.fromMinor(
-                displayBalanceWithMarket(account, mv),
-                currency: account.currency,
-              );
-              return _ListRow(
-                account: account,
-                selected: selected,
-                money: money,
-                amountColor: accountAmountColor(
-                  context,
-                  account,
-                  money,
-                  selected: selected,
-                ),
-                onTap: () => _pick(account.name),
-              );
-            },
+        child: ListView.separated(
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const Divider(
+            height: 1,
+            indent: 56,
           ),
+          itemBuilder: (BuildContext ctx, int index) {
+            final Account account = items[index];
+            final bool selected = _selected == account.name;
+            final Money money = Money.fromMinor(
+              displayBalanceWithMarket(account, mv),
+              currency: account.currency,
+            );
+            return _ListRow(
+              account: account,
+              selected: selected,
+              money: money,
+              amountColor: accountAmountColor(
+                context,
+                account,
+                money,
+                selected: selected,
+              ),
+              onTap: () => _pick(account.name),
+            );
+          },
         ),
       );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 3, 14, 6),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          // 统一卡高 94（定稿值）：信用卡内容靠 height:1.2 行距收紧适配，避免溢出
-          const double gap = 6; // 网格间距
-          const double cardHeight = 94;
-          final double cardWidth = (constraints.maxWidth - gap) / 2;
-          // 高度与列表模式统一（bodyHeight：最多 2 行 4 卡，超出内部滚动）
-          return SizedBox(
-            height: bodyHeight,
-            child: GridView.count(
+    } else {
+      content = Padding(
+        padding: const EdgeInsets.fromLTRB(14, 3, 14, 6),
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            // 统一卡高 94（定稿值）：信用卡内容靠 height:1.2 行距收紧适配，避免溢出
+            const double gap = 6; // 网格间距
+            const double cardHeight = 94;
+            final double cardWidth = (constraints.maxWidth - gap) / 2;
+            return GridView.count(
               crossAxisCount: 2,
               mainAxisSpacing: gap,
               crossAxisSpacing: gap,
@@ -423,11 +435,16 @@ class _AccountPickerSheetState extends ConsumerState<AccountPickerSheet> {
                   onTap: () => _pick(account.name),
                 );
               }).toList(),
-            ),
-          );
-        },
-      ),
-    );
+            );
+          },
+        ),
+      );
+    }
+
+    // 占屏比例模式：主体用 Expanded 填满弹层剩余高度、卡列表在卡内滚动；
+    // 否则维持旧行为——按内容自适应、最多 2 行卡（超出才滚动）。
+    if (expand) return Expanded(child: content);
+    return SizedBox(height: bodyHeight, child: content);
   }
 
   // ── 「不选择具体账户」独立行 ──

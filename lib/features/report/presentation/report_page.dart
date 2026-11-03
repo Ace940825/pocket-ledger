@@ -2286,19 +2286,6 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
       child: Stack(
         alignment: Alignment.center,
         children: <Widget>[
-          // 外部占比标注（引线 + 分类名 + 百分比），画在饼图下层，
-          // 只占饼图外侧的空白区域，不遮挡扇区与点击。
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _DonutCalloutPainter(
-                slices: calloutSlices,
-                total: total,
-                lineColor: context.forest.onSurfaceVariant,
-                labelColor: context.forest.onSurface,
-                subLabelColor: context.forest.onSurfaceVariant,
-              ),
-            ),
-          ),
           PieChart(
             PieChartData(
               sectionsSpace: 2,
@@ -2314,6 +2301,19 @@ class _ReportTabState extends ConsumerState<_ReportTab> {
                     showTitle: false,
                   ),
               ],
+            ),
+          ),
+          // 外部占比标注（引线 + 分类名 + 百分比）：画在饼图上层，
+          // 标签与引线均排到圆环外侧，避免被扇区色块盖住导致显示不全。
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _DonutCalloutPainter(
+                slices: calloutSlices,
+                total: total,
+                lineColor: context.forest.onSurfaceVariant,
+                labelColor: context.forest.onSurface,
+                subLabelColor: context.forest.onSurfaceVariant,
+              ),
             ),
           ),
           // 中心：分支 + 粒度，点击切换大类/小类
@@ -2530,12 +2530,27 @@ class _DonutCalloutPainter extends CustomPainter {
       ..color = lineColor
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
+    // 圆心与外半径：标签须排到圆环外侧，避免被扇区色块盖住（显示不全）。
+    final double cx = size.width / 2;
+    final double cy = size.height / 2;
     for (final List<_Callout> side in <List<_Callout>>[right, left]) {
       for (final _Callout cl in side) {
-        // 引线：径向段 + 斜向段连到标签行高
+        // 标签竖向跨度内离圆心最近处的圆环水平半宽（两行标签高度须整体避开圆环，
+        // |dy|>外半径时为 0，标签整体在圆环上下方）。
+        final double dyNear = math.max(0, (cl.y - cy).abs() - cl.tp.height / 2);
+        final double ringDx = math.sqrt(
+          math.max(0, _outerR * _outerR - dyNear * dyNear),
+        );
+        // 引线端点：径向端点之外，再退到圆环水平外侧，保证标签不压扇区。
         final double edgeX = cl.sideRight
-            ? math.min(cl.p1.dx + 12, size.width - cl.tp.width - 4)
-            : math.max(cl.p1.dx - 12, cl.tp.width + 4);
+            ? math.min(
+                math.max(cl.p1.dx + 12, cx + ringDx + 10),
+                size.width - cl.tp.width - 4,
+              )
+            : math.max(
+                math.min(cl.p1.dx - 12, cx - ringDx - 10),
+                cl.tp.width + 4,
+              );
         final Path path = Path()
           ..moveTo(cl.p0.dx, cl.p0.dy)
           ..lineTo(cl.p1.dx, cl.p1.dy)

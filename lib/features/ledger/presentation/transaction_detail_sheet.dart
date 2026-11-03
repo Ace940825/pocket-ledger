@@ -324,7 +324,7 @@ class TransactionDetailSheet extends ConsumerWidget {
         _kv(
           '优惠',
           '-${Money.fromMinor(transaction.discountMinor).format()}',
-          valueColor: ForestSemantic.income,
+          valueColor: AppPalette.income,
         ),
       );
     }
@@ -745,7 +745,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                       style: const TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w600,
-                        color: ForestSemantic.income,
+                        color: AppPalette.income,
                       ),
                     ),
                   ],
@@ -939,7 +939,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
-                      color: ForestSemantic.expense,
+                      color: AppPalette.expense,
                     ),
                   ),
                   if (billAsync.valueOrNull != null) ...<Widget>[
@@ -1100,7 +1100,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                         style: const TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w600,
-                          color: ForestSemantic.expense,
+                          color: AppPalette.expense,
                         ),
                       ),
                       if (refundedMinor > 0)
@@ -1116,7 +1116,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                             ).format()}',
                             style: const TextStyle(
                               fontSize: 11,
-                              color: ForestSemantic.expense,
+                              color: AppPalette.expense,
                             ),
                           ),
                         ),
@@ -1231,10 +1231,11 @@ class TransactionDetailSheet extends ConsumerWidget {
   }
 
   /// 金额按收支规则配色（无正负号）。
+  /// 与流水列表（transaction_tile）统一使用 AppPalette 语义色，避免跨页两套令牌色差。
   Color get _amountColor => switch (transaction.type) {
-        TxnType.income => ForestSemantic.income,
-        TxnType.expense => ForestSemantic.expense,
-        TxnType.transfer => ForestSemantic.transfer,
+        TxnType.income => AppPalette.income,
+        TxnType.expense => AppPalette.expense,
+        TxnType.transfer => AppPalette.transfer,
       };
 
   /// Hero 金额：支出有优惠时「划线原价 + 实付」并排；其余仅一笔大字。
@@ -1568,11 +1569,11 @@ class _SegmentItem extends StatelessWidget {
   }
 }
 
-/// 详情页「位置」行：自持有状态（父弹窗是不可变 ConsumerWidget，改点后局部刷新）。
+/// 详情页「位置」行：展示记账时记录的坐标 / 地名，**只读不可改**。
 ///
 /// - 值区只显语义化地名（小区/店名级），无地名显「已定位」，**不再露裸坐标**；
-/// - 点按弹小地图浮层（[showLocationMapSheet]），拖拽/点选取新点 → 逆地理编码
-///   → 确认后经 [TransactionRepository.updateTransaction] 回写坐标与地名；
+/// - 点按弹只读小地图浮层（[showLocationMapSheet] readOnly），相机停在记录坐标、
+///   标记固定不可拖拽 / 点选，仅用于回看；
 /// - 长按复制地名，便于分享 / 地图检索。
 class _LocationRow extends ConsumerStatefulWidget {
   const _LocationRow({required this.transaction});
@@ -1584,46 +1585,19 @@ class _LocationRow extends ConsumerStatefulWidget {
 }
 
 class _LocationRowState extends ConsumerState<_LocationRow> {
-  late double _lat = widget.transaction.latitude!;
-  late double _lng = widget.transaction.longitude!;
-  late String? _place = widget.transaction.placeName;
-  bool _saving = false;
+  late final double _lat = widget.transaction.latitude!;
+  late final double _lng = widget.transaction.longitude!;
+  late final String? _place = widget.transaction.placeName;
 
-  Future<void> _editOnMap() async {
-    if (_saving) return;
-    final LocationPickResult? result = await showLocationMapSheet(
+  /// 点按：打开只读小地图，回看记账时的记录位置（不可修改）。
+  Future<void> _viewOnMap() async {
+    await showLocationMapSheet(
       context,
       latitude: _lat,
       longitude: _lng,
       placeName: _place,
+      readOnly: true,
     );
-    if (result == null) return;
-    if (!mounted) return;
-    setState(() => _saving = true);
-    try {
-      await ref
-          .read(transactionRepositoryProvider)
-          .updateTransaction(
-            original: widget.transaction,
-            latitude: result.latitude,
-            longitude: result.longitude,
-            // 地点解析失败时写空串清旧名（仓储语义：null = 保留原值）。
-            placeName: result.placeName ?? '',
-          );
-      if (!mounted) return;
-      setState(() {
-        _lat = result.latitude;
-        _lng = result.longitude;
-        _place = (result.placeName ?? '').isEmpty ? null : result.placeName;
-      });
-      showAppToast(context, '位置已更新');
-    } on AppFailure catch (e) {
-      if (mounted) showAppToast(context, e.message);
-    } catch (_) {
-      if (mounted) showAppToast(context, '位置更新失败，请重试');
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
 
   void _copy() {
@@ -1634,38 +1608,27 @@ class _LocationRowState extends ConsumerState<_LocationRow> {
 
   @override
   Widget build(BuildContext context) {
-
     final String display =
         (_place == null || _place!.isEmpty) ? '已定位' : _place!;
-    // 长按复制地名（点按走小地图改点，互不冲突）。
+    // 长按复制地名（点按走只读小地图回看，互不冲突）。
     return GestureDetector(
       onLongPress: _copy,
       child: InfoKVRow(
         label: '位置',
         padding: const EdgeInsets.symmetric(vertical: 14),
-        onTap: _saving ? null : _editOnMap,
+        onTap: _viewOnMap,
         value: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
           children: <Widget>[
-            if (_saving)
-              SizedBox(
-                width: 13,
-                height: 13,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: context.forest.primary,
-                ),
-              )
-            else
-              Flexible(
-                child: Text(
-                  display,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                ),
+            Flexible(
+              child: Text(
+                display,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
               ),
+            ),
             const SizedBox(width: 4),
             LineIcon(
               LineIconKind.chevronRight,

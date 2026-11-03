@@ -202,7 +202,7 @@ class SyncEngine {
         b.recordId,
         before,
         updatedAt: now,
-        deleted: (before['deleted'] as int? ?? 0) == 1,
+        deleted: (before['deleted'] as bool?) ?? false,
         syncedAt: now,
       );
       if (companion == null) continue;
